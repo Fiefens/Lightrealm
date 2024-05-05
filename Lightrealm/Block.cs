@@ -1,0 +1,140 @@
+﻿using Microsoft.Xna.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Lightrealm
+{
+    [Serializable]
+    public class Block
+    {
+        public List<Structure> Structures { get; set; } = new List<Structure>();
+        public List<Structure> StructuresToRemove { get; set; } = new List<Structure>();
+        public List<Architect> Architects { get; set; } = new List<Architect>();
+        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
+
+        public List<Object> Objects { get; set; } = new List<Object>();
+
+        public int X { get; set; }
+        public int Z { get; set; }
+
+        public District District { get; set; }
+
+        public Block(int x, int z, District d)
+        {
+            X = x;
+            Z = z;
+            District = d;
+        }
+        public Block()
+        {
+
+        }
+
+        public bool HasWell()
+        {
+            foreach (Object o in Objects)
+            {
+                if (o.Type == "well")
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        public (bool, string) HasStructure(string Type)
+        {
+            foreach (Structure s in Structures)
+            {
+                if (s.Type == Type)
+                {
+                    return (true, s.Name);
+                }
+            }
+            return (false, "");
+        }
+
+        public (Region, Location, District, Block, Structure, string) FindNearestThing(string thing)
+        {
+            (Region, Location, District, Block, Structure, string) DeterminedLocation = (null, null, null, null, null, "");
+
+            int CalculateDistance(Block block1, Block block2)
+            {
+                int Distance = 0;
+
+                if (block2.District.Location != block1.District.Location)
+                {
+                    Distance += 10 * (int)Math.Round(Vector2.Distance(new Vector2(block2.District.Location.X, block2.District.Location.Z), new Vector2(block1.District.Location.X, block1.District.Location.Z)));
+                }
+                if (block2.District != block1.District)
+                {
+                    Distance += 7;
+                }
+                if (block2 != block1)
+                {
+                    Distance += Math.Abs(block1.X - block2.X) + Math.Abs(block1.Z - block2.Z);
+                }
+
+                return Distance;
+            }
+
+            int minDistance = int.MaxValue;
+
+            foreach (Region r in District.Location.Region.World.WorldMap)
+            {
+                if (r.MyLocation != null)
+                {
+                    foreach (District district in r.MyLocation.Districts)
+                    {
+                        foreach (Block block in district.DistrictMap)
+                        {
+                            if ((thing == "well" && block.HasWell()))
+                            {
+                                int distance = CalculateDistance(this, block);
+                                if (distance < minDistance)
+                                {
+                                    minDistance = distance;
+                                    DeterminedLocation = (r, r.MyLocation, district, block, null, "well");
+                                }
+                            }
+                            else if (Game1.StructureTypes.Contains(thing))
+                            {
+                                foreach(Structure s in block.Structures)
+                                {
+                                    if(s.Type == thing)
+                                    {
+                                        int distance = CalculateDistance(this, block);
+                                        if (distance < minDistance)
+                                        {
+                                            minDistance = distance;
+                                            DeterminedLocation = (r, r.MyLocation, district, block, s, s.Name);
+                                        }
+                                    }
+                                }
+                            }
+                            else if (District.Location.Region.World.SubjectCatalogue.ContainsKey(thing))
+                            {
+                                if (District.Location.Region.World.SubjectCatalogue[thing] is Object)
+                                {
+
+                                }
+                                else if (District.Location.Region.World.SubjectCatalogue[thing] is Architect)
+                                {
+
+                                }
+                                else if (District.Location.Region.World.SubjectCatalogue[thing] is Group)
+                                {
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return DeterminedLocation;
+        }
+    }
+}
