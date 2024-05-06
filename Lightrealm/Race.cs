@@ -29,6 +29,8 @@ namespace Lightrealm
             OppositionTags = oppositionTags;
             NaturalArmor = naturalArmor;
 
+            ReferredToNames.Add(Name);
+
             Description = GenerateDescription();
         }
 
@@ -129,7 +131,7 @@ namespace Lightrealm
             {
                 {"nightfell", "N"}, {"luminarch", "L"}, {"archaix", "A"},
                 {"isofractal", "I"}, {"photonexus", "P"}, {"shade", "S"},
-                {"shadebeast", "SB"}, {"", "?"}, {"grandicosahedron", "GI"},{"hypernexus", "HN"},{"shadeheart", "SH"},
+                {"shadebeast", "SB"}, {"", "?"}, {"icosidodecahedron", "ID"},{"hypernexus", "HN"},{"shadeheart", "SH"},
                 {"cassartrae", "CA"}, {"moari", "MO"}
             };
 

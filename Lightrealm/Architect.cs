@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Security.AccessControl;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -1723,6 +1724,24 @@ namespace Lightrealm
             }
         }
 
+        public void DropInventory()
+        {
+            if(Room != null)
+            {
+                Room.Objects.AddRange(Inventory);
+                Room.Objects.AddRange(Clothing);
+                Room.Objects.Add(RightHandObject);
+                Room.Objects.Add(LeftHandObject);
+            }
+            else if (Block != null)
+            {
+                Block.Objects.AddRange(Inventory);
+                Block.Objects.AddRange(Clothing);
+                Block.Objects.Add(RightHandObject);
+                Block.Objects.Add(LeftHandObject);
+            }
+        }
+
         public void UpdateNames()
         {
             //update referred to names
@@ -1889,12 +1908,7 @@ namespace Lightrealm
             //cycle hunger, health, etc.
             //update general information
 
-            //Ok so im not sure what this glitch is,
-            //but im going to patch it by putting this
-            //in. think of it as a crappy bandaid and not a fix.
-            //Sometimes people are running their update when their block
-            //and room are null, but im going to fix this. for jnowwwww
-
+          
             List<Attack> Attacks = new List<Attack>();
 
             if (Room == null && Block == null)
@@ -3207,7 +3221,7 @@ namespace Lightrealm
 
 
 
-            foreach(Entity CurrentTarget in Targets)
+            foreach (Entity CurrentTarget in Targets)
             {
                 if (Spell == "water bolt")
                 {
@@ -3548,8 +3562,384 @@ namespace Lightrealm
                 {
                     RuptureMode = true;
                 }
+                else if (Spell == "emergence")
+                {
+                    CooldownCycles += (int)Math.Round(5 / Speed());
+                    Announcements.Add(new TextStorage($"{casterName} holds out a hand and speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple));
+
+                    if (!(CurrentTarget is Architect) || ((Architect)CurrentTarget).IsAlive == true)
+                    {
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple));
+                    }
+                    else
+                    {
+                        Architect target = (Architect)CurrentTarget;
+
+                        Announcements.Add(new TextStorage(CurrentTarget.Name + " appears in front of you!", Color.Purple));
+
+                        target.Block = Block;
+
+                        target.BodyParts.Clear();
+                        target.AddBodyParts();
+
+                        target.Inventory = new List<Object>();
+                        target.Clothing = new List<Object>();
+                        target.Energy = target.MaxEnergy();
+
+                        if (Room != null)
+                        {
+                            Room.Architects.Add(target);
+                            target.Room = Room;
+                        }
+                        else
+                        {
+                            Block.Architects.Add(target);
+                        }
+                    }
+                }
+                else if (Spell == "eternal bind")
+                {
+                    CooldownCycles += (int)Math.Round(5 / Speed());
+                    Announcements.Add(new TextStorage($"{casterName} stares deeply into " + CurrentTarget.ReferredToNames[0] + "'s eyes...", Color.Purple));
+
+                    if ((!(CurrentTarget is Architect) || ((Architect)CurrentTarget).IsAlive == false) && ((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == Room)
+                    {
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple));
+                    }
+                    else
+                    {
+                        Architect target = (Architect)CurrentTarget;
+
+                        Announcements.Add(new TextStorage(CurrentTarget.Name + " stares back in awe...", Color.Purple));
+
+                        target.ChangeOpinion(this, 999999);
+                        
+                        if(target.TargetArchitect == this && (target.Task == "killtarget" || target.Task == "disabletarget"))
+                        {
+                            target.Task = "";
+                            target.TargetArchitect = null;
+                        }
+
+                        if(!Game1.GamePlayerParty.Architects.Contains(target))
+                        {
+                            Game1.GamePlayerParty.Architects.Add(target);
+                        }
+                    }
+                }
+                else if (Spell == "expunge")
+                {
+                    CooldownCycles += (int)Math.Round(5 / Speed());
+                    Announcements.Add(new TextStorage($"{casterName} gestures agressively...", Color.Purple));
+
+
+                    if (CurrentTarget is Civilization)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} and its legacy have fallen...", Color.Purple));
+
+                        foreach (Location l in Game1.GameWorld.AllLocations)
+                        {
+                            if (l.HomeCivilization == CurrentTarget)
+                            {
+                                l.Region.MyLocation = null;
+                            }
+                        }
+                    }
+                    else if (Game1.AllSpells.Contains(CurrentTarget.Metadata))
+                    {
+                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple));
+                        Game1.GameWorld.DeletedSpells.Add(CurrentTarget.Metadata);
+
+                        foreach (Architect a in Game1.GameWorld.AllArchitects)
+                        {
+                            a.SpellsKnown.Remove(CurrentTarget.Metadata);
+                        }
+                    }
+                    else if (Game1.AllLegendarySpells.Contains(CurrentTarget.Metadata))
+                    {
+                        Announcements.Add(new TextStorage($"An accursed relic locks this spell away. Perhaps you can find and banish this artifact instead.", Color.Purple));
+                    }
+                    else if (CurrentTarget is Blight)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} has been entirely purified...", Color.Purple));
+
+                        for (int x = 0; x < Game1.GameWorld.Width; x++)
+                        {
+                            for (int z = 0; z < Game1.GameWorld.Width; z++)
+                            {
+                                if (Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width].Blight == CurrentTarget)
+                                {
+                                    Game1.GameWorld.WorldMap[x, z * Game1.GameWorld.Width].Blight = Game1.GameWorld.Purity;
+                                }
+                            }
+                        }
+                    }
+                    else if (CurrentTarget is Composition)
+                    {
+                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple));
+
+                        foreach (Architect a in Game1.GameWorld.AllArchitects)
+                        {
+                            a.CultureBank.Remove((Composition)CurrentTarget);
+                        }
+
+                        Game1.GameWorld.DeletedCompositions.Add((Composition)CurrentTarget);
+                    }
+                    else if (CurrentTarget is Deity)
+                    {
+                        Announcements.Add(new TextStorage($"You feel an intense pain...", Color.Purple));
+                        Energy = 1;
+                    }
+                    else if (CurrentTarget is District)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple));
+
+                        ((District)CurrentTarget).Location.Districts.Remove(((District)CurrentTarget));
+
+                        if (Game1.GamePlayerParty.Architects.Contains(this))
+                        {
+                            foreach (Architect a in Game1.GamePlayerParty.Architects)
+                            {
+                                if (a.District == CurrentTarget)
+                                {
+                                    Game1.MakeObservation(a.Name + " was successfully launched into oblivion. How embarrassing...", Color.Magenta);
+                                    a.IsAlive = false;
+                                    Game1.GamePlayerParty.Architects.Remove(a);
+
+                                    if (Game1.GamePlayerParty.Architects.Count == 0)
+                                    {
+                                        Game1.GameState = "dead";
+
+                                        if (Game1.GamePlayerParty.Architects.Count == 0)
+                                        {
+                                            Game1.GameState = "dead";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (CurrentTarget is Location)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple));
+
+                        ((Location)CurrentTarget).Region.MyLocation = null;
+
+                        if (Game1.GamePlayerParty.Architects.Contains(this))
+                        {
+                            foreach (Architect a in Game1.GamePlayerParty.Architects)
+                            {
+                                if (a.Location == (Location)CurrentTarget)
+                                {
+                                    Game1.MakeObservation(LoadedArchitects[ArchitectIndex].Name + " was successfully launched into oblivion. How embarrassing...", Color.Magenta);
+                                    Game1.LoadedArchitects[ArchitectIndex].IsAlive = false;
+                                    if (GamePlayerParty.Architects.Contains(LoadedArchitects[ArchitectIndex]))
+                                    {
+                                        Game1.GamePlayerParty.Architects.Remove(LoadedArchitects[ArchitectIndex]);
+
+                                        if (GamePlayerParty.Architects.Count == 0)
+                                        {
+                                            Game1.GameState = "dead";
+
+                                            if (GamePlayerParty.Architects.Count == 0)
+                                            {
+                                                Game1.GameState = "dead";
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (CurrentTarget is Party)
+                    {
+                        Announcements.Add(new TextStorage($"Your party has disbanded.", Color.Purple));
+
+                        List<Architect> ArchitectsToBanish = new List<Architect>();
+                        foreach(Architect a in Game1.GamePlayerParty.Architects)
+                        {
+                            if(a != this)
+                            {
+                                ArchitectsToBanish.Add(a);
+                            }
+                        }
+
+                        foreach(Architect a in ArchitectsToBanish)
+                        {
+                            Game1.GamePlayerParty.Architects.Remove(a);
+                        }
+                    }
+                    else if (CurrentTarget is Group)
+                    {
+                        //disbands the group, removes it from any power, does not kill the members
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name}'s relationship has fractured.", Color.Purple));
+
+                        Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
+                        Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
+
+                        foreach(Location l in Game1.GameWorld.AllLocations)
+                        {
+                            if(l.Government == CurrentTarget)
+                            {
+                                l.Government = null;
+                            }
+                        }
+
+                        foreach(Architect a in ((Group)CurrentTarget).Architects)
+                        {
+                            a.Group == null;
+                        }
+                    }
+                    else if (CurrentTarget is Architect)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} is banished and forgotten.", Color.Purple));
+
+
+                        Architect a = (Architect)CurrentTarget;
+
+                        if(District.Architects.Contains(a))
+                        {
+                            District.Architects.Remove(a);
+                        }
+
+                        Game1.GameWorld.AllArchitects.Remove(a);
+
+                        foreach (Architect A in Game1.GameWorld.AllArchitects)
+                        {
+                            A.KnownArchitectsAndOpinions.RemoveAll(opinion => opinion.Item1 == a);
+                        }
+
+                        if (Game1.GameWorld.Colossals.Contains(a))
+                        {
+                            Game1.GameWorld.Colossals.Remove(a);
+                        }
+
+                        if (Game1.LoadedArchitects.Contains(a))
+                        {
+                            Game1.LoadedArchitects.Remove(a);
+                        }
+
+                        foreach (Location l in Game1.GameWorld.AllLocations)
+                        {
+                            if (l.Government == a)
+                            {
+                                l.Government = null;
+                            }
+                        }
+
+                        for (int x = 0; x < Game1.GameWorld.Width; x++)
+                        {
+                            for (int z = 0; z < Game1.GameWorld.Width; z++)
+                            {
+                                foreach(InteractableEvent e in Game1.GameWorld.WorldMap[x,z].Events)
+                                {
+                                    if(e.GuarranteedArchitects.Contains(a))
+                                    {
+                                        e.GuarranteedArchitects.Remove(a);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        a.IsAlive = false;
+                        a.Location = null;
+                        a.District = null;
+
+                        if(a.Room != null)
+                        {
+                            a.Room.Architects.Remove(a);
+                            a.DropInventory();
+                            a.Room = null;
+                        }
+                        else if (a.Block != null)
+                        {
+                            a.Block.Architects.Remove(a);
+                            a.DropInventory();
+                            a.Block = null;
+                        }
+
+                        if(Game1.GamePlayerParty.Architects.Contains(a))
+                        {
+                            Game1.GamePlayerParty.Architects.Remove(a);
+                        }
+
+                        if (a.Group != null)
+                        {
+                            if(a.Group.Leader == a)
+                            {
+                                //disbands the group, removes it from any power, does not kill the members
+                                Announcements.Add(new TextStorage($"{CurrentTarget.Name}'s relationship has fractured.", Color.Purple));
+
+                                Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
+                                Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
+
+                                foreach (Location l in Game1.GameWorld.AllLocations)
+                                {
+                                    if (l.Government == CurrentTarget)
+                                    {
+                                        l.Government = null;
+                                    }
+                                }
+
+                                foreach (Architect A in ((Group)CurrentTarget).Architects)
+                                {
+                                    A.Group == null;
+                                }
+                            }
+                            else
+                            {
+                                a.Group.Architects.Remove(a);
+                            }
+                        }
+
+                        if (Game1.GameWorld.Hypernexus == a)
+                        {
+                            Game1.GameWorld.Hypernexus = null;
+                        }
+                        if (Game1.GameWorld.Icosidodecahedron == a)
+                        {
+                            Game1.GameWorld.Icosidodecahedron = null;
+                        }
+                        if (Game1.GameWorld.Shadeheart == a)
+                        {
+                            Game1.GameWorld.Shadeheart = null;
+                        }
+
+                    }
+                    else if (CurrentTarget is Object)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} collapses into a singularity. (UNIMPLEMENTED PLS)", Color.Purple));
+
+                        //unimplemented fsr
+                    }
+                    else if (CurrentTarget is Material)
+                    {
+                        //add the material to a list of banished materials. Replace objects iwth these materials with Void Energy, a new material when they update. You cannot cast this spell on Void Material.
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name}'s properties have been reduced away.", Color.Purple));
+
+                        Game1.GameWorld.DeletedMaterials.Add((Material)CurrentTarget);
+                    }
+                    else if (CurrentTarget is Race)
+                    {
+                        Announcements.Add(new TextStorage($"The members of {CurrentTarget.Name} have been reduced to indistinguishable lifeforms.", Color.Purple));
+                        //a banished race makes all members of that race shades. this is stored in a static list.
+
+                        Game1.GameWorld.Races
+                    }
+                    else if (CurrentTarget is Structure)
+                    {
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} vanishes.", Color.Purple));
+                    }
+                    else if (CurrentTarget is World)
+                    {
+                        Game1.GameState = "mainscreen";
+                    }
+                    else
+                    {
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple));
+                    }
+                }
             }
-            
 
 
             foreach (Imbuement i in CurrentlyActiveImbuements)

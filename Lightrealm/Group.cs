@@ -100,6 +100,8 @@ namespace Lightrealm
             PatriotismValue = leader.PatriotismValue;
             CourageValue = leader.CourageValue;
             CreativityValue = leader.CreativityValue;
+
+            ReferredToNames.Add(Name);
         }
         public Group()
         {

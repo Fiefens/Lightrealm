@@ -84,7 +84,7 @@ namespace Lightrealm
 
         public bool IsWritable { get; set; } = false;
         public Composition Content { get; set; } = null;
-        public string SpellContained { get; set; } = "";
+        public string SpellContained { get; set; } = "expunge";
 
         public bool IsGeneralGood = false;
         public Entity Owner = null;
@@ -452,8 +452,6 @@ namespace Lightrealm
             IsGeneralGood = false;
             IsWritable = false;
             IsWeapon = false;
-
-            SpellContained = "ethereal rupture";
 
             // Determine properties based on Type
             switch (Type.ToLower())

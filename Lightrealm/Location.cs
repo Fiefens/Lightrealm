@@ -294,6 +294,7 @@ namespace Lightrealm
 
                     d.Architects.Add(a);
                     Game1.LoadedArchitects.Add(a);
+
                 }
 
                 d.UnplacedPopulation = 0;

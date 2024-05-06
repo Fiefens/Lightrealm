@@ -37,13 +37,15 @@ namespace Lightrealm
         public bool SecondNewCivPlaced = false;
         public bool ThirdNewCivPlaced = false;
 
+        public List<Object> AllWrittenContent = new List<Object>();
+
         public List<string> CalamityStructures = new List<string>() { "tower", "keep", "monument", "fortress" };
 
         int ContinentalPortMaximum = Game1.r.Next(5, 8);
 
-        Architect Hypernexus;
-        Architect GrandIcosahedron;
-        Architect Shadeheart;
+        public Architect Hypernexus;
+        public Architect Icosidodecahedron;
+        public Architect Shadeheart;
 
         public (int, int) GetCalamityGrievances()
         {
@@ -143,6 +145,11 @@ namespace Lightrealm
         public List<Race> ExtraRaces { get; set; } = new List<Race>();
         public List<Race> ConstructRaces { get; set; } = new List<Race>();
         public List<Race> WildRaces { get; set; } = new List<Race>();
+
+        public List<string> DeletedSpells = new List<string>();
+        public List<Race> DeletedRaces = new List<Race>();
+        public List<Composition> DeletedCompositions = new List<Composition>();
+        public List<Material> DeletedMaterials = new List<Material>();
 
         static void Shuffle<T>(List<T> list)
         {
@@ -847,6 +854,31 @@ namespace Lightrealm
         public Material Energy { get; set; } = new Material("energy", "metaphysic", 1, 1);
         public Material Flame { get; set; } = new Material("flame", "metaphysic", 1, 1);
 
+
+        public List<Material> CoreMaterials()
+        {
+            List<Material> Mats = new List<Material>()
+            {
+                Enchromalite, Illuminite, Darkstone, Prismite, Shadesteel, Archaeon,
+                Membrane, Biocrystal, Glass, Steel, ShadeSludge, Coffee, Tea, Vitalium,
+                Spectre, Energy, Flame
+            };
+
+            Mats.AddRange(Woods);
+            Mats.AddRange(Stones);
+            Mats.AddRange(Metals);
+            Mats.AddRange(SpecialMetals);
+            Mats.AddRange(Cloths);
+            Mats.AddRange(Sheets);
+            Mats.AddRange(Gemstones);
+            Mats.AddRange(Sands);
+            Mats.AddRange(Ices);
+            Mats.AddRange(Fibers);
+
+            return Mats;
+        }
+
+
         public double Cycle { get; set; }
 
         public List<Race> ColossalTypes { get; set; } = new List<Race>();
@@ -891,9 +923,11 @@ namespace Lightrealm
                 UnusedCivColors.Add(c);
             }
 
+            string baseName = GenerateUniqueName("1S" + Game1.r.Next(5) + "s", this);
 
-            Name = "The Continent of " + GenerateUniqueName("1S" + Game1.r.Next(5) + "s", this);
-            SubjectCatalogue.Add(Name, this);
+            Name = "The Continent of " + baseName;
+            ReferredToNames.Add(Name);
+            ReferredToNames.Add(baseName);
             Purity = new Blight(this);
 
             //add materials, collapsed
@@ -1070,7 +1104,7 @@ namespace Lightrealm
             ExtraRaces.Add(GetRace("photonexus"));
             ExtraRaces.Add(GetRace("shade"));
 
-            List<(string, Material)> GrandIcosahedronParts = new List<(string, Material)>
+            List<(string, Material)> IcosidodecahedronParts = new List<(string, Material)>
             {
                 ("core", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass), ("shard", Glass)
             };
@@ -1093,7 +1127,7 @@ namespace Lightrealm
                 ("sludge", ShadeSludge)
             };
 
-            Races.Add(new Race("grandicosahedron", "huge", GrandIcosahedronParts, "gray", new List<string>() { "core" }, new List<string>() { "allevil" }, 110));
+            Races.Add(new Race("icosidodecahedron", "huge", IcosidodecahedronParts, "gray", new List<string>() { "core" }, new List<string>() { "allevil" }, 110));
             Races.Add(new Race("hypernexus", "huge", HypernexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { "allunalike" }, 125));
             Races.Add(new Race("shadeheart", "huge", ShadeheartBodyParts, "black", new List<string>() { "sludge" }, new List<string>() { "alllife" }, 80));
 
@@ -1505,7 +1539,6 @@ namespace Lightrealm
 
                     Colossals.Add(a);
 
-
                     InteractableEvent e = new InteractableEvent(WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width], 999999, "colossal", null, new List<Architect>() { a });
                     WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width].Events.Add(e);
 
@@ -1521,8 +1554,8 @@ namespace Lightrealm
 
                 Hypernexus = new Architect("", "female", GetRace("hypernexus"), Game1.r.Next(5000, 20000), "soverign", new List<Object>(), null, null, null, null, 9);
                 Hypernexus.Name = GenerateUniqueArchitectName(Hypernexus);
-                GrandIcosahedron = new Architect("", "female", GetRace("grandicosahedron"), Game1.r.Next(5000, 20000), "soverign", new List<Object>(), null, null, null, null, 9);
-                GrandIcosahedron.Name = GenerateUniqueArchitectName(Hypernexus);
+                Icosidodecahedron = new Architect("", "female", GetRace("icosidodecahedron"), Game1.r.Next(5000, 20000), "soverign", new List<Object>(), null, null, null, null, 9);
+                Icosidodecahedron.Name = GenerateUniqueArchitectName(Hypernexus);
                 Shadeheart = new Architect("", "female", GetRace("shadeheart"), Game1.r.Next(5000, 20000), "heart", new List<Object>(), null, null, null, null, 9);
                 Shadeheart.Name = GenerateUniqueArchitectName(Hypernexus);
 
@@ -1608,10 +1641,10 @@ namespace Lightrealm
                         }
                         else if (race.Name == "isofractal")
                         {
-                            l.HomeCivilization.Citizens.Add(GrandIcosahedron);
-                            l.Government = GrandIcosahedron;
-                            l.Districts[0].Architects.Add(GrandIcosahedron);
-                            HistoricalEvents.Add("The prism of expression, " + l.Name + ", was forged as a beacon of reality, manifesting under the control of " + GrandIcosahedron.Name + ".");
+                            l.HomeCivilization.Citizens.Add(Icosidodecahedron);
+                            l.Government = Icosidodecahedron;
+                            l.Districts[0].Architects.Add(Icosidodecahedron);
+                            HistoricalEvents.Add("The prism of expression, " + l.Name + ", was forged as a beacon of reality, manifesting under the control of " + Icosidodecahedron.Name + ".");
                         }
                         else if (race.Name == "shade")
                         {
@@ -1852,7 +1885,7 @@ namespace Lightrealm
                             {
                                 case 8:
                                     Count = r.Next(3, 6);
-                                    Types.AddRange(new List<string> { "archbard", "archluminary", "archartificer", "archduelist", "warlock", "sorcerer", "elemental", "hypernexus", "grandicosahedron", "shadeheart", "necromancer", "spatiomancer", "perceptomancer", "conjumancer", "fractalmancer" });
+                                    Types.AddRange(new List<string> { "archbard", "archluminary", "archartificer", "archduelist", "warlock", "sorcerer", "elemental", "hypernexus", "icosidodecahedron", "shadeheart", "necromancer", "spatiomancer", "perceptomancer", "conjumancer", "fractalmancer" });
                                     break;
                                 case 6:
                                     Count = r.Next(2, 5);
@@ -1873,7 +1906,7 @@ namespace Lightrealm
                                 Architect FoundGuy = null;
 
                                 string ChosenType = Types[r.Next(Types.Count)];
-                                List<string> SearchTheWorldTypes = new List<string> { "archartificer", "archbard", "archluminary", "archmage", "artificer", "bard", "grandicosahedron", "hypernexus", "luminary", "mage", "shadeheart", "sorcerer", "warlock" };
+                                List<string> SearchTheWorldTypes = new List<string> { "archartificer", "archbard", "archluminary", "archmage", "artificer", "bard", "icosidodecahedron", "hypernexus", "luminary", "mage", "shadeheart", "sorcerer", "warlock" };
                                 List<string> CreateYourOwnTypes = new List<string> { "animal", "beast", "beastmaster", "conjumancer", "diplomancer", "duelist", "elemental", "embezzler", "fractalmancer", "hunter", "knight", "largebeast", "magician", "mercenary", "necromancer", "perceptomancer", "scout", "spatiomancer", "spy", "thief", "archduelist" };
 
                                 bool Breaking = false;
@@ -1886,7 +1919,7 @@ namespace Lightrealm
                                         {
                                             foreach (Architect a in d.Architects)
                                             {
-                                                if (a.Profession == ChosenType)
+                                                if (a.Profession == ChosenType && !Calamity.Contains(a))
                                                 {
                                                     FoundGuy = a;
                                                     d.Architects.Remove(a);
@@ -2712,6 +2745,7 @@ namespace Lightrealm
                                         GuarranteedArch.Add(PR);
                                         break;
                                 }
+
 
                                 if (DecidedType != "")
                                 {
@@ -3868,7 +3902,9 @@ namespace Lightrealm
                                             {
                                                 string ObjectType = new List<string>() { "scroll", "scroll", "sheet", "book", "book" }[r.Next(5)];
 
-                                                a.StudyBuilding.HistoricalObjects.Add(new Object(newWork.Name, ObjectType, new List<Material>() { d.Location.HomeCivilization.CulturalCloth }, a));
+                                                Object o = new Object(newWork.Name, ObjectType, new List<Material>() { d.Location.HomeCivilization.CulturalCloth }, a);
+                                                a.StudyBuilding.HistoricalObjects.Add(o);
+                                                AllWrittenContent.Add(o);
                                             }
                                             else
                                             {

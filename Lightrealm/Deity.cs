@@ -15,6 +15,7 @@ namespace Lightrealm
         {
             Name = name;
             Allignment = allignment;
+            ReferredToNames.Add(name);
         }
         public Deity()
         {

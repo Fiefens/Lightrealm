@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class Material
+    public class Material : Entity
     {
-        public string Name { get; set; }
         public string Type { get; set; } // wood, stone, metal, or cloth
         public int Toughness { get; set; } // 0-5
         public int Rarity { get; set; }
@@ -20,6 +19,7 @@ namespace Lightrealm
             Type = type;
             Toughness = toughness;
             Rarity = rarity;
+            ReferredToNames.Add(Name);
         }
         public Material()
         {

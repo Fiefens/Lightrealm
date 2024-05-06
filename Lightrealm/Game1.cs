@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography.X509Certificates;
@@ -1381,6 +1382,12 @@ namespace Lightrealm
 
         public List<Keys> KeysNewlyPressed = new List<Keys>();
 
+
+
+        public List<Material> CoreMaterials = new List<Material>();
+
+
+
         public int FindTicks = 0;
 
         public static PointLocation DeterminePointLocation(int arrayWidth, int arrayLength, int pointX, int pointY)
@@ -1516,8 +1523,6 @@ namespace Lightrealm
         public Texture2D DistrictMarketT;
         public Texture2D DistrictMarketSurroundedT;
         public Texture2D DistrictPrismT;
-
-
 
         public Texture2D Astrionalis;
         public Texture2D Celestrioris;
@@ -3080,7 +3085,9 @@ namespace Lightrealm
 
                     foreach (Entity e in Subjects)
                     {
-                        if (e is Object || e is Architect)
+                        //add spells that can be casted at litterally anything to the list below
+
+                        if ((e is Object || e is Architect) || new List<string> {"expunge"}.Contains(Spell))
                         {
                             Targets.Add(e);
                         }
@@ -6401,6 +6408,7 @@ namespace Lightrealm
                                                 if (!(subjects.Contains(l)))
                                                 {
                                                     subjects.Add(l);
+                                                    subjects.AddRange(l.Districts);
                                                 }
                                             }
 
@@ -6418,6 +6426,7 @@ namespace Lightrealm
                                             {
                                                 subjects.Add(new Entity(spell.ToLower()));
                                             }
+
 
                                             List<string> entitiesToAdd = new List<string>
                                             {
@@ -6439,6 +6448,13 @@ namespace Lightrealm
                                             entitiesToAdd = entitiesToAdd.Except(Domains).ToList();
                                             subjects.AddRange(entitiesToAdd.Select(entity => new Entity(entity)));
                                             subjects.AddRange(Domains.Select(domain => new Entity(domain))); // Ensure all domains are also added as entities if not already covered
+                                            subjects.AddRange(GameWorld.Blights);
+                                            subjects.Add(GameWorld.DarkDeity);
+                                            subjects.Add(GameWorld.LightDeity);
+                                            subjects.AddRange(GameWorld.Groups);
+                                            subjects.AddRange(GameWorld.CoreMaterials());
+                                            subjects.AddRange(GameWorld.Races);
+                                            subjects.Add(GameWorld);
 
 
                                             foreach (Entity e in subjects)
@@ -6836,6 +6852,7 @@ namespace Lightrealm
                             }
 
                         }
+
 
                         if(KeysNewlyPressed.Contains(Keys.Enter))
                         {

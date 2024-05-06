@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Lightrealm
 {
@@ -46,6 +47,7 @@ namespace Lightrealm
         {
             Location = l; 
             Name = Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 4) - 1) + "s", this);
+            ReferredToNames.Add(Name);
             IsPrimary = isPrimary;
 
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
