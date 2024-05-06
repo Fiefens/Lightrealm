@@ -1,4 +1,5 @@
-﻿using Lightrealm.Diagnostics;
+﻿using Lightrealm.Data;
+using Lightrealm.Diagnostics;
 using Lightrealm.Input;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -1067,24 +1068,24 @@ namespace Lightrealm
         public List<(int,int,Color,int,int, int)> CivilizationParticles = new List<(int, int, Color, int, int, int)>();
 
         public static List<string> Colors = new List<string>
-{
-    "maroon",
-    "red",
-    "orange",
-    "yellow",
-    "limegreen",
-    "green",
-    "lightblue",
-    "cyan",
-    "blue",
-    "purple",
-    "magenta",
-    "coral",
-    "white",
-    "gray",
-    "black",
-    "brown"
-};
+        {
+            "maroon",
+            "red",
+            "orange",
+            "yellow",
+            "limegreen",
+            "green",
+            "lightblue",
+            "cyan",
+            "blue",
+            "purple",
+            "magenta",
+            "coral",
+            "white",
+            "gray",
+            "black",
+            "brown"
+        };
 
         public static List<string> GetFamilyColors(string inputColor)
         {
@@ -1242,60 +1243,60 @@ namespace Lightrealm
             }
         }
         List<Keys> ValidNumpadKeys = new List<Keys>
-{
-    Keys.NumPad8, // North
-    Keys.NumPad9, // Northeast
-    Keys.NumPad6, // East
-    Keys.NumPad3, // Southeast
-    Keys.NumPad2, // South
-    Keys.NumPad1, // Southwest
-    Keys.NumPad4, // West
-    Keys.NumPad7, // Northw
+        {
+            Keys.NumPad8, // North
+            Keys.NumPad9, // Northeast
+            Keys.NumPad6, // East
+            Keys.NumPad3, // Southeast
+            Keys.NumPad2, // South
+            Keys.NumPad1, // Southwest
+            Keys.NumPad4, // West
+            Keys.NumPad7, // Northw
         };
 
         Dictionary<Keys, (int dx, int dz)> directionOffsets = new Dictionary<Keys, (int dx, int dz)>
-{
-    // Existing NumPad directions
-    { Keys.NumPad8, (0, -1) },  // North
-    { Keys.NumPad9, (1, -1) },  // Northeast
-    { Keys.NumPad6, (1, 0) },   // East
-    { Keys.NumPad3, (1, 1) },   // Southeast
-    { Keys.NumPad2, (0, 1) },   // South
-    { Keys.NumPad1, (-1, 1) },  // Southwest
-    { Keys.NumPad4, (-1, 0) },  // West
-    { Keys.NumPad7, (-1, -1) }, // Northwest
-    // New ALT + QWEADZXC directions
-    { Keys.Q, (-1, -1) }, // Northwest
-    { Keys.W, (0, -1) },  // North
-    { Keys.E, (1, -1) },  // Northeast
-    { Keys.A, (-1, 0) },  // West
-    { Keys.D, (1, 0) },   // East
-    { Keys.Z, (-1, 1) },  // Southwest
-    { Keys.X, (0, 1) },   // South
-    { Keys.C, (1, 1) }    // Southeast
-};
+        {
+            // Existing NumPad directions
+            { Keys.NumPad8, (0, -1) },  // North
+            { Keys.NumPad9, (1, -1) },  // Northeast
+            { Keys.NumPad6, (1, 0) },   // East
+            { Keys.NumPad3, (1, 1) },   // Southeast
+            { Keys.NumPad2, (0, 1) },   // South
+            { Keys.NumPad1, (-1, 1) },  // Southwest
+            { Keys.NumPad4, (-1, 0) },  // West
+            { Keys.NumPad7, (-1, -1) }, // Northwest
+            // New ALT + QWEADZXC directions
+            { Keys.Q, (-1, -1) }, // Northwest
+            { Keys.W, (0, -1) },  // North
+            { Keys.E, (1, -1) },  // Northeast
+            { Keys.A, (-1, 0) },  // West
+            { Keys.D, (1, 0) },   // East
+            { Keys.Z, (-1, 1) },  // Southwest
+            { Keys.X, (0, 1) },   // South
+            { Keys.C, (1, 1) }    // Southeast
+        };
 
         Dictionary<Keys, string> KeyDirections = new Dictionary<Keys, string>
-{
-    // Existing NumPad directions
-    { Keys.NumPad8, "north" },
-    { Keys.NumPad9, "northeast" },
-    { Keys.NumPad6, "east" },
-    { Keys.NumPad3, "southeast" },
-    { Keys.NumPad2, "south" },
-    { Keys.NumPad1, "southwest" },
-    { Keys.NumPad4, "west" },
-    { Keys.NumPad7, "northwest" },
-    // New ALT + QWEADZXC directions
-    { Keys.Q, "northwest" },
-    { Keys.W, "north" },
-    { Keys.E, "northeast" },
-    { Keys.A, "west" },
-    { Keys.D, "east" },
-    { Keys.Z, "southwest" },
-    { Keys.X, "south" },
-    { Keys.C, "southeast" }
-};
+        {
+            // Existing NumPad directions
+            { Keys.NumPad8, "north" },
+            { Keys.NumPad9, "northeast" },
+            { Keys.NumPad6, "east" },
+            { Keys.NumPad3, "southeast" },
+            { Keys.NumPad2, "south" },
+            { Keys.NumPad1, "southwest" },
+            { Keys.NumPad4, "west" },
+            { Keys.NumPad7, "northwest" },
+            // New ALT + QWEADZXC directions
+            { Keys.Q, "northwest" },
+            { Keys.W, "north" },
+            { Keys.E, "northeast" },
+            { Keys.A, "west" },
+            { Keys.D, "east" },
+            { Keys.Z, "southwest" },
+            { Keys.X, "south" },
+            { Keys.C, "southeast" }
+        };
 
         public static List<TextStorage> Exposition = new List<TextStorage>();
 
@@ -1319,23 +1320,23 @@ namespace Lightrealm
         public KeyboardState previousState;
 
         public static Dictionary<string, string> IndustryToProfession = new Dictionary<string, string>()
-{
-    {"textiles", "weaver"},
-    {"spices", "merchant"},
-    {"metal", "blacksmith"},
-    {"jewelry", "craftsman"},
-    {"tools", "blacksmith"},
-    {"military", "commander"},
-    {"tea", "merchant"},
-    {"coffee", "merchant"},
-    {"wood", "carpenter"},
-    {"ceramics", "potter"},
-    {"glassmaking", "craftsman"},
-    {"dye", "craftsman"},
-    {"waspkeeping", "scholar"},
-    {"fuel", "miner"},
-    {"masonry", "mason"}
-};
+        {
+            {"textiles", "weaver"},
+            {"spices", "merchant"},
+            {"metal", "blacksmith"},
+            {"jewelry", "craftsman"},
+            {"tools", "blacksmith"},
+            {"military", "commander"},
+            {"tea", "merchant"},
+            {"coffee", "merchant"},
+            {"wood", "carpenter"},
+            {"ceramics", "potter"},
+            {"glassmaking", "craftsman"},
+            {"dye", "craftsman"},
+            {"waspkeeping", "scholar"},
+            {"fuel", "miner"},
+            {"masonry", "mason"}
+        };
 
 
         public static List<string> LightingStyles = new List<string> { "none", "none", "none", "none", "none", "candles", "candles", "candles", "candles", "a lone torch in each room", "several braziers", "an oil lamp", "a candelabra", "an oil lantern", "a blazing fireplace" };
@@ -1344,7 +1345,7 @@ namespace Lightrealm
 
         public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "bracelet", "left gauntlet", "staff", "amulet", "hourglass", "locket", "orb" };
 
-        public Dictionary<string, Texture2D> TileAtlas = new Dictionary<string, Texture2D>();
+        //public Dictionary<string, Texture2D> TileAtlas = new Dictionary<string, Texture2D>();
         public static List<string> WeightedRandomArchitectProfessions = new List<string>() { "commander", "craftsman", "craftsman", "craftsman", "mercenary", "mercenary", "mercenary", "musician", "musician", "elder", "prophet", "trader", "trader", "anarchist", "political figure", "scholar", "scholar", "scholar", "scholar" };
         public static List<string> WeightedRandomNormalProfessions = new List<string>() { "soldier", "peasant", "peasant", "peasant", "blacksmith", "miller", "baker", "merchant", "brewer", "brewer", "tanner", "tailor", "carpenter", "mason", "scribe", "butcher", "fisherman", "weaver", "potter", "miner", "miner", "no profession", "no profession", "no profession", "no profession" };
 
@@ -1353,20 +1354,19 @@ namespace Lightrealm
 
         public static List<string> DeathCauses = new List<string>() { " fell to their death ", " drowned ", " died of cancer ", " burned ", " misoperated dangerous equipment ", " died of sickness ", " starved to death ", " dehydrated ", " choked to death ", " was killed by a wild animal " };
 
-
         public static List<string> Industries = new List<string>() { "textiles", "spices", "metal", "jewelry", "tools", "military", "tea", "coffee", "wood", "ceramics", "glassmaking", "dye", "waspkeeping", "fuel", "masonry"};
 
         public static List<string> StructureTypes = new List<string>
-            {
-                "house",
-                "shrine",
-                "library",
-                "tavern",
-                "forge",
-                "watchtower",
-                "market",
-                "bighouse"
-            };
+        {
+            "house",
+            "shrine",
+            "library",
+            "tavern",
+            "forge",
+            "watchtower",
+            "market",
+            "bighouse"
+        };
 
         public static List<string> FirstNames = new List<string>();
         public static List<string> LastNames = new List<string>();
@@ -1460,6 +1460,7 @@ namespace Lightrealm
 
         public string ObservationsAndMessages = "both";
 
+        /*
         public Texture2D DesertT;
         public Texture2D ForestT;
         public Texture2D LightforestT;
@@ -1473,6 +1474,7 @@ namespace Lightrealm
         public Texture2D OutlineT;
         public Texture2D EtherealT;
         public Texture2D EmptyTileT;
+        
 
         public Texture2D nightfellCampT;
         public Texture2D nightfellVillageT;
@@ -1521,6 +1523,8 @@ namespace Lightrealm
         public Texture2D DistrictMarketT;
         public Texture2D DistrictMarketSurroundedT;
         public Texture2D DistrictPrismT;
+
+        */
 
 
 
@@ -4834,7 +4838,10 @@ namespace Lightrealm
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
+
+            GameData.LoadContent(GraphicsDevice, Content);
             ContentRoot = Content.RootDirectory;
+
 
             // Load your icon texture
             myIconTexture = Content.Load<Texture2D>("Icon");
@@ -4859,6 +4866,7 @@ namespace Lightrealm
             Shibafont = Content.Load<SpriteFont>("shibafont");
             BabyShibafont = Content.Load<SpriteFont>("babyshibafont");
 
+            /*
             DesertT = Content.Load<Texture2D>("tiles/desert");
             TileAtlas.Add("desert", DesertT);
             ForestT = Content.Load<Texture2D>("tiles/forest");
@@ -4880,10 +4888,12 @@ namespace Lightrealm
             VoidT = Content.Load<Texture2D>("tiles/void");
             TileAtlas.Add("void", VoidT);
             EtherealT = Content.Load<Texture2D>("tiles/ethereal");
-            TileAtlas.Add("ethereal", EtherealT);
+            TileAtlas.Add("ethereal", EtherealT);           
 
             PortT = Content.Load<Texture2D>("tiles/port");
+            */
 
+            /*
             DistrictEmptyDesertT = Content.Load<Texture2D>("distmap/emptydesert");
             DistrictEmptyPlainsT = Content.Load<Texture2D>("distmap/emptyplains");
             DistrictEmptySnowT = Content.Load<Texture2D>("distmap/emptysnow");
@@ -4900,12 +4910,16 @@ namespace Lightrealm
             DistrictMarketT = Content.Load<Texture2D>("distmap/market");
             DistrictMarketSurroundedT = Content.Load<Texture2D>("distmap/marketsurrounded");
             DistrictPrismT = Content.Load<Texture2D>("distmap/prism");
+            */
 
             TitleScreen = Content.Load<Texture2D>("title");
-            EmptyTileT = Content.Load<Texture2D>("tiles/emptytile");
+            
             GUI = Content.Load<Texture2D>("gui");
             InventoryGUI = Content.Load<Texture2D>("inventory gui");
 
+
+            /*
+            EmptyTileT = Content.Load<Texture2D>("tiles/emptytile");
             nightfellCampT = Content.Load<Texture2D>("tiles/locationtiles/nightfellcamp");
             TileAtlas.Add("nightfellcamp", nightfellCampT);
             nightfellVillageT = Content.Load<Texture2D>("tiles/locationtiles/nightfellvillage");
@@ -4965,6 +4979,9 @@ namespace Lightrealm
             TileAtlas.Add("fortress", FortressT);
             MonumentT = Content.Load<Texture2D>("tiles/locationtiles/monument");
             TileAtlas.Add("monument", MonumentT);
+            SanctumT = Content.Load<Texture2D>("tiles/locationtiles/sanctum");
+            TileAtlas.Add("sanctum", SanctumT);
+            */
 
             Astrionalis = Content.Load<Texture2D>("astrionalis");
             Celestrioris = Content.Load<Texture2D>("celestrioris");
@@ -4973,9 +4990,6 @@ namespace Lightrealm
             CursorT = Content.Load<Texture2D>("tiles/cursor");
             GuideT = Content.Load<Texture2D>("moveguide");
             HealthGuiT = Content.Load<Texture2D>("healthgui");
-
-            SanctumT = Content.Load<Texture2D>("tiles/locationtiles/sanctum");
-            TileAtlas.Add("sanctum", SanctumT);
 
             ArchitectHere = Content.Load<Texture2D>("distmap/architecthere");
             BleedT = Content.Load<Texture2D>("droplet");
@@ -7531,7 +7545,10 @@ namespace Lightrealm
                         // Draw cursor or tile
                         if (MapCursorX == x && MapCursorZ == z && MapCursorX != 0 && MapCursorZ != 0)
                         {
-                            _spriteBatch.Draw(CursorT, tileRect, Color.White);
+                            //_spriteBatch.Draw(CursorT, tileRect, Color.White);
+
+
+                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get("tile-cursor"), Color.White);
                         }
                         else
                         {
@@ -7546,7 +7563,10 @@ namespace Lightrealm
                                 Color.Lerp(baseColor, new Color(100, 100, 100), 1.0f) : baseColor;
 
                             // Draw the region tile with combined elevation and blight-adjusted color
-                            _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
+
+                            string tile = string.Concat("tile-", GameWorld.WorldMap[index].Biome);
+                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get(tile), finalColor);
+                            //_spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
                         }
                     }
                 }
@@ -7576,18 +7596,23 @@ namespace Lightrealm
                             if (GameWorld.WorldMap[index].PortName != "" &&
                                 (GameState != "travelmenu" || GameWorld.WorldMap[index].Explored))
                             {
-                                _spriteBatch.Draw(PortT, tileRect, Color.White);
+                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get("tile-port"), Color.White);
+                               // _spriteBatch.Draw(PortT, tileRect, Color.White);
                             }
 
                             // Draw locations based on exploration status
                             if (GameWorld.WorldMap[index].MyLocation != null &&
                                 (GameState != "travelmenu" || GameWorld.WorldMap[index].MyLocation.Explored))
                             {
+                                string tile = string.Concat("loc-", GameWorld.WorldMap[index].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[index].MyLocation.Type);
+                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get(tile), Color.White);
+                                /*
                                 _spriteBatch.Draw(
                                     TileAtlas[GameWorld.WorldMap[index].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[index].MyLocation.Type],
                                     tileRect,
                                     Color.White
                                 );
+                                */
                             }
                         }
                     }
@@ -8200,23 +8225,35 @@ namespace Lightrealm
                 {
                     for (int z = 0; z < GameWorld.Length; z++)
                     {
+                        Rectangle drawRect = new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize);
+
                         if (MapCursorX == x && MapCursorZ == z)
                         {
-                            _spriteBatch.Draw(CursorT, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), Color.White);
+                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get("tile-cursor"), Color.White);                         
+           
+                            //_spriteBatch.Draw(CursorT, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), Color.White);
                         }
                         else
                         {
                             // Draw the tile
+
+                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get(string.Concat("tile-", GameWorld.WorldMap[x + z * GameWorld.Width].Biome)), new Color(100, 100, 100));
+
+                            /*
                             _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].Biome],
                                 new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize),
                                 new Color(100, 100, 100));
+                            */
 
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].Owner != null)
                             {
+                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get("tile-outline"), ColorConverter[GameWorld.WorldMap[x + z * GameWorld.Width].Owner.Color]);
                                 // Draw outline for owned tile
+                                /*
                                 _spriteBatch.Draw(OutlineT,
                                     new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize),
                                     ColorConverter[GameWorld.WorldMap[x + z * GameWorld.Width].Owner.Color]);
+                                */
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].Owner == GamePlayerCivilization)
                                 {
@@ -8240,9 +8277,15 @@ namespace Lightrealm
                         if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null)
                         {
                             // Draw tile for custom location
+                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, 
+                                GameData.SpriteSheet.Get(string.Concat("loc-", GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type)),
+                                Color.White);
+                            
+                            /*
                             _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type],
                                 new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize),
                                 Color.White);
+                            */
                         }
 
                     }
@@ -8430,7 +8473,13 @@ namespace Lightrealm
 
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null)
                             {
-                                _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type], new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), Color.White);
+
+                                string tile = string.Concat("loc-", GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type);
+                                Rectangle drawRect = new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize);
+                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get(tile), Color.White);
+
+
+                                // _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type], , Color.White);
                             }
                         }
                     }
@@ -8615,52 +8664,63 @@ namespace Lightrealm
                             }
                             else
                             {
-                                Texture2D DecidedTexture = null;
+                                //Texture2D DecidedTexture = null;
+                                Rectangle decidedRect = Rectangle.Empty;
 
                                 if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 0)
                                 {
                                     if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "desert")
                                     {
-                                        DecidedTexture = DistrictEmptyDesertT;
+                                        //DecidedTexture = DistrictEmptyDesertT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-emptydesert");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "taiga" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "mountain" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "forest" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "lightforest")
                                     {
-                                        DecidedTexture = DistrictEmptyTreesT;
+                                        //DecidedTexture = DistrictEmptyTreesT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-emptytrees");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "tundra" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "snowpeak")
                                     {
-                                        DecidedTexture = DistrictEmptySnowT;
+                                        //DecidedTexture = DistrictEmptySnowT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-emptysnow");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "ocean")
                                     {
-                                        DecidedTexture = DistrictEmptyOceanT;
+                                        //DecidedTexture = DistrictEmptyOceanT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-ocean");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "plains")
                                     {
-                                        DecidedTexture = DistrictEmptyPlainsT;
+                                        //DecidedTexture = DistrictEmptyPlainsT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-emptyplains");
                                     }
                                 }
                                 else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 1)
                                 {
                                     if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "bighouse" || MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "house")
                                     {
-                                        DecidedTexture = DistrictBuildingT;
+                                        //DecidedTexture = DistrictBuildingT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-buildings");
                                     }
                                     else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "prism")
                                     {
-                                        DecidedTexture = DistrictPrismT;
+                                        //DecidedTexture = DistrictPrismT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-prism");
                                     }
                                     else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "spire")
                                     {
-                                        DecidedTexture = DistrictSpireT;
+                                        //DecidedTexture = DistrictSpireT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-spire");
                                     }
                                     else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "market")
                                     {
-                                        DecidedTexture = DistrictMarketT;
+                                        //DecidedTexture = DistrictMarketT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-market");
                                     }
                                     else
                                     {
-                                        DecidedTexture = DistrictSpecialBuildingT;
+                                        //DecidedTexture = DistrictSpecialBuildingT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-specialbuilding");
                                     }
                                 }
                                 else
@@ -8692,23 +8752,28 @@ namespace Lightrealm
 
                                     if (FoundKeep)
                                     {
-                                        DecidedTexture = DistrictPrismT;
+                                        //DecidedTexture = DistrictPrismT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-prism");
                                     }
                                     else if (FoundMarket && !FoundSpecial && !FoundHouse)
                                     {
-                                        DecidedTexture = DistrictMarketT;
+                                        //DecidedTexture = DistrictMarketT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-market");
                                     }
                                     else if (FoundMarket)
                                     {
-                                        DecidedTexture = DistrictMarketSurroundedT;
+                                        //DecidedTexture = DistrictMarketSurroundedT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-marketsurround");
                                     }
                                     else if (FoundHouse && !FoundSpecial)
                                     {
-                                        DecidedTexture = DistrictManyBuildingsT;
+                                        //DecidedTexture = DistrictManyBuildingsT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-manybuildings");
                                     }
                                     else
                                     {
-                                        DecidedTexture = DistrictSpecialAndBuildingsT;
+                                        //DecidedTexture = DistrictSpecialAndBuildingsT;
+                                        decidedRect = GameData.SpriteSheet.Get("map-specialandbuildings");
                                     }
 
                                 }
@@ -8742,29 +8807,41 @@ namespace Lightrealm
 
                                     if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Contains(MostRecentPartyTurnArchitect.Location.Prism))
                                     {
-                                        DecidedTexture = ShadeCoreT;
+                                        //DecidedTexture = ShadeCoreT;
+                                        decidedRect = GameData.SpriteSheet.Get("loc-shadecore");
                                     }
                                     else
                                     {
-                                        DecidedTexture = ShadeOutpostT;
+                                        //DecidedTexture = ShadeOutpostT;
+                                        decidedRect = GameData.SpriteSheet.Get("loc-shadeoutpost");
                                     }
                                 }
 
 
+                                if (decidedRect != Rectangle.Empty)
+                                {
+                                    _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), decidedRect, BuildingColor);
+                                }
+
+                                /*
                                 if(DecidedTexture != null)
                                 {
                                     _spriteBatch.Draw(DecidedTexture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), BuildingColor);
                                 }
+                                */
 
                                 foreach (Object o in MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Objects)
                                 {
                                     if (o.Type == "well")
                                     {
-                                        _spriteBatch.Draw(DistrictWellT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
+                                        
+                                        _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), GameData.SpriteSheet.Get("map-well"), Color.White);
+                                        //_spriteBatch.Draw(DistrictWellT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
                                     }
                                     else if (o.Type == "shadow storage")
                                     {
-                                        _spriteBatch.Draw(DistrictShadowStorageT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
+                                        _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), GameData.SpriteSheet.Get("map-shadowstorage"), Color.White);
+                                         //_spriteBatch.Draw(DistrictShadowStorageT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
                                     }
                                 }
 
@@ -8787,8 +8864,9 @@ namespace Lightrealm
                                     {
                                         HeavinessColor = Color.LightCyan;
                                     }
+                                    _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), GameData.SpriteSheet.Get("map-architecthere"), HeavinessColor);
 
-                                    _spriteBatch.Draw(ArchitectHere, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), HeavinessColor);
+                                    //_spriteBatch.Draw(ArchitectHere, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), HeavinessColor);
                                 }
                             }
                         }
