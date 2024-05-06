@@ -4758,7 +4758,7 @@ namespace Lightrealm
 
             // Copy the font file to the user's Fonts directory
             Directory.CreateDirectory(userFontsDirectory);
-            File.Copy(fontFilePath, Path.Combine(userFontsDirectory, "BLKCHCRY.TTF"), true);
+           // File.Copy(fontFilePath, Path.Combine(userFontsDirectory, "BLKCHCRY.TTF"), true);
 
             //create the key dictionary
             for (Keys key = Keys.A; key <= Keys.Z; key++)
@@ -4832,11 +4832,13 @@ namespace Lightrealm
             Texture2D iconTexture = Content.Load<Texture2D>("Icon");
 
             ContentPath = Path.GetFullPath("Content");
-            FirstNames = File.ReadAllLines(ContentPath + "/names.txt").ToList();
-            LastNames = File.ReadAllLines(ContentPath + "/last-names.txt").ToList();
-            Words = File.ReadAllLines(ContentPath + "/words.txt").ToList();
-            Syllables = File.ReadAllLines(ContentPath + "/syllables.txt").ToList();
-            NameSuffixes = File.ReadAllLines(ContentPath + "/namesuffixes.txt").ToList();
+            string dataPath = string.Concat(ContentPath, "\\data\\");
+
+            FirstNames = File.ReadAllLines(string.Concat(dataPath, "names.txt")).ToList();
+            LastNames = File.ReadAllLines(string.Concat(dataPath, "last-names.txt")).ToList();
+            Words = File.ReadAllLines(string.Concat(dataPath, "words.txt")).ToList();
+            Syllables = File.ReadAllLines(string.Concat(dataPath, "syllables.txt")).ToList();
+            NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
 
             ClockT = Content.Load<Texture2D>("clock");
             SkyT = Content.Load<Texture2D>("sky");
