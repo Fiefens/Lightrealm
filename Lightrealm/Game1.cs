@@ -183,11 +183,7 @@ namespace Lightrealm
                 }
             }
         }
-
-        // For watching/displaying FPS
-        FrameCounter FrameCounter;
-        GameInput GameInput;
-                
+                       
         [DllImport("SDL2.dll")]
         private static extern void SDL_SetWindowIcon(IntPtr window, IntPtr icon);
 
@@ -4600,6 +4596,8 @@ namespace Lightrealm
 
         protected override void Initialize()
         {
+            Engine.Init();
+
             // TODO: Add your initialization logic here
             Window.IsBorderless = true;
 
@@ -4801,8 +4799,6 @@ namespace Lightrealm
             InvertDoorDirection.Add("up", "down");
             InvertDoorDirection.Add("down", "up");
 
-            FrameCounter = new FrameCounter();
-            GameInput = new GameInput();
             base.Initialize();
         }
 
@@ -4810,7 +4806,7 @@ namespace Lightrealm
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            GameData.LoadContent(GraphicsDevice, Content);
+            Engine.LoadContent(GraphicsDevice, Content);
             ContentRoot = Content.RootDirectory;
 
 
@@ -4956,24 +4952,19 @@ namespace Lightrealm
 
         protected override void Update(GameTime gameTime)
         {
-            GameInput.Update();
-
-            if( GameInput.WasKeyPressed(FrameCounter.Key) )
-            {
-                FrameCounter.RenderFps = !FrameCounter.RenderFps;
-            }
-            FrameCounter.Update(gameTime);
+            Engine.Update(gameTime);
+                       
 
             if(!AllEnteredGameStates.Contains(GameState))
             {
                 AllEnteredGameStates.Add(GameState);
             }
-            if (Keyboard.GetState().IsKeyDown(Keys.F9))
+            if (Engine.Input.WasKeyPressed(Keys.F9))
             {
                 AllEnteredGameStates.Clear();
             }
 
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+            if (Engine.Input.IsKeyDown(Keys.Escape))
             {
                 EscapeTicks++;
                 if (EscapeTicks > 100)
@@ -5341,7 +5332,7 @@ namespace Lightrealm
             {
                 if (MediaPlayer.Queue.ActiveSong == null)
                 {
-                    MediaPlayer.Play(GameData.LightrealmMainTheme);
+                    MediaPlayer.Play(Engine.LightrealmMainTheme);
                 }
                 
                 if(MediaPlayer.Volume < 1 && Mute == false)
@@ -7500,7 +7491,7 @@ namespace Lightrealm
                             //_spriteBatch.Draw(CursorT, tileRect, Color.White);
 
 
-                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get("tile-cursor"), Color.White);
+                            _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, tileRect, Engine.Render.SpriteSheet.Get("tile-cursor"), Color.White);
                         }
                         else
                         {
@@ -7517,7 +7508,7 @@ namespace Lightrealm
                             // Draw the region tile with combined elevation and blight-adjusted color
 
                             string tile = string.Concat("tile-", GameWorld.WorldMap[index].Biome);
-                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get(tile), finalColor);
+                            _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, tileRect, Engine.Render.SpriteSheet.Get(tile), finalColor);
                             //_spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
                         }
                     }
@@ -7548,7 +7539,7 @@ namespace Lightrealm
                             if (GameWorld.WorldMap[index].PortName != "" &&
                                 (GameState != "travelmenu" || GameWorld.WorldMap[index].Explored))
                             {
-                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get("tile-port"), Color.White);
+                                _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, tileRect, Engine.Render.SpriteSheet.Get("tile-port"), Color.White);
                                // _spriteBatch.Draw(PortT, tileRect, Color.White);
                             }
 
@@ -7557,7 +7548,7 @@ namespace Lightrealm
                                 (GameState != "travelmenu" || GameWorld.WorldMap[index].MyLocation.Explored))
                             {
                                 string tile = string.Concat("loc-", GameWorld.WorldMap[index].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[index].MyLocation.Type);
-                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, tileRect, GameData.SpriteSheet.Get(tile), Color.White);
+                                _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, tileRect, Engine.Render.SpriteSheet.Get(tile), Color.White);
                                 /*
                                 _spriteBatch.Draw(
                                     TileAtlas[GameWorld.WorldMap[index].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[index].MyLocation.Type],
@@ -7705,7 +7696,7 @@ namespace Lightrealm
                     currentObject = Tips[r.Next(Tips.Count)]; // Assuming 'Tips' is a List<string> and 'r' is a Random instance
                 }
 
-                DrawCenteredText(_spriteBatch, currentObject, 1250, GameData.Shibafont, new Color(objectOpacity, 0, 0));
+                DrawCenteredText(_spriteBatch, currentObject, 1250, Engine.Render.Shibafont, new Color(objectOpacity, 0, 0));
 
                 objectCycles++;
 
@@ -7740,7 +7731,7 @@ namespace Lightrealm
 
                 Rectangle destinationRectangle = new Rectangle((screenWidth - imageWidth) / 2, 100, imageWidth, 216);
 
-                _spriteBatch.Draw(GameData.TitleScreen, destinationRectangle, Color.White);
+                _spriteBatch.Draw(Engine.Render.TitleScreen, destinationRectangle, Color.White);
 
                 if(FakeName == "")
                 {
@@ -7758,7 +7749,7 @@ namespace Lightrealm
                 }
 
 
-                DrawCenteredText(_spriteBatch, "The tale of " + FakeName, 300, GameData.Shibafont, new Color(NameOpacity, NameOpacity, NameOpacity));
+                DrawCenteredText(_spriteBatch, "The tale of " + FakeName, 300, Engine.Render.Shibafont, new Color(NameOpacity, NameOpacity, NameOpacity));
 
                 NameCycles++;
 
@@ -7784,15 +7775,15 @@ namespace Lightrealm
                 }
 
                 //DrawCenteredText(_spriteBatch, "Press F to start a new Founder game.", 500);
-                DrawCenteredText(_spriteBatch, "Press C to start a new game.", 550, GameData.Shibafont, Color.White);
-                DrawCenteredText(_spriteBatch, "Hold CTRL+L to load an existing save.", 600, GameData.Shibafont, Color.White);
+                DrawCenteredText(_spriteBatch, "Press C to start a new game.", 550, Engine.Render.Shibafont, Color.White);
+                DrawCenteredText(_spriteBatch, "Hold CTRL+L to load an existing save.", 600, Engine.Render.Shibafont, Color.White);
 
-                _spriteBatch.Draw(GameData.Astrionalis, new Rectangle(100, 200, 640, 1280), Color.White);
-                _spriteBatch.Draw(GameData.Celestrioris, new Rectangle(1800, 200, 720, 1270), Color.White);
+                _spriteBatch.Draw(Engine.Render.Astrionalis, new Rectangle(100, 200, 640, 1280), Color.White);
+                _spriteBatch.Draw(Engine.Render.Celestrioris, new Rectangle(1800, 200, 720, 1270), Color.White);
             }
             else if (GameState == "savinggame")
             {
-                _spriteBatch.DrawString(GameData.Shibafont, "Saving " + GameWorld.Name + " data. This may take half a minute...", new Vector2(200, 200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Saving " + GameWorld.Name + " data. This may take half a minute...", new Vector2(200, 200), Color.White);
             }
             else if (GameState == "loadinggamemenu")
             {
@@ -7800,7 +7791,7 @@ namespace Lightrealm
 
                 if (SavesCount > 0)
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "Use arrow keys and ENTER to select a savegame:", new Vector2(200, 200), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "Use arrow keys and ENTER to select a savegame:", new Vector2(200, 200), Color.White);
 
                     int Number = 0;
 
@@ -7808,33 +7799,33 @@ namespace Lightrealm
                     {
                         if (Number == LoadGameCursor)
                         {
-                            _spriteBatch.DrawString(GameData.Shibafont, "(>) " + d, new Vector2(200, 230 + Number * 30), Color.White);
+                            _spriteBatch.DrawString(Engine.Render.Shibafont, "(>) " + d, new Vector2(200, 230 + Number * 30), Color.White);
                         }
                         else
                         {
-                            _spriteBatch.DrawString(GameData.Shibafont, "( ) " + d, new Vector2(200, 230 + Number * 30), Color.White);
+                            _spriteBatch.DrawString(Engine.Render.Shibafont, "( ) " + d, new Vector2(200, 230 + Number * 30), Color.White);
                         }
 
                         Number++;
                     }
 
-                    _spriteBatch.DrawString(GameData.Shibafont, "Press DELETE to remove a savegame.", new Vector2(200, 1300), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "Press DELETE to remove a savegame.", new Vector2(200, 1300), Color.White);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "You have no savegames. You should probably go make one now.", new Vector2(200, 200), Color.White);
-                    _spriteBatch.DrawString(GameData.Shibafont, "Press ESC to return to title.", new Vector2(200, 230), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "You have no savegames. You should probably go make one now.", new Vector2(200, 200), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "Press ESC to return to title.", new Vector2(200, 230), Color.White);
                 }
             }
             else if (GameState == "deletinggame")
             {
-                _spriteBatch.DrawString(GameData.Shibafont, "This action cannot be undone. Are you sure?", new Vector2(30, 30), Color.White);
-                _spriteBatch.DrawString(GameData.Shibafont, "Confirm (CTRL Y)", new Vector2(30, 60), Color.White);
-                _spriteBatch.DrawString(GameData.Shibafont, "Cancel (CTRL N)", new Vector2(30, 90), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "This action cannot be undone. Are you sure?", new Vector2(30, 30), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Confirm (CTRL Y)", new Vector2(30, 60), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Cancel (CTRL N)", new Vector2(30, 90), Color.White);
             }
             else if (GameState == "loadinggame")
             {
-                _spriteBatch.DrawString(GameData.Shibafont, "Loading save data, this may take half a minute...", new Vector2(200, 200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Loading save data, this may take half a minute...", new Vector2(200, 200), Color.White);
             }
             else if (GameState == "pickstatpreferences")
             {
@@ -7842,22 +7833,22 @@ namespace Lightrealm
 
                 if(StatOptions.Count == 7)
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "Choose your most prefered stat of these:", new Vector2(100, 100), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "Choose your most prefered stat of these:", new Vector2(100, 100), Color.White);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "Lovely, now choose your next-highest stat:", new Vector2(100, 100), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "Lovely, now choose your next-highest stat:", new Vector2(100, 100), Color.White);
                 }
 
                 foreach(string s in StatOptions)
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, s, new Vector2(100, 100 + Line*50), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, s, new Vector2(100, 100 + Line*50), Color.White);
                     Line++;
                 }
             }
             else if (GameState == "generatingworld")
             {
-                DrawCenteredText(_spriteBatch, "Generating Landmass...", 100, GameData.Shibafont, Color.White);
+                DrawCenteredText(_spriteBatch, "Generating Landmass...", 100, Engine.Render.Shibafont, Color.White);
             }
             else if (GameState == "generatehistory")
             {
@@ -7868,7 +7859,7 @@ namespace Lightrealm
                     float length = direction.Length();
 
                     spriteBatch.Draw(
-                        texture: GameData.whiteRect,
+                        texture: Engine.Render.PixelTexture,
                         position: start,
                         sourceRectangle: null,
                         color: color,
@@ -7885,7 +7876,7 @@ namespace Lightrealm
                     int CurrentItemListing = (GameWorld.HistoricalEvents.Count - i);
                     if (CurrentItemListing >= 0)
                     {
-                        _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.HistoricalEvents[CurrentItemListing], new Vector2(1800, 400 + ((-1) * (20 * i))), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.HistoricalEvents[CurrentItemListing], new Vector2(1800, 400 + ((-1) * (20 * i))), Color.White);
                     }
                 }
 
@@ -7894,7 +7885,7 @@ namespace Lightrealm
                     int CurrentItemListing = (GameWorld.AbridgedHistoricalEvents.Count - i);
                     if (CurrentItemListing >= 0)
                     {
-                        _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.AbridgedHistoricalEvents[CurrentItemListing], new Vector2(1800, 800 + ((-1) * (20 * i))), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.AbridgedHistoricalEvents[CurrentItemListing], new Vector2(1800, 800 + ((-1) * (20 * i))), Color.White);
                     }
                 }
 
@@ -7908,12 +7899,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX + 500, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX + 500, DrawY + 30), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -7937,38 +7928,38 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                             }
                         }
                     }
                 }// Updating cycle counts for drawing week, month, and year
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 6048000)), new Vector2(1900, 1280), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 24192000), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 6048000)), new Vector2(1900, 1280), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 24192000), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
 
                 // Keeping other text draws as they are since they're not dependent on cycle conversion
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Architects, Total: " + GameWorld.TotalArchitects + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1900, 1320), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + GameWorld.Groups.Count, new Vector2(1900, 1360), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Written Objects: " + GameWorld.TotalWrittenObjects, new Vector2(1900, 1400), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(2100, 1400), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Architects, Total: " + GameWorld.TotalArchitects + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1900, 1320), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + GameWorld.Groups.Count, new Vector2(1900, 1360), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Written Objects: " + GameWorld.TotalWrittenObjects, new Vector2(1900, 1400), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(2100, 1400), Color.White);
 
                 // Trade lines code remains the same as it's not directly dependent on the cycle count conversions
 
@@ -7977,9 +7968,9 @@ namespace Lightrealm
                 int Year = (int)Math.Round((decimal)(GameWorld.Cycle / 290304000));
 
                 // Updating the drawing of game world name, month/year display, and pause instruction
-                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, Month + "/" + Year, new Vector2(1900, 1160), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Pause Generation with ENTER", new Vector2(800 + 1300, 1200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, Month + "/" + Year, new Vector2(1900, 1160), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Pause Generation with ENTER", new Vector2(800 + 1300, 1200), Color.White);
 
 
 
@@ -8014,20 +8005,20 @@ namespace Lightrealm
 
                 if (AlreadyTriedASearch)
                 {
-                    _spriteBatch.DrawString(GameData.BabyShibafont, "Could not find a character with your preferences.", new Vector2(DrawX + 500, 50), Color.White);
-                    _spriteBatch.DrawString(GameData.BabyShibafont, "Change preferences or press C to continue generation.", new Vector2(DrawX + 500, 100), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Could not find a character with your preferences.", new Vector2(DrawX + 500, 50), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Change preferences or press C to continue generation.", new Vector2(DrawX + 500, 100), Color.White);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.BabyShibafont, "Historical events exported to Desktop. Rename to save.):", new Vector2(DrawX + 500, 50), Color.White);
-                    _spriteBatch.DrawString(GameData.BabyShibafont, "Choose your character preferences ([] denotes a keybind!):", new Vector2(DrawX + 500, 100), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Historical events exported to Desktop. Rename to save.):", new Vector2(DrawX + 500, 50), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Choose your character preferences ([] denotes a keybind!):", new Vector2(DrawX + 500, 100), Color.White);
                 }
 
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[1] Race: " + GameWorld.Races[CurrentlySelectingRace].Name, new Vector2(DrawX + 500, 150), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[2] Sex: " + Sexes[CurrentlySelectingSex], new Vector2(DrawX + 500, 200), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Press ENTER to continue...):", new Vector2(DrawX + 500, 300), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[1] Race: " + GameWorld.Races[CurrentlySelectingRace].Name, new Vector2(DrawX + 500, 150), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[2] Sex: " + Sexes[CurrentlySelectingSex], new Vector2(DrawX + 500, 200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Press ENTER to continue...):", new Vector2(DrawX + 500, 300), Color.White);
 
-                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
                 for (int x = 0; x < GameWorld.Width; x++)
                 {
                     for (int z = 0; z < GameWorld.Length; z++)
@@ -8037,12 +8028,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -8069,26 +8060,26 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Items: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.GeneralItemsWeHave.Count, new Vector2(DrawX, DrawY + 300), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Items: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.GeneralItemsWeHave.Count, new Vector2(DrawX, DrawY + 300), Color.White);
                             }
                         }
                     }
@@ -8096,14 +8087,14 @@ namespace Lightrealm
             }
             else if (GameState == "choosefounderoptions")
             {
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Choose your civilization preferences ([] denotes a keybind!):", new Vector2(DrawX + 500, 100), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[1] Race: " + GameWorld.Races[CurrentlySelectingRace], new Vector2(DrawX + 500, 150), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Choose your civilization preferences ([] denotes a keybind!):", new Vector2(DrawX + 500, 100), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[1] Race: " + GameWorld.Races[CurrentlySelectingRace], new Vector2(DrawX + 500, 150), Color.White);
 
                 DrawWorld();
 
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Press ENTER to continue...):", new Vector2(DrawX + 500, 300), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Press ENTER to continue...):", new Vector2(DrawX + 500, 300), Color.White);
 
-                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
                 for (int x = 0; x < GameWorld.Width; x++)
                 {
                     for (int z = 0; z < GameWorld.Length; z++)
@@ -8112,12 +8103,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -8144,25 +8135,25 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                             }
                         }
                     }
@@ -8170,7 +8161,7 @@ namespace Lightrealm
             }
             else if (GameState == "founder")
             {
-                _spriteBatch.Draw(GameData.GuideT, new Rectangle(0, 0, 192, 192), Color.White);
+                _spriteBatch.Draw(Engine.Render.GuideT, new Rectangle(0, 0, 192, 192), Color.White);
 
                 // Render tiles and update CivilizationParticles
                 for (int x = 0; x < GameWorld.Width; x++)
@@ -8181,7 +8172,7 @@ namespace Lightrealm
 
                         if (MapCursorX == x && MapCursorZ == z)
                         {
-                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get("tile-cursor"), Color.White);                         
+                            _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, drawRect, Engine.Render.SpriteSheet.Get("tile-cursor"), Color.White);                         
            
                             //_spriteBatch.Draw(CursorT, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), Color.White);
                         }
@@ -8189,7 +8180,7 @@ namespace Lightrealm
                         {
                             // Draw the tile
 
-                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get(string.Concat("tile-", GameWorld.WorldMap[x + z * GameWorld.Width].Biome)), new Color(100, 100, 100));
+                            _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, drawRect, Engine.Render.SpriteSheet.Get(string.Concat("tile-", GameWorld.WorldMap[x + z * GameWorld.Width].Biome)), new Color(100, 100, 100));
 
                             /*
                             _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].Biome],
@@ -8199,7 +8190,7 @@ namespace Lightrealm
 
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].Owner != null)
                             {
-                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get("tile-outline"), ColorConverter[GameWorld.WorldMap[x + z * GameWorld.Width].Owner.Color]);
+                                _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, drawRect, Engine.Render.SpriteSheet.Get("tile-outline"), ColorConverter[GameWorld.WorldMap[x + z * GameWorld.Width].Owner.Color]);
                                 // Draw outline for owned tile
                                 /*
                                 _spriteBatch.Draw(OutlineT,
@@ -8229,8 +8220,8 @@ namespace Lightrealm
                         if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null)
                         {
                             // Draw tile for custom location
-                            _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, 
-                                GameData.SpriteSheet.Get(string.Concat("loc-", GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type)),
+                            _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, drawRect, 
+                                Engine.Render.SpriteSheet.Get(string.Concat("loc-", GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type)),
                                 Color.White);
                             
                             /*
@@ -8247,7 +8238,7 @@ namespace Lightrealm
                 for (int index = 0; index < CivilizationParticles.Count; index++)
                 {
                     var i = CivilizationParticles[index];
-                    _spriteBatch.Draw(GameData.whiteRect, new Rectangle(i.Item1, i.Item2, i.Item4, i.Item4), i.Item3);
+                    _spriteBatch.Draw(Engine.Render.PixelTexture, new Rectangle(i.Item1, i.Item2, i.Item4, i.Item4), i.Item3);
 
                     if (i.Item6 == 1)
                     {
@@ -8268,27 +8259,27 @@ namespace Lightrealm
                 }
 
                 CivilizationParticles.RemoveAll(i => i.Item5 < 1);
-                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
 
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 120960)), new Vector2(1900, 1280), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 483840), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 5806080), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 120960)), new Vector2(1900, 1280), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 483840), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 5806080), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
 
 
-                _spriteBatch.DrawString(GameData.Shibafont, GamePlayerCivilization.Name, new Vector2(1900, 200), ColorConverter[GamePlayerCivilization.Color]);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Cursor: RTDGCV", new Vector2(1900, 220), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Select: F", new Vector2(1900, 240), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[S]tructures", new Vector2(1900, 260), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[M]illitary", new Vector2(1900, 280), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "D[I]stricts", new Vector2(1900, 300), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Res[O]urces", new Vector2(1900, 320), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Di[P]lomacy", new Vector2(1900, 340), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Sett[L]ement", new Vector2(1900, 360), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, GamePlayerCivilization.Name, new Vector2(1900, 200), ColorConverter[GamePlayerCivilization.Color]);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Cursor: RTDGCV", new Vector2(1900, 220), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Select: F", new Vector2(1900, 240), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[S]tructures", new Vector2(1900, 260), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[M]illitary", new Vector2(1900, 280), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "D[I]stricts", new Vector2(1900, 300), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Res[O]urces", new Vector2(1900, 320), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Di[P]lomacy", new Vector2(1900, 340), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Sett[L]ement", new Vector2(1900, 360), Color.White);
 
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Wait and Build up Resources", new Vector2(1900, 420), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[1] Wait 1 Month", new Vector2(1900, 440), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[2] Wait 1 Year", new Vector2(1900, 460), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "[3] Wait 10 Years", new Vector2(1900, 480), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wait and Build up Resources", new Vector2(1900, 420), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[1] Wait 1 Month", new Vector2(1900, 440), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[2] Wait 1 Year", new Vector2(1900, 460), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[3] Wait 10 Years", new Vector2(1900, 480), Color.White);
 
 
 
@@ -8300,12 +8291,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -8333,25 +8324,25 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                             }
                         }
                     }
@@ -8370,12 +8361,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -8402,25 +8393,25 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                             }
 
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null)
@@ -8428,7 +8419,7 @@ namespace Lightrealm
 
                                 string tile = string.Concat("loc-", GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type);
                                 Rectangle drawRect = new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize);
-                                _spriteBatch.Draw(GameData.SpriteSheet.Texture, drawRect, GameData.SpriteSheet.Get(tile), Color.White);
+                                _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, drawRect, Engine.Render.SpriteSheet.Get(tile), Color.White);
 
 
                                 // _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type], , Color.White);
@@ -8439,9 +8430,9 @@ namespace Lightrealm
             }
             else if (GameState == "architectfound")
             {
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Architect Found!", new Vector2(1500, 100), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Name: " + TheChosenOne.Name, new Vector2(1500, 130), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Architect Found!", new Vector2(1500, 100), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Name: " + TheChosenOne.Name, new Vector2(1500, 130), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
 
                 DrawWorld();
 
@@ -8454,12 +8445,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -8487,25 +8478,25 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                             }
                         }
                     }
@@ -8515,7 +8506,7 @@ namespace Lightrealm
             {
                 if (!InInventory && !Keyboard.GetState().IsKeyDown(Keys.Tab))
                 {
-                    _spriteBatch.Draw(GameData.GUI, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), Color.White);
+                    _spriteBatch.Draw(Engine.Render.GUI, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), Color.White);
 
                     // Calculate the color intensity based on the current energy relative to MaxEnergy
                     // Using a linear interpolation method to ensure the transition is smooth
@@ -8534,7 +8525,7 @@ namespace Lightrealm
                     Color energyColor = new Color(255 - colorIntensity, colorIntensity, 0, 255); // No blue component
 
                     // Draw the energy GUI with the calculated color
-                    _spriteBatch.Draw(GameData.HealthGuiT, energyGuiRect, energyColor);
+                    _spriteBatch.Draw(Engine.Render.HealthGuiT, energyGuiRect, energyColor);
 
 
                     // Drawing droplets for each bleeding stack
@@ -8548,61 +8539,61 @@ namespace Lightrealm
                         int posY = startY + (dropletSize * i);
 
                         // Draw the droplet at the calculated position
-                        _spriteBatch.Draw(GameData.BleedT, new Rectangle(startX - (dropletSize / 2), posY, dropletSize, dropletSize), Color.White);
+                        _spriteBatch.Draw(Engine.Render.BleedT, new Rectangle(startX - (dropletSize / 2), posY, dropletSize, dropletSize), Color.White);
                     }
 
-                    _spriteBatch.DrawString(GameData.Shibafont, MostRecentPartyTurnArchitect.Name, new Vector2(50, 70), Color.White);
-                    _spriteBatch.DrawString(GameData.Shibafont, "L: " + MostRecentPartyTurnArchitect.Location.Name, new Vector2(50, 90), Color.White);
-                    _spriteBatch.DrawString(GameData.Shibafont, "D: " + MostRecentPartyTurnArchitect.District.Name, new Vector2(50, 110), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, MostRecentPartyTurnArchitect.Name, new Vector2(50, 70), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "L: " + MostRecentPartyTurnArchitect.Location.Name, new Vector2(50, 90), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "D: " + MostRecentPartyTurnArchitect.District.Name, new Vector2(50, 110), Color.White);
                     if (MostRecentPartyTurnArchitect.Structure != null)
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "S: " + MostRecentPartyTurnArchitect.Structure.Name, new Vector2(50, 130), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "S: " + MostRecentPartyTurnArchitect.Structure.Name, new Vector2(50, 130), Color.White);
                     }
 
                     if (MostRecentPartyTurnArchitect.LeftHandObject != null)
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "LH: " + MostRecentPartyTurnArchitect.LeftHandObject.ReferredToNames[0], new Vector2(50, 150), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "LH: " + MostRecentPartyTurnArchitect.LeftHandObject.ReferredToNames[0], new Vector2(50, 150), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "LH: (empty)", new Vector2(50, 150), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "LH: (empty)", new Vector2(50, 150), Color.White);
                     }
 
-                    _spriteBatch.DrawString(GameData.Shibafont, "Speed: " + MostRecentPartyTurnArchitect.Speed(), new Vector2(400, 90), Color.White);
-                    _spriteBatch.DrawString(GameData.Shibafont, "CD: " + MostRecentPartyTurnArchitect.CooldownCycles, new Vector2(400, 100), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "Speed: " + MostRecentPartyTurnArchitect.Speed(), new Vector2(400, 90), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "CD: " + MostRecentPartyTurnArchitect.CooldownCycles, new Vector2(400, 100), Color.White);
 
                     if (MostRecentPartyTurnArchitect.CombatCycles > 0)
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "Evade: " + MostRecentPartyTurnArchitect.EscapeChance(), new Vector2(400, 110), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "Evade: " + MostRecentPartyTurnArchitect.EscapeChance(), new Vector2(400, 110), Color.White);
                     }
 
                     if (MostRecentPartyTurnArchitect.RightHandObject != null)
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "RH: " + MostRecentPartyTurnArchitect.RightHandObject.ReferredToNames[0], new Vector2(50, 170), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "RH: " + MostRecentPartyTurnArchitect.RightHandObject.ReferredToNames[0], new Vector2(50, 170), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "RH: (empty)", new Vector2(50, 170), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "RH: (empty)", new Vector2(50, 170), Color.White);
                     }
 
 
                     if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "You are not moving right now.", new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "You are not moving right now.", new Vector2(50, 1175), Color.White);
                     }
                     else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1175), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
                     }
 
 
                     int Line = 0;
 
-                    _spriteBatch.DrawString(GameData.Shibafont, "What do you do? \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "What do you do? \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
 
                     //district map
                     for
@@ -8612,7 +8603,7 @@ namespace Lightrealm
                         {
                             if (MostRecentPartyTurnArchitect.Block.X == DistrictX && MostRecentPartyTurnArchitect.Block.Z == DistrictZ)
                             {
-                                _spriteBatch.Draw(GameData.whiteRect, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.Red);
+                                _spriteBatch.Draw(Engine.Render.PixelTexture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.Red);
                             }
                             else
                             {
@@ -8624,27 +8615,27 @@ namespace Lightrealm
                                     if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "desert")
                                     {
                                         //DecidedTexture = DistrictEmptyDesertT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-emptydesert");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-emptydesert");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "taiga" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "mountain" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "forest" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "lightforest")
                                     {
                                         //DecidedTexture = DistrictEmptyTreesT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-emptytrees");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-emptytrees");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "tundra" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "snowpeak")
                                     {
                                         //DecidedTexture = DistrictEmptySnowT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-emptysnow");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-emptysnow");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "ocean")
                                     {
                                         //DecidedTexture = DistrictEmptyOceanT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-ocean");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-ocean");
                                     }
                                     else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "plains")
                                     {
                                         //DecidedTexture = DistrictEmptyPlainsT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-emptyplains");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-emptyplains");
                                     }
                                 }
                                 else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 1)
@@ -8652,27 +8643,27 @@ namespace Lightrealm
                                     if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "bighouse" || MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "house")
                                     {
                                         //DecidedTexture = DistrictBuildingT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-buildings");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-buildings");
                                     }
                                     else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "prism")
                                     {
                                         //DecidedTexture = DistrictPrismT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-prism");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-prism");
                                     }
                                     else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "spire")
                                     {
                                         //DecidedTexture = DistrictSpireT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-spire");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-spire");
                                     }
                                     else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "market")
                                     {
                                         //DecidedTexture = DistrictMarketT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-market");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-market");
                                     }
                                     else
                                     {
                                         //DecidedTexture = DistrictSpecialBuildingT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-specialbuilding");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-specialbuilding");
                                     }
                                 }
                                 else
@@ -8705,27 +8696,27 @@ namespace Lightrealm
                                     if (FoundKeep)
                                     {
                                         //DecidedTexture = DistrictPrismT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-prism");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-prism");
                                     }
                                     else if (FoundMarket && !FoundSpecial && !FoundHouse)
                                     {
                                         //DecidedTexture = DistrictMarketT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-market");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-market");
                                     }
                                     else if (FoundMarket)
                                     {
                                         //DecidedTexture = DistrictMarketSurroundedT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-marketsurround");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-marketsurround");
                                     }
                                     else if (FoundHouse && !FoundSpecial)
                                     {
                                         //DecidedTexture = DistrictManyBuildingsT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-manybuildings");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-manybuildings");
                                     }
                                     else
                                     {
                                         //DecidedTexture = DistrictSpecialAndBuildingsT;
-                                        decidedRect = GameData.SpriteSheet.Get("map-specialandbuildings");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("map-specialandbuildings");
                                     }
 
                                 }
@@ -8760,19 +8751,19 @@ namespace Lightrealm
                                     if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Contains(MostRecentPartyTurnArchitect.Location.Prism))
                                     {
                                         //DecidedTexture = ShadeCoreT;
-                                        decidedRect = GameData.SpriteSheet.Get("loc-shadecore");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("loc-shadecore");
                                     }
                                     else
                                     {
                                         //DecidedTexture = ShadeOutpostT;
-                                        decidedRect = GameData.SpriteSheet.Get("loc-shadeoutpost");
+                                        decidedRect = Engine.Render.SpriteSheet.Get("loc-shadeoutpost");
                                     }
                                 }
 
 
                                 if (decidedRect != Rectangle.Empty)
                                 {
-                                    _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), decidedRect, BuildingColor);
+                                    _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), decidedRect, BuildingColor);
                                 }
 
                                 /*
@@ -8787,12 +8778,12 @@ namespace Lightrealm
                                     if (o.Type == "well")
                                     {
                                         
-                                        _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), GameData.SpriteSheet.Get("map-well"), Color.White);
+                                        _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Engine.Render.SpriteSheet.Get("map-well"), Color.White);
                                         //_spriteBatch.Draw(DistrictWellT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
                                     }
                                     else if (o.Type == "shadow storage")
                                     {
-                                        _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), GameData.SpriteSheet.Get("map-shadowstorage"), Color.White);
+                                        _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Engine.Render.SpriteSheet.Get("map-shadowstorage"), Color.White);
                                          //_spriteBatch.Draw(DistrictShadowStorageT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
                                     }
                                 }
@@ -8816,7 +8807,7 @@ namespace Lightrealm
                                     {
                                         HeavinessColor = Color.LightCyan;
                                     }
-                                    _spriteBatch.Draw(GameData.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), GameData.SpriteSheet.Get("map-architecthere"), HeavinessColor);
+                                    _spriteBatch.Draw(Engine.Render.SpriteSheet.Texture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Engine.Render.SpriteSheet.Get("map-architecthere"), HeavinessColor);
 
                                     //_spriteBatch.Draw(ArchitectHere, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), HeavinessColor);
                                 }
@@ -8838,7 +8829,7 @@ namespace Lightrealm
                             c = Color.White;
                         }
 
-                        _spriteBatch.DrawString(GameData.Shibafont, "Owes you: " + MostRecentPartyTurnArchitect.Structure.MarketDebt, new Vector2(220, 1350), c);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "Owes you: " + MostRecentPartyTurnArchitect.Structure.MarketDebt, new Vector2(220, 1350), c);
                     }
 
                     Line = 0;
@@ -8859,7 +8850,7 @@ namespace Lightrealm
                     {
                         List<string> lines = new List<string>();
 
-                        if (GameData.BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
+                        if (Engine.Render.BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
                         {
                             // Split announcement into lines if it exceeds MaxLength
                             string[] words = announcement.Data.Split(' ');
@@ -8867,7 +8858,7 @@ namespace Lightrealm
 
                             foreach (var word in words)
                             {
-                                if (GameData.BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
+                                if (Engine.Render.BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
                                 {
                                     lines.Add(currentLine);
                                     currentLine = word + " ";
@@ -8908,7 +8899,7 @@ namespace Lightrealm
                     // Helper function to draw each announcement line
                     void DrawAnnouncementLine(string text, ref int yPosition, Color color)
                     {
-                        _spriteBatch.DrawString(GameData.BabyShibafont, text, new Vector2(50, yPosition), color);
+                        _spriteBatch.DrawString(Engine.Render.BabyShibafont, text, new Vector2(50, yPosition), color);
                         yPosition -= lineHeight;
                     }
 
@@ -8920,7 +8911,7 @@ namespace Lightrealm
                     var structuredList = CondenseAndStructureList(sourceObjects);
 
                     // Draw the structured list
-                    DrawList(_spriteBatch, structuredList, new Vector2(2150, 100), GameData.BabyShibafont);
+                    DrawList(_spriteBatch, structuredList, new Vector2(2150, 100), Engine.Render.BabyShibafont);
 
                     int Houses = 0;
 
@@ -8962,18 +8953,18 @@ namespace Lightrealm
 
                     if (MostRecentPartyTurnArchitect.Structure != null)
                     {
-                        _spriteBatch.Draw(GameData.whiteRect, new Rectangle(1650, 0, 444, 1920), Color.Black);
+                        _spriteBatch.Draw(Engine.Render.PixelTexture, new Rectangle(1650, 0, 444, 1920), Color.Black);
 
                         // Assuming you have a method to get a dictionary of unique architects
                         var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Room.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), GameData.Shibafont, 20);
+                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), Engine.Render.Shibafont, 20);
                     }
                     else
                     {
 
                         // Assuming you have a method to get a dictionary of unique architects
                         var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Block.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), GameData.Shibafont, 20);
+                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), Engine.Render.Shibafont, 20);
 
                         Line = 0;
                         foreach (Structure s in MostRecentPartyTurnArchitect.Block.Structures)
@@ -8985,61 +8976,61 @@ namespace Lightrealm
                             else
                             {
                                 Line++;
-                                _spriteBatch.DrawString(GameData.Shibafont, "(" + s.Type.Substring(0, 1).ToUpper() + ") " + s.Name, new Vector2(1700, Line * 30 + 200), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.Shibafont, "(" + s.Type.Substring(0, 1).ToUpper() + ") " + s.Name, new Vector2(1700, Line * 30 + 200), Color.White);
                             }
                         }
                     }
 
                     if (Houses == 1)
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "1 house (house 1)", new Vector2(1700, 180), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "1 house (house 1)", new Vector2(1700, 180), Color.White);
                     }
                     else if (Houses > 1)
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, Houses + " houses (house 1-" + Houses + ")", new Vector2(1700, 180), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, Houses + " houses (house 1-" + Houses + ")", new Vector2(1700, 180), Color.White);
                     }
 
 
                     if (IsInGui)
                     {
-                        _spriteBatch.Draw(GameData.ReactionGUIT, new Rectangle((_graphics.PreferredBackBufferWidth - 1919) / 2, (_graphics.PreferredBackBufferHeight - 1080) / 2, 1919, 1080), Color.White);
+                        _spriteBatch.Draw(Engine.Render.ReactionGUIT, new Rectangle((_graphics.PreferredBackBufferWidth - 1919) / 2, (_graphics.PreferredBackBufferHeight - 1080) / 2, 1919, 1080), Color.White);
                         int Linee = 0;
                         foreach (string s in ItemPickupGuiLines)
                         {
-                            DrawCenteredText(_spriteBatch, s, Linee * 20 + (_graphics.PreferredBackBufferHeight / 2) + 100, GameData.Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, s, Linee * 20 + (_graphics.PreferredBackBufferHeight / 2) + 100, Engine.Render.Shibafont, Color.White);
                             Linee++;
                         }
                     }
 
                     if (GameState == "reaction")
                     {
-                        _spriteBatch.Draw(GameData.ReactionGUIT, new Rectangle((_graphics.PreferredBackBufferWidth - 1919) / 2, (_graphics.PreferredBackBufferHeight - 1080) / 2, 1919, 1080), Color.White);
+                        _spriteBatch.Draw(Engine.Render.ReactionGUIT, new Rectangle((_graphics.PreferredBackBufferWidth - 1919) / 2, (_graphics.PreferredBackBufferHeight - 1080) / 2, 1919, 1080), Color.White);
 
                         // Calculate the success chances for the MostRecentPartyTurnArchitect
                         var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttacks[0], GameWorld.ReactionModifierInt, StoredAttacks[0].Attacker, StoredAttacks[0].Attacker.GetProficiency(StoredAttacks[0].Weapon.DamageType));
 
                         int y = 600;
                         int d = 30;
-                        DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.Name + " is aiming a " + StoredAttacks[0].Verb, y, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "at you with " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, GameData.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.Name + " is aiming a " + StoredAttacks[0].Verb, y, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "at you with " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, Engine.Render.Shibafont, Color.White);
 
-                        DrawCenteredText(_spriteBatch, "[S] Sustain (" + successChances.sustain + "% evs.)", y + d * 2, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[D] Duck (" + successChances.duck + "% evs.)", y + d * 3, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[J] Jump (" + successChances.jump + "% evs.)", y + d * 4, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[R] Roll (" + successChances.roll + "% evs.)", y + d * 5, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[N] Disarm (" + successChances.disarm + "% evs.)", y + d * 6, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[C] Redirect (" + successChances.redirect + "% evs.)", y + d * 7, GameData.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "[S] Sustain (" + successChances.sustain + "% evs.)", y + d * 2, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "[D] Duck (" + successChances.duck + "% evs.)", y + d * 3, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "[J] Jump (" + successChances.jump + "% evs.)", y + d * 4, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "[R] Roll (" + successChances.roll + "% evs.)", y + d * 5, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "[N] Disarm (" + successChances.disarm + "% evs.)", y + d * 6, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "[C] Redirect (" + successChances.redirect + "% evs.)", y + d * 7, Engine.Render.Shibafont, Color.White);
                         if ((MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.IsWeapon) || (MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.IsWeapon))
                         {
-                            DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + successChances.parry + "%)", y + d * 8, GameData.Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + successChances.parry + "%)", y + d * 8, Engine.Render.Shibafont, Color.White);
                         }
                         if ((MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.Type == "shield") || (MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.Type == "shield"))
                         {
-                            DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + successChances.block + "%)", y + d * 9, GameData.Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + successChances.block + "%)", y + d * 9, Engine.Render.Shibafont, Color.White);
                         }
 
-                        DrawCenteredText(_spriteBatch, "Chances calculated with Agility, items carried/Endurance,", y + d * 10, GameData.Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "your/opponent skills, attack type, etc.", y + d * 11, GameData.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "Chances calculated with Agility, items carried/Endurance,", y + d * 10, Engine.Render.Shibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "your/opponent skills, attack type, etc.", y + d * 11, Engine.Render.Shibafont, Color.White);
                     }
 
 
@@ -9131,33 +9122,33 @@ namespace Lightrealm
                     Vector2 moonPosition = CalculateSunMoonPosition(sunMoonAngle, radius, centerPosition, false);
 
                     // Draw SkyT with adjusted brightness
-                    _spriteBatch.Draw(GameData.SkyT, centerPosition, null, new Color(skyBrightness, skyBrightness, skyBrightness), 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                    _spriteBatch.Draw(Engine.Render.SkyT, centerPosition, null, new Color(skyBrightness, skyBrightness, skyBrightness), 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
 
                     // Draw Sun and Moon without rotation, on calculated positions
-                    _spriteBatch.Draw(GameData.SunT, sunPosition, null, Color.White, 0f, new Vector2(GameData.SunT.Width / 2, GameData.SunT.Height / 2), 0.5f, SpriteEffects.None, 0f);
-                    _spriteBatch.Draw(GameData.MoonT, moonPosition, null, Color.White, 0f, new Vector2(GameData.MoonT.Width / 2, GameData.MoonT.Height / 2), 0.5f, SpriteEffects.None, 0f);
+                    _spriteBatch.Draw(Engine.Render.SunT, sunPosition, null, Color.White, 0f, new Vector2(Engine.Render.SunT.Width / 2, Engine.Render.SunT.Height / 2), 0.5f, SpriteEffects.None, 0f);
+                    _spriteBatch.Draw(Engine.Render.MoonT, moonPosition, null, Color.White, 0f, new Vector2(Engine.Render.MoonT.Width / 2, Engine.Render.MoonT.Height / 2), 0.5f, SpriteEffects.None, 0f);
 
                     // Draw ClockT statically
-                    _spriteBatch.Draw(GameData.ClockT, centerPosition, null, Color.White, 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                    _spriteBatch.Draw(Engine.Render.ClockT, centerPosition, null, Color.White, 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
 
                 }
                 else
                 {
-                    _spriteBatch.Draw(GameData.InventoryGUI, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), Color.White);
+                    _spriteBatch.Draw(Engine.Render.InventoryGUI, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), Color.White);
                     if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "You are not moving right now.", new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "You are not moving right now.", new Vector2(50, 1175), Color.White);
                     }
                     else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1175), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(GameData.Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Engine.Render.Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
                     }
 
-                    _spriteBatch.DrawString(GameData.Shibafont, "What do you do? \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "What do you do? \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
 
                     int line = 0;
 
@@ -9169,7 +9160,7 @@ namespace Lightrealm
                     var inventoryObjects = MostRecentPartyTurnArchitect.Inventory;
                     var structuredInventoryList = CondenseAndStructureList(inventoryObjects);
 
-                    DrawInventoryList(_spriteBatch, structuredInventoryList, new Vector2(2150, 100), GameData.BabyShibafont);
+                    DrawInventoryList(_spriteBatch, structuredInventoryList, new Vector2(2150, 100), Engine.Render.BabyShibafont);
 
                     // New function for drawing the inventory list with structured and indented display
                     void DrawInventoryList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel)> list, Vector2 startCoords, SpriteFont font)
@@ -9189,7 +9180,7 @@ namespace Lightrealm
                     line = 0;
                     foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 600 + 10 * line, GameData.BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 600 + 10 * line, Engine.Render.BabyShibafont);
 
                         line++;
                     }
@@ -9199,7 +9190,7 @@ namespace Lightrealm
                     foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
                     {
                         line++;
-                        DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 1050, 600 + 10 * line, GameData.BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 1050, 600 + 10 * line, Engine.Render.BabyShibafont);
                     }
 
                     line = 0;
@@ -9210,12 +9201,12 @@ namespace Lightrealm
                         {
                             line++;
 
-                            DrawCenteredTextAtPosition(_spriteBatch, p.Item1 + ": " + ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1)), 280, 120 + 10 * line, GameData.BabyShibafont);
+                            DrawCenteredTextAtPosition(_spriteBatch, p.Item1 + ": " + ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1)), 280, 120 + 10 * line, Engine.Render.BabyShibafont);
                         }
                     }
                     if (line == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No proficiencies. Go learn something.", 280, 120 + 10 * line, GameData.BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "No proficiencies. Go learn something.", 280, 120 + 10 * line, Engine.Render.BabyShibafont);
                     }
 
                     //level up screen
@@ -9231,7 +9222,7 @@ namespace Lightrealm
                         int newHeight = 1080 + 200; // Increase height by 200
 
                         _spriteBatch.Draw(
-                            GameData.ReactionGUIT,
+                            Engine.Render.ReactionGUIT,
                             new Rectangle(
                                 (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                 (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9302,14 +9293,14 @@ namespace Lightrealm
                             DrawPathLevel(spriteBatch, font, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
                         }
 
-                        DrawPathLevels(GamePlayerParty, _spriteBatch, GameData.BabyShibafont);
+                        DrawPathLevels(GamePlayerParty, _spriteBatch, Engine.Render.BabyShibafont);
 
                         if (!Keyboard.GetState().IsKeyDown(Keys.LeftControl))
                         {
                             if (Keyboard.GetState().IsKeyDown(Keys.X))
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9317,63 +9308,63 @@ namespace Lightrealm
                                         newHeight),
                                     Color.White);
 
-                                DrawCenteredText(_spriteBatch, "PATH OF SHADOW", 500, GameData.BabyShibafont, Color.MidnightBlue);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL ", 520, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 1) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Become harder to see and target.", 540, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 2) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL ", 560, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 3) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Become invisible at the cost of energy with \"become one with shadow\"", 580, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 4) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL ", 600, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 5) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Your possessions become invisible with you.", 620, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 6) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL ", 640, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 7) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8:  Invisibilty no longer causes energy loss.", 660, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 8) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 9: +1 AGL ", 680, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 9) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL X TO LEVEL UP THIS PATH.", 700, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "PATH OF SHADOW", 500, Engine.Render.BabyShibafont, Color.MidnightBlue);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL ", 520, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 1) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Become harder to see and target.", 540, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 2) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL ", 560, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 3) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Become invisible at the cost of energy with \"become one with shadow\"", 580, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 4) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL ", 600, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 5) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Your possessions become invisible with you.", 620, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 6) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL ", 640, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 7) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8:  Invisibilty no longer causes energy loss.", 660, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 8) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 9: +1 AGL ", 680, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 9) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL X TO LEVEL UP THIS PATH.", 700, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             if (Keyboard.GetState().IsKeyDown(Keys.L)) // Assuming 'L' is the key for Path of Life
                             {
-                                _spriteBatch.Draw(GameData.ReactionGUIT, new Rectangle((_graphics.PreferredBackBufferWidth - newWidth) / 2, (_graphics.PreferredBackBufferHeight - newHeight) / 2, newWidth, newHeight), Color.White);
+                                _spriteBatch.Draw(Engine.Render.ReactionGUIT, new Rectangle((_graphics.PreferredBackBufferWidth - newWidth) / 2, (_graphics.PreferredBackBufferHeight - newHeight) / 2, newWidth, newHeight), Color.White);
 
                                 int position = 500;
                                 int spacing = 20;
 
                                 // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF LIFE", position, GameData.BabyShibafont, Color.ForestGreen);
+                                DrawCenteredText(_spriteBatch, "PATH OF LIFE", position, Engine.Render.BabyShibafont, Color.ForestGreen);
                                 position += spacing;
 
                                 // Display abilities with conditional coloring based on the level
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 1) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 1) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
 
-                                DrawCenteredText(_spriteBatch, "LVL 2: Unlock communication with extra races.", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 2) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Unlock communication with extra races.", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 2) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
 
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 3) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 3) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
 
-                                DrawCenteredText(_spriteBatch, "LVL 4: Full communication with all animals.", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 4) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Full communication with all animals.", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 4) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 5) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 5) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Pacify/Tame animals, add to party. Max of Path LVL animals.", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 6) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Pacify/Tame animals, add to party. Max of Path LVL animals.", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 6) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 7) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                DrawCenteredText(_spriteBatch, "LVL 8: Buff/augment your animals with \"augument\".", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 8) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 7) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
 
-                                DrawCenteredText(_spriteBatch, "LVL 9: +1 CHA", position, GameData.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 9) ? Color.ForestGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Buff/augment your animals with \"augument\".", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 8) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                DrawCenteredText(_spriteBatch, "LVL 9: +1 CHA", position, Engine.Render.BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 9) ? Color.ForestGreen : new Color(40, 40, 40));
                                 position += spacing;
 
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + L TO LEVEL UP THIS PATH.", position, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + L TO LEVEL UP THIS PATH.", position, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.D))
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9382,24 +9373,24 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF DEATH", 500, GameData.BabyShibafont, Color.DarkRed);
+                                DrawCenteredText(_spriteBatch, "PATH OF DEATH", 500, Engine.Render.BabyShibafont, Color.DarkRed);
                                 // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 1 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Raise ((LVL/2) rounded down) weakened undead servants.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 2 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 3 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Fire spectral bolts.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 4 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 5 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Foes slain by bolts may become undead.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 6 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 7 ? Color.DarkRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Return to life with 20 energy once a week.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 8 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 1 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Raise ((LVL/2) rounded down) weakened undead servants.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 2 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 3 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Fire spectral bolts.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 4 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 5 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Foes slain by bolts may become undead.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 6 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 7 ? Color.DarkRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Return to life with 20 energy once a week.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 8 ? Color.DarkRed : new Color(40, 40, 40));
                                 // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.T))
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9408,24 +9399,24 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF TIME", 500, GameData.BabyShibafont, Color.SkyBlue);
+                                DrawCenteredText(_spriteBatch, "PATH OF TIME", 500, Engine.Render.BabyShibafont, Color.SkyBlue);
                                 // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
                                 // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.A)) // Assuming 'A' is the key for Path of Stars
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9434,24 +9425,24 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF STARS", 500, GameData.BabyShibafont, Color.Gold);
+                                DrawCenteredText(_spriteBatch, "PATH OF STARS", 500, Engine.Render.BabyShibafont, Color.Gold);
                                 // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 1 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Summon a falling star on strike.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 2 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 3 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Starmarked creatures ignite.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 4 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 5 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Fire stars from your hands with \"starstrike ~\".", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 6 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 7 ? Color.Gold : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Open a portal to a star.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 8 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 1 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Summon a falling star on strike.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 2 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 3 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Starmarked creatures ignite.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 4 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 5 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Fire stars from your hands with \"starstrike ~\".", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 6 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 7 ? Color.Gold : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Open a portal to a star.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 8 ? Color.Gold : new Color(40, 40, 40));
                                 // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + A TO LEVEL UP THIS PATH.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + A TO LEVEL UP THIS PATH.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.H)) // Assuming 'H' is the key for Path of Heat
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9460,24 +9451,24 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF HEAT", 500, GameData.BabyShibafont, Color.OrangeRed);
+                                DrawCenteredText(_spriteBatch, "PATH OF HEAT", 500, Engine.Render.BabyShibafont, Color.OrangeRed);
                                 // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 1 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure and throw waves of heat.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 2 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 3 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Control heat of objects you touch.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 4 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 5 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Conjure larger waves of heat.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 6 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 7 ? Color.OrangeRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Set self on fire at will.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 8 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 1 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure and throw waves of heat.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 2 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 3 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Control heat of objects you touch.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 4 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 5 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Conjure larger waves of heat.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 6 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 7 ? Color.OrangeRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Set self on fire at will.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 8 ? Color.OrangeRed : new Color(40, 40, 40));
                                 // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.I)) // For Path of Illusions
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9486,23 +9477,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF ILLUSIONS", 500, GameData.BabyShibafont, Color.Magenta);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 1 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Summon an incorporeal immobile duplicate of yourself or an object.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 2 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 3 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Summon a duplicate of an animate object. Your duplicates move on their own", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 4 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 5 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Control all clones you create.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 6 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 7 ? Color.Magenta : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF ILLUSIONS", 500, Engine.Render.BabyShibafont, Color.Magenta);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 1 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Summon an incorporeal immobile duplicate of yourself or an object.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 2 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 3 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Summon a duplicate of an animate object. Your duplicates move on their own", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 4 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 5 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Control all clones you create.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 6 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 7 ? Color.Magenta : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.E)) // For Path of Ethereality
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9511,23 +9502,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF ETHEREALITY", 500, GameData.BabyShibafont, Color.LightBlue);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 1 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Take less damage, generally.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 2 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 3 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Enter the ethereal plane briefly.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 4 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 5 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Send objects to the ethereal plane.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 6 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 7 ? Color.LightBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Instantaneous travel anywhere.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 8 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF ETHEREALITY", 500, Engine.Render.BabyShibafont, Color.LightBlue);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 1 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Take less damage, generally.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 2 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 3 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Enter the ethereal plane briefly.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 4 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 5 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Send objects to the ethereal plane.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 6 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 7 ? Color.LightBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Instantaneous travel anywhere.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 8 ? Color.LightBlue : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD E FOR PATH DETAILS. CTRL+E TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD E FOR PATH DETAILS. CTRL+E TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.V)) // For Path of Void
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9536,23 +9527,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF VOID", 500, GameData.BabyShibafont, Color.DarkSlateBlue);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 1 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Create voids that you can store items for later usage.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 2 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 3 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Fire matter projectiles from voids.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 4 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 5 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Compel creatures into voids.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 6 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 7 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Voids last forever and are interconnected.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 8 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF VOID", 500, Engine.Render.BabyShibafont, Color.DarkSlateBlue);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 1 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Create voids that you can store items for later usage.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 2 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 3 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Fire matter projectiles from voids.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 4 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 5 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Compel creatures into voids.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 6 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 7 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Voids last forever and are interconnected.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 8 ? Color.DarkSlateBlue : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD V FOR PATH DETAILS. CTRL+V TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD V FOR PATH DETAILS. CTRL+V TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.S)) // For Path of Storms
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9561,23 +9552,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF STORMS", 500, GameData.BabyShibafont, Color.Cyan);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 1 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Energy strike on foes.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 2 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 3 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Flow with uncontrollable energy.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 4 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 5 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Direct energy into objects.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 6 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 7 ? Color.Cyan : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Gain flight and powerful energy manipulation.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 8 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF STORMS", 500, Engine.Render.BabyShibafont, Color.Cyan);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 1 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Energy strike on foes.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 2 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 3 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Flow with uncontrollable energy.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 4 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 5 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Direct energy into objects.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 6 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 7 ? Color.Cyan : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Gain flight and powerful energy manipulation.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 8 ? Color.Cyan : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD S FOR PATH DETAILS. CTRL+S TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD S FOR PATH DETAILS. CTRL+S TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.F)) // For Path of Forge
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9586,23 +9577,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF FORGE", 500, GameData.BabyShibafont, Color.DarkOrange);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 1 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Craft any weapon at a forge with the right materials.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 2 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 3 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Weapons you make have an extra imbuement.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 4 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 5 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Your imbuements have more effectiveness.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 6 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 7 ? Color.DarkOrange : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Touch objects to give them three extra imbuements.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 8 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF FORGE", 500, Engine.Render.BabyShibafont, Color.DarkOrange);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 1 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Craft any weapon at a forge with the right materials.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 2 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 3 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Weapons you make have an extra imbuement.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 4 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 5 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Your imbuements have more effectiveness.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 6 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 7 ? Color.DarkOrange : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Touch objects to give them three extra imbuements.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 8 ? Color.DarkOrange : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD F FOR PATH DETAILS. CTRL+F TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD F FOR PATH DETAILS. CTRL+F TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.K)) // For Path of Lore
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9611,23 +9602,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF LORE", 500, GameData.BabyShibafont, Color.SeaGreen);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 1 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Access lore from other lorepathers, containing secrets.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 2 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 3 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Trade knowledge with people mentally.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 4 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 5 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Increase max path level by 4.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 6 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 7 ? Color.SeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Access a wellspring of history at will.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 8 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF LORE", 500, Engine.Render.BabyShibafont, Color.SeaGreen);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 1 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Access lore from other lorepathers, containing secrets.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 2 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 3 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Trade knowledge with people mentally.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 4 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 5 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Increase max path level by 4.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 6 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 7 ? Color.SeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Access a wellspring of history at will.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 8 ? Color.SeaGreen : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD K FOR PATH DETAILS. CTRL+K TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD K FOR PATH DETAILS. CTRL+K TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.M)) // For Path of Mind
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9636,22 +9627,22 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF MIND", 500, GameData.BabyShibafont, Color.LightSeaGreen);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 1 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Enhanced magical power.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 2 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 3 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Decreased magical energy usage.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 4 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 5 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Option to double spell effects.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 6 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 7 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Triple Spell effects and reduced energy usage.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 8 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF MIND", 500, Engine.Render.BabyShibafont, Color.LightSeaGreen);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 1 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Enhanced magical power.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 2 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 3 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Decreased magical energy usage.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 4 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 5 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Option to double spell effects.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 6 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 7 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Triple Spell effects and reduced energy usage.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 8 ? Color.LightSeaGreen : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
                             else if (Keyboard.GetState().IsKeyDown(Keys.U)) // For Path of Soul
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9660,23 +9651,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF SOUL", 500, GameData.BabyShibafont, Color.MediumPurple);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 1 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all nonphysical stats.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 2 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 3 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased energy generation.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 4 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 5 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Exit your body, moving through walls.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 6 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 7 ? Color.MediumPurple : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF SOUL", 500, Engine.Render.BabyShibafont, Color.MediumPurple);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 1 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all nonphysical stats.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 2 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 3 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased energy generation.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 4 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 5 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Exit your body, moving through walls.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 6 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 7 ? Color.MediumPurple : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9685,23 +9676,23 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF BODY", 500, GameData.BabyShibafont, Color.SandyBrown);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased unarmed melee capabilities.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Move your body in any physically imaginable way.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF BODY", 500, Engine.Render.BabyShibafont, Color.SandyBrown);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased unarmed melee capabilities.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Move your body in any physically imaginable way.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.P)) // For Path of Space
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9710,24 +9701,24 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF SPACE", 500, GameData.BabyShibafont, Color.DarkOrchid);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 1 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Open a portal for travel.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 2 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 3 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Telekinesis for small objects.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 4 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 5 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Telekinesis for heavier objects.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 6 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 7 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Telekinesis without limits, including self for flight.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 8 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF SPACE", 500, Engine.Render.BabyShibafont, Color.DarkOrchid);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 1 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Open a portal for travel.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 2 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 3 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Telekinesis for small objects.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 4 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 5 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Telekinesis for heavier objects.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 6 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 7 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Telekinesis without limits, including self for flight.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 8 ? Color.DarkOrchid : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
 
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9736,22 +9727,22 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF REALITY", 500, GameData.BabyShibafont, Color.IndianRed);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Alter object properties.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Change state of matter by touch.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Remove objects from reality.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF REALITY", 500, Engine.Render.BabyShibafont, Color.IndianRed);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Alter object properties.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Change state of matter by touch.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Remove objects from reality.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
                             else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
                             {
                                 _spriteBatch.Draw(
-                                    GameData.ReactionGUIT,
+                                    Engine.Render.ReactionGUIT,
                                     new Rectangle(
                                         (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
                                         (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
@@ -9760,17 +9751,17 @@ namespace Lightrealm
                                     Color.White);
 
                                 // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF LIGHT", 500, GameData.BabyShibafont, Color.Yellow);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL", 520, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure photons to create a spark.", 540, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", 560, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Sparks fire radiant beams at enemies.", 580, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", 600, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Use sparks to heal nearby creatures.", 620, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", 640, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Create a Photonexus, loyal to you.", 660, GameData.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "PATH OF LIGHT", 500, Engine.Render.BabyShibafont, Color.Yellow);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL", 520, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure photons to create a spark.", 540, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", 560, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Sparks fire radiant beams at enemies.", 580, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", 600, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Use sparks to heal nearby creatures.", 620, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", 640, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Create a Photonexus, loyal to you.", 660, Engine.Render.BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
                                 // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD L FOR PATH DETAILS. CTRL+L TO LEVEL.", 680, GameData.BabyShibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "HOLD L FOR PATH DETAILS. CTRL+L TO LEVEL.", 680, Engine.Render.BabyShibafont, Color.White);
                             }
                         }
                     }
@@ -9787,17 +9778,17 @@ namespace Lightrealm
 
                 int totalLinesDisplayed = 0;  // Track the total number of lines displayed
 
-                DrawCenteredText(_spriteBatch, "All members of your party have perished. You have lost influence in the world.", 400, GameData.Shibafont, Color.White);
-                DrawCenteredText(_spriteBatch, "Press SPACE to return to the title screen.", 450, GameData.Shibafont, Color.White);
+                DrawCenteredText(_spriteBatch, "All members of your party have perished. You have lost influence in the world.", 400, Engine.Render.Shibafont, Color.White);
+                DrawCenteredText(_spriteBatch, "Press SPACE to return to the title screen.", 450, Engine.Render.Shibafont, Color.White);
 
             }
             else if (GameState == "travelmenu")
             {
-                _spriteBatch.DrawString(GameData.BabyShibafont, MapCursorX.ToString(), new Vector2(2000, 10), Color.White);
-                _spriteBatch.DrawString(GameData.BabyShibafont, MapCursorZ.ToString(), new Vector2(2000, 20), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, MapCursorX.ToString(), new Vector2(2000, 10), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, MapCursorZ.ToString(), new Vector2(2000, 20), Color.White);
 
 
-                _spriteBatch.Draw(GameData.GuideT, new Rectangle(0, 0, 192, 192), Color.White);
+                _spriteBatch.Draw(Engine.Render.GuideT, new Rectangle(0, 0, 192, 192), Color.White);
 
                 DrawWorld();
 
@@ -9857,7 +9848,7 @@ namespace Lightrealm
 
                             if (drawColor != Color.Gray)
                             {
-                                _spriteBatch.Draw(GameData.ArchitectHere, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), drawColor);
+                                _spriteBatch.Draw(Engine.Render.ArchitectHere, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), drawColor);
                             }
                         }
                     }
@@ -9872,12 +9863,12 @@ namespace Lightrealm
                         {
                             if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX + 500, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX + 500, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(GameData.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX + 500, DrawY), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX + 500, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX + 500, DrawY), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX + 500, DrawY + 30), Color.White);
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -9893,22 +9884,22 @@ namespace Lightrealm
                                     {
                                         if (d.Industry.Length > 4)
                                         {
-                                            _spriteBatch.DrawString(GameData.Shibafont, ">" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Engine.Render.Shibafont, ">" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
                                         }
                                         else
                                         {
-                                            _spriteBatch.DrawString(GameData.Shibafont, ">" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Engine.Render.Shibafont, ">" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
                                         }
                                     }
                                     else
                                     {
                                         if(d.Industry.Length > 4)
                                         {
-                                            _spriteBatch.DrawString(GameData.Shibafont, " " + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Engine.Render.Shibafont, " " + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
                                         }
                                         else
                                         {
-                                            _spriteBatch.DrawString(GameData.Shibafont, " " + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Engine.Render.Shibafont, " " + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
                                         }
                                     }
                                     DistrictLine++;
@@ -9935,24 +9926,24 @@ namespace Lightrealm
                                     }
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX + 500, DrawY + 60), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX + 500, DrawY + 60), Color.White);
 
                                 if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "No Notable Government", new Vector2(DrawX + 500, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "No Notable Government", new Vector2(DrawX + 500, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(GameData.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX + 500, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX + 500, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX + 500, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX + 500, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX + 500, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX + 500, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX + 500, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX + 500, DrawY + 180), Color.White);
 
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Structures: " + structures, new Vector2(DrawX + 500, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX + 500, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(GameData.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX + 500, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Structures: " + structures, new Vector2(DrawX + 500, DrawY + 210), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX + 500, DrawY + 240), Color.White);
+                                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX + 500, DrawY + 270), Color.White);
                             }
                         }
                     }
@@ -9960,76 +9951,76 @@ namespace Lightrealm
 
                 int Line = 0;
 
-                _spriteBatch.DrawString(GameData.Shibafont, "Press SPACE to continue...", new Vector2(50, _graphics.PreferredBackBufferHeight - GameWorld.Width), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Press SPACE to continue...", new Vector2(50, _graphics.PreferredBackBufferHeight - GameWorld.Width), Color.White);
 
                 foreach (TextStorage t in Exposition)
                 {
-                    _spriteBatch.DrawString(GameData.BabyShibafont, t.Data, new Vector2(DrawX + 500, (DrawY + Line*15)-400), t.Color);
+                    _spriteBatch.DrawString(Engine.Render.BabyShibafont, t.Data, new Vector2(DrawX + 500, (DrawY + Line*15)-400), t.Color);
                     Line++;
                 }
             }
             else if (GameState == "triggerrupture")
             {
                 DrawWorld();
-                _spriteBatch.DrawString(GameData.BabyShibafont, "Use RTDGCV and Enter to position your focus.", new Vector2(DrawX + 500, DrawY + 60), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Use RTDGCV and Enter to position your focus.", new Vector2(DrawX + 500, DrawY + 60), Color.White);
             }
             else if (GameState == "gatheringandcrafting")
             {
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "forest" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "lightforest" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "taiga")
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[1] Harvest Wood", new Vector2(100, 100), Color.LimeGreen);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[1] Harvest Wood", new Vector2(100, 100), Color.LimeGreen);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[1] Harvest Wood (invalid biome)", new Vector2(100, 100), Color.Red);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[1] Harvest Wood (invalid biome)", new Vector2(100, 100), Color.Red);
                 }
 
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "mountain" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "snowpeak")
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[2] Harvest Stone", new Vector2(100, 150), Color.LimeGreen);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[2] Harvest Stone", new Vector2(100, 150), Color.LimeGreen);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[2] Harvest Stone (invalid biome)", new Vector2(100, 150), Color.Red);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[2] Harvest Stone (invalid biome)", new Vector2(100, 150), Color.Red);
                 }
 
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "snowpeak")
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[3] Harvest Metal", new Vector2(100, 200), Color.LimeGreen);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[3] Harvest Metal", new Vector2(100, 200), Color.LimeGreen);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[3] Harvest Metal (invalid biome)", new Vector2(100, 200), Color.Red);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[3] Harvest Metal (invalid biome)", new Vector2(100, 200), Color.Red);
                 }
 
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "desert")
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[4] Harvest Sand", new Vector2(100, 250), Color.LimeGreen);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[4] Harvest Sand", new Vector2(100, 250), Color.LimeGreen);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[4] Harvest Sand (invalid biome)", new Vector2(100, 250), Color.Red);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[4] Harvest Sand (invalid biome)", new Vector2(100, 250), Color.Red);
                 }
 
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "plains")
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[5] Harvest Fiber", new Vector2(100, 300), Color.LimeGreen);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[5] Harvest Fiber", new Vector2(100, 300), Color.LimeGreen);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[5] Harvest Fiber (invalid biome)", new Vector2(100, 300), Color.Red);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[5] Harvest Fiber (invalid biome)", new Vector2(100, 300), Color.Red);
                 }
 
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "tundra" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "taiga" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "mountain" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "snowpeak")
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[6] Harvest Ice", new Vector2(100, 350), Color.LimeGreen);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[6] Harvest Ice", new Vector2(100, 350), Color.LimeGreen);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, "[6] Harvest Ice (invalid biome)", new Vector2(100, 350), Color.Red);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, "[6] Harvest Ice (invalid biome)", new Vector2(100, 350), Color.Red);
                 }
 
-                _spriteBatch.DrawString(GameData.Shibafont, "[X] Leave", new Vector2(100, 700), Color.Orange);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "[X] Leave", new Vector2(100, 700), Color.Orange);
 
                 int MaxLinesExposition = 15;  // Set the maximum number of lines to display
 
@@ -10041,7 +10032,7 @@ namespace Lightrealm
 
                 foreach (TextStorage t in reversedExposition.Take(MaxLinesExposition))
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, t.Data, new Vector2(1000, 50 + LineExposition * 25), t.Color);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, t.Data, new Vector2(1000, 50 + LineExposition * 25), t.Color);
 
                     LineExposition++;
                 }
@@ -10053,23 +10044,18 @@ namespace Lightrealm
 
                 foreach (TextStorage t in Exposition)
                 {
-                    _spriteBatch.DrawString(GameData.Shibafont, t.Data, new Vector2(50, 50 + Line * 25), t.Color);
+                    _spriteBatch.DrawString(Engine.Render.Shibafont, t.Data, new Vector2(50, 50 + Line * 25), t.Color);
 
                     Line++;
                 }
             }
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+            if (Engine.Input.IsKeyDown(Keys.Escape))
             {
-                _spriteBatch.DrawString(GameData.Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
-                _spriteBatch.DrawString(GameData.Shibafont, "Press CTRL-S to save your game.", new Vector2(10, 60), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
+                _spriteBatch.DrawString(Engine.Render.Shibafont, "Press CTRL-S to save your game.", new Vector2(10, 60), Color.White);
             }
 
-
-            if (FrameCounter.RenderFps)
-            {
-                FrameCounter.Render(_spriteBatch, GameData.Shibafont);
-            }
-
+            Engine.Draw(_spriteBatch, gameTime);
 
             _spriteBatch.End();
 

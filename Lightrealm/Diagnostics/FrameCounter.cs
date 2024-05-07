@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.Data;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
@@ -13,7 +14,6 @@ namespace Lightrealm.Diagnostics
         private int totalFrames;
         private int calls;
         private TimeSpan elapsed;
-
 
         public Vector2 Location = new Vector2(0, 50);
         public SpriteFont font;
@@ -34,11 +34,19 @@ namespace Lightrealm.Diagnostics
 
         public void Render(SpriteBatch spriteBatch, SpriteFont font)
         {
-            spriteBatch.DrawString(font, StatusReport(), Location, GetFpsColor());
+            if (RenderFps)
+            {
+                spriteBatch.DrawString(font, StatusReport(), Location, GetFpsColor());
+            }
         }
 
         public void Update(GameTime gameTime)
         {
+            if (Engine.Input.WasKeyPressed(Key))
+            {
+                RenderFps = !RenderFps;
+            }
+
             frames++;
 
             elapsed += gameTime.ElapsedGameTime;

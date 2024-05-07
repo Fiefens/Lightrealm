@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework.Input;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 
 namespace Lightrealm.Input
 {
@@ -13,7 +14,7 @@ namespace Lightrealm.Input
             currentState = Keyboard.GetState();
         }
 
-        public void Update()
+        public void Update(GameTime gameTime)
         {
             previousState = currentState;
             currentState = Keyboard.GetState();
@@ -27,6 +28,6 @@ namespace Lightrealm.Input
         // For things like menu keys, or keys that toggle, we only want to know the frame that it was first pressed in.  So this will return false on any frame other than the first even if the
         // user holds the key down for several frames
         public bool WasKeyPressed(Keys key) { return currentState.IsKeyDown(key) && previousState.IsKeyUp(key); }
-
+        public bool WasKeyLetGo(Keys key) { return previousState.IsKeyDown(key) && currentState.IsKeyUp(key); }
     }
 }
