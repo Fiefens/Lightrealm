@@ -2,6 +2,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Media;
+using System;
 using System.IO;
 
 namespace Lightrealm.Data
@@ -12,13 +14,75 @@ namespace Lightrealm.Data
         public static Texture2D PixelTexture;
         public static SpriteSheet SpriteSheet;
 
+
+        public static Texture2D whiteRect;
+        public static Texture2D GUI;
+        public static Texture2D InventoryGUI;
+
+        public static Texture2D Astrionalis;
+        public static Texture2D Celestrioris;
+
+        //public static Texture2D CursorT;
+        public static Texture2D Gradient;
+        public static Texture2D TitleScreen;
+        public static Texture2D GuideT;
+        public static Texture2D ReactionGUIT;
+        public static Texture2D BleedT;
+
+        public static Texture2D ClockT;
+        public static Texture2D SkyT;
+        public static Texture2D SunT;
+        public static Texture2D MoonT;
+
+        public static Texture2D ArchitectHere;
+        public static Texture2D HealthGuiT;
+
+        public static Texture2D myIconTexture;
+
+
+        public static SpriteFont Shibafont;
+        public static SpriteFont BabyShibafont;
+
+        public static Song LightrealmMainTheme;
+
         public static void LoadContent(GraphicsDevice device, ContentManager Content)
         {
             Device = device;
 
             LoadPixelTexture();
             LoadSpriteSheet(Content);
-            
+
+            TitleScreen = Content.Load<Texture2D>("title");
+            GUI = Content.Load<Texture2D>("gui");
+            InventoryGUI = Content.Load<Texture2D>("inventory gui");
+            Astrionalis = Content.Load<Texture2D>("astrionalis");
+            Celestrioris = Content.Load<Texture2D>("celestrioris");
+
+            Gradient = Content.Load<Texture2D>("gradient");
+            //CursorT = Content.Load<Texture2D>("tiles/cursor");
+            GuideT = Content.Load<Texture2D>("moveguide");
+            HealthGuiT = Content.Load<Texture2D>("healthgui");
+
+            ArchitectHere = Content.Load<Texture2D>("distmap/architecthere");
+            BleedT = Content.Load<Texture2D>("droplet");
+
+            whiteRect = Content.Load<Texture2D>("pixel");
+            ReactionGUIT = Content.Load<Texture2D>("reaction gui");
+
+            myIconTexture = Content.Load<Texture2D>("Icon");
+
+            ClockT = Content.Load<Texture2D>("clock");
+            SkyT = Content.Load<Texture2D>("sky");
+            SunT = Content.Load<Texture2D>("sun");
+            MoonT = Content.Load<Texture2D>("moon");
+
+            Shibafont = Content.Load<SpriteFont>("shibafont");
+            BabyShibafont = Content.Load<SpriteFont>("babyshibafont");
+
+
+            LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
+
+
         }
 
 
@@ -105,8 +169,7 @@ namespace Lightrealm.Data
             SpriteSheet.Add("map-spire", 0, 5, 32);
             SpriteSheet.Add("map-stronghold", 1, 5, 32);
             SpriteSheet.Add("map-well", 2, 5, 32);
-
-            
+                       
 
             SpriteSheet.Add("char-base-lost", 1, 5, 32);
             SpriteSheet.Add("char-base-luminarch", 2, 5, 32);
