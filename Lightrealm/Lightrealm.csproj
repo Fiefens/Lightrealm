@@ -11,6 +11,39 @@
     <ApplicationManifest>app1.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Content\audio\**" />
+    <Compile Remove="Content\character art\**" />
+    <Compile Remove="Content\distmap\**" />
+    <Compile Remove="Content\tiles\**" />
+    <EmbeddedResource Remove="Content\audio\**" />
+    <EmbeddedResource Remove="Content\character art\**" />
+    <EmbeddedResource Remove="Content\distmap\**" />
+    <EmbeddedResource Remove="Content\tiles\**" />
+    <None Remove="Content\audio\**" />
+    <None Remove="Content\character art\**" />
+    <None Remove="Content\distmap\**" />
+    <None Remove="Content\tiles\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Content\astrionalis.png" />
+    <None Remove="Content\babyshibafont.spritefont" />
+    <None Remove="Content\BLKCHCRY.TTF" />
+    <None Remove="Content\celestrioris.png" />
+    <None Remove="Content\clock.png" />
+    <None Remove="Content\droplet.png" />
+    <None Remove="Content\gradient.png" />
+    <None Remove="Content\gui.png" />
+    <None Remove="Content\healthgui.png" />
+    <None Remove="Content\Icon.png" />
+    <None Remove="Content\inventory gui.png" />
+    <None Remove="Content\moon.png" />
+    <None Remove="Content\moveguide.png" />
+    <None Remove="Content\pixel.png" />
+    <None Remove="Content\reaction gui.png" />
+    <None Remove="Content\shibafont.spritefont" />
+    <None Remove="Content\sky.png" />
+    <None Remove="Content\sun.png" />
+    <None Remove="Content\title.png" />
     <None Remove="Icon.ico" />
     <None Remove="Icon.bmp" />
   </ItemGroup>
