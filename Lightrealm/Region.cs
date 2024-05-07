@@ -19,6 +19,8 @@ namespace Lightrealm
         public Location MyLocation { get; set; }
         public World World;
 
+        public List<(int, int)> TragedyPoints = new List<(int, int)>();
+
         public bool Explored = false;
 
         public Blight Blight;

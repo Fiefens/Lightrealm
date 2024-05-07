@@ -106,6 +106,11 @@ namespace Lightrealm
                                         "The silence of the tundra is broken by something distant.",
                                         "Something ahead breaks the flatness of the frozen landscape."
                                     }
+                                },
+                                {"ethereal", new List<string>
+                                    {
+                                        "Something is hiding in this disaster of unparalleled proportions."
+                                    }
                                 }
                             };
 
@@ -150,7 +155,7 @@ namespace Lightrealm
                     break;
             }
 
-            Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(5)];
+            Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(BiomeToIntrigue[region.Biome].Count)];
 
 
         }

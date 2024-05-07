@@ -150,6 +150,7 @@ namespace Lightrealm
         public List<Race> DeletedRaces = new List<Race>();
         public List<Composition> DeletedCompositions = new List<Composition>();
         public List<Material> DeletedMaterials = new List<Material>();
+        public List<Object> DeletedObjects = new List<Object>();
 
         static void Shuffle<T>(List<T> list)
         {
@@ -199,11 +200,9 @@ namespace Lightrealm
         public static Architect Unknown; 
         public List<string> SettlementTypes = new List<string>() { "camp", "village", "town", "city" };
 
-        public List<(Vector2, Vector2)> TradeLines = new List<(Vector2, Vector2)>();
+        public List<(int, int, int, int)> ChaosPoints = new List<(int, int, int, int)>();
 
         public int TotalCrafts = 0;
-
-
 
         public List<Object> LootTableMachine(string TableName)
         {
@@ -259,25 +258,38 @@ namespace Lightrealm
             return Loot;
         }
 
-        public void TriggerRupture(int X, int Z, Architect Activator)
+        public void TriggerRupture(int X, int Z, Architect Activator, int radius)
         {
             int Month = (int)Math.Round((decimal)(Cycle / 24192000)) % 12 + 1;
             int Year = (int)Math.Round((decimal)(Cycle / 290304000));
 
             string Date = "(" + Month + "/" + Year + ")";
 
+            Vector2 activationPoint = new Vector2(X, Z);
+            float hexHeight = 1.0f; // Assuming each hexagon has a unit height, adjust as necessary
+            float hexWidth = (float)(Math.Sqrt(3) / 2 * hexHeight); // Calculate width based on height
+
             for (int x = 0; x < Width; x++)
             {
                 for (int z = 0; z < Length; z++)
-                {
-                    int Dis = CalculateDistance(X, Z, x, z);
-                    if (Dis < 10)
-                    {
-                        int Doge = Game1.r.Next(Dis);
+                {if (WorldMap[x + z * Width].Biome == "void" || WorldMap[x + z * Width].Biome == "ocean")
+                continue;
+                    // Calculate the center position of each hex
+                    float offsetX = x * hexWidth + (z % 2) * (hexWidth / 2);
+                    float offsetZ = z * (hexHeight * 0.75f); // 0.75 accounts for hex vertical stacking
 
-                        if(Doge < 5)
+                    Vector2 currentHexCenter = new Vector2(offsetX, offsetZ);
+                    float distance = Vector2.Distance(activationPoint, currentHexCenter);
+
+                    if (distance < radius) // Check if within the radius
+                    {
+                        // Sporadic effect: decreasing chance with increasing distance
+                        float chance = (radius - distance) / radius; // Linear decrease in chance
+                        double randomValue = Game1.r.NextDouble(); // Generate a random value between 0.0 and 1.0
+
+                        if (randomValue < chance) // Compare the random value with the calculated chance
                         {
-                            WorldMap[x + z*Width].Biome = "ethereal";
+                            WorldMap[x + z * Width].Biome = "ethereal";
 
                             HistoricalEvents.Add(Date + " " + Activator.Name + " decimated the landscape of the world with a catastrophic ethereal rupture.");
 
@@ -287,7 +299,7 @@ namespace Lightrealm
 
                                 foreach (District d in WorldMap[x + z * Width].MyLocation.Districts)
                                 {
-                                    foreach(Architect a in d.Architects)
+                                    foreach (Architect a in d.Architects)
                                     {
                                         HistoricalEvents.Add(Date + " " + a.Name + " was consumed in the rupture.");
                                         a.IsAlive = false;
@@ -302,6 +314,8 @@ namespace Lightrealm
                 }
             }
         }
+
+
 
 
         public static Dictionary<int, List<string>> RarityDistribution = new Dictionary<int, List<string>>
@@ -802,6 +816,10 @@ namespace Lightrealm
 
         public int TotalWrittenObjects { get; set; }
 
+        public int MaxAge = 0;
+        public double ProsperityMultiplier = 1.0;
+        public string LockedInThreat = "";
+
         public int LivingArchitects { get; set; }
         public int DeadArchitects { get; set; }
         public int TotalArchitects { get; set; }
@@ -853,6 +871,7 @@ namespace Lightrealm
         public Material Spectre { get; set; } = new Material("spectre", "metaphysic", 1, 1);
         public Material Energy { get; set; } = new Material("energy", "metaphysic", 1, 1);
         public Material Flame { get; set; } = new Material("flame", "metaphysic", 1, 1);
+        public Material Void { get; set; } = new Material("void", "metaphysic", 1, 1);
 
 
         public List<Material> CoreMaterials()
@@ -916,7 +935,7 @@ namespace Lightrealm
 
 
 
-        public World(int width, int length, int civCount)
+        public World(int width, int length, int civCount, int maxAge, string dedicatedThreat, double prosperityMultiplier)
         {
             foreach (string c in Game1.Colors)
             {
@@ -929,6 +948,10 @@ namespace Lightrealm
             ReferredToNames.Add(Name);
             ReferredToNames.Add(baseName);
             Purity = new Blight(this);
+
+            LockedInThreat = dedicatedThreat;
+            MaxAge = maxAge;
+            ProsperityMultiplier = prosperityMultiplier;
 
             //add materials, collapsed
             {
@@ -1247,13 +1270,13 @@ namespace Lightrealm
 
             scale = 0.01f;
             SimplexNoise.Noise.Seed = Game1.r.Next(0, 10000000);
-            float[,] Array1 = SimplexNoise.Noise.Calc2D(length, width, scale);
+            float[,] Array1 = SimplexNoise.Noise.Calc2D(width, length, scale);
             scale = 0.02f;
             SimplexNoise.Noise.Seed = Game1.r.Next(0, 10000000);
-            float[,] Array2 = SimplexNoise.Noise.Calc2D(length, width, scale);
+            float[,] Array2 = SimplexNoise.Noise.Calc2D(width, length, scale);
             scale = 0.08f;
             SimplexNoise.Noise.Seed = Game1.r.Next(0, 10000000);
-            float[,] Array3 = SimplexNoise.Noise.Calc2D(length, width, scale);
+            float[,] Array3 = SimplexNoise.Noise.Calc2D(width, length, scale);
 
 
             //construct radial array
@@ -1291,14 +1314,14 @@ namespace Lightrealm
 
             float[] ConvertTo1DArray(float[,] array2D)
             {
-                int length = array2D.GetLength(0);
-                int width = array2D.GetLength(1);
+                int length = array2D.GetLength(1);
+                int width = array2D.GetLength(0);
                 float[] array1D = new float[length * width];
 
                 int index = 0;
-                for (int x = 0; x < length; x++)
+                for (int x = 0; x < width; x++)
                 {
-                    for (int z = 0; z < width; z++)
+                    for (int z = 0; z < length; z++)
                     {
                         array1D[index++] = array2D[x, z];
                     }
@@ -1309,12 +1332,12 @@ namespace Lightrealm
 
             scale = 0.08f;
             SimplexNoise.Noise.Seed = Game1.r.Next(0, 10000000);
-            float[,] treeNoise2D = SimplexNoise.Noise.Calc2D(length, width, scale);
+            float[,] treeNoise2D = SimplexNoise.Noise.Calc2D(width, length, scale);
             TreeNoiseValues = ConvertTo1DArray(treeNoise2D);
 
             scale = 0.05f;
             SimplexNoise.Noise.Seed = Game1.r.Next(0, 10000000);
-            float[,] temperatureNoise2D = SimplexNoise.Noise.Calc2D(length, width, scale);
+            float[,] temperatureNoise2D = SimplexNoise.Noise.Calc2D(width, length, scale);
             TemperatureNoiseValues = ConvertTo1DArray(temperatureNoise2D);
 
 
@@ -1712,7 +1735,15 @@ namespace Lightrealm
                         {"power", new List<string>() {"supremerule", "transcendmorality", "infinitewisdom"}}
                     };
 
-                    CalamityIdeologicalObsession = new List<string>() { "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(9)];
+                    if(LockedInThreat == "random")
+                    {
+                        CalamityIdeologicalObsession = new List<string>() { "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(9)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
+                    }
+                    else
+                    {
+                        CalamityIdeologicalObsession = LockedInThreat;
+                    }
+
                     if (ideologicalReasonings.ContainsKey(CalamityIdeologicalObsession))
                     {
                         var reasoningsList = ideologicalReasonings[CalamityIdeologicalObsession];
@@ -2048,7 +2079,7 @@ namespace Lightrealm
                                     Tries++;
                                 }
                             }
-                            else
+                            else if(!CalamityStructures.Contains(Calamitizer.InteractionLocation.Type))
                             {
                                 //inflict pain and suffering
 
@@ -2067,7 +2098,7 @@ namespace Lightrealm
 
                                 if (ChosenDistrict != null)
                                 {
-                                    if (CalamityIdeologicalObsession == "disease" && Calamitizer.InteractionLocation.Region.Blight != Calamitizer.BlightManipulated)
+                                    if (CalamityIdeologicalObsession == "disease")
                                     {
                                         LogEvent(Calamitizer.Name + " deliberately spread the " + Calamitizer.BlightManipulated.Name + " to " + Calamitizer.InteractionLocation.Name + ".");
 
@@ -2076,6 +2107,7 @@ namespace Lightrealm
                                             if(r.Next(GrievanceChance) == 1)
                                             {
                                                 a.Grievances.Add((Calamitizer, "plagued " + a.PossessivePronoun + " town, " + a.Location.Name + "."));
+                                                Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                             }
                                         }
                                     }
@@ -2090,6 +2122,7 @@ namespace Lightrealm
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
                                                     a.Grievances.Add((Calamitizer, "unjustly took control of " + a.PossessivePronoun + " town, " + a.Location.Name + ""));
+                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
                                         }
@@ -2127,6 +2160,7 @@ namespace Lightrealm
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
                                                     a.Grievances.Add((Calamitizer, "unjustly took control of " + a.PossessivePronoun + " town, " + a.Location));
+                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
 
@@ -2178,6 +2212,7 @@ namespace Lightrealm
                                                     if (r.Next(GrievanceChance) == 1)
                                                     {
                                                         a.Grievances.Add((Calamitizer, " murdered a friend of " + a.Name + ", " + ChosenDistrict.Architects[Index].Name));
+                                                        Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                     }
                                                 }
 
@@ -2215,6 +2250,7 @@ namespace Lightrealm
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
                                                     a.Grievances.Add((Calamitizer, " kidnapped people, causing distress in " + a.PossessivePronoun + " community"));
+                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
                                         }
@@ -2234,6 +2270,7 @@ namespace Lightrealm
                                                     if (r.Next(GrievanceChance) == 1)
                                                     {
                                                         a.Grievances.Add((Calamitizer, " kidnapped " + ChosenDistrict.Architects[Index].Name + ", a valued member of " + a.PossessivePronoun + " community"));
+                                                        Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                     }
                                                 }
                                             }
@@ -2260,6 +2297,7 @@ namespace Lightrealm
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
                                                     a.Grievances.Add((Calamitizer, " was noticed by " + ChosenDistrict.Architects[Index].Name + ", who began to notice a difference in " + ChosenDistrict.Architects[Index].Name + ""));
+                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
                                         }
@@ -2283,6 +2321,7 @@ namespace Lightrealm
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
                                                     a.Grievances.Add((Calamitizer, " noticed a change in " + ChosenDistrict.Architects[Index].Name + " towards evil"));
+                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
                                         }
@@ -2309,6 +2348,7 @@ namespace Lightrealm
                                                         if(r.Next(GrievanceChance/2) == 1)
                                                         {
                                                             a.Grievances.Add((Calamitizer, " caused a war that ruined the stability of " + a.Name + "'s life"));
+                                                            Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                         }
                                                     }
                                                 }
@@ -2347,6 +2387,7 @@ namespace Lightrealm
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
                                                     a.Grievances.Add((Calamitizer, "harvested energy, causing the death of many in " + a.PossessivePronoun + " town, " + Calamitizer.InteractionLocation.Name + ""));
+                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
                                         }
@@ -2370,7 +2411,8 @@ namespace Lightrealm
                                                 {
                                                     if (r.Next(GrievanceChance) == 1)
                                                     {
-                                                        a.Grievances.Add((Calamitizer, "murdered and harvested energy from " + ChosenDistrict.Architects[Index].Name + ", a respected community member"));
+                                                        a.Grievances.Add((Calamitizer, "murdered and harvested energy from " + ChosenDistrict.Architects[Index].Name + ", a good friend of theirs."));
+                                                        Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                     }
                                                 }
                                             }
@@ -2379,6 +2421,48 @@ namespace Lightrealm
                                         {
                                             Calamitizer.SpellsKnown = Game1.AllSpells.Union(Game1.AllLegendarySpells).ToList();
                                             LogEvent("After harvesting enough energy and renouncing the deities of the land, " + Calamitizer.Name + " became infused with unfathomable power from an unknown origin, but continued on to tempt the universe further.");
+                                        }
+                                    }
+                                    else if (CalamityIdeologicalObsession == "purifier")
+                                    {
+                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 10) == 1)
+                                        {
+                                            int InitialPop = ChosenDistrict.UnplacedPopulation;
+                                            ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
+
+                                            // Trigger random small-scale ruptures
+                                            for (int i = 0; i < (InitialPop - ChosenDistrict.UnplacedPopulation); i++)
+                                            {
+                                                int ruptureX = r.Next(Width);
+                                                int ruptureZ = r.Next(Length);
+                                                TriggerRupture(ruptureX, ruptureZ, Calamitizer, r.Next(0, 3)); // small radius between 1 and 3
+
+                                                // Scan nearby regions within a certain range but outside the immediate rupture radius
+                                                int scanRadius = 8; // Arbitrary scan radius
+                                                for (int x = Math.Max(0, ruptureX - scanRadius); x <= Math.Min(Width - 1, ruptureX + scanRadius); x++)
+                                                {
+                                                    for (int z = Math.Max(0, ruptureZ - scanRadius); z <= Math.Min(Length - 1, ruptureZ + scanRadius); z++)
+                                                    {
+                                                        if (CalculateDistance(ruptureX, ruptureZ, x, z) > 3 && CalculateDistance(ruptureX, ruptureZ, x, z) <= scanRadius)
+                                                        {
+                                                            Location nearbyLocation = WorldMap[x + z * Width].MyLocation;
+                                                            if (nearbyLocation != null)
+                                                            {
+                                                                foreach (District district in nearbyLocation.Districts)
+                                                                {
+                                                                    foreach (Architect architect in district.Architects)
+                                                                    {
+                                                                        if (r.Next(GrievanceChance) == 1)
+                                                                        {
+                                                                            architect.Grievances.Add((Calamitizer, "caused a rupture near " + architect.Name + "'s district."));
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
 
@@ -2666,7 +2750,7 @@ namespace Lightrealm
                                 }
                             }
 
-                            location.Wealth = location.Wealth + (WealthIncrease);
+                            location.Wealth = location.Wealth + (int)Math.Round(WealthIncrease * ProsperityMultiplier);
 
 
                             //create interactable events based on history
@@ -4913,7 +4997,7 @@ namespace Lightrealm
 
                         //prism
                         Block chosenBlock = NewLocation.Districts[0].DistrictMap[Game1.r.Next(0, 49)]; 
-                        Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { NewLocation.HomeCivilization.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                        Structure Prism = new Structure("prism", l.Artifacts, new List<Room>(), chosenBlock, new List<Material> { NewLocation.HomeCivilization.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
                         Prism.Name = GenerateUniqueName("1W 1S2s", Prism);
                         NewLocation.Prism = Prism;
                         NewLocation.AllStructures.Add(Prism);
@@ -4953,7 +5037,7 @@ namespace Lightrealm
                         }
 
 
-                        Structure s = new Structure("spire", new List<Object>(), new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { m }, new List<string>(), new List<string> { "crystals" }, 3, 0);
+                        Structure s = new Structure("spire", l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { m }, new List<string>(), new List<string> { "crystals" }, 3, 0);
                         NewLocation.AllStructures.Add(s);
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }
@@ -4964,7 +5048,7 @@ namespace Lightrealm
 
                         Material m = Stones[Game1.r.Next(Stones.Count)];
 
-                        Structure s = new Structure("outpost", new List<Object>(), new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { m }, new List<string>(), new List<string> { "torches" }, 3, 5);
+                        Structure s = new Structure("outpost", l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { m }, new List<string>(), new List<string> { "torches" }, 3, 5);
                         NewLocation.AllStructures.Add(s);
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }
@@ -4973,7 +5057,7 @@ namespace Lightrealm
                         int SX = Game1.r.Next(2, 5);
                         int SZ = Game1.r.Next(2, 5);
 
-                        Structure s = new Structure("sanctum", new List<Object>(), new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { Archaeon }, new List<string>(), new List<string> { "crystals" }, 3, 999);
+                        Structure s = new Structure("sanctum", l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { Archaeon }, new List<string>(), new List<string> { "crystals" }, 3, 999);
                         NewLocation.AllStructures.Add(s);
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }
@@ -4982,7 +5066,7 @@ namespace Lightrealm
                         int SX = Game1.r.Next(2, 5);
                         int SZ = Game1.r.Next(2, 5);
 
-                        Structure s = new Structure(l.Type, new List<Object>(), new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { Stones[r.Next(Stones.Count)] }, new List<string>(), new List<string> { "torches" }, 3, 0);
+                        Structure s = new Structure(l.Type, l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { Stones[r.Next(Stones.Count)] }, new List<string>(), new List<string> { "torches" }, 3, 0);
                         NewLocation.AllStructures.Add(s);
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }

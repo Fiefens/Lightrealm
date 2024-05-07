@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Content;
 using MonoGame.Framework.Utilities;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.Contracts;
@@ -28,6 +29,8 @@ namespace Lightrealm
         public string ObjectivePronoun { get; set; }
 
         public bool RuptureMode = false;
+
+        public int HalfFocusTicks = 0;
 
         public (Location, District, Block, Structure, Room) SavePoint = (null,null,null,null,null);
         public int SavePointTicks = 0;
@@ -470,6 +473,18 @@ namespace Lightrealm
         public int Creativity;
         public int Charisma;
         public int Focus;
+
+        public int FocusForReal()
+        {
+            if (HalfFocusTicks > 0)
+            {
+                return (int)Math.Round(((double)(Focus / 2)), 0, MidpointRounding.ToNegativeInfinity);
+            }
+            else
+            {
+                return Focus;
+            }
+        }
 
         public Object FindBodyPart(string objectType)
         {
@@ -1941,7 +1956,10 @@ namespace Lightrealm
 
             //distancing
 
-
+            if(HalfFocusTicks > 0)
+            {
+                HalfFocusTicks--;
+            }
             //first clear old ones
             List<(Architect, int)> DistancesToRemove = new List<(Architect, int)>();
 
@@ -2031,7 +2049,7 @@ namespace Lightrealm
 
             if(PathOfHeatLevel < 4)
             {
-                if (LeftHandObject != null && (LeftHandObject.FireCycles > 0 || LeftHandObject.HeatInCelsius >= 30 + (Focus * 5)))
+                if (LeftHandObject != null && (LeftHandObject.FireCycles > 0 || LeftHandObject.HeatInCelsius >= 30 + (FocusForReal() * 5)))
                 {
                     if (isSameRoomOrBlockMatch)
                     {
@@ -2049,7 +2067,7 @@ namespace Lightrealm
                     }
 
                 }
-                if (RightHandObject != null && (RightHandObject.FireCycles > 0 || RightHandObject.HeatInCelsius >= 30 + (Focus * 5)))
+                if (RightHandObject != null && (RightHandObject.FireCycles > 0 || RightHandObject.HeatInCelsius >= 30 + (FocusForReal() * 5)))
                 {
                     if (isSameRoomOrBlockMatch)
                     {
@@ -2069,7 +2087,7 @@ namespace Lightrealm
 
                 foreach (Object clothingItem in Clothing) 
                 {
-                    if (clothingItem.FireCycles > 0 || clothingItem.HeatInCelsius >= 30 + (Focus * 5))
+                    if (clothingItem.FireCycles > 0 || clothingItem.HeatInCelsius >= 30 + (FocusForReal() * 5))
                     {
                         Energy -= 1;
 
@@ -2474,6 +2492,27 @@ namespace Lightrealm
                             ChangeOpinion(a, -247);
                         }
                     }
+                }
+
+
+
+
+                //delete known spells, race, compositions, etc.
+
+                SpellsKnown.RemoveAll(item => Game1.GameWorld.DeletedSpells.Contains(item));
+                CultureBank.RemoveAll(item => Game1.GameWorld.DeletedCompositions.Contains(item));
+                Inventory.RemoveAll(item => Game1.GameWorld.DeletedObjects.Contains(item));
+
+                if (Game1.GameWorld.DeletedObjects.Contains(LeftHandObject))
+                    LeftHandObject = null;
+                if (Game1.GameWorld.DeletedObjects.Contains(RightHandObject))
+                    RightHandObject = null;
+
+                if(Game1.GameWorld.DeletedRaces.Contains(this.Race))
+                {
+                    Race = Game1.GameWorld.GetRace("shade");
+                    BodyParts.Clear();
+                    AddBodyParts();
                 }
 
 
@@ -3219,7 +3258,12 @@ namespace Lightrealm
                 Targets.Remove(e);
             }
 
-
+            if(new List<string> { "eternal bind", "ethereal rupture", "echo", "expunge", "emergence"}.Contains(Spell))
+            {
+                Energy = 1;
+                HalfFocusTicks = 5000;
+                Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed));
+            }
 
             foreach (Entity CurrentTarget in Targets)
             {
@@ -3409,7 +3453,7 @@ namespace Lightrealm
                             {
                                 Announcements.Add(new TextStorage(o.ReferredToNames[0] + " flies at " + CurrentTarget.ReferredToNames[0] + "!", Color.Purple));
                                 ((Object)o).AirborneTarget = MainTarget;
-                                ((Object)CurrentTarget).AirborneCyclesToHitTarget = 15 - Focus;
+                                ((Object)CurrentTarget).AirborneCyclesToHitTarget = 15 - FocusForReal();
                             }
                             else
                             {
@@ -3613,14 +3657,14 @@ namespace Lightrealm
                         Announcements.Add(new TextStorage(CurrentTarget.Name + " stares back in awe...", Color.Purple));
 
                         target.ChangeOpinion(this, 999999);
-                        
-                        if(target.TargetArchitect == this && (target.Task == "killtarget" || target.Task == "disabletarget"))
+
+                        if (target.TargetArchitect == this && (target.Task == "killtarget" || target.Task == "disabletarget"))
                         {
                             target.Task = "";
                             target.TargetArchitect = null;
                         }
 
-                        if(!Game1.GamePlayerParty.Architects.Contains(target))
+                        if (!Game1.GamePlayerParty.Architects.Contains(target))
                         {
                             Game1.GamePlayerParty.Architects.Add(target);
                         }
@@ -3668,7 +3712,7 @@ namespace Lightrealm
                             {
                                 if (Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width].Blight == CurrentTarget)
                                 {
-                                    Game1.GameWorld.WorldMap[x, z * Game1.GameWorld.Width].Blight = Game1.GameWorld.Purity;
+                                    Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width].Blight = Game1.GameWorld.Purity;
                                 }
                             }
                         }
@@ -3730,17 +3774,17 @@ namespace Lightrealm
                             {
                                 if (a.Location == (Location)CurrentTarget)
                                 {
-                                    Game1.MakeObservation(LoadedArchitects[ArchitectIndex].Name + " was successfully launched into oblivion. How embarrassing...", Color.Magenta);
-                                    Game1.LoadedArchitects[ArchitectIndex].IsAlive = false;
-                                    if (GamePlayerParty.Architects.Contains(LoadedArchitects[ArchitectIndex]))
+                                    Game1.MakeObservation(a.Name + " was successfully launched into oblivion. How embarrassing...", Color.Magenta);
+                                    a.IsAlive = false;
+                                    if (Game1.GamePlayerParty.Architects.Contains(a))
                                     {
-                                        Game1.GamePlayerParty.Architects.Remove(LoadedArchitects[ArchitectIndex]);
+                                        Game1.GamePlayerParty.Architects.Remove(a);
 
-                                        if (GamePlayerParty.Architects.Count == 0)
+                                        if (Game1.GamePlayerParty.Architects.Count == 0)
                                         {
                                             Game1.GameState = "dead";
 
-                                            if (GamePlayerParty.Architects.Count == 0)
+                                            if (Game1.GamePlayerParty.Architects.Count == 0)
                                             {
                                                 Game1.GameState = "dead";
                                             }
@@ -3755,15 +3799,15 @@ namespace Lightrealm
                         Announcements.Add(new TextStorage($"Your party has disbanded.", Color.Purple));
 
                         List<Architect> ArchitectsToBanish = new List<Architect>();
-                        foreach(Architect a in Game1.GamePlayerParty.Architects)
+                        foreach (Architect a in Game1.GamePlayerParty.Architects)
                         {
-                            if(a != this)
+                            if (a != this)
                             {
                                 ArchitectsToBanish.Add(a);
                             }
                         }
 
-                        foreach(Architect a in ArchitectsToBanish)
+                        foreach (Architect a in ArchitectsToBanish)
                         {
                             Game1.GamePlayerParty.Architects.Remove(a);
                         }
@@ -3776,17 +3820,17 @@ namespace Lightrealm
                         Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
                         Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
 
-                        foreach(Location l in Game1.GameWorld.AllLocations)
+                        foreach (Location l in Game1.GameWorld.AllLocations)
                         {
-                            if(l.Government == CurrentTarget)
+                            if (l.Government == CurrentTarget)
                             {
                                 l.Government = null;
                             }
                         }
 
-                        foreach(Architect a in ((Group)CurrentTarget).Architects)
+                        foreach (Architect a in ((Group)CurrentTarget).Architects)
                         {
-                            a.Group == null;
+                            a.Group = null;
                         }
                     }
                     else if (CurrentTarget is Architect)
@@ -3796,7 +3840,7 @@ namespace Lightrealm
 
                         Architect a = (Architect)CurrentTarget;
 
-                        if(District.Architects.Contains(a))
+                        if (District.Architects.Contains(a))
                         {
                             District.Architects.Remove(a);
                         }
@@ -3830,9 +3874,9 @@ namespace Lightrealm
                         {
                             for (int z = 0; z < Game1.GameWorld.Width; z++)
                             {
-                                foreach(InteractableEvent e in Game1.GameWorld.WorldMap[x,z].Events)
+                                foreach (InteractableEvent e in Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width].Events)
                                 {
-                                    if(e.GuarranteedArchitects.Contains(a))
+                                    if (e.GuarranteedArchitects.Contains(a))
                                     {
                                         e.GuarranteedArchitects.Remove(a);
                                         break;
@@ -3845,7 +3889,7 @@ namespace Lightrealm
                         a.Location = null;
                         a.District = null;
 
-                        if(a.Room != null)
+                        if (a.Room != null)
                         {
                             a.Room.Architects.Remove(a);
                             a.DropInventory();
@@ -3858,14 +3902,14 @@ namespace Lightrealm
                             a.Block = null;
                         }
 
-                        if(Game1.GamePlayerParty.Architects.Contains(a))
+                        if (Game1.GamePlayerParty.Architects.Contains(a))
                         {
                             Game1.GamePlayerParty.Architects.Remove(a);
                         }
 
                         if (a.Group != null)
                         {
-                            if(a.Group.Leader == a)
+                            if (a.Group.Leader == a)
                             {
                                 //disbands the group, removes it from any power, does not kill the members
                                 Announcements.Add(new TextStorage($"{CurrentTarget.Name}'s relationship has fractured.", Color.Purple));
@@ -3883,7 +3927,7 @@ namespace Lightrealm
 
                                 foreach (Architect A in ((Group)CurrentTarget).Architects)
                                 {
-                                    A.Group == null;
+                                    A.Group = null;
                                 }
                             }
                             else
@@ -3910,12 +3954,35 @@ namespace Lightrealm
                     {
                         Announcements.Add(new TextStorage($"{CurrentTarget.Name} collapses into a singularity. (UNIMPLEMENTED PLS)", Color.Purple));
 
+                        //delete it from all architects, historical objects, and other stuff. If it ever exists in the world elsewhere, we will just delete it when it gets loaded.
+
+                        Game1.GameWorld.DeletedObjects.Add((Object)CurrentTarget);
+
+                        foreach (Architect a in Game1.GameWorld.AllArchitects)
+                        {
+                            if (a.Inventory.Contains(CurrentTarget))
+                            {
+                                a.Inventory.Remove((Object)CurrentTarget);
+                                break;
+                            }
+                            else if (a.LeftHandObject == CurrentTarget)
+                            {
+                                a.LeftHandObject = null;
+                                break;
+                            }
+                            else if (a.RightHandObject == CurrentTarget)
+                            {
+                                a.RightHandObject = null;
+                                break;
+                            }
+                        }
+
                         //unimplemented fsr
                     }
                     else if (CurrentTarget is Material)
                     {
                         //add the material to a list of banished materials. Replace objects iwth these materials with Void Energy, a new material when they update. You cannot cast this spell on Void Material.
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name}'s properties have been reduced away.", Color.Purple));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name}'s properties have been reduced to nothing.", Color.Purple));
 
                         Game1.GameWorld.DeletedMaterials.Add((Material)CurrentTarget);
                     }
@@ -3924,11 +3991,35 @@ namespace Lightrealm
                         Announcements.Add(new TextStorage($"The members of {CurrentTarget.Name} have been reduced to indistinguishable lifeforms.", Color.Purple));
                         //a banished race makes all members of that race shades. this is stored in a static list.
 
-                        Game1.GameWorld.Races
+                        Game1.GameWorld.DeletedRaces.Add((Race)CurrentTarget);
                     }
                     else if (CurrentTarget is Structure)
                     {
                         Announcements.Add(new TextStorage($"{CurrentTarget.Name} vanishes.", Color.Purple));
+
+                        Structure s = ((Structure)CurrentTarget);
+
+                        foreach (Room r in s.Rooms)
+                        {
+                            foreach (Architect a in r.Architects)
+                            {
+                                s.Block.Architects.Add(a);
+                                a.Room = null;
+                                a.Structure = null;
+                            }
+                            foreach (Object o in r.Objects)
+                            {
+                                s.Block.Objects.Add(o);
+                                o.Room = null;
+                                o.Structure = null;
+                            }
+                        }
+                        foreach (Object o in s.HistoricalObjects)
+                        {
+                            s.Block.Objects.Add(o);
+                            o.Room = null;
+                            o.Structure = null;
+                        }
                     }
                     else if (CurrentTarget is World)
                     {
@@ -3939,8 +4030,198 @@ namespace Lightrealm
                         Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple));
                     }
                 }
-            }
+                else if (Spell == "echo")
+                {
+                    Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple));
 
+                    if (CurrentTarget is Architect)
+                    {
+                        Architect Base = (Architect)CurrentTarget;
+                        string NameAlteration = Game1.GameWorld.GenerateUniqueName("1S6s", new Entity("this is a tag for a clone"));
+                        Architect Clone = new Architect(CurrentTarget.Name + " " + NameAlteration, Base.Sex, Base.Race, Base.Age, Base.Profession, new List<Object>(), Base.Location, Base.District, Base.Block, Base.Destiny, Base.Level);
+                        Game1.GameWorld.AllArchitects.Add(Clone);
+
+                        Clone.Clothing.Clear();
+
+                        Clone.MoralCompass = Base.MoralCompass;
+                        Clone.StabilityCompass = Base.StabilityCompass;
+                        Clone.PropertyValue = Base.PropertyValue;
+                        Clone.FamilyValue = Base.FamilyValue;
+                        Clone.PowerValue = Base.PowerValue;
+                        Clone.MoneyValue = Base.MoneyValue;
+                        Clone.KnowledgeValue = Base.KnowledgeValue;
+                        Clone.SpiritualityValue = Base.SpiritualityValue;
+                        Clone.ProwessValue = Base.ProwessValue;
+                        Clone.PatriotismValue = Base.PatriotismValue;
+                        Clone.CourageValue = Base.CourageValue;
+                        Clone.CreativityValue = Base.CreativityValue;
+
+                        Clone.Dexterity = Base.Dexterity;
+                        Clone.Strength = Base.Strength;
+                        Clone.Charisma = Base.Charisma;
+                        Clone.Focus = Base.Focus;
+                        Clone.Endurance = Base.Endurance;
+                        Clone.Creativity = Base.Creativity;
+                        Clone.Agility = Base.Agility;
+
+
+                        Clone.CultureBank = new List<Composition>(Base.CultureBank);
+
+                        // Cloning XPValues
+                        Clone.XPValues = new List<(string, int)>(Base.XPValues);
+
+                        // Cloning KnownArchitectsAndOpinions
+                        Clone.KnownArchitectsAndOpinions = new List<(Architect, int)>(Base.KnownArchitectsAndOpinions);
+
+                        if (Base.Location.IsLoaded)
+                        {
+                            if(Base.Room != null)
+                            {
+                                Base.Room.Architects.Add(Clone);
+                            }
+                            else
+                            {
+                                Base.Block.Architects.Add(Clone);
+                            }
+                        }
+                        else
+                        {
+                            Base.District.Architects.Add(Clone);
+                        }
+
+
+                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.Name + " appears!", Color.Purple));
+                    }
+                    else if (CurrentTarget is Object)
+                    {
+                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple));
+                        Object Base = (Object)CurrentTarget;
+                        Object Clone = new Object();
+
+                        // Cloning simple properties
+                        Clone.Type = Base.Type;
+                        Clone.Materials = new List<Material>(Base.Materials); // Assuming Material objects do not need deep cloning
+                        Clone.Description = Base.Description;
+                        Clone.IsContainer = Base.IsContainer;
+                        Clone.ContainedObjects = new List<Object>(Base.ContainedObjects); // Shallow copy of the list
+                        Clone.IfTrueUseInIfFalseUseOn = Base.IfTrueUseInIfFalseUseOn;
+                        Clone.YLevelInFeet = Base.YLevelInFeet;
+                        Clone.YVelocity = Base.YVelocity;
+                        Clone.Weight = Base.Weight;
+                        Clone.WeaponMaximumRange = Base.WeaponMaximumRange;
+                        Clone.Structure = Base.Structure; // Assuming Structure is handled correctly if shared reference is okay
+                        Clone.Block = Base.Block;
+                        Clone.Room = Base.Room;
+                        Clone.HeatInCelsius = Base.HeatInCelsius;
+                        Clone.IsConsumable = Base.IsConsumable;
+                        Clone.VariableToChange = Base.VariableToChange;
+                        Clone.VariableChange = Base.VariableChange;
+                        Clone.IsWearable = Base.IsWearable;
+                        Clone.Rarity = Base.Rarity;
+                        Clone.IsBodyPart = Base.IsBodyPart;
+                        Clone.MajorArteryIsSevered = Base.MajorArteryIsSevered;
+                        Clone.AirborneTarget = Base.AirborneTarget;
+                        Clone.AirbornePower = Base.AirbornePower;
+                        Clone.AirborneCyclesToHitTarget = Base.AirborneCyclesToHitTarget;
+                        Clone.Creator = Base.Creator;
+                        Clone.WordCount = Base.WordCount;
+                        Clone.Subject = Base.Subject;
+                        Clone.FireCycles = Base.FireCycles;
+                        Clone.WetCycles = Base.WetCycles;
+                        Clone.DestabilizedCycles = Base.DestabilizedCycles;
+                        Clone.FractalCycles = Base.FractalCycles;
+                        Clone.RematerializeLocation = Base.RematerializeLocation;
+                        Clone.IsCoveredInPlants = Base.IsCoveredInPlants;
+                        Clone.CoverageValues = new List<(string, int)>(Base.CoverageValues);
+                        Clone.Coverage = Base.Coverage;
+                        Clone.CoverageName = Base.CoverageName;
+                        Clone.IsWeapon = Base.IsWeapon;
+                        Clone.DamageType = Base.DamageType;
+                        Clone.ProjectileAerodynamic = Base.ProjectileAerodynamic;
+                        Clone.Strength = Base.Strength;
+                        Clone.Dissipating = Base.Dissipating;
+                        Clone.Integrity = Base.Integrity;
+                        Clone.IsWritable = Base.IsWritable;
+                        Clone.SpellContained = Base.SpellContained;
+                        Clone.IsGeneralGood = Base.IsGeneralGood;
+
+                        // Handling exceptions (deep cloning)
+                        Clone.Imbuements = Base.Imbuements.Select(imb => new Imbuement(imb.IsTrigger, imb.ConditionOrTrigger, imb.BuffOrResult, imb.FirstPower, imb.SecondPower)).ToList();
+                        Clone.CompositionContent = Base.CompositionContent;
+                        Clone.Thrower = Base.Thrower;
+                        Clone.Owner = Base.Owner;
+
+
+
+                        foreach (Architect a in Game1.GameWorld.AllArchitects)
+                        {
+                            if (a.Location.IsLoaded)
+                            {
+                                if (a.LeftHandObject == Base)
+                                {
+                                    if (a.Room != null)
+                                    {
+                                        a.Room.Objects.Add(Clone);
+                                    }
+                                    else
+                                    {
+                                        a.Block.Objects.Add(Clone);
+                                    }
+                                }
+                                else if (a.RightHandObject == Base)
+                                {
+                                    if (a.Room != null)
+                                    {
+                                        a.Room.Objects.Add(Clone);
+                                    }
+                                    else
+                                    {
+                                        a.Block.Objects.Add(Clone);
+                                    }
+                                }
+                                else if (a.Inventory.Contains(Base))
+                                {
+                                    // Adding to the same location in the inventory where the base object was found
+                                    int index = a.Inventory.IndexOf(Base);
+                                    a.Inventory.Insert(index + 1, Clone); // Insert clone right after the base object
+                                }
+                                else if (a.Clothing.Contains(Base))
+                                {
+                                    // If the base object is found in the clothing, we drop the clone on the ground instead of inserting it back into clothing
+                                    if (a.Room != null)
+                                    {
+                                        // If the architect is in a room, add the clone to the room's objects
+                                        a.Room.Objects.Add(Clone);
+                                    }
+                                    else
+                                    {
+                                        // If the architect is not in a room but is in a block, add the clone to the block's objects
+                                        a.Block.Objects.Add(Clone);
+                                    }
+                                }
+
+                            }
+                            else
+                            {
+                                // When the location is not loaded, and you need to check if any of the conditions for holding or carrying the base object are met
+                                bool anyConditionMet = a.LeftHandObject == Base || a.RightHandObject == Base || a.Inventory.Contains(Base) || a.Clothing.Contains(Base);
+                                if (anyConditionMet)
+                                {
+                                    // Assuming we default to adding to the inventory when the location is not loaded
+                                    a.Inventory.Add(Clone);
+                                }
+                            }
+                        }
+
+                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.Name + " appears!", Color.Purple));
+                    }
+                    else
+                    {
+                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple));
+                        Announcements.Add(new TextStorage("...but they just aren't strong enough. The spell only works on Architects and Objects.", Color.Purple));
+                    }
+                }
+            }
 
             foreach (Imbuement i in CurrentlyActiveImbuements)
             {
@@ -3971,7 +4252,7 @@ namespace Lightrealm
                             Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0) }, this);
                             Room.Objects.Add(o);
                             o.AirborneTarget = a;
-                            o.AirborneCyclesToHitTarget = 15 - Focus;
+                            o.AirborneCyclesToHitTarget = 15 - FocusForReal();
                             return new TextStorage(ReferredToNames[0] + " fires a bolt at " + a.ReferredToNames[0] + "!", Color.Magenta);
                         }
                     }
@@ -3985,7 +4266,7 @@ namespace Lightrealm
                             Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0) }, this);
                             Block.Objects.Add(o);
                             o.AirborneTarget = a;
-                            o.AirborneCyclesToHitTarget = 15 - Focus;
+                            o.AirborneCyclesToHitTarget = 15 - FocusForReal();
                             return new TextStorage(ReferredToNames[0] + " fires a bolt at " + a.ReferredToNames[0] + "!", Color.Magenta);
                         }
                     }

@@ -28,6 +28,8 @@ namespace Lightrealm
             Direction = direction;
             IsWearable = false;
 
+            Room = SourceRoom;
+
             ReferredToNames = new List<string>() { "Placeholder" };
         }
 

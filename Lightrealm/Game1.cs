@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -36,6 +37,15 @@ namespace Lightrealm
         public static int CurrentObjectPage = 0;
         public static int MaximumObjectPage = 0;
         public static int ItemsPerPage = 50;
+
+        public static List<string> ThreatTypes = new List<string>() { "random", "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
+
+        public static int CurrentlySelectedWorldAge = 250; //100, 150, 200, 250 (recommended), 300, 350, 400, 450, 500, Until Stopped
+        public static int CurrentlySelectedGrievanceType = 0; 
+        public static int NumberOfCivilizations = 16; //maximum is 16, minimum is 6. Subtract 4 before calculation.
+        public static double ProsperityMultiplier = 1; //determines wealth increase, aka general flourishing
+        public static int CurrentlySelectedWorldWidth = 128; //max 128
+        public static int CurrentlySelectedWorldLength = 128; //max 128
 
         public static List<string> Domains = new List<string>
         {
@@ -2797,8 +2807,8 @@ namespace Lightrealm
                                 {
                                     // Code for the 'double' case
                                     MakeObservation(PrayingDeity.Name + " has blessed your offering and doubled it!", Color.Goldenrod);
-                                    Executor.Block.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.Content, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
-                                    Executor.Block.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.Content, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
+                                    Executor.Block.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
+                                    Executor.Block.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
                                     break;
                                 }
                             case "lightninggrenade":
@@ -3152,10 +3162,10 @@ namespace Lightrealm
                 if (objectToRead != null)
                 {
                     // Object found, provide a reading outcome
-                    MakeObservation("You read " + objectToRead.Name + ". " + objectToRead.Content.getCompleteWorkDescription(), Color.Blue);
+                    MakeObservation("You read " + objectToRead.Name + ". " + objectToRead.CompositionContent.getCompleteWorkDescription(), Color.Blue);
 
                     // Increase the Executor's cooldown cycles based on the content length
-                    int contentLength = objectToRead.Content.Sections.Count; // Assuming Content has a Length property representing the number of words or complexity
+                    int contentLength = objectToRead.CompositionContent.Sections.Count; // Assuming Content has a Length property representing the number of words or complexity
                     Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 125 * contentLength)); // Adjusted formula to consider content length
 
                     // Check if the object contains a spell and the Executor can learn it
@@ -3253,9 +3263,9 @@ namespace Lightrealm
                 if (type == "book")
                 {
                     // Find a writable object for books
-                    Object writableObject = Executor.MainHandObject() != null && Executor.MainHandObject().IsWritable && Executor.MainHandObject().Content == null
+                    Object writableObject = Executor.MainHandObject() != null && Executor.MainHandObject().IsWritable && Executor.MainHandObject().CompositionContent == null
                                                 ? Executor.MainHandObject()
-                                                : Executor.Inventory.FirstOrDefault(item => item.IsWritable && item.Content == null);
+                                                : Executor.Inventory.FirstOrDefault(item => item.IsWritable && item.CompositionContent == null);
 
                     if (writableObject == null)
                     {
@@ -3265,7 +3275,7 @@ namespace Lightrealm
                     {
                         // Create a new Composition without a specific domain
                         Composition newComposition = new Composition(type, Executor, "");
-                        writableObject.Content = newComposition;
+                        writableObject.CompositionContent = newComposition;
                         writableObject.Name = newComposition.Name; // Assign the generated book name to the object
 
                         // Provide detailed feedback to the user
@@ -3299,9 +3309,9 @@ namespace Lightrealm
                 if (type == "book")
                 {
                     // Find a writable object for books
-                    Object writableObject = Executor.MainHandObject() != null && Executor.MainHandObject().IsWritable && Executor.MainHandObject().Content == null
+                    Object writableObject = Executor.MainHandObject() != null && Executor.MainHandObject().IsWritable && Executor.MainHandObject().CompositionContent == null
                                                 ? Executor.MainHandObject()
-                                                : Executor.Inventory.FirstOrDefault(item => item.IsWritable && item.Content == null);
+                                                : Executor.Inventory.FirstOrDefault(item => item.IsWritable && item.CompositionContent == null);
 
                     if (writableObject == null)
                     {
@@ -3311,7 +3321,7 @@ namespace Lightrealm
                     {
                         // Create a new Composition with a specific domain
                         Composition newComposition = new Composition(type, Executor, domain);
-                        writableObject.Content = newComposition;
+                        writableObject.CompositionContent = newComposition;
                         writableObject.Name = newComposition.Name; // Assign the generated book name to the object
 
                         // Provide detailed feedback to the user
@@ -5359,7 +5369,7 @@ namespace Lightrealm
 
             //audio
 
-            if (GameState == "mainscreen" || GameState == "generatingworld" || GameState == "placecivilizations" || GameState == "loadinggamemenu" || GameState == "savinggamemenu" || GameState == "generatehistory" || GameState == "choosepreferences" || GameState == "findstartlocation" || GameState == "architectfound")
+            if (GameState == "mainscreen" || GameState == "generatingworld" || GameState == "worldgenscreen" || GameState == "placecivilizations" || GameState == "loadinggamemenu" || GameState == "savinggamemenu" || GameState == "generatehistory" || GameState == "choosepreferences" || GameState == "findstartlocation" || GameState == "architectfound")
             {
                 if (MediaPlayer.Queue.ActiveSong == null)
                 {
@@ -5409,7 +5419,7 @@ namespace Lightrealm
                     {
                         if (KeysNewlyPressed.Contains(Keys.C))
                         {
-                            GameState = "generatingworld";
+                            GameState = "worldgenscreen";
                             GameMode = "chronicle";
                         }
                         /*
@@ -5430,6 +5440,188 @@ namespace Lightrealm
                         else
                         {
                             LoadTicks = 0;
+                        }
+                    }
+                    else if (GameState == "worldgenscreen")
+                    {
+                        //switch to generatingworld
+
+                        if(KeysNewlyPressed.Contains(Keys.Enter))
+                        {
+                            GameState = "generatingworld";
+                        }
+
+                        if (KeysNewlyPressed.Contains(Keys.Q))
+                        {
+                            switch (CurrentlySelectedWorldAge)
+                            {
+                                case 100:
+                                    CurrentlySelectedWorldAge = 150;
+                                    break;
+                                case 150:
+                                    CurrentlySelectedWorldAge = 200;
+                                    break;
+                                case 200:
+                                    CurrentlySelectedWorldAge = 250;
+                                    break;
+                                case 250:
+                                    CurrentlySelectedWorldAge = 300;
+                                    break;
+                                case 300:
+                                    CurrentlySelectedWorldAge = 350;
+                                    break;
+                                case 350:
+                                    CurrentlySelectedWorldAge = 400;
+                                    break;
+                                case 400:
+                                    CurrentlySelectedWorldAge = 450;
+                                    break;
+                                case 450:
+                                    CurrentlySelectedWorldAge = 500;
+                                    break;
+                                case 500:
+                                    CurrentlySelectedWorldAge = 10000; // Until Stopped
+                                    break;
+                                case 10000:
+                                    CurrentlySelectedWorldAge = 100; // Wrap around to start
+                                    break;
+                            }
+                        }
+
+                        if (KeysNewlyPressed.Contains(Keys.A))
+                        {
+                            switch (CurrentlySelectedWorldAge)
+                            {
+                                case 150:
+                                    CurrentlySelectedWorldAge = 100;
+                                    break;
+                                case 200:
+                                    CurrentlySelectedWorldAge = 150;
+                                    break;
+                                case 250:
+                                    CurrentlySelectedWorldAge = 200;
+                                    break;
+                                case 300:
+                                    CurrentlySelectedWorldAge = 250;
+                                    break;
+                                case 350:
+                                    CurrentlySelectedWorldAge = 300;
+                                    break;
+                                case 400:
+                                    CurrentlySelectedWorldAge = 350;
+                                    break;
+                                case 450:
+                                    CurrentlySelectedWorldAge = 400;
+                                    break;
+                                case 500:
+                                    CurrentlySelectedWorldAge = 450;
+                                    break;
+                                case 10000: // Until Stopped
+                                    CurrentlySelectedWorldAge = 500;
+                                    break;
+                                case 100:
+                                    CurrentlySelectedWorldAge = 10000; // Wrap around to end
+                                    break;
+                            }
+                        }
+
+                        if (KeysNewlyPressed.Contains(Keys.W))
+                        {
+                            CurrentlySelectedGrievanceType++;
+                            if (CurrentlySelectedGrievanceType >= ThreatTypes.Count) // Check if index exceeds list length
+                            {
+                                CurrentlySelectedGrievanceType = 0; // Wrap around to the start
+                            }
+                        }
+
+                        if (KeysNewlyPressed.Contains(Keys.S))
+                        {
+                            CurrentlySelectedGrievanceType--;
+                            if (CurrentlySelectedGrievanceType < 0) // Check if index goes below 0
+                            {
+                                CurrentlySelectedGrievanceType = ThreatTypes.Count - 1; // Wrap around to the end
+                            }
+                        }
+                        // Increment the Number of Civilizations with 'E'
+                        if (KeysNewlyPressed.Contains(Keys.E))
+                        {
+                            NumberOfCivilizations++;
+                            if (NumberOfCivilizations > 16) // Cap at 16
+                            {
+                                NumberOfCivilizations = 16;
+                            }
+                        }
+
+                        // Decrement the Number of Civilizations with 'D'
+                        if (KeysNewlyPressed.Contains(Keys.D))
+                        {
+                            NumberOfCivilizations--;
+                            if (NumberOfCivilizations < 8) // Cap at 8
+                            {
+                                NumberOfCivilizations = 8;
+                            }
+                        }
+
+                        // Increment the Prosperity Multiplier with 'R'
+                        if (KeysNewlyPressed.Contains(Keys.R))
+                        {
+                            double increment = KeysNewlyPressed.Contains(Keys.LeftShift) || KeysNewlyPressed.Contains(Keys.RightShift) ? 1.0 : 0.1;
+                            ProsperityMultiplier += increment;
+                            if (ProsperityMultiplier > 5.0) // Cap at 5.0
+                            {
+                                ProsperityMultiplier = 5.0;
+                            }
+                        }
+
+                        // Decrement the Prosperity Multiplier with 'F'
+                        if (KeysNewlyPressed.Contains(Keys.F))
+                        {
+                            double decrement = KeysNewlyPressed.Contains(Keys.LeftShift) || KeysNewlyPressed.Contains(Keys.RightShift) ? 1.0 : 0.1;
+                            ProsperityMultiplier -= decrement;
+                            if (ProsperityMultiplier < 0.0) // Cap at 0.0
+                            {
+                                ProsperityMultiplier = 0.0;
+                            }
+                        }
+
+                        // Increment the World Width with 'T'
+                        if (KeysNewlyPressed.Contains(Keys.T))
+                        {
+                            CurrentlySelectedWorldWidth += 8;
+                            if (CurrentlySelectedWorldWidth > 128) // Cap at 128
+                            {
+                                CurrentlySelectedWorldWidth = 128;
+                            }
+                        }
+
+                        // Decrement the World Width with 'G'
+                        if (KeysNewlyPressed.Contains(Keys.G))
+                        {
+                            CurrentlySelectedWorldWidth -= 8;
+                            if (CurrentlySelectedWorldWidth < 32) // Cap at 32
+                            {
+                                CurrentlySelectedWorldWidth = 32;
+                            }
+                        }
+
+                        // Increment the World Length with 'Y'
+                        if (KeysNewlyPressed.Contains(Keys.Y))
+                        {
+                            CurrentlySelectedWorldLength += 8;
+                            if (CurrentlySelectedWorldLength > 128) // Cap at 128
+                            {
+                                CurrentlySelectedWorldLength = 128;
+                            }
+                        }
+
+                        // Decrement the World Length with 'H'
+                        if (KeysNewlyPressed.Contains(Keys.H))
+                        {
+                            CurrentlySelectedWorldLength -= 8;
+                            if (CurrentlySelectedWorldLength < 32) // Cap at 32
+                            {
+                                CurrentlySelectedWorldLength = 32;
+                            }
                         }
                     }
 
@@ -5507,7 +5699,7 @@ namespace Lightrealm
                     }
                     else if (GameState == "generatingworld")
                     {
-                        GameWorld = new World(128, 128, 13);
+                        GameWorld = new World(CurrentlySelectedWorldWidth, CurrentlySelectedWorldLength, NumberOfCivilizations - 3, CurrentlySelectedWorldAge, ThreatTypes[CurrentlySelectedGrievanceType], ProsperityMultiplier);
                         GameState = "placecivilizations";
                     }
                     else if (GameState == "placecivilizations")
@@ -5555,31 +5747,39 @@ namespace Lightrealm
                     }
                     else if (GameState == "generatehistory")
                     {
-                        if(GameWorld.Cycle < 24192000000)
+                        // Convert MaxAge from years to cycles
+                        double maxAgeCycles = ((double)GameWorld.MaxAge) * ((double)290304000);
+
+                        if (GameWorld.Cycle < maxAgeCycles)
                         {
-                            for (int i = 0; i < 12; i++)
+                            if (GameWorld.Cycle < 24192000000)
+                            {
+                                for (int i = 0; i < 12; i++)
+                                {
+                                    GameWorld.ProgressOneMonth();
+                                }
+                            }
+                            else if (GameWorld.Cycle < 24192000000 * 2)
+                            {
+                                for (int i = 0; i < 6; i++)
+                                {
+                                    GameWorld.ProgressOneMonth();
+                                }
+                            }
+                            else
                             {
                                 GameWorld.ProgressOneMonth();
                             }
                         }
-                        else if(GameWorld.Cycle < 24192000000 * 2)
+
+                        // Check if the cycle count has reached the maximum age or if enter is pressed to end generation
+                        if (GameWorld.Cycle >= maxAgeCycles || KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            for (int i = 0; i < 6; i++)
-                            {
-                                GameWorld.ProgressOneMonth();
-                            }
-                        }
-                        else
-                        {
-                            GameWorld.ProgressOneMonth();
-                            // Update the check for 250 years to the new cycle count
-                            if (GameWorld.Cycle >= 72576000000 || KeysNewlyPressed.Contains(Keys.Enter))
-                            {
-                                File.WriteAllLines(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "/lightrealmhistory.txt", GameWorld.HistoricalEvents.ToArray());
-                                GameState = "choosepreferences";
-                            }
+                            File.WriteAllLines(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "/lightrealmhistory.txt", GameWorld.HistoricalEvents.ToArray());
+                            GameState = "choosepreferences";
                         }
                     }
+
 
                     else if (GameState == "choosefounderoptions")
                     {
@@ -6856,7 +7056,7 @@ namespace Lightrealm
 
                         if(KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            GameWorld.TriggerRupture(MapCursorX, MapCursorZ, LoadedArchitects[ArchitectIndex]);
+                            GameWorld.TriggerRupture(MapCursorX, MapCursorZ, LoadedArchitects[ArchitectIndex], 10);
 
                             LoadedArchitects[ArchitectIndex].RuptureMode = false;
 
@@ -7093,9 +7293,9 @@ namespace Lightrealm
                             biomeDictionary["tundra"] = new List<string> { "ice" };
                             biomeDictionary["taiga"] = new List<string> { "ice", "wood" };
 
-                            if (GameWorld.WorldMap[MapCursorX + MapCursorZ * 128].Biome == "ocean")
+                            if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].Biome == "ocean")
                             {
-                                if (GameWorld.WorldMap[MapCursorX + MapCursorZ * 128].PortName != "")
+                                if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].PortName != "")
                                 {
                                     Exposition.Add(new TextStorage("You can leave this port to start sailing.", Color.LightBlue));
                                 }
@@ -7520,7 +7720,8 @@ namespace Lightrealm
                             TileSize,
                             TileSize
                         );
-
+                        
+                        
                         if ((GameState == "travelmenu" || GameState == "etherealrupture") && !GameWorld.WorldMap[index].Explored)
                         {
                             continue; // Skip drawing unexplored tiles in travelmode
@@ -7545,6 +7746,14 @@ namespace Lightrealm
 
                             // Draw the region tile with combined elevation and blight-adjusted color
                             _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
+                        }
+
+                        if (GameState == "generatehistory")
+                        {
+                            foreach ((int, int) TragedyPoint in GameWorld.WorldMap[index].TragedyPoints)
+                            {
+                                _spriteBatch.Draw(whiteRect, new Rectangle(GameWorld.WorldMap[index].BoundingBox().Center.X + TragedyPoint.Item1 - 1, GameWorld.WorldMap[index].BoundingBox().Center.Y + TragedyPoint.Item2 - 1, 3, 3), Color.Red);
+                            }
                         }
                     }
                 }
@@ -7608,7 +7817,7 @@ namespace Lightrealm
             string GenerateUniqueKeyForObject(Object obj)
             {
                 // Base key is constructed from the material name, object name (if not null), and type
-                var key = $"{obj.Materials[0].Name}-{obj.Name ?? "null"}-{obj.Type}";
+                var key = obj.ReferredToNames[0];
 
                 // If the object contains other objects, recursively generate keys for the contents of the container
                 if (obj.ContainedObjects.Any())
@@ -7632,8 +7841,8 @@ namespace Lightrealm
                     // Handle shadow storage as a special case
                     if (obj.Type == "shadow storage" && !isShadowStorage)
                     {
-                        // Add the shadow storage itself to the list
-                        result.Add(($"{obj.Materials[0].Name} {obj.Name ?? obj.Type}", 1, indentationLevel));
+                        string shadowName = obj.ReferredToNames?.FirstOrDefault() ?? obj.Type;
+                        result.Add((shadowName, 1, indentationLevel));
 
                         // Retrieve contents from the shadow storage, marking the recursive call with isShadowStorage = true
                         var shadowContents = LoadedArchitects[ArchitectIndex].ShadowStorage;
@@ -7642,7 +7851,7 @@ namespace Lightrealm
                         continue; // Skip the regular processing for this object
                     }
 
-                    string description = $"{obj.Materials[0].Name} {obj.Name ?? obj.Type}";
+                    string description = obj.ReferredToNames?.FirstOrDefault() ?? obj.Type;
                     int count = objects.Count(o => GenerateUniqueKeyForObject(o) == GenerateUniqueKeyForObject(obj));
 
                     result.Add((description, count, indentationLevel));
@@ -7650,8 +7859,7 @@ namespace Lightrealm
                     if (obj.ContainedObjects.Any())
                     {
                         var sortedContainedObjects = obj.ContainedObjects
-                            .OrderBy(co => co.Materials[0].Name)
-                            .ThenBy(co => co.Name ?? co.Type)
+                            .OrderBy(co => co.ReferredToNames?.FirstOrDefault() ?? co.Type)
                             .ToList();
 
                         var structuredContainedObjects = CondenseAndStructureList(sortedContainedObjects, indentationLevel + 1);
@@ -7662,6 +7870,7 @@ namespace Lightrealm
                 // Ensure results are unique at the current level before returning
                 return result.GroupBy(r => r.Description).Select(g => g.First()).ToList();
             }
+
 
             // GetCurrentPageList as you've defined
 
@@ -7814,6 +8023,28 @@ namespace Lightrealm
                 _spriteBatch.Draw(Astrionalis, new Rectangle(100, 200, 640, 1280), Color.White);
                 _spriteBatch.Draw(Celestrioris, new Rectangle(1800, 200, 720, 1270), Color.White);
             }
+            else if (GameState == "worldgenscreen")
+            {
+                _spriteBatch.DrawString(Shibafont, "Press ENTER to start playing with the most balanced settings.", new Vector2(200, 200), Color.White);
+                _spriteBatch.DrawString(Shibafont, "If you wish, use denoted keys to change settings. Custom settings not guarranteed to produce a playable world.", new Vector2(200, 250), Color.White);
+
+                if(CurrentlySelectedWorldAge == 10000)
+                {
+                    _spriteBatch.DrawString(Shibafont, "(Q/A) World Age: Until Cancelled", new Vector2(200, 500), Color.Orange);
+                }
+                else
+                {
+                    _spriteBatch.DrawString(Shibafont, "(Q/A) World Age: " + CurrentlySelectedWorldAge, new Vector2(200, 500), Color.Orange);
+                }
+                _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
+                _spriteBatch.DrawString(Shibafont, "(E/D) Number of Civilizations: " + NumberOfCivilizations, new Vector2(200, 600), Color.Red);
+                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + Math.Round(ProsperityMultiplier, 1).ToString("0.0"), new Vector2(200, 650), Color.Goldenrod);
+                _spriteBatch.DrawString(Shibafont, "(T/G) [BROKEN] World Width (in region tiles, east/west, max 128): " + CurrentlySelectedWorldWidth, new Vector2(200, 700), Color.LimeGreen);
+                _spriteBatch.DrawString(Shibafont, "(Y/H) [BROKEN] World Length (in region tiles, north/south, max 128): " + CurrentlySelectedWorldLength, new Vector2(200, 750), Color.Cyan);
+
+                _spriteBatch.DrawString(Shibafont, "Press ENTER to begin world generation.", new Vector2(200, 950), Color.White);
+            }
+
             else if (GameState == "savinggame")
             {
                 _spriteBatch.DrawString(Shibafont, "Saving " + GameWorld.Name + " data. This may take half a minute...", new Vector2(200, 200), Color.White);

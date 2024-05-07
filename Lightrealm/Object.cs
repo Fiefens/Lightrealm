@@ -83,8 +83,8 @@ namespace Lightrealm
         public int Integrity { get; set; } = 100;
 
         public bool IsWritable { get; set; } = false;
-        public Composition Content { get; set; } = null;
-        public string SpellContained { get; set; } = "expunge";
+        public Composition CompositionContent { get; set; } = null;
+        public string SpellContained { get; set; } = "";
 
         public bool IsGeneralGood = false;
         public Entity Owner = null;
@@ -267,7 +267,8 @@ namespace Lightrealm
             if (this is Door)
             {
                 Door door = (Door)this;
-                ReferredToNames.Add(Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
+                ReferredToNames.Add(door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
+                ReferredToNames.Add("door " + door.Number);
                 return;
             }
 
@@ -300,20 +301,6 @@ namespace Lightrealm
                 }
             }
 
-
-            if (this is Door)
-            {
-                // Cast 'this' to 'Door' and then access its properties
-                Door door = (Door)this;
-
-                // Create a list of names with the properties from the 'Door' class
-                ReferredToNames.Add(door.Direction + " door");
-                ReferredToNames.Add("door " + door.Number.ToString() + " (" + door.Direction + ")");
-                ReferredToNames.Add(door.Direction + " " + door.Materials[0].Name + " door");
-                ReferredToNames.Add(door.Materials[0].Name + " door");
-                ReferredToNames.Add("door " + door.Number.ToString());
-            }
-
             if(Type == "shadow storage" && ReferredToNames.Contains("shadow storage"))
             {
                 ReferredToNames.Remove("shadow storage");
@@ -336,6 +323,41 @@ namespace Lightrealm
 
         public void UpdateSelfActionsAndSuch()
         {
+            //remove bad spells
+
+            if(Game1.GameWorld.DeletedSpells.Contains(SpellContained))
+            {
+                SpellContained = null;
+            }
+            if (Game1.GameWorld.DeletedCompositions.Contains(CompositionContent))
+            {
+                CompositionContent = null;
+            }
+
+
+            //remove bad materials, if this is the first removal add void.
+
+            List<Material> MaterialsToReplace = new List<Material>();
+
+            foreach (Material m in Game1.GameWorld.DeletedMaterials)
+            {
+                if (Materials.Contains(m) && !MaterialsToReplace.Contains(m))
+                {
+                    MaterialsToReplace.Add(m);
+                }
+            }
+
+            int originalCount = Materials.Count;
+            Materials.RemoveAll(item => MaterialsToReplace.Contains(item));
+            int newCount = Materials.Count;
+
+            if (newCount < originalCount && !Materials.Contains(Game1.GameWorld.Void))
+            {
+                Materials.Add(Game1.GameWorld.Void);
+            }
+
+
+
             //gravity
 
             if (YLevelInFeet > 0)
@@ -393,7 +415,7 @@ namespace Lightrealm
             if (Type == "scroll" || Type == "book" || Type == "sheet" || Type == "waxtablet")
             {
                 IsWritable = true;
-                Content = content;
+                CompositionContent = content;
 
                 if (Type == "scroll")
                 {
@@ -493,28 +515,28 @@ namespace Lightrealm
                 //writables, make sure you implement content afterward if using this!!!
                 case "scroll":
                     IsWritable = true;
-                    Content = null;
+                    CompositionContent = null;
                     WordCount = "~" + Game1.r.Next(5, 500) + "0";
                     Weight = 100; // example weight in grams
                     Description = "A sheet attached to a roller.";
                     break;
                 case "book":
                     IsWritable = true;
-                    Content = null;
+                    CompositionContent = null;
                     WordCount = "~" + Game1.r.Next(30, 150) + "000";
                     Description = "A bound collection of sheets.";
                     Weight = 500; // example weight
                     break;
                 case "sheet":
                     IsWritable = true;
-                    Content = null;
+                    CompositionContent = null;
                     WordCount = "~" + Game1.r.Next(1, 30) + "0";
                     Description = "A flattened stretch of cloth.";
                     Weight = 50; // example weight
                     break;
                 case "waxtablet":
                     IsWritable = true;
-                    Content = null;
+                    CompositionContent = null;
                     WordCount = "~" + Game1.r.Next(1, 10) + "0";
                     Description = "A tablet on which can be scratched to inscribe.";
                     Weight = 300; // example weight
