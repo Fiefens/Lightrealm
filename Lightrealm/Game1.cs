@@ -9848,7 +9848,13 @@ namespace Lightrealm
 
                             if (drawColor != Color.Gray)
                             {
-                                _spriteBatch.Draw(Engine.Render.ArchitectHere, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), drawColor);
+                                _spriteBatch.Draw
+                                    (
+                                        Engine.Render.SpriteSheet.Texture, 
+                                        new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), 
+                                        Engine.Render.SpriteSheet.Get("map-architecthere"), 
+                                        drawColor
+                                    );
                             }
                         }
                     }

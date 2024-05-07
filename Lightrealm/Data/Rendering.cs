@@ -29,7 +29,7 @@ namespace Lightrealm.Data
         public Texture2D SunT { get; private set; }
         public Texture2D MoonT { get; private set; }
 
-        public Texture2D ArchitectHere { get; private set; }
+        //public Texture2D ArchitectHere { get; private set; }
         public Texture2D HealthGuiT { get; private set; }
 
         public Texture2D myIconTexture { get; private set; }
@@ -56,7 +56,7 @@ namespace Lightrealm.Data
             GuideT = Content.Load<Texture2D>("moveguide");
             HealthGuiT = Content.Load<Texture2D>("healthgui");
 
-            ArchitectHere = Content.Load<Texture2D>("distmap/architecthere");
+            
             BleedT = Content.Load<Texture2D>("droplet");
 
             ReactionGUIT = Content.Load<Texture2D>("reaction gui");
