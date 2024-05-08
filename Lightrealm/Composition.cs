@@ -4,6 +4,7 @@ using System.Linq;
 
 namespace Lightrealm
 {
+    [Serializable]
     public class Composition : Entity
     {
         public string Type;
@@ -142,6 +143,7 @@ namespace Lightrealm
         }
     }
 
+    [Serializable]
     public class Section
     {
         public int Length;

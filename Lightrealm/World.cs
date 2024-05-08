@@ -854,25 +854,27 @@ namespace Lightrealm
         public List<Material> Ices { get; set; } = new List<Material>();
         public List<Material> Fibers { get; set; } = new List<Material>();
 
-        public Material Enchromalite { get; set; } = new Material("enchromalite", "metal", 3, 4);
-        public Material Illuminite { get; set; } = new Material("illuminite", "stone", 3, 4);
-        public Material Darkstone { get; set; } = new Material("darkstone", "stone", 3, 4);
-        public Material Prismite { get; set; } = new Material("prismite", "metal", 3, 4);
-        public Material Shadesteel { get; set; } = new Material("shadesteel", "metal", 3, 4);
-        public Material Archaeon { get; set; } = new Material("archaeon", "glass", 1337, 5);
-        public Material Membrane { get; set; } = new Material("membrane", "membrane", 3, 0);
-        public Material Biocrystal { get; set; } = new Material("biocrystal", "stone", 3, 0);
-        public Material Glass { get; set; } = new Material("glass", "stone", 1, 1);
-        public Material Steel { get; set; } = new Material("steel", "metal", 3, 4);
-        public Material ShadeSludge { get; set; } = new Material("shadesludge", "sludge", 5, 2);
-        public Material Coffee { get; set; } = new Material("coffee", "plant", 1, 1);
-        public Material Tea { get; set; } = new Material("coffee", "plant", 1, 1);
-        public Material Vitalium { get; set; } = new Material("vitalium", "rock", 1, 1);
-        public Material Spectre { get; set; } = new Material("spectre", "metaphysic", 1, 1);
-        public Material Energy { get; set; } = new Material("energy", "metaphysic", 1, 1);
-        public Material Flame { get; set; } = new Material("flame", "metaphysic", 1, 1);
-        public Material Void { get; set; } = new Material("void", "metaphysic", 1, 1);
-
+        public Material Enchromalite { get; set; } = new Material("enchromalite", "metal", 3, 4, "black");
+        public Material Illuminite { get; set; } = new Material("illuminite", "stone", 3, 4, "white");
+        public Material Darkstone { get; set; } = new Material("darkstone", "stone", 3, 4, "black");
+        public Material Prismite { get; set; } = new Material("prismite", "metal", 3, 4, "white");
+        public Material Shadesteel { get; set; } = new Material("shadesteel", "metal", 3, 4, "black");
+        public Material Archaeon { get; set; } = new Material("archaeon", "glass", 1337, 5, "white");
+        public Material Membrane { get; set; } = new Material("membrane", "membrane", 3, 0, "gray");
+        public Material Biocrystal { get; set; } = new Material("biocrystal", "stone", 3, 0, "white");
+        public Material Glass { get; set; } = new Material("clay", "stone", 1, 1, "brown");
+        public Material Clay { get; set; } = new Material("glass", "stone", 1, 1, "white");
+        public Material Steel { get; set; } = new Material("steel", "metal", 3, 4, "gray");
+        public Material ShadeSludge { get; set; } = new Material("shadesludge", "sludge", 5, 2, "black");
+        public Material Coffee { get; set; } = new Material("coffee", "plant", 1, 1, "brown");
+        public Material Tea { get; set; } = new Material("coffee", "plant", 1, 1, "green");
+        public Material Vitalium { get; set; } = new Material("vitalium", "rock", 1, 1, "magenta");
+        public Material Spectre { get; set; } = new Material("spectre", "metaphysic", 1, 1, "cyan");
+        public Material Energy { get; set; } = new Material("energy", "metaphysic", 1, 1, "white");
+        public Material Flame { get; set; } = new Material("flame", "metaphysic", 1, 1, "orange");
+        public Material Void { get; set; } = new Material("void", "metaphysic", 1, 1, "purple");
+        public Material Honey { get; set; } = new Material("honey", "animal", 1, 1, "orange");
+        public Material Waspwax { get; set; } = new Material("waspwax", "animal", 1, 1, "yellow");
 
         public List<Material> CoreMaterials()
         {
@@ -954,76 +956,78 @@ namespace Lightrealm
             ProsperityMultiplier = prosperityMultiplier;
 
             //add materials, collapsed
+            //add materials, collapsed
             {
-                Woods.Add(new Material("oak", "wood", 3, 0));
-                Woods.Add(new Material("spruce", "wood", 3, 0));
-                Woods.Add(new Material("birch", "wood", 3, 0));
-                Woods.Add(new Material("palm", "wood", 3, 0));
-                Woods.Add(new Material("maple", "wood", 3, 0));
-                Woods.Add(new Material("walnut", "wood", 3, 0));
-                Woods.Add(new Material("cedar", "wood", 3, 0));
-                Woods.Add(new Material("hickory", "wood", 3, 0));
-                Woods.Add(new Material("ash", "wood", 3, 0));
-                Woods.Add(new Material("fir", "wood", 3, 0));
+                Woods.Add(new Material("oak", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("spruce", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("birch", "wood", 3, 0, "white"));
+                Woods.Add(new Material("palm", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("maple", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("walnut", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("cedar", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("hickory", "wood", 3, 0, "brown"));
+                Woods.Add(new Material("ash", "wood", 3, 0, "gray"));
+                Woods.Add(new Material("fir", "wood", 3, 0, "green"));
 
-                Stones.Add(new Material("granite", "stone", 3, 0));
-                Stones.Add(new Material("marble", "stone", 3, 0));
-                Stones.Add(new Material("slate", "stone", 3, 0));
-                Stones.Add(new Material("sandstone", "stone", 3, 0));
-                Stones.Add(new Material("basalt", "stone", 3, 0));
-                Stones.Add(new Material("gneiss", "stone", 3, 0));
-                Stones.Add(new Material("soapstone", "stone", 3, 0));
-                Stones.Add(new Material("diorite", "stone", 3, 0));
-                Stones.Add(new Material("mudstone", "stone", 3, 0));
+                Stones.Add(new Material("granite", "stone", 3, 0, "gray"));
+                Stones.Add(new Material("marble", "stone", 3, 0, "white"));
+                Stones.Add(new Material("slate", "stone", 3, 0, "gray"));
+                Stones.Add(new Material("sandstone", "stone", 3, 0, "yellow"));
+                Stones.Add(new Material("basalt", "stone", 3, 0, "black"));
+                Stones.Add(new Material("gneiss", "stone", 3, 0, "gray"));
+                Stones.Add(new Material("soapstone", "stone", 3, 0, "gray"));
+                Stones.Add(new Material("diorite", "stone", 3, 0, "white"));
+                Stones.Add(new Material("mudstone", "stone", 3, 0, "brown"));
 
-                Metals.Add(new Material("iron", "metal", 3, 2));
-                Metals.Add(new Material("copper", "metal", 1, 1));
-                Metals.Add(new Material("silver", "metal", 2, 3));
-                Metals.Add(new Material("gold", "metal", 2, 3));
-                Metals.Add(new Material("titanium", "metal", 4, 4));
-                Metals.Add(new Material("platinum", "metal", 2, 4));
-                Metals.Add(new Material("iridium", "metal", 4, 5));
-                Metals.Add(new Material("steel", "metal", 5, 5));
+                Metals.Add(new Material("iron", "metal", 3, 2, "gray"));
+                Metals.Add(new Material("copper", "metal", 1, 1, "brown"));
+                Metals.Add(new Material("silver", "metal", 2, 3, "gray"));
+                Metals.Add(new Material("gold", "metal", 2, 3, "yellow"));
+                Metals.Add(new Material("titanium", "metal", 4, 4, "gray"));
+                Metals.Add(new Material("platinum", "metal", 2, 4, "white"));
+                Metals.Add(new Material("iridium", "metal", 4, 5, "gray"));
+                Metals.Add(new Material("steel", "metal", 5, 5, "gray"));
 
-                Cloths.Add(new Material("fleece", "cloth", 3, 4));
-                Cloths.Add(new Material("silk", "cloth", 3, 4));
-                Cloths.Add(new Material("cotton", "cloth", 3, 4));
-                Cloths.Add(new Material("linen", "cloth", 3, 4));
-                Cloths.Add(new Material("wool", "cloth", 3, 4));
-                Cloths.Add(new Material("leather", "cloth", 3, 4));
-                Cloths.Add(new Material("hemp", "cloth", 3, 4));
-                Cloths.Add(new Material("flax", "cloth", 3, 4));
-                Cloths.Add(new Material("jute", "cloth", 3, 4));
+                Cloths.Add(new Material("fleece", "cloth", 3, 4, "white"));
+                Cloths.Add(new Material("silk", "cloth", 3, 4, "white"));
+                Cloths.Add(new Material("cotton", "cloth", 3, 4, "white"));
+                Cloths.Add(new Material("linen", "cloth", 3, 4, "white"));
+                Cloths.Add(new Material("wool", "cloth", 3, 4, "white"));
+                Cloths.Add(new Material("leather", "cloth", 3, 4, "brown"));
+                Cloths.Add(new Material("hemp", "cloth", 3, 4, "brown"));
+                Cloths.Add(new Material("flax", "cloth", 3, 4, "brown"));
+                Cloths.Add(new Material("jute", "cloth", 3, 4, "brown"));
 
-                Sheets.Add(new Material("parchment", "cloth", 3, 4));
-                Sheets.Add(new Material("papyrus", "cloth", 3, 4));
-                Sheets.Add(new Material("enchromalite", "cloth", 3, 4));
+                Sheets.Add(new Material("parchment", "cloth", 3, 4, "white"));
+                Sheets.Add(new Material("papyrus", "cloth", 3, 4, "white"));
+                Sheets.Add(new Material("enchromalite", "cloth", 3, 4, "white"));
 
-                Gemstones.Add(new Material("ruby", "gemstone", 3, 4));
-                Gemstones.Add(new Material("diamond", "gemstone", 3, 4));
-                Gemstones.Add(new Material("emerald", "gemstone", 3, 4));
-                Gemstones.Add(new Material("sapphire", "gemstone", 3, 4));
-                Gemstones.Add(new Material("aquamarine", "gemstone", 3, 4));
-                Gemstones.Add(new Material("peridot", "gemstone", 3, 4));
-                Gemstones.Add(new Material("tanzanite", "gemstone", 3, 4));
-                Gemstones.Add(new Material("turquoise", "gemstone", 3, 4));
-                Gemstones.Add(new Material("topaz", "gemstone", 3, 4));
-                Gemstones.Add(new Material("opal", "gemstone", 3, 4));
-                Gemstones.Add(new Material("lapis lazuli", "gemstone", 3, 4));
-                Gemstones.Add(new Material("amethyst", "gemstone", 3, 4));
+                Gemstones.Add(new Material("ruby", "gemstone", 3, 4, "red"));
+                Gemstones.Add(new Material("diamond", "gemstone", 3, 4, "white"));
+                Gemstones.Add(new Material("emerald", "gemstone", 3, 4, "green"));
+                Gemstones.Add(new Material("sapphire", "gemstone", 3, 4, "blue"));
+                Gemstones.Add(new Material("aquamarine", "gemstone", 3, 4, "lightblue"));
+                Gemstones.Add(new Material("peridot", "gemstone", 3, 4, "green"));
+                Gemstones.Add(new Material("tanzanite", "gemstone", 3, 4, "purple"));
+                Gemstones.Add(new Material("turquoise", "gemstone", 3, 4, "cyan"));
+                Gemstones.Add(new Material("topaz", "gemstone", 3, 4, "yellow"));
+                Gemstones.Add(new Material("opal", "gemstone", 3, 4, "white"));
+                Gemstones.Add(new Material("lapis lazuli", "gemstone", 3, 4, "blue"));
+                Gemstones.Add(new Material("amethyst", "gemstone", 3, 4, "purple"));
 
-                Sands.Add(new Material("redsand", "sand", 3, 4));
-                Sands.Add(new Material("sand", "sand", 3, 4));
-                Sands.Add(new Material("rockysand", "sand", 3, 4));
+                Sands.Add(new Material("redsand", "sand", 3, 4, "red"));
+                Sands.Add(new Material("sand", "sand", 3, 4, "yellow"));
+                Sands.Add(new Material("rockysand", "sand", 3, 4, "brown"));
 
-                Fibers.Add(new Material("hemp", "fiber", 3, 4));
-                Fibers.Add(new Material("flax", "fiber", 3, 4));
-                Fibers.Add(new Material("jute", "fiber", 3, 4));
+                Fibers.Add(new Material("hemp", "fiber", 3, 4, "brown"));
+                Fibers.Add(new Material("flax", "fiber", 3, 4, "brown"));
+                Fibers.Add(new Material("jute", "fiber", 3, 4, "brown"));
 
-                Ices.Add(new Material("blueice", "ice", 3, 4));
-                Ices.Add(new Material("crystalice", "ice", 3, 4));
-                Ices.Add(new Material("clearice", "ice", 3, 4));
+                Ices.Add(new Material("blueice", "ice", 3, 4, "lightblue"));
+                Ices.Add(new Material("crystalice", "ice", 3, 4, "white"));
+                Ices.Add(new Material("clearice", "ice", 3, 4, "white"));
             }
+
 
             Length = length;
             Width = width;

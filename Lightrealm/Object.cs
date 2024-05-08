@@ -24,6 +24,8 @@ namespace Lightrealm
         public List<Object> ContainedObjects { get; set; } = new List<Object>();
         public bool IfTrueUseInIfFalseUseOn { get; set; }
 
+        public string DyedColor = "none";
+
         public int YLevelInFeet { get; set; } = 0;
         public int YVelocity { get; set; } = 0;
 
@@ -646,6 +648,16 @@ namespace Lightrealm
                     Description = "An upper body garment made of /m.";
                     CoverageValues.Add(("torso", 8));
                     break;
+                case "uppergarment":
+                    Weight = 50;
+                    IsWearable = true;
+                    Description = "An undergarment for the upper body made of /m.";
+                    break;
+                case "undergarment":
+                    Weight = 50;
+                    IsWearable = true;
+                    Description = "An undergarment for the lower body made of /m.";
+                    break;
                 case "straps":
                     Weight = 300;
                     IsWearable = true;
@@ -988,12 +1000,6 @@ namespace Lightrealm
                 //furniture
 
                 // Inside the switch statement of your object constructor
-
-                case "beeswax":
-                    Weight = 200; // Example weight for a block of beeswax
-                    IsGeneralGood = true;
-                    Description = "A block of beeswax, useful for various applications.";
-                    break;
 
                 case "salt":
                     Weight = 100; // Example weight for a pouch of salt
@@ -1344,6 +1350,7 @@ namespace Lightrealm
                     Rarity = "common";
                 }
             }
+
 
             ApplyImbuements(0);
             UpdateNames();

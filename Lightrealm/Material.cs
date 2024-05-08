@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,8 +13,9 @@ namespace Lightrealm
         public string Type { get; set; } // wood, stone, metal, or cloth
         public int Toughness { get; set; } // 0-5
         public int Rarity { get; set; }
+        public string Color = "white";
 
-        public Material(string name, string type, int toughness, int rarity)
+        public Material(string name, string type, int toughness, int rarity, string Color)
         {
             Name = name;
             Type = type;

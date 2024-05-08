@@ -143,6 +143,8 @@ namespace Lightrealm
 
         public List<string> AllEnteredGameStates = new List<string>();
 
+        public static Dictionary<string, Texture2D> CharacterAtlas = new Dictionary<string, Texture2D>();
+
         public record DrawnObject(Object Item, int Count, List<DrawnObject> NestedObjects);
 
         public static string ContentRoot = "";
@@ -1047,30 +1049,32 @@ namespace Lightrealm
 
         public static Dictionary<string, List<Material>> MaterialsFromColors = new Dictionary<string, List<Material>>
         {
-            { "maroon", new List<Material>{ new Material("mahogany", "wood", 1, 1), new Material("crimson_beetle", "insect", 1, 1), new Material("rust", "metal", 1, 1) } },
-            { "red", new List<Material>{ new Material("rose", "plant", 1, 1), new Material("redtulip", "plant", 1, 1), new Material("clay", "sediment", 1, 1) } },
-            { "orange", new List<Material>{ new Material("citrus", "plant", 1, 1), new Material("amber", "plant", 1, 1), new Material("bronzelily", "plant", 1, 1) } },
-            { "yellow", new List<Material>{ new Material("emberflare", "plant", 1, 1), new Material("honey", "plant", 1, 1), new Material("lemon", "plant", 1, 1) } },
-            { "limegreen", new List<Material>{ new Material("lime_peel", "plant", 1, 1), new Material("emerald_grass", "plant", 1, 1), new Material("verdantwing feather", "feather", 1, 1) } },
-            { "green", new List<Material>{ new Material("lichen", "plant", 1, 1), new Material("cactus", "plant", 1, 1), new Material("moss", "plant", 1, 1) } },
-            { "lightblue", new List<Material>{ new Material("glimmerplume feather", "feather", 1, 1), new Material("slush", "stone", 1, 1), new Material("aquamarine", "gemstone", 1, 1) } },
-            { "cyan", new List<Material>{ new Material("algae", "plant", 1, 1), new Material("turquoise", "gemstone", 1, 1), new Material("electric_eel_skin", "leather", 1, 1) } },
-            { "blue", new List<Material>{ new Material("blueberry_juice", "fruit", 1, 1), new Material("sapphire_gem", "gem", 1, 1), new Material("deep_ocean_silt", "sediment", 1, 1) } },
-            { "purple", new List<Material>{ new Material("royal_grapes", "fruit", 1, 1), new Material("amethyst_crystal", "gem", 1, 1), new Material("mystic_flower", "plant", 1, 1) } },
-            { "magenta", new List<Material>{ new Material("wild_berry_blend", "fruit", 1, 1), new Material("pink_petals", "plant", 1, 1), new Material("rose_quartz", "gem", 1, 1) } },
-            { "coral", new List<Material>{ new Material("coral_branch", "coral", 1, 1), new Material("sea_anemone", "animal", 1, 1), new Material("tropical_shell", "shell", 1, 1) } },
-            { "white", new List<Material>{ new Material("pure_snowflake", "ice", 1, 1), new Material("moonstone", "gem", 1, 1), new Material("cloud_feathers", "feather", 1, 1) } },
-            { "gray", new List<Material>{ new Material("ashen_soil", "sediment", 1, 1), new Material("smoky_quartz", "gem", 1, 1), new Material("stormy_cloud", "cloud", 1, 1) } },
-            { "black", new List<Material>{ new Material("obsidian_rock", "rock", 1, 1), new Material("midnight_rose", "plant", 1, 1), new Material("shadowy_silk", "fabric", 1, 1) } },
-            { "brown", new List<Material>{ new Material("earthy_bark", "wood", 1, 1), new Material("cocoa_beans", "plant", 1, 1), new Material("hazel_nuts", "nut", 1, 1) } }
+            { "maroon", new List<Material>{ new Material("mahogany", "wood", 1, 1, "maroon"), new Material("beetle", "insect", 1, 1, "maroon"), new Material("rust", "metal", 1, 1, "maroon") } },
+            { "red", new List<Material>{ new Material("rose", "plant", 1, 1, "red"), new Material("tulip", "plant", 1, 1, "red"), new Material("clay", "sediment", 1, 1, "red") } },
+            { "orange", new List<Material>{ new Material("citrus", "plant", 1, 1, "orange"), new Material("amber", "plant", 1, 1, "orange"), new Material("copper", "metal", 1, 1, "orange") } },
+            { "yellow", new List<Material>{ new Material("emberflare", "plant", 1, 1, "yellow"), new Material("honey", "plant", 1, 1, "yellow"), new Material("lemon", "plant", 1, 1, "yellow") } },
+            { "limegreen", new List<Material>{ new Material("lime", "plant", 1, 1, "limegreen"), new Material("emerald grass", "plant", 1, 1, "limegreen"), new Material("verdant wing feather", "feather", 1, 1, "limegreen") } },
+            { "green", new List<Material>{ new Material("lichen", "plant", 1, 1, "green"), new Material("cactus", "plant", 1, 1, "green"), new Material("moss", "plant", 1, 1, "green") } },
+            { "lightblue", new List<Material>{ new Material("feather", "feather", 1, 1, "lightblue"), new Material("slush", "stone", 1, 1, "lightblue"), new Material("aquamarine", "gemstone", 1, 1, "lightblue") } },
+            { "cyan", new List<Material>{ new Material("algae", "plant", 1, 1, "cyan"), new Material("turquoise", "gemstone", 1, 1, "cyan"), new Material("electric eel skin", "leather", 1, 1, "cyan") } },
+            { "blue", new List<Material>{ new Material("blueberry juice", "fruit", 1, 1, "blue"), new Material("sapphire gem", "gem", 1, 1, "blue"), new Material("deep ocean silt", "sediment", 1, 1, "blue") } },
+            { "purple", new List<Material>{ new Material("royal grapes", "fruit", 1, 1, "purple"), new Material("amethyst crystal", "gem", 1, 1, "purple"), new Material("mystic flower", "plant", 1, 1, "purple") } },
+            { "magenta", new List<Material>{ new Material("wild berry blend", "fruit", 1, 1, "magenta"), new Material("pink petals", "plant", 1, 1, "magenta"), new Material("rose quartz", "gem", 1, 1, "magenta") } },
+            { "coral", new List<Material>{ new Material("coral branch", "coral", 1, 1, "coral"), new Material("sea anemone", "animal", 1, 1, "coral"), new Material("tropical shell", "shell", 1, 1, "coral") } },
+            { "white", new List<Material>{ new Material("pure snowflake", "ice", 1, 1, "white"), new Material("moonstone", "gem", 1, 1, "white"), new Material("cloud feathers", "feather", 1, 1, "white") } },
+            { "gray", new List<Material>{ new Material("ashen soil", "sediment", 1, 1, "gray"), new Material("smoky quartz", "gem", 1, 1, "gray"), new Material("stormy cloud", "cloud", 1, 1, "gray") } },
+            { "black", new List<Material>{ new Material("obsidian rock", "rock", 1, 1, "black"), new Material("midnight rose", "plant", 1, 1, "black"), new Material("shadowy silk", "fabric", 1, 1, "black") } },
+            { "brown", new List<Material>{ new Material("earthy bark", "wood", 1, 1, "brown"), new Material("cocoa beans", "plant", 1, 1, "brown"), new Material("hazel nuts", "nut", 1, 1, "brown") } }
 
-            //fix this later but i dont want to right now
+            //fix this later but I don't want to right now
         };
 
-        public static List<string> Headwear = new List<string>() { "none", "none", "none", "large hat", "small hat", "hood" };
+
+
+        public static List<string> Headwear = new List<string>() { "none", "none", "none", "none", "none", "none", "none", "large hat", "small hat", "hood", "hood", "hood" };
         public static List<string> Neckwear = new List<string>() { "none", "none", "none", "amulet", "amulet/amulet/amulet", "flair"};
         public static List<string> Handwear = new List<string>() { "none", "none", "none", "left glove/right glove", "left wristwrap/right wristwrap"};
-        public static List<string> Bodywear = new List<string>() { "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt/cape", "longsleeve shirt/cape", "straps/cape", };
+        public static List<string> Bodywear = new List<string>() { "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "shortsleeve shirt/uppershirt", "longsleeve shirt/uppershirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt/cape", "longsleeve shirt/cape", "straps/cape", };
         public static List<string> Legwear = new List<string>() { "pants", "pants", "shorts", "kilt/pants", "kilt", "kilt/wraps"};
         public static List<string> Footwear = new List<string>() { "none", "left boot/right boot", "left boot/right boot", "left boot/right boot", "left shoe/right shoe", "left shoe/right shoe" };
 
@@ -1181,6 +1185,16 @@ namespace Lightrealm
 
             GamePlayerParty = loadedPlayer;
             GameWorld = loadedWorld;
+
+            //temporary bandaid on this interesting problem
+
+            foreach(Architect a in GamePlayerParty.Architects)
+            {
+                if(!LoadedArchitects.Contains(a))
+                {
+                    LoadedArchitects.Add(a);
+                }    
+            }
         }
 
         public static World GameWorld;
@@ -1538,6 +1552,47 @@ namespace Lightrealm
         public Texture2D DistrictMarketT;
         public Texture2D DistrictMarketSurroundedT;
         public Texture2D DistrictPrismT;
+
+        public Texture2D AmuletT;
+        public Texture2D ArchaixFemaleT;
+        public Texture2D ArchaixMaleT;
+        public Texture2D CapeT;
+        public Texture2D ChestplateT;
+        public Texture2D FlairT;
+        public Texture2D HelmetT;
+        public Texture2D HoodT;
+        public Texture2D KiltT;
+        public Texture2D LargeHatT;
+        public Texture2D LeftBootT;
+        public Texture2D LeftGauntletT;
+        public Texture2D LeftGloveT;
+        public Texture2D LeftShoeT;
+        public Texture2D LeftWristwrapT;
+        public Texture2D LongsleeveShirtFemaleT;
+        public Texture2D LongsleeveShirtMaleT;
+        public Texture2D LuminarchFemaleT;
+        public Texture2D LuminarchMaleT;
+        public Texture2D NightfellFemaleT;
+        public Texture2D NightfellMaleT;
+        public Texture2D PantsT;
+        public Texture2D RightBootT;
+        public Texture2D RightGauntletT;
+        public Texture2D RightGloveT;
+        public Texture2D RightShoeT;
+        public Texture2D RightWristwrapT;
+        public Texture2D RobeFemaleT;
+        public Texture2D RobeMaleT;
+        public Texture2D ShortsT;
+        public Texture2D ShortsleeveShirtFemaleT;
+        public Texture2D ShortsleeveShirtMaleT;
+        public Texture2D SkirtT;
+        public Texture2D SmallHatT;
+        public Texture2D StrapsT;
+        public Texture2D UndergarmentT;
+        public Texture2D UpperGarmentT;
+        public Texture2D UpperShirtFemaleT;
+        public Texture2D UpperShirtMaleT;
+        public Texture2D WrapsT;
 
         public Texture2D Astrionalis;
         public Texture2D Celestrioris;
@@ -5002,6 +5057,49 @@ namespace Lightrealm
             LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
 
 
+
+            CharacterAtlas["amulet"] = AmuletT = Content.Load<Texture2D>("character art/amulet");
+            CharacterAtlas["archaixfemale"] = ArchaixFemaleT = Content.Load<Texture2D>("character art/archaixfemale");
+            CharacterAtlas["archaixmale"] = ArchaixMaleT = Content.Load<Texture2D>("character art/archaixmale");
+            CharacterAtlas["cape"] = CapeT = Content.Load<Texture2D>("character art/cape");
+            CharacterAtlas["chestplate"] = ChestplateT = Content.Load<Texture2D>("character art/chestplate");
+            CharacterAtlas["flair"] = FlairT = Content.Load<Texture2D>("character art/flair");
+            CharacterAtlas["helmet"] = HelmetT = Content.Load<Texture2D>("character art/helmet");
+            CharacterAtlas["hood"] = HoodT = Content.Load<Texture2D>("character art/hood");
+            CharacterAtlas["kilt"] = KiltT = Content.Load<Texture2D>("character art/kilt");
+            CharacterAtlas["large hat"] = LargeHatT = Content.Load<Texture2D>("character art/large hat");
+            CharacterAtlas["left boot"] = LeftBootT = Content.Load<Texture2D>("character art/left boot");
+            CharacterAtlas["left gauntlet"] = LeftGauntletT = Content.Load<Texture2D>("character art/left gauntlet");
+            CharacterAtlas["left glove"] = LeftGloveT = Content.Load<Texture2D>("character art/left glove");
+            CharacterAtlas["left shoe"] = LeftShoeT = Content.Load<Texture2D>("character art/left shoe");
+            CharacterAtlas["left wristwrap"] = LeftWristwrapT = Content.Load<Texture2D>("character art/left wristwrap");
+            CharacterAtlas["longsleeve shirt female"] = LongsleeveShirtFemaleT = Content.Load<Texture2D>("character art/longsleeve shirt female");
+            CharacterAtlas["longsleeve shirt male"] = LongsleeveShirtMaleT = Content.Load<Texture2D>("character art/longsleeve shirt male");
+            CharacterAtlas["luminarchfemale"] = LuminarchFemaleT = Content.Load<Texture2D>("character art/luminarchfemale");
+            CharacterAtlas["luminarchmale"] = LuminarchMaleT = Content.Load<Texture2D>("character art/luminarchmale");
+            CharacterAtlas["nightfellfemale"] = NightfellFemaleT = Content.Load<Texture2D>("character art/nightfellfemale");
+            CharacterAtlas["nightfellmale"] = NightfellMaleT = Content.Load<Texture2D>("character art/nightfellmale");
+            CharacterAtlas["pants"] = PantsT = Content.Load<Texture2D>("character art/pants");
+            CharacterAtlas["right boot"] = RightBootT = Content.Load<Texture2D>("character art/right boot");
+            CharacterAtlas["right gauntlet"] = RightGauntletT = Content.Load<Texture2D>("character art/right gauntlet");
+            CharacterAtlas["right glove"] = RightGloveT = Content.Load<Texture2D>("character art/right glove");
+            CharacterAtlas["right shoe"] = RightShoeT = Content.Load<Texture2D>("character art/right shoe");
+            CharacterAtlas["right wristwrap"] = RightWristwrapT = Content.Load<Texture2D>("character art/right wristwrap");
+            CharacterAtlas["robe female"] = RobeFemaleT = Content.Load<Texture2D>("character art/robe female");
+            CharacterAtlas["robe male"] = RobeMaleT = Content.Load<Texture2D>("character art/robe male");
+            CharacterAtlas["shorts"] = ShortsT = Content.Load<Texture2D>("character art/shorts");
+            CharacterAtlas["shortsleeve shirt female"] = ShortsleeveShirtFemaleT = Content.Load<Texture2D>("character art/shortsleeve shirt female");
+            CharacterAtlas["shortsleeve shirt male"] = ShortsleeveShirtMaleT = Content.Load<Texture2D>("character art/shortsleeve shirt male");
+            CharacterAtlas["skirt"] = SkirtT = Content.Load<Texture2D>("character art/skirt");
+            CharacterAtlas["small hat"] = SmallHatT = Content.Load<Texture2D>("character art/small hat");
+            CharacterAtlas["straps"] = StrapsT = Content.Load<Texture2D>("character art/straps");
+            CharacterAtlas["undergarment"] = UndergarmentT = Content.Load<Texture2D>("character art/undergarment");
+            CharacterAtlas["uppergarment"] = UpperGarmentT = Content.Load<Texture2D>("character art/uppergarment");
+            CharacterAtlas["uppershirt female"] = UpperShirtFemaleT = Content.Load<Texture2D>("character art/uppershirt female");
+            CharacterAtlas["uppershirt male"] = UpperShirtMaleT = Content.Load<Texture2D>("character art/uppershirt male");
+            CharacterAtlas["wraps"] = WrapsT = Content.Load<Texture2D>("character art/wraps");
+
+
             // TODO: use this.Content to load your game content here
         }
 
@@ -6434,6 +6532,11 @@ namespace Lightrealm
                                                 return player.Inventory.Contains(entity);
                                             }
 
+                                            bool IsInPlayersClothing(Entity entity, Architect player)
+                                            {
+                                                return player.Clothing.Contains(entity);
+                                            }
+
                                             bool IsInSameRoom(Entity entity, Room currentRoom)
                                             {
                                                 if (entity is Architect architect)
@@ -6486,27 +6589,34 @@ namespace Lightrealm
                                                 return 0;
                                             }
                                             // Entity is in the player's inventory, but not currently in their hands
-                                            if (IsInPlayersInventory(entity, player))
+                                            if (IsInPlayersClothing(entity, player))
                                             {
                                                 return 1;
                                             }
+
+                                            // Entity is in the player's inventory, but not currently in their hands
+                                            if (IsInPlayersInventory(entity, player))
+                                            {
+                                                return 2;
+                                            }
+
                                             // Entity is in the same room as the player
                                             if (IsInSameRoom(entity, player.Room))
                                             {
-                                                return 2;
+                                                return 3;
                                             }
                                             // Entity is in the same block as the player, but not necessarily in the same room
                                             if (IsInSameBlock(entity, player.Block))
                                             {
-                                                return 3;
+                                                return 4;
                                             }
                                             // Entity is in the same district as the player, but not necessarily in the same block
                                             if (IsInSameDistrict(entity, player.District))
                                             {
-                                                return 4;
+                                                return 5;
                                             }
                                             // Entity is elsewhere in the world, not in the same district as the player
-                                            return 5; // The highest proximity score, indicating the entity is the farthest away
+                                            return 6; // The highest proximity score, indicating the entity is the farthest away
                                         }
 
 
@@ -7823,6 +7933,74 @@ namespace Lightrealm
                 _spriteBatch.End();
                 _spriteBatch.Begin();
             }
+
+            void DrawCharacter(Architect a, int x, int y, double Scale)
+            {
+                // Calculate scaled dimensions
+                int scaledWidth = (int)(300 * Scale);
+                int scaledHeight = (int)(1000 * Scale);
+                Rectangle ChosenRect = new Rectangle(x, y, scaledWidth, scaledHeight);
+
+                // Setup sampler state for smooth scaling if using XNA/MonoGame
+                _spriteBatch.GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+
+                if (!GameWorld.HumanoidRaces.Contains(a.Race))
+                {
+                    _spriteBatch.Draw(FlairT, ChosenRect, Color.White);
+                    return;
+                }
+
+                if (a.Sex == "female")
+                {
+                    if (a.Race == GameWorld.GetRace("luminarch"))
+                    {
+                        _spriteBatch.Draw(ArchaixFemaleT, ChosenRect, Color.White);
+                    }
+                    else if (a.Race == GameWorld.GetRace("nightfell"))
+                    {
+                        _spriteBatch.Draw(NightfellFemaleT, ChosenRect, Color.White);
+                    }
+                    else
+                    {
+                        _spriteBatch.Draw(LuminarchFemaleT, ChosenRect, Color.White);
+                    }
+                }
+                else
+                {
+                    if (a.Race == GameWorld.GetRace("luminarch"))
+                    {
+                        _spriteBatch.Draw(ArchaixMaleT, ChosenRect, Color.White);
+                    }
+                    else if (a.Race == GameWorld.GetRace("nightfell"))
+                    {
+                        _spriteBatch.Draw(NightfellMaleT, ChosenRect, Color.White);
+                    }
+                    else
+                    {
+                        _spriteBatch.Draw(LuminarchMaleT, ChosenRect, Color.White);
+                    }
+                }
+
+                foreach (Object o in a.Clothing)
+                {
+                    string s = o.Type;
+
+                    if (s.EndsWith("shirt"))
+                    {
+                        s = s + (" " + a.Sex);
+                    }
+
+                    if(o.DyedColor != "none")
+                    {
+                        _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, ColorConverter[o.DyedColor]);
+                    }
+                    else
+                    {
+                        _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, ColorConverter[o.Materials[0].Color]);
+                    }
+                }
+            }
+
 
             if (KeysNewlyPressed.Contains(Keys.PageUp) && Keyboard.GetState().IsKeyDown(Keys.LeftAlt))
             {
@@ -9260,7 +9438,7 @@ namespace Lightrealm
                         DrawCenteredText(_spriteBatch, "your/opponent skills, attack type, etc.", y + d * 11, Shibafont, Color.White);
                     }
 
-
+                    /*
                     Vector2 CalculateSunMoonPosition(float angle, float radius, Vector2 centerPosition, bool isSun)
                     {
                         // Calculate the position on the circle for the sun or moon
@@ -9357,6 +9535,11 @@ namespace Lightrealm
 
                     // Draw ClockT statically
                     _spriteBatch.Draw(ClockT, centerPosition, null, Color.White, 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                    */
+
+
+                    //character
+                    DrawCharacter(MostRecentPartyTurnArchitect, 750, 1200, 0.2);
 
                 }
                 else
@@ -9400,9 +9583,6 @@ namespace Lightrealm
                             Line++;
                         }
                     }
-
-
-
 
                     line = 0;
                     foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
@@ -9992,7 +10172,12 @@ namespace Lightrealm
                             }
                         }
                     }
+
+                    //character
+                    DrawCharacter(MostRecentPartyTurnArchitect, 500, 1200, 0.2);
+
                 }
+
             }
             else if (GameState == "dead")
             {

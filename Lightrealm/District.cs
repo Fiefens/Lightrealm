@@ -162,25 +162,25 @@ namespace Lightrealm
                     if (Game1.r.Next(0, 3) == 0)
                     {
                         Object saltPouch = new Object(null, "salt pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                        saltPouch.ContainedObjects.Add(new Object(null, "stone", new List<Material>() { new Material("salt", "stone", 1, 1) }, null));
+                        saltPouch.ContainedObjects.Add(new Object(null, "stone", new List<Material>() { new Material("salt", "stone", 1, 1, "white") }, null));
                         Objects.Add(saltPouch);
                     }
                     if (Game1.r.Next(0, 3) == 0)
                     {
                         Object pepperPouch = new Object(null, "pepper pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                        pepperPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("pepper", "plant", 1, 1) }, null));
+                        pepperPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("pepper", "plant", 1, 1, "black") }, null));
                         Objects.Add(pepperPouch);
                     }
                     if (Game1.r.Next(0, 3) == 0)
                     {
                         Object paprikaPouch = new Object(null, "paprika pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                        paprikaPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("paprika", "plant", 1, 1) }, null));
+                        paprikaPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("paprika", "plant", 1, 1, "maroon") }, null));
                         Objects.Add(paprikaPouch);
                     }
                     if (Game1.r.Next(0, 3) == 0)
                     {
                         Object isodustPouch = new Object(null, "isodust pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                        isodustPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("isodust", "plant", 1, 1) }, null));
+                        isodustPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("isodust", "plant", 1, 1, "purple") }, null));
                         Objects.Add(isodustPouch);
                     }
                     break;
@@ -232,7 +232,7 @@ namespace Lightrealm
                     {
                         Object coffeeCrate = new Object(null, "coffee crate", new List<Material>() { Location.HomeCivilization.CulturalWood }, null);
                         for (int j = Game1.r.Next(10, 15); j != 0; j--)
-                            coffeeCrate.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("coffee", "plant", 1, 1) }, null));
+                            coffeeCrate.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { Location.Region.World.Coffee }, null));
                         Objects.Add(coffeeCrate);
                     }
                     break;
@@ -242,7 +242,7 @@ namespace Lightrealm
                     {
                         Object teaCrate = new Object(null, "tea crate", new List<Material>() { Location.HomeCivilization.CulturalWood }, null);
                         for (int j = Game1.r.Next(10, 15); j != 0; j--)
-                            teaCrate.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("tea", "plant", 1, 1) }, null));
+                            teaCrate.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { Location.Region.World.Tea }, null));
                         Objects.Add(teaCrate);
                     }
                     break;
@@ -254,47 +254,47 @@ namespace Lightrealm
 
                 case "ceramics":
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small urn", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small urn", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big urn", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big urn", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small pot", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small pot", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big pot", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big pot", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small mug", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small mug", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big mug", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big mug", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small bowl", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small bowl", new List<Material>() { Game1.GameWorld.Clay }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big bowl", new List<Material>() { new Material("clay", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big bowl", new List<Material>() { Game1.GameWorld.Clay }, null));
                     break;
 
                 case "glassmaking":
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small mug", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small mug", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big mug", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big mug", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small chalice", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small chalice", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big chalice", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big chalice", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small bowl", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small bowl", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big bowl", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big bowl", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "small cup", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "small cup", new List<Material>() { Game1.GameWorld.Glass }, null));
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "big cup", new List<Material>() { new Material("glass", "stone", 1, 1) }, null));
+                        Objects.Add(new Object(null, "big cup", new List<Material>() { Game1.GameWorld.Glass }, null));
                     break;
 
                 case "dye":
                     if (Game1.r.Next(0, 2) == 0)
                     {
                         string DyeColor = Game1.GetFamilyColors(Location.HomeCivilization.Color)[Game1.r.Next(3)];
-                        Object dyeBottle = new Object(null, "bottle", new List<Material>() { new Material("glass", "stone", 1, 1) }, null);
+                        Object dyeBottle = new Object(null, "bottle", new List<Material>() { Game1.GameWorld.Glass }, null);
                         dyeBottle.ContainedObjects.Add(new Object(null, "dye", new List<Material>() { Game1.MaterialsFromColors[DyeColor][Game1.r.Next(3)] }, null));
                         Objects.Add(dyeBottle);
                     }
@@ -303,16 +303,16 @@ namespace Lightrealm
                 case "waspkeeping":
                     if (Game1.r.Next(0, 3) == 0)
                     {
-                        Object honeyJar = new Object(null, "jar", new List<Material>() { new Material("glass", "stone", 1, 1) }, null);
-                        honeyJar.ContainedObjects.Add(new Object(null, "honey", new List<Material>() { new Material("honey", "animal", 1, 1) }, null));
+                        Object honeyJar = new Object(null, "jar", new List<Material>() { Game1.GameWorld.Glass }, null);
+                        honeyJar.ContainedObjects.Add(new Object(null, "honey", new List<Material>() { Game1.GameWorld.Honey }, null));
                         Objects.Add(honeyJar);
                     }
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "wax tablet", new List<Material>() { new Material("beeswax", "animal", 1, 1) }, null));
+                        Objects.Add(new Object(null, "wax tablet", new List<Material>() { Game1.GameWorld.Waspwax }, null));
                     if (Game1.r.Next(0, 5) == 0)
-                        Objects.Add(new Object(null, "candle", new List<Material>() { new Material("beeswax", "animal", 1, 1) }, null));
+                        Objects.Add(new Object(null, "candle", new List<Material>() { Game1.GameWorld.Waspwax }, null));
                     if (Game1.r.Next(0, 2) == 0)
-                        Objects.Add(new Object(null, "wax cube", new List<Material>() { new Material("beeswax", "animal", 1, 1) }, null));
+                        Objects.Add(new Object(null, "wax cube", new List<Material>() { Game1.GameWorld.Waspwax }, null));
                     break;
 
                 case "fuel":

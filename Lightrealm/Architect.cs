@@ -1555,6 +1555,9 @@ namespace Lightrealm
             Block = block;
             District = district;
 
+            HomeDistrict = district;
+            HomeLocation = location;
+
             Game1.GameWorld.AllArchitects.Add(this);
 
             MoralCompass = Game1.r.Next(-100, 101); //more is good, less is evil
@@ -1563,15 +1566,78 @@ namespace Lightrealm
             Name = name;
             Sex = sex;
 
-            if (Location != null && Location.Region.World.HumanoidRaces.Contains(race))
+            if(HomeLocation != null)
             {
-                AddCulturalClothing(Location.HomeCivilization.CulturalHeadwear, Location.HomeCivilization.CulturalCloth);
-                AddCulturalClothing(Location.HomeCivilization.CulturalNeckwear, Location.HomeCivilization.CulturalCloth);
-                AddCulturalClothing(Location.HomeCivilization.CulturalBodywear, Location.HomeCivilization.CulturalCloth);
-                AddCulturalClothing(Location.HomeCivilization.CulturalLegwear, Location.HomeCivilization.CulturalCloth);
-                AddCulturalClothing(Location.HomeCivilization.CulturalHandwear, Location.HomeCivilization.CulturalCloth);
-                AddCulturalClothing(Location.HomeCivilization.CulturalFootwear, Location.HomeCivilization.CulturalCloth);
+                if (Location.Region.World.HumanoidRaces.Contains(race))
+                {
+                    Clothing.Add(new Object(null, "undergarment", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+
+                    if (Sex == "female")
+                    {
+                        Clothing.Add(new Object(null, "uppergarment", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                    }
+
+                    if (Location != null)
+                    {
+                        AddCulturalClothing(Location.HomeCivilization.CulturalHeadwear, Location.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(Location.HomeCivilization.CulturalNeckwear, Location.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(Location.HomeCivilization.CulturalBodywear, Location.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(Location.HomeCivilization.CulturalLegwear, Location.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(Location.HomeCivilization.CulturalHandwear, Location.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(Location.HomeCivilization.CulturalFootwear, Location.HomeCivilization.CulturalCloth);
+                    }
+                }
             }
+
+            //dye clothing
+
+            // Assuming HomeLocation is not null and there are Colors to choose from
+            if (HomeLocation != null)
+            {
+                Dictionary<string, string> pairColors = new Dictionary<string, string>();
+
+                foreach (Object o in Clothing)
+                {
+                    string itemName = o.Type; // Assuming 'Type' is a property that indicates the type of clothing, e.g., "left glove"
+                    string matchName = itemName.StartsWith("left ") ? "right " + itemName.Substring(5) : itemName.StartsWith("right ") ? "left " + itemName.Substring(6) : null;
+
+                    int decider = Game1.r.Next(3);
+                    string colorToApply;
+
+                    if (decider == 0)
+                    {
+                        colorToApply = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+                    }
+                    else if (decider == 1)
+                    {
+                        colorToApply = HomeLocation.HomeCivilization.Color;
+                    }
+                    else
+                    {
+                        continue; // If Decider is neither 0 nor 1, we do not dye this item
+                    }
+
+                    // Apply the color to the current item
+                    o.DyedColor = colorToApply;
+
+                    // If this item has a potential match (either left or right), we handle the pairing
+                    if (matchName != null)
+                    {
+                        // Check if the pair item has already been colored
+                        if (pairColors.ContainsKey(matchName))
+                        {
+                            // Dye the current item the same color as its pair
+                            o.DyedColor = pairColors[matchName];
+                        }
+                        else
+                        {
+                            // Store the color used for this item, so its pair can use the same if encountered later
+                            pairColors[itemName] = colorToApply;
+                        }
+                    }
+                }
+            }
+
 
             List<int> SkillValues = new List<int>() { 1, 2, 3, 4, 5, 6, 7 };
             // Shuffle the SkillValues list
@@ -1656,9 +1722,6 @@ namespace Lightrealm
             FavoriteWood = Game1.GameWorld.Woods[Game1.r.Next(Game1.GameWorld.Woods.Count)];
             FavoriteMetal = Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)];
             FavoriteCloth = Game1.GameWorld.Cloths[Game1.r.Next(Game1.GameWorld.Cloths.Count)];
-
-            HomeDistrict = district;
-            HomeLocation = location;
 
             DestinyArrivalYear = Game1.r.Next(18, 45);
 
@@ -4249,7 +4312,7 @@ namespace Lightrealm
                     {
                         if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
                         {
-                            Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0) }, this);
+                            Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                             Room.Objects.Add(o);
                             o.AirborneTarget = a;
                             o.AirborneCyclesToHitTarget = 15 - FocusForReal();
@@ -4263,7 +4326,7 @@ namespace Lightrealm
                     {
                         if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
                         {
-                            Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0) }, this);
+                            Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                             Block.Objects.Add(o);
                             o.AirborneTarget = a;
                             o.AirborneCyclesToHitTarget = 15 - FocusForReal();
