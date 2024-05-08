@@ -1,4 +1,6 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.Diagnostics;
+using Lightrealm.Input;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
@@ -191,6 +193,9 @@ namespace Lightrealm
             }
         }
 
+        // For watching/displaying FPS
+        FrameCounter FrameCounter;
+        GameInput GameInput;
 
         Texture2D myIconTexture;
 
@@ -4767,6 +4772,9 @@ namespace Lightrealm
                 {"", "idle"}
             };
 
+
+            // Shouldn't have to do this, just install the TTF on dev machines.
+            /*
             // Specify the path to your TTF file
             string fontFilePath = "Content/fonts/BLKCHCRY.TTF";
 
@@ -4775,7 +4783,8 @@ namespace Lightrealm
 
             // Copy the font file to the user's Fonts directory
             Directory.CreateDirectory(userFontsDirectory);
-           // File.Copy(fontFilePath, Path.Combine(userFontsDirectory, "BLKCHCRY.TTF"), true);
+            File.Copy(fontFilePath, Path.Combine(userFontsDirectory, "BLKCHCRY.TTF"), true);
+            */
 
             //create the key dictionary
             for (Keys key = Keys.A; key <= Keys.Z; key++)
@@ -4834,6 +4843,8 @@ namespace Lightrealm
             InvertDoorDirection.Add("up", "down");
             InvertDoorDirection.Add("down", "up");
 
+            FrameCounter = new FrameCounter();
+            GameInput = new GameInput();
             base.Initialize();
         }
 
@@ -4996,6 +5007,14 @@ namespace Lightrealm
 
         protected override void Update(GameTime gameTime)
         {
+            GameInput.Update();
+
+            if( GameInput.WasKeyPressed(FrameCounter.Key) )
+            {
+                FrameCounter.RenderFps = !FrameCounter.RenderFps;
+            }
+            FrameCounter.Update(gameTime);
+
             if(!AllEnteredGameStates.Contains(GameState))
             {
                 AllEnteredGameStates.Add(GameState);
@@ -7805,9 +7824,6 @@ namespace Lightrealm
                 _spriteBatch.Begin();
             }
 
-
-
-
             if (KeysNewlyPressed.Contains(Keys.PageUp) && Keyboard.GetState().IsKeyDown(Keys.LeftAlt))
             {
                 int X = Mouse.GetState().X;
@@ -10265,6 +10281,13 @@ namespace Lightrealm
                 _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
                 _spriteBatch.DrawString(Shibafont, "Press CTRL-S to save your game.", new Vector2(10, 60), Color.White);
             }
+
+
+            if (FrameCounter.RenderFps)
+            {
+                FrameCounter.Render(_spriteBatch, Shibafont);
+            }
+
 
             _spriteBatch.End();
 
