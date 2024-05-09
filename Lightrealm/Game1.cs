@@ -1828,7 +1828,6 @@ namespace Lightrealm
                     {
                         // Set the intended move direction for the next command
                         Executor.CurrentlyMovingPlace = Subjects[0].Metadata;
-                        MakeObservation("You prepare to move toward " + Subjects[0].Metadata + ".", Color.Gray);
                     }
                 }
                 else
@@ -8963,7 +8962,6 @@ namespace Lightrealm
                         return true;
                     }
 
-                    // Helper method to match commands with wildcards and return match score
                     (int matchScore, bool isMatch) GetMatchScoreAndValidity(string command, string typedText)
                     {
                         var parts = command.Split(' ');
@@ -8976,30 +8974,55 @@ namespace Lightrealm
                             return (0, false); // Early return if the first word does not match
                         }
 
-                        foreach (var part in parts)
+                        for (int i = 0; i < parts.Length; i++)
                         {
-                            if (part == "~")
+                            if (parts[i] == "~")
                             {
                                 if (j >= typedParts.Length)
-                                    break; // Stop scoring if there are no more typed parts
-                                j++; // Move to next part after wildcard
+                                {
+                                    // Wildcard matches but no score if no input is left to match
+                                    matchScore++;
+                                    continue;
+                                }
+                                j++; // Move to the next part after wildcard
                             }
                             else
                             {
-                                if (j >= typedParts.Length || !part.StartsWith(typedParts[j], StringComparison.OrdinalIgnoreCase))
+                                if (j >= typedParts.Length)
                                 {
-                                    if (j < typedParts.Length && typedParts[j].Length > 0 && typedParts[j][0] == part[0])
-                                        continue; // Allow potential match if initial characters match
+                                    // If out of typed parts, continue checking command structure
+                                    continue;
+                                }
+                                if (!parts[i].StartsWith(typedParts[j], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // If it fails to match, immediately return false
                                     return (matchScore, false);
                                 }
-                                matchScore++; // Increase score for exact part match
                                 j++;
+                                matchScore++; // Increase score for exact part match
                             }
                         }
+
+                        // Ensure all typed parts were used, implying full command structure was respected
+                        if (j < typedParts.Length) return (0, false);
 
                         return (matchScore, true);
                     }
 
+
+                    // Function to determine color based on match status and position
+                    Color GetPartColor(string part, string inputPart, bool isTopLine, bool isWildcard)
+                    {
+                        if (isWildcard)
+                        {
+                            return new Color(0, 0, 139); // Dark blue for wildcards
+                        }
+                        else if (part.Equals(inputPart, StringComparison.OrdinalIgnoreCase) && isTopLine)
+                        {
+                            return new Color(255, 0, 255); // Magenta for exact non-wildcard top line matches
+                        }
+                        return new Color(75, 75, 75); // Grey for others
+                    }
 
                     if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     {
@@ -9007,7 +9030,6 @@ namespace Lightrealm
                         Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
                         float StartX = 50 + sizeOfInitialText.X;
 
-                        // Score and filter commands based on match validity, then sort by match score
                         var matchingCommands = AllCommands
                             .Select(cmd => new { Command = cmd, MatchData = GetMatchScoreAndValidity(cmd, MostRecentPartyTurnArchitect.Prompt) })
                             .Where(x => x.MatchData.isMatch)
@@ -9017,21 +9039,41 @@ namespace Lightrealm
                             .ToList();
 
                         int yOffset = 20;
+                        bool isTopLine = true; // Flag to check if it's the topmost line being drawn
                         for (int i = 0; i < matchingCommands.Count; i++)
                         {
                             string displayCommand = matchingCommands[i];
                             var commandParts = displayCommand.Split(' ');
                             var inputParts = MostRecentPartyTurnArchitect.Prompt.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
+                            int l = 0; // Input parts index
                             for (int k = 0; k < commandParts.Length; k++)
                             {
-                                if (commandParts[k] == "~" && k < inputParts.Length)
-                                    commandParts[k] = inputParts[k]; // Replace tilde with typed word
+                                string partToDraw = commandParts[k];
+                                bool isWildcard = partToDraw == "~";
+                                if (isWildcard && l < inputParts.Length)
+                                {
+                                    partToDraw = inputParts[l]; // Replace wildcard with input
+                                }
+
+                                // Determine the color for each part
+                                Color partColor = GetPartColor(commandParts[k], l < inputParts.Length ? inputParts[l] : "", isTopLine, isWildcard);
+
+                                _spriteBatch.DrawString(Shibafont, partToDraw, new Vector2(StartX, 1225 + (i + 1) * yOffset), partColor);
+
+                                // Only increment input index if it's a non-wildcard or matched wildcard
+                                if (isWildcard || (l < inputParts.Length && commandParts[k].StartsWith(inputParts[l], StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    l++;
+                                }
+
+                                // Adjust X coordinate for next part
+                                StartX += Shibafont.MeasureString(partToDraw).X + 5; // Added 5 pixels for spacing between words
                             }
 
-                            displayCommand = string.Join(" ", commandParts);
-
-                            _spriteBatch.DrawString(Shibafont, displayCommand, new Vector2(StartX, 1225 + (i + 1) * yOffset), new Color(75, 75, 75));
+                            // Reset X position for next command and update top line flag
+                            StartX = 50 + sizeOfInitialText.X;
+                            isTopLine = false; // Only the first line gets magenta
                         }
                     }
 
