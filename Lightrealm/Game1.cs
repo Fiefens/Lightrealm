@@ -38,6 +38,7 @@ namespace Lightrealm
         public static int TicksSinceLoad = 0;
 
         public static Dictionary<string, List<string>> RecognizedCommands = new Dictionary<string, List<string>>();
+        public static List<string> AllCommands = new List<string>();
 
 
         public static int CurrentObjectPage = 0;
@@ -2337,13 +2338,6 @@ namespace Lightrealm
                     {
                         MakeObservation("You don't have that.", Color.Green);
                     }
-                }
-            }
-            else if (CommandID == "X")
-            {
-                if(Executor.PathOfTimeLevel >= 0)
-                {
-
                 }
             }
             else if (CommandID == "take_item_from")
@@ -4665,24 +4659,7 @@ namespace Lightrealm
     "tell ~ to flee", "urge ~ to run away", "command ~ to escape"
 });
 
-
-            // More command groups can be added below as needed
-
-
-            // Additional command groups can be added below
-
-
-            // Continue adding further command groups as needed
-
-
-            // Continue adding further command groups as needed
-
-
-            // Continue adding further command groups as needed
-
-
-            // Add more commands as needed
-
+            AllCommands.AddRange(RecognizedCommands.SelectMany(pair => pair.Value));
 
             ColorConverter.Add("maroon", Color.Maroon);
             ColorConverter.Add("red", Color.Red);
@@ -8954,17 +8931,124 @@ namespace Lightrealm
 
                     int Line = 0;
 
-                    _spriteBatch.DrawString(Shibafont, "What do you do? \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
+                    // Helper method to match commands with wildcards
+                    bool MatchesWithWildcards(string command, string typedText)
+                    {
+                        var parts = command.Split(' ');
+                        var typedParts = typedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        int j = 0; // Index for typedParts
+
+                        foreach (var part in parts)
+                        {
+                            if (part == "~")
+                            {
+                                // Allows skipping the wildcard if not enough parts are left in typedText
+                                if (j >= typedParts.Length)
+                                    return true; // Wildcard can match nothing if no input is there yet
+                                j++; // Move to next part after wildcard
+                            }
+                            else
+                            {
+                                // Ensures part of command starts with corresponding typed part
+                                if (j >= typedParts.Length || !part.StartsWith(typedParts[j], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (j < typedParts.Length && typedParts[j].Length > 0 && typedParts[j][0] == part[0])
+                                        continue; // Allow potential match if initial characters match
+                                    return false;
+                                }
+                                j++;
+                            }
+                        }
+
+                        return true;
+                    }
+
+                    // Helper method to match commands with wildcards and return match score
+                    (int matchScore, bool isMatch) GetMatchScoreAndValidity(string command, string typedText)
+                    {
+                        var parts = command.Split(' ');
+                        var typedParts = typedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        int matchScore = 0;
+                        int j = 0; // Index for typedParts
+
+                        if (typedParts.Length == 0 || !parts[0].StartsWith(typedParts[0], StringComparison.OrdinalIgnoreCase))
+                        {
+                            return (0, false); // Early return if the first word does not match
+                        }
+
+                        foreach (var part in parts)
+                        {
+                            if (part == "~")
+                            {
+                                if (j >= typedParts.Length)
+                                    break; // Stop scoring if there are no more typed parts
+                                j++; // Move to next part after wildcard
+                            }
+                            else
+                            {
+                                if (j >= typedParts.Length || !part.StartsWith(typedParts[j], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (j < typedParts.Length && typedParts[j].Length > 0 && typedParts[j][0] == part[0])
+                                        continue; // Allow potential match if initial characters match
+                                    return (matchScore, false);
+                                }
+                                matchScore++; // Increase score for exact part match
+                                j++;
+                            }
+                        }
+
+                        return (matchScore, true);
+                    }
+
+
+                    if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
+                    {
+                        string initialText = "Enter a command: \"I ";
+                        Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
+                        float StartX = 50 + sizeOfInitialText.X;
+
+                        // Score and filter commands based on match validity, then sort by match score
+                        var matchingCommands = AllCommands
+                            .Select(cmd => new { Command = cmd, MatchData = GetMatchScoreAndValidity(cmd, MostRecentPartyTurnArchitect.Prompt) })
+                            .Where(x => x.MatchData.isMatch)
+                            .OrderByDescending(x => x.MatchData.matchScore)
+                            .Take(5)
+                            .Select(x => x.Command)
+                            .ToList();
+
+                        int yOffset = 20;
+                        for (int i = 0; i < matchingCommands.Count; i++)
+                        {
+                            string displayCommand = matchingCommands[i];
+                            var commandParts = displayCommand.Split(' ');
+                            var inputParts = MostRecentPartyTurnArchitect.Prompt.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                            for (int k = 0; k < commandParts.Length; k++)
+                            {
+                                if (commandParts[k] == "~" && k < inputParts.Length)
+                                    commandParts[k] = inputParts[k]; // Replace tilde with typed word
+                            }
+
+                            displayCommand = string.Join(" ", commandParts);
+
+                            _spriteBatch.DrawString(Shibafont, displayCommand, new Vector2(StartX, 1225 + (i + 1) * yOffset), new Color(75, 75, 75));
+                        }
+                    }
+
+                    _spriteBatch.DrawString(Shibafont, "Enter a command: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
+
 
                     //district map
-                    for
-                    (int DistrictX = 0; DistrictX < 7; DistrictX++)
+                    for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                     {
                         for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                         {
+                            // Define rectangle once for use in all draws
+                            Rectangle drawRect = new Rectangle(150 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16);
+
                             if (MostRecentPartyTurnArchitect.Block.X == DistrictX && MostRecentPartyTurnArchitect.Block.Z == DistrictZ)
                             {
-                                _spriteBatch.Draw(whiteRect, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.Red);
+                                _spriteBatch.Draw(whiteRect, drawRect, Color.Red);
                             }
                             else
                             {
@@ -8972,48 +9056,48 @@ namespace Lightrealm
 
                                 if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 0)
                                 {
-                                    if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "desert")
+                                    string biome = GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome;
+                                    if (biome == "desert")
                                     {
                                         DecidedTexture = DistrictEmptyDesertT;
                                     }
-                                    else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "taiga" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "mountain" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "forest" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "lightforest")
+                                    else if (biome == "taiga" || biome == "mountain" || biome == "forest" || biome == "lightforest")
                                     {
                                         DecidedTexture = DistrictEmptyTreesT;
                                     }
-                                    else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "tundra" || GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "snowpeak")
+                                    else if (biome == "tundra" || biome == "snowpeak")
                                     {
                                         DecidedTexture = DistrictEmptySnowT;
                                     }
-                                    else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "ocean")
+                                    else if (biome == "ocean")
                                     {
                                         DecidedTexture = DistrictEmptyOceanT;
                                     }
-                                    else if (GameWorld.WorldMap[MostRecentPartyTurnArchitect.Location.X + MostRecentPartyTurnArchitect.Location.Z * GameWorld.Width].Biome == "plains")
+                                    else if (biome == "plains")
                                     {
                                         DecidedTexture = DistrictEmptyPlainsT;
                                     }
                                 }
                                 else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 1)
                                 {
-                                    if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "bighouse" || MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "house")
+                                    switch (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type)
                                     {
-                                        DecidedTexture = DistrictBuildingT;
-                                    }
-                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "prism")
-                                    {
-                                        DecidedTexture = DistrictPrismT;
-                                    }
-                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "spire")
-                                    {
-                                        DecidedTexture = DistrictSpireT;
-                                    }
-                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type == "market")
-                                    {
-                                        DecidedTexture = DistrictMarketT;
-                                    }
-                                    else
-                                    {
-                                        DecidedTexture = DistrictSpecialBuildingT;
+                                        case "bighouse":
+                                        case "house":
+                                            DecidedTexture = DistrictBuildingT;
+                                            break;
+                                        case "prism":
+                                            DecidedTexture = DistrictPrismT;
+                                            break;
+                                        case "spire":
+                                            DecidedTexture = DistrictSpireT;
+                                            break;
+                                        case "market":
+                                            DecidedTexture = DistrictMarketT;
+                                            break;
+                                        default:
+                                            DecidedTexture = DistrictSpecialBuildingT;
+                                            break;
                                     }
                                 }
                                 else
@@ -9063,61 +9147,53 @@ namespace Lightrealm
                                     {
                                         DecidedTexture = DistrictSpecialAndBuildingsT;
                                     }
-
                                 }
-
 
                                 Color BuildingColor = Color.White; //luminarch or other
-
-                                if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 0)
+                                if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count > 0)
                                 {
-
-                                }
-                                else if (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name == "nightfell")
-                                {
-                                    BuildingColor = new Color(100, 100, 100);
-                                }
-                                else if (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name == "archaix")
-                                {
-                                    BuildingColor = new Color(150, 150, 150);
-                                }
-                                else if (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name == "isofractal")
-                                {
-                                    BuildingColor = new Color(50, 150, 255);
-                                }
-                                else if (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name == "photonexus")
-                                {
-                                    BuildingColor = ColorConverter[MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].FakePhotonexusColor];
-                                }
-                                else if (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name == "shade")
-                                {
-                                    BuildingColor = new Color(0, 0, 0);
-
-                                    if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Contains(MostRecentPartyTurnArchitect.Location.Prism))
+                                    switch (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name)
                                     {
-                                        DecidedTexture = ShadeCoreT;
-                                    }
-                                    else
-                                    {
-                                        DecidedTexture = ShadeOutpostT;
+                                        case "nightfell":
+                                            BuildingColor = new Color(100, 100, 100);
+                                            break;
+                                        case "archaix":
+                                            BuildingColor = new Color(150, 150, 150);
+                                            break;
+                                        case "isofractal":
+                                            BuildingColor = new Color(50, 150, 255);
+                                            break;
+                                        case "photonexus":
+                                            BuildingColor = ColorConverter[MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].FakePhotonexusColor];
+                                            break;
+                                        case "shade":
+                                            BuildingColor = new Color(0, 0, 0);
+                                            if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Contains(MostRecentPartyTurnArchitect.Location.Prism))
+                                            {
+                                                DecidedTexture = ShadeCoreT;
+                                            }
+                                            else
+                                            {
+                                                DecidedTexture = ShadeOutpostT;
+                                            }
+                                            break;
                                     }
                                 }
 
-
-                                if(DecidedTexture != null)
+                                if (DecidedTexture != null)
                                 {
-                                    _spriteBatch.Draw(DecidedTexture, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), BuildingColor);
+                                    _spriteBatch.Draw(DecidedTexture, drawRect, BuildingColor);
                                 }
 
                                 foreach (Object o in MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Objects)
                                 {
                                     if (o.Type == "well")
                                     {
-                                        _spriteBatch.Draw(DistrictWellT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
+                                        _spriteBatch.Draw(DistrictWellT, drawRect, Color.White);
                                     }
                                     else if (o.Type == "shadow storage")
                                     {
-                                        _spriteBatch.Draw(DistrictShadowStorageT, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), Color.White);
+                                        _spriteBatch.Draw(DistrictShadowStorageT, drawRect, Color.White);
                                     }
                                 }
 
@@ -9141,7 +9217,7 @@ namespace Lightrealm
                                         HeavinessColor = Color.LightCyan;
                                     }
 
-                                    _spriteBatch.Draw(ArchitectHere, new Rectangle(450 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16), HeavinessColor);
+                                    _spriteBatch.Draw(ArchitectHere, drawRect, HeavinessColor);
                                 }
                             }
                         }
@@ -9485,7 +9561,9 @@ namespace Lightrealm
                         _spriteBatch.DrawString(Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
                     }
 
-                    _spriteBatch.DrawString(Shibafont, "What do you do? \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
+
+
+
 
                     int line = 0;
 
