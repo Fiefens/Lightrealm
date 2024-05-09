@@ -168,7 +168,7 @@ namespace Lightrealm
                 Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green));
                 return Announcements; // Early return as the attack missed
             }
-            else if(Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)o.Owner).NaturalArmor)
+            else if(Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
             {
                 Announcements.Add(new TextStorage("The attack breaks down " + ((Architect)o.Owner).ReferredToNames[0] + "'s natural armor!", Color.Green));
                 ((Architect)o.Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
@@ -271,6 +271,14 @@ namespace Lightrealm
                 Door door = (Door)this;
                 ReferredToNames.Add(door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
                 ReferredToNames.Add("door " + door.Number);
+                return;
+            }
+            else if (this.IsBodyPart)
+            {
+                foreach(string s in Owner.ReferredToNames)
+                {
+                    ReferredToNames.Add(s + "'s " + Type);
+                }
                 return;
             }
 

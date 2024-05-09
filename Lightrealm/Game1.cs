@@ -7,6 +7,7 @@ using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.Design;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,9 @@ namespace Lightrealm
         public static bool TriedFakeMove = false;
 
         public static int TicksSinceLoad = 0;
+
+        public static Dictionary<string, List<string>> RecognizedCommands = new Dictionary<string, List<string>>();
+
 
         public static int CurrentObjectPage = 0;
         public static int MaximumObjectPage = 0;
@@ -1619,7 +1623,7 @@ namespace Lightrealm
         int LoadGameCursor = 0;
 
 
-        public static bool RunCommand(Architect Executor, string Command, List<Entity> Subjects)
+        public static bool RunCommand(Architect Executor, string CommandID, List<Entity> Subjects)
         {
             //replace inside command pronouns
 
@@ -1678,19 +1682,19 @@ namespace Lightrealm
             };
 
 
-            var speakingPrefixes = new string[] { "ask", "tell", "explain", "say", "speak", "inquire", "request", "greet" };
-            bool isSpeakingCommand = speakingPrefixes.Any(prefix => Command.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-            string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that" };
+            var speakingPrefixes = new string[] { "ask", "tell", "explain", "say", "speak", "inquire", "request", "greet", "command" };
+            bool isSpeakingCommand = speakingPrefixes.Any(prefix => CommandID.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that", "his", "their" };
 
             foreach (var pronoun in pronouns)
             {
                 // Use regular expression to match whole words
                 string pattern = @"\b" + Regex.Escape(pronoun) + @"\b";
-                Command = Regex.Replace(Command, pattern, "/p");
+                CommandID = Regex.Replace(CommandID, pattern, "/p");
             }
 
 
-            if (new List<string> { "leave ~", "exit ~", "leave the structure", "exit the structure", "leave", "leave the building", "exit the building", "exit" }.Contains(Command))
+            if (CommandID == "leave_structure")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
                 if (Executor.Structure == null)
@@ -1709,7 +1713,7 @@ namespace Lightrealm
                     Executor.Block.Architects.Add(Executor);
                 }
             }
-            else if (new List<string> { "enter ~", "go inside ~", "go in ~", "go through ~" }.Contains(Command))
+            else if (CommandID == "enter_structure")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
                 if (LoadedArchitects[ArchitectIndex].Structure != null && Subjects[0] is Door)
@@ -1743,22 +1747,22 @@ namespace Lightrealm
                     MakeObservation("You couldn't find anything like that in the area to enter.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "go ~", "travel ~", "move to the ~", "move ~", "go to the ~", "head ~", "head to the ~", "make my way ~", "start heading ~" }.Contains(Command))
+            else if (CommandID == "move_direction")
             {
                 // Assuming Subjects[0].Metadata contains the direction (e.g., "north", "south", etc.)
                 var stringDirectionOffsets = new Dictionary<string, (int dx, int dz)>
-                {
-                    {"north", (0, -1)},
-                    {"northeast", (1, -1)},
-                    {"east", (1, 0)},
-                    {"southeast", (1, 1)},
-                    {"south", (0, 1)},
-                    {"southwest", (-1, 1)},
-                    {"west", (-1, 0)},
-                    {"northwest", (-1, -1)}
-                };
+    {
+        {"north", (0, -1)},
+        {"northeast", (1, -1)},
+        {"east", (1, 0)},
+        {"southeast", (1, 1)},
+        {"south", (0, 1)},
+        {"southwest", (-1, 1)},
+        {"west", (-1, 0)},
+        {"northwest", (-1, -1)}
+    };
 
-                if(!TriedFakeMove)
+                if (!TriedFakeMove)
                 {
                     MakeObservation("Some commands have shortcuts. For instance, directional movement can use the NUMPAD or by pressing tilde/QWEADZXC.", Color.Lime);
                     TriedFakeMove = true;
@@ -1768,84 +1772,62 @@ namespace Lightrealm
 
                 if (stringDirectionOffsets.TryGetValue(Subjects[0].Metadata, out var offset))
                 {
-                    if (LoadedArchitects[ArchitectIndex].CombatCycles == 0 || r.Next(100) <= LoadedArchitects[ArchitectIndex].EscapeChance())
+                    int newX = Executor.Block.X + offset.dx;
+                    int newZ = Executor.Block.Z + offset.dz;
+
+                    // Check if the direction for the move has been previously set
+                    if (Executor.CurrentlyMovingPlace == Subjects[0].Metadata)
                     {
-                        if (LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace == Subjects[0].Metadata)
+                        // Check if moving out of bounds
+                        if (newX == -1 || newX == 7 || newZ == -1 || newZ == 7)
                         {
-                            if (LoadedArchitects[ArchitectIndex].CombatCycles != 0) // Adjusted from Executor to maintain consistency in explanation
+                            Executor.TryingToTravel = true;
+
+                            // Check if all architects are trying to travel
+                            bool allTryingToTravel = GamePlayerParty.Architects.All(a => a.TryingToTravel);
+                            if (allTryingToTravel)
                             {
-                                MakeObservation("You struggle to escape, and succeed!", Color.OrangeRed);
-                            }
-
-                            int newX = LoadedArchitects[ArchitectIndex].Block.X + offset.dx;
-                            int newZ = LoadedArchitects[ArchitectIndex].Block.Z + offset.dz;
-
-                            if (newX == -1 || newX == 7 || newZ == -1 || newZ == 7)
-                            {
-                                GameState = "travelmenu";
-                                GamePlayerParty.MapCursorDistrict = 0;
-
-                                int PartyArchitectsStillThere = 0;
-                                Location LeavingLocation = LoadedArchitects[ArchitectIndex].Location;
-
                                 foreach (Architect a in GamePlayerParty.Architects)
                                 {
-                                    if (a.Location == LeavingLocation)
-                                    {
-                                        PartyArchitectsStillThere++;
-                                    }
-                                }
-                                if (PartyArchitectsStillThere == 0)
-                                {
-                                    LeavingLocation.Unload();
+                                    a.Location?.Unload();
+                                    a.Location = null;
+                                    a.District = null;
                                 }
 
-                                MapCursorX = LoadedArchitects[ArchitectIndex].Location.X;
-                                MapCursorZ = LoadedArchitects[ArchitectIndex].Location.Z;
-                                GameWorld.RevealNearbyTiles(MapCursorX, MapCursorZ);
+                                // Enter travel mode
+                                GameState = "travelmenu";
+
+                                // Update cursor position to a default or a predetermined safe location
+                                MapCursorX = 0;
+                                MapCursorZ = 0;
+                                GamePlayerParty.MapCursorDistrict = 0;
                             }
-                            else
+                        }
+                        else if (Executor.CombatCycles == 0 || r.Next(100) <= Executor.EscapeChance())
+                        {
+                            Executor.TryingToTravel = false;
+                            Executor.Block.Architects.Remove(Executor);
+                            Executor.Block = Executor.District.DistrictMap[newX + newZ * 7];
+                            foreach (Structure s in Executor.Block.Structures)
                             {
-                                LoadedArchitects[ArchitectIndex].Block.Architects.Remove(LoadedArchitects[ArchitectIndex]);
-                                LoadedArchitects[ArchitectIndex].Block = LoadedArchitects[ArchitectIndex].District.DistrictMap[newX + newZ * 7];
-
-                                foreach (Structure s in LoadedArchitects[ArchitectIndex].Block.Structures)
+                                if (s.Type != "house" && s.Type != "bighouse")
                                 {
-                                    if (s.Type != "house" && s.Type != "bighouse")
-                                    {
-                                        MakeObservation(s.GetStructureDescription(), Color.Aqua);
-                                    }
+                                    MakeObservation(s.GetStructureDescription(), Color.Aqua);
                                 }
-                                LoadedArchitects[ArchitectIndex].Block.Architects.Add(LoadedArchitects[ArchitectIndex]);
                             }
-
-                            LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace = "none";
+                            Executor.Block.Architects.Add(Executor);
+                            Executor.CurrentlyMovingPlace = "none";  // Reset after successful movement
                         }
                         else
                         {
-                            // Adding a check to only show progress message when in combat
-                            if (LoadedArchitects[ArchitectIndex].CombatCycles > 0)
-                            {
-                                // Assuming a simplistic approach to determine "close" escape attempts
-                                int escapeAttempt = r.Next(100);
-                                int escapeThreshold = LoadedArchitects[ArchitectIndex].EscapeChance() - 10; // Assuming "close" if within 10% of success
-
-                                if (escapeAttempt <= escapeThreshold)
-                                {
-                                    MakeObservation("You struggle to escape, and make progress...", Color.OrangeRed);
-                                }
-                                else
-                                {
-                                    MakeObservation("You struggle to escape, and fail!", Color.OrangeRed);
-                                }
-                            }
-
-                            LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace = Subjects[0].Metadata;
+                            MakeObservation("You struggle to escape, and fail!", Color.OrangeRed);
                         }
                     }
                     else
                     {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed);
+                        // Set the intended move direction for the next command
+                        Executor.CurrentlyMovingPlace = Subjects[0].Metadata;
+                        MakeObservation("You prepare to move toward " + Subjects[0].Metadata + ".", Color.Gray);
                     }
                 }
                 else
@@ -1853,15 +1835,7 @@ namespace Lightrealm
                     MakeObservation("You can't go that \"way\".", Color.Yellow);
                 }
             }
-
-            else if (new List<string> {
-                "slash ~", "stab ~", "thrust ~", "smite ~", "pierce ~", "lash ~", "scourge ~", "whip ~",
-                "strike ~", "bash ~", "crush ~", "whack ~", "smash ~", "hack ~", "sunder ~", "pierce ~",
-                "impale ~", "cut ~", "slice ~", "bludgeon ~", "club ~", "smother ~",
-                "slash at ~", "stab at ~", "thrust at ~", "smite at ~", "pierce at ~", "lash at ~", "scourge at ~", "whip at ~",
-                "strike at ~", "bash at ~", "crush at ~", "whack at ~", "smash at ~", "hack at ~", "sunder at ~", "pierce at ~",
-                "impale at ~", "cut at ~", "slice at ~", "bludgeon at ~", "club at ~", "smother at ~"
-            }.Contains(Command))
+            else if (CommandID == "basic_attack")
             {
                 //find weapon and then calculate the attack
 
@@ -1890,27 +1864,20 @@ namespace Lightrealm
 
                 if (Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0]))
                 {
-                    CalculateAttack(Command.Substring(Command.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", Weapon);
+                    CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", Weapon);
                 }
                 else
                 {
                     Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
                 }
             }
-            else if (new List<string> {
-                "slash ~ with ~", "stab ~ with ~", "thrust ~ with ~", "smite ~ with ~", "pierce ~ with ~", "lash ~ with ~", "scourge ~ with ~", "whip ~ with ~",
-                "strike ~ with ~", "bash ~ with ~", "crush ~ with ~", "whack ~ with ~", "smash ~ with ~", "hack ~ with ~", "sunder ~ with ~", "pierce ~ with ~",
-                "impale ~ with ~", "cut ~ with ~", "slice ~ with ~", "bludgeon ~ with ~", "club ~ with ~", "smother ~ with ~",
-                "slash at ~ with ~", "stab at ~ with ~", "thrust at ~ with ~", "smite at ~ with ~", "pierce at ~ with ~", "lash at ~ with ~", "scourge at ~ with ~", "whip at ~ with ~",
-                "strike at ~ with ~", "bash at ~ with ~", "crush at ~ with ~", "whack at ~ with ~", "smash at ~ with ~", "hack at ~ with ~", "sunder at ~ with ~", "pierce at ~ with ~",
-                "impale at ~ with ~", "cut at ~ with ~", "slice at ~ with ~", "bludgeon at ~ with ~", "club at ~ with ~", "smother at ~ with ~"
-            }.Contains(Command))
+            else if (CommandID == "attack_with_weapon")
             {
                 Object Weapon = LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].MainHandObject() : LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].OffHandObject() : null;
 
                 if (Weapon != null && (Weapon.IsWeapon && Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0])))
                 {
-                    CalculateAttack(Command.Substring(Command.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", (Object)(Subjects[1]));
+                    CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", (Object)(Subjects[1]));
                 }
                 else if (Weapon == null || !Weapon.IsWeapon)
                 {
@@ -1921,82 +1888,11 @@ namespace Lightrealm
                     Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
                 }
             }
-
-            else if (new List<string> { "check my inventory", "open my inventory", "open my pack", "open my backpack", "search my backpack", "open pack", "open menu",
-                "show menu",
-                "access menu",
-                "display menu",
-                "main menu",
-                "game menu",
-                "menu",
-                "pause menu",
-                "menu open",
-                "open game menu",
-                "show main menu",
-                "access main menu",
-                "menu screen","check my inventory",
-                "open my inventory",
-                "open my pack",
-                "open my backpack",
-                "search my backpack",
-                "open pack",
-                "access inventory",
-                "access my inventory",
-                "show inventory",
-                "show my inventory",
-                "check inventory",
-                "check backpack",
-                "inventory",
-                "backpack",
-                "view inventory",
-                "view my inventory",
-                "manage inventory",
-                "manage my inventory",
-                "inventory check",
-                "inventory access",
-                "inventory open",
-                "open inventory",
-                "display inventory",
-                "display my inventory",
-                "open menu screen",
-                "check stats",
-                "view stats",
-                "show stats",
-                "display stats",
-                "see stats",
-                "stats",
-                "character stats",
-                "open stats",
-                "stats check",
-                "examine stats",
-                "statistics",
-                "view my stats",
-                "access stats",
-                "my stats",
-                "check character",
-                "view character",
-                "examine character",
-                "character info",
-                "character details",
-                "show character",
-                "display character",
-                "character profile",
-                "open character",
-                "character check",
-                "look at character",
-                "see character",
-                "character examination",
-                "inspect character" }.Contains(Command))
+            else if (CommandID == "inventory_check")
             {
                 InInventory = true;
             }
-            else if (new List<string> {
-                "slash ~ in the ~", "stab ~ in the ~", "thrust ~ in the ~", "smite ~ in the ~", "pierce ~ in the ~",
-                "lash ~ in the ~", "scourge ~ in the ~", "whip ~ in the ~", "strike ~ in the ~", "bash ~ in the ~",
-                "crush ~ in the ~", "whack ~ in the ~", "smash ~ in the ~", "hack ~ in the ~", "sunder ~ in the ~",
-                "pierce ~ in the ~", "impale ~ in the ~", "cut ~ in the ~", "slice ~ in the ~", "bludgeon ~ in the ~",
-                "club ~ in the ~", "smother ~ in the ~"
-            }.Contains(Command))
+            else if (CommandID == "attack_specific_body_part")
             {
                 Object Weapon;
 
@@ -2025,7 +1921,7 @@ namespace Lightrealm
                 {
                     if (((Architect)(Subjects[0])).BodyParts.Any(bodyPart => bodyPart.Type == Subjects[1].Metadata))
                     {
-                        CalculateAttack(Command.Substring(0, Command.Length - 2), Executor, (((Architect)(Subjects[0])).FindBodyPart(Subjects[1].Metadata)).Name, "decideforme", Weapon);
+                        CalculateAttack(CommandID.Substring(0, CommandID.Length - 2), Executor, (((Architect)(Subjects[0])).FindBodyPart(Subjects[1].Metadata)).Name, "decideforme", Weapon);
                     }
                     else
                     {
@@ -2037,10 +1933,7 @@ namespace Lightrealm
                     MakeObservation("You can't target body parts of an object.", Color.Yellow);
                 }
             }
-            
-            else if (new List<string> {
-                "become one with shadow", "become one with the shadow", "become one with shadows", "become one with the shadows"
-            }.Contains(Command))
+            else if (CommandID == "become_invisible")
             {
                 if (Executor.Invisible)
                 {
@@ -2056,9 +1949,7 @@ namespace Lightrealm
                     MakeObservation("You are not experienced enough in the shadows to partake in such a maneuver.", Color.Yellow);
                 }
             }
-            else if (new List<string> {
-                "exit the shadows", "exit the darkness", "return from the shadows", "return from the shadow", "return from shadow"
-            }.Contains(Command))
+            else if (CommandID == "exit_invisibility")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (Executor.Invisible)
@@ -2071,7 +1962,7 @@ namespace Lightrealm
                     MakeObservation("You are not in the shadows.", Color.Yellow);
                 }
             }
-            else if (Command == "level ~" && Subjects[0].Metadata == "up")
+            else if (CommandID == "level_up" && Subjects[0].Metadata == "up")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 Executor.Level++;
@@ -2079,14 +1970,7 @@ namespace Lightrealm
                 MakeObservation("You divine the imbuement of great power.", Color.Yellow);
 
             }
-            else if (new List<string> {
-                "slash ~ in the ~ with ~", "stab ~ in the ~ with ~", "thrust ~ in the ~ with ~", "smite ~ in the ~ with ~",
-                "pierce ~ in the ~ with ~", "lash ~ in the ~ with ~", "scourge ~ in the ~ with ~", "whip ~ in the ~ with ~",
-                "strike ~ in the ~ with ~", "bash ~ in the ~ with ~", "crush ~ in the ~ with ~", "whack ~ in the ~ with ~",
-                "smash ~ in the ~ with ~", "hack ~ in the ~ with ~", "sunder ~ in the ~ with ~", "pierce ~ in the ~ with ~",
-                "impale ~ in the ~ with ~", "cut ~ in the ~ with ~", "slice ~ in the ~ with ~", "bludgeon ~ in the ~ with ~",
-                "club ~ in the ~ with ~", "smother ~ in the ~ with ~"
-            }.Contains(Command))
+            else if (CommandID == "attack_body_part_with_item")
             {
                 if (Subjects[0] is Architect)
                 {
@@ -2096,7 +1980,7 @@ namespace Lightrealm
                         {
                             if (LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[2] || LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[2])
                             {
-                                CalculateAttack(Command.Substring(Command.Length - 2), Executor, ((Architect)Subjects[0]).FindBodyPart((Subjects[1].Metadata)).Name, "decideforme", (Object)(Subjects[2]));
+                                CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, ((Architect)Subjects[0]).FindBodyPart((Subjects[1].Metadata)).Name, "decideforme", (Object)(Subjects[2]));
                             }
                             else
                             {
@@ -2118,9 +2002,7 @@ namespace Lightrealm
                     MakeObservation("You can't target body parts of an object.", Color.Yellow);
                 }
             }
-            else if (new List<string> {
-    "engage ~", "engage with ~", "confront ~", "focus ~"
-}.Contains(Command))
+            else if (CommandID == "engage_target")
             {
                 if (Subjects[0] is Architect targetArchitect)
                 {
@@ -2150,9 +2032,7 @@ namespace Lightrealm
                     MakeObservation("The target is not an architect.", Color.Red);
                 }
             }
-            else if (new List<string> {
-    "approach ~", "move closer to ~", "advance towards ~"
-}.Contains(Command))
+            else if (CommandID == "approach_target")
             {
                 if (Subjects[0] is Architect targetArchitect)
                 {
@@ -2172,9 +2052,7 @@ namespace Lightrealm
                     MakeObservation("The target is not an architect.", Color.Red);
                 }
             }
-            else if (new List<string> {
-    "distance from ~", "move away from ~", "retreat from ~"
-}.Contains(Command))
+            else if (CommandID == "distance_from_target")
             {
                 if (Subjects[0] is Architect targetArchitect)
                 {
@@ -2195,7 +2073,7 @@ namespace Lightrealm
                 }
             }
 
-            else if (new List<string> { "take out ~", "unsheath ~", "remove ~", "wield ~", "unholster ~" }.Contains(Command))
+            else if (CommandID == "wield_item")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (Subjects[0] is Object && LoadedArchitects[ArchitectIndex].Inventory.Contains((Object)Subjects[0]))
@@ -2240,7 +2118,7 @@ namespace Lightrealm
                     MakeObservation("That is not an object in your inventory.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "grab ~", "get ~", "take ~", "pick up ~", "steal ~", "place ~ in my inventory", "store ~ in my inventory", "stash ~ in my inventory", "put ~ in my inventory", "place ~ in my pack", "store ~ in my pack", "stash ~ in my pack", "put ~ in my pack", "place ~ in my backpack", "store ~ in my backpack", "stash ~ in my backpack", "put ~ in my backpack" }.Contains(Command))
+            else if (CommandID == "pick_up_item")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (LoadedArchitects[ArchitectIndex].Room != null && LoadedArchitects[ArchitectIndex].Room.Objects.Contains(Subjects[0]))
@@ -2340,7 +2218,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find anything like that in the area.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "drop ~", "set ~ on the ground", "place ~ on the ground", "let go of ~" }.Contains(Command))
+            else if (CommandID == "drop_item")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 bool Found = true;
@@ -2385,7 +2263,7 @@ namespace Lightrealm
                 }
 
             }
-            else if (new List<string> { "place ~ in ~", "store ~ in ~", "stash ~ in ~", "put ~ in ~", "place ~ on ~", "place ~ inside ~" }.Contains(Command))
+            else if (CommandID == "place_item_in")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (Subjects[0] == Executor.RightHandObject || Subjects[0] == Executor.LeftHandObject || Executor.Inventory.Contains(Subjects[0]))
@@ -2461,14 +2339,14 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (new List<string> { "savepoint", "pausepoint", "save" }.Contains(Command))
+            else if (CommandID == "X")
             {
                 if(Executor.PathOfTimeLevel >= 0)
                 {
 
                 }
             }
-            else if (new List<string> { "take ~ from ~", "remove ~ from ~", "retrieve ~ from ~", "get ~ from ~", "extract ~ from ~", "take ~ off of ~", "remove ~ off of  ~", "retrieve ~ off of ~", "get ~ off of ~", "extract ~ off of ~" }.Contains(Command))
+            else if (CommandID == "take_item_from")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (Subjects[1].Metadata == "shadow storage")
@@ -2545,18 +2423,18 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (waitCommands.ContainsKey(Command.ToLower()))
+            else if (waitCommands.ContainsKey(CommandID.ToLower()))
             {
-                int secondsToWait = waitCommands[Command.ToLower()];
+                int secondsToWait = waitCommands[CommandID.ToLower()];
                 Executor.CooldownCycles += secondsToWait * 10;
                 string observationMessage = secondsToWait == 1 ? "You wait for one second." : $"You wait for {secondsToWait} seconds.";
                 MakeObservation(observationMessage, Color.Green);
             }
-            else if (Command.ToLower().StartsWith("wait"))
+            else if (CommandID.ToLower().StartsWith("wait"))
             {
                 MakeObservation("You're too impatient to wait that long.", Color.Red);
             }
-            else if (new List<string> { "wear ~", "put on ~", "don ~" }.Contains(Command))
+            else if (CommandID == "wear_item")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
                 if (Subjects[0] is Object && (Executor.Inventory.Contains(((Object)Subjects[0])) || Executor.RightHandObject == ((Object)Subjects[0]) || Executor.LeftHandObject == ((Object)Subjects[0])))
@@ -2616,7 +2494,7 @@ namespace Lightrealm
                     MakeObservation("You don't have an object like that.", Color.Green);
                 }
             }
-            else if (new List<string> { "remove ~", "take off ~", "doff ~" }.Contains(Command))
+            else if (CommandID == "remove_worn_item")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
                 if (Subjects[0] is Object && Executor.Clothing.Contains(((Object)Subjects[0])))
@@ -2658,17 +2536,7 @@ namespace Lightrealm
                     MakeObservation("You aren't wearing an object like that.", Color.Green);
                 }
             }
-
-            else if (new List<string>()
-            {
-                "examine ~",
-                "look at ~",
-                "check out ~",
-                "look closer at ~",
-                "inspect ~",
-                "observe ~",
-                "view ~"
-            }.Contains(Command))
+            else if (CommandID == "examine_object")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
                 if (Subjects[0] is Architect)
@@ -2720,7 +2588,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find anything like that nearby.", Color.White);
                 }
             }
-            else if (new List<string> { "give ~ to ~", "offer ~ to ~", "sacrifice ~ to ~" }.Contains(Command))
+            else if (CommandID == "give_item")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (!(Subjects[0] is Object))
@@ -3022,7 +2890,7 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (new List<string> { "throw ~", "toss ~", "fling ~" }.Contains(Command))
+            else if (CommandID == "throw_item")
             {
                 Object ThrowingObject = null;
                 if (Executor.RightHanded)
@@ -3081,7 +2949,7 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (new List<string> { "throw ~ at ~", "toss ~ at ~", "fling ~ at ~", "throw ~ towards ~", "toss ~ towards ~", "fling ~ towards ~" }.Contains(Command))
+            else if (CommandID == "throw_item_at")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
                 Object ThrowingObject = null;
@@ -3140,7 +3008,7 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (new List<string> { "cast ~ at ~" }.Contains(Command))
+            else if (CommandID == "cast_spell")
             {
                 if (Executor.SpellsKnown.Contains(Subjects[0].Metadata) ||
     (Executor.LeftHandObject != null && Executor.LeftHandObject.SpellContained == Subjects[0].Metadata) ||
@@ -3182,11 +3050,11 @@ namespace Lightrealm
                     MakeObservation("You don't know a spell like that.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "cast ~" }.Contains(Command))
+            else if (CommandID == "cast_spell_at")
             {
                 MakeObservation("You fail to concentrate. You will need a point of interest to cast the spell at, even if unnecessary.", Color.Yellow);
             }
-            else if (new List<string> { "remember ~" }.Contains(Command))
+            else if (CommandID == "recall_information")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (Subjects[0].Metadata == "spells")
@@ -3202,7 +3070,7 @@ namespace Lightrealm
                     MakeObservation("You can't remember that.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "read ~" }.Contains(Command))
+            else if (CommandID == "read_object")
             {
                 // Check for the specified object in both hands and inventory
                 Object objectToRead = null;
@@ -3240,9 +3108,9 @@ namespace Lightrealm
                     MakeObservation("You don't have " + Subjects[0] + " in your hands or inventory.", Color.Red);
                 }
             }
-            else if (new List<string> { "recite ~", "sing ~", "preform ~" }.Contains(Command))
+            else if (CommandID == "perform_composition")
             {
-                string type = Command.Contains("recite") ? "poem" : "song";
+                string type = CommandID.Contains("recite") ? "poem" : "song";
                 Composition compositionToPerform = Executor.CultureBank.Find(comp => comp.Type == type && comp.Name == Subjects[0].Metadata);
 
                 if (compositionToPerform != null)
@@ -3316,7 +3184,7 @@ namespace Lightrealm
                 }
 
             }
-            else if (Command == "write ~")
+            else if (CommandID == "write_composition")
             {
                 // Decide on type based on the subject provided
                 string type = Subjects[0].Metadata.ToLower();
@@ -3352,7 +3220,7 @@ namespace Lightrealm
                     MakeObservation("You compose a " + type + " titled '" + newComposition.Name + ". " +newComposition.getCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue);
                 }
             }
-            else if (Command == "write ~ about ~")
+            else if (CommandID == "write_about_topic")
             {
                 string domain;
 
@@ -3399,11 +3267,11 @@ namespace Lightrealm
                 }
             }
 
-            else if (Command.StartsWith("write ~ about "))
+            else if (CommandID.StartsWith("write ~ about "))
             {
                 MakeObservation("You can't write about that because it either doesn't exist or no one cares about it.", Color.Red);
             }
-            else if (new List<string> { "tame ~", "pacify ~" }.Contains(Command))
+            else if (CommandID == "tame_creature")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
@@ -3441,7 +3309,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find anything like that nearby.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "starstrike ~" }.Contains(Command))
+            else if (CommandID == "starstrike")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
@@ -3479,7 +3347,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "flamestrike ~" }.Contains(Command))
+            else if (CommandID == "flamestrike")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
@@ -3503,7 +3371,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "heat ~" }.Contains(Command))
+            else if (CommandID == "heat_object")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Executor.PathOfHeatLevel >= 4)
@@ -3527,7 +3395,7 @@ namespace Lightrealm
                 }
             }
 
-            else if (new List<string> { "starsmite ~" }.Contains(Command))
+            else if (CommandID == "starsmite")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
@@ -3558,7 +3426,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "conjure spark" }.Contains(Command))
+            else if (CommandID == "conjure_spark")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
                 if (Executor.PathOfLightLevel >= 2)
@@ -3600,7 +3468,7 @@ namespace Lightrealm
                     MakeObservation("You don't know how to do that.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "evoke strike at ~", "evoke beam at ~", "evoke beams at ~", "evoke light at ~" }.Contains(Command))
+            else if (CommandID == "evoke_strike")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 Object FoundSpark = null;
@@ -3682,7 +3550,7 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (new List<string> { "evoke blindness" }.Contains(Command))
+            else if (CommandID == "evoke_blindness")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 Object FoundSpark = null;
@@ -3748,11 +3616,7 @@ namespace Lightrealm
                     MakeObservation("You don't know how to do that.", Color.Red);
                 }
             }
-            else if (new List<string> { "group travel", "gt", "vote to group travel", "tell the group to follow me"}.Contains(Command))
-            {
-
-            }
-            else if (new List<string> { "evoke healing" }.Contains(Command))
+            else if (CommandID == "evoke_healing")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 Object FoundSpark = null;
@@ -3832,7 +3696,7 @@ namespace Lightrealm
                     MakeObservation("You don't know how to do that.", Color.Red);
                 }
             }
-            else if (new List<string> { "evoke nexus", "evoke photonexus" }.Contains(Command))
+            else if (CommandID == "evoke_nexus")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 Object FoundSpark = null;
@@ -3885,7 +3749,7 @@ namespace Lightrealm
                     MakeObservation("You don't know how to do that.", Color.Red);
                 }
             }
-            else if (new List<string> { "inflame" }.Contains(Command))
+            else if (CommandID == "inflame")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Executor.PathOfHeatLevel >= 8)
@@ -3898,7 +3762,7 @@ namespace Lightrealm
                     MakeObservation("You don't have control over that.", Color.Red);
                 }
             }
-            else if (new List<string> { "unflame" }.Contains(Command))
+            else if (CommandID == "unflame")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Executor.PathOfHeatLevel >= 8)
@@ -3912,7 +3776,7 @@ namespace Lightrealm
                 }
             }
 
-            else if (new List<string> { "augument ~" }.Contains(Command))
+            else if (CommandID == "augment_creature")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
@@ -3966,7 +3830,7 @@ namespace Lightrealm
                     MakeObservation("You couldn't find anything augumentable like that nearby.", Color.Yellow);
                 }
             }
-            else if (new List<string> { "raise ~" }.Contains(Command))
+            else if (CommandID == "raise_dead")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 MakeObservation("You conjure a spark of dark energy, and speak the name of " + Subjects[0].ReferredToNames[0] + "...", Color.Purple);
@@ -4006,7 +3870,7 @@ namespace Lightrealm
                     Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple));
                 }
             }
-            else if (new List<string> { "fire spectral bolt at ~", "spectralize ~", "spectral bolt ~" }.Contains(Command))
+            else if (CommandID == "fire_spectral_bolt")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
                 if (Executor.PathOfDeathLevel >= 4 || (Executor.UndeadCreator != null && Executor.UndeadCreator.PathOfDeathLevel >= 8))
@@ -4062,18 +3926,18 @@ namespace Lightrealm
                     }
                     else
                     {
-                        if (new List<string> { "ask ~ /p name", "ask ~ name" }.Contains(Command))
+                        if (CommandID == "ask_name")
                         {
                             AddMessage(Executor.Name + ": What is your name?", ObservationColor1);
                             AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": My name is " + ((Architect)Subjects[0]).Name + ".", ObservationColor2);
                             ((Architect)Subjects[0]).ChangeOpinion(Executor, 1);
                         }
-                        else if (new List<string> { "ask ~ about local troubles", "ask ~ if anything bothers them", "ask ~ if anything is bothering them", "ask ~ if anything is wrong", "ask ~ what they need help with", "ask ~ about local issues", "ask ~ about local problems" }.Contains(Command))
+                        else if (CommandID == "ask_about_troubles")
                         {
                             AddMessage(Executor.Name + ": What troubles you today?", ObservationColor1);
                             AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": INSERT TROUBLES HERE.", ObservationColor2);
                         }
-                        else if (new List<string> { "ask ~ to join me", "ask ~ if they would join me", "ask ~ if they want to join me", "ask ~ to join my group" }.Contains(Command) || (LoadedArchitects[ArchitectIndex].Group != null && new List<string> { "ask ~ to join " + LoadedArchitects[ArchitectIndex].Group.Name, "ask ~ if they would join " + LoadedArchitects[ArchitectIndex].Group.Name, "ask ~ if they want to join " + LoadedArchitects[ArchitectIndex].Group.Name }.Contains(Command)))
+                        else if (CommandID == "ask_to_join")
                         {
                             AddMessage(Executor.Name + ": Join me on my quest!", ObservationColor1);
 
@@ -4096,7 +3960,7 @@ namespace Lightrealm
                                 AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Prove you have what it takes.", ObservationColor2);
                             }
                         }
-                        else if (new List<string> { "greet ~", "say hello to ~", "tell ~ hello", "tell ~ hi", "say hi to ~", "tell ~ my name", "tell ~ who I am" }.Contains(Command))
+                        else if (CommandID == "greet")
                         {
                             if (((Architect)Subjects[0]).GetOpinion(Executor) == 0)
                             {
@@ -4110,7 +3974,7 @@ namespace Lightrealm
                                 AddMessage(Subjects[0].ReferredToNames[0] + ": Hello there, " + Executor.Name + ". It is nice to see you again.", ObservationColor2);
                             }
                         }
-                        else if (new List<string> { "ask ~ if i could join them", "ask to join ~", "ask if i could join ~", "ask ~ to join my group" }.Contains(Command))
+                        else if (CommandID == "join_group_request")
                         {
                             if (Executor.Group == null)
                             {
@@ -4132,7 +3996,7 @@ namespace Lightrealm
                                 AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Are you not associated with " + Executor.Group.Name + "? I can't be sure of your complete loyalty.", ObservationColor2);
                             }
                         }
-                        else if (new List<string> { "ask ~ if there is ~ nearby", "ask ~ where ~ is", "ask ~ where the ~ is", "ask ~ where i could find ~", "ask ~ where the nearest ~ is", "ask ~ the location of ~", "ask ~ about the whereabouts of ~", "ask ~ where a nearby ~ is" }.Contains(Command))
+                        else if (CommandID == "location_query")
                         {
                             string GetDirection(int centerPointX, int centerPointZ, int pointTowardsX, int pointTowardsZ)
                             {
@@ -4284,7 +4148,7 @@ namespace Lightrealm
                                 }
                             }
                         }
-                        else if (new List<string> { "ask ~ about their expertise", "inquire ~ about their skills", "ask ~ what they're good at", "ask ~ about their skills", "ask ~ what they can do" }.Contains(Command))
+                        else if (CommandID == "ask_about_expertise")
                         {
                             AddMessage(Executor.Name + ": What are your skills?", ObservationColor1);
 
@@ -4300,7 +4164,7 @@ namespace Lightrealm
 
                             AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": I am skilled at " + GreatestProficiency.Item2 + ".", ObservationColor2);
                         }
-                        else if (new List<string> { "ask ~ for advice on ~", "seek ~ counsel on ~", "request ~ guidance regarding ~", "consult ~ about ~", "ask ~ for insight on ~", "ask ~ for their opinion on ~", "seek ~ viewpoint on ~", "query ~ about their thoughts on ~" }.Contains(Command))
+                        else if (CommandID == "seek_advice")
                         {
                             AddMessage(Executor.Name + ": I'm not sure about " + Subjects[1].Metadata + ".", ObservationColor2);
 
@@ -4359,7 +4223,7 @@ namespace Lightrealm
 
                             AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": " + Responses[r.Next(Responses.Count)], ObservationColor2);
                         }
-                        else if (new List<string> { "ask ~ about the history of ~", "inquire ~ about past events of ~", "question ~ on the historical background of ~" }.Contains(Command))
+                        else if (CommandID == "ask_history")
                         {
                             // Implement the response logic here
                             AddMessage(Executor.Name + ": Tell me more about " + Subjects[1].Metadata + ".", ObservationColor1);
@@ -4377,7 +4241,7 @@ namespace Lightrealm
                                 AddMessage(Executor.Name + ": What? Where?", ObservationColor2);
                             }
                         }
-                        else if (new List<string> { "ask ~ if /p need assistance", "ask ~ if /p require assistance", "inquire if ~ needs help", "offer aid to ~", "ask if ~ needs help", "ask ~ if /p needs help", "ask ~ if /p need help" }.Contains(Command))
+                        else if (CommandID == "need_assistance_query")
                         {
                             AddMessage(Executor.Name + ": Do you need help with something?", ObservationColor1);
 
@@ -4393,7 +4257,7 @@ namespace Lightrealm
                                 }
                             }
                         }
-                        else if (new List<string> { "ask ~ about recent events", "inquire ~ on the latest happenings", "question ~ about current affairs" }.Contains(Command))
+                        else if (CommandID == "recent_events_query")
                         {
                             AddMessage(Executor.Name + ": Whats been happening recently?", ObservationColor1);
 
@@ -4402,7 +4266,7 @@ namespace Lightrealm
                                 AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Ah yes, in " + Executor.Location + " in " + Executor.Location.LocationHistoricalEvents.Last(), ObservationColor2);
                             }
                         }
-                        else if (new List<string> { "ask ~ to trade", "ask ~ if they want to trade", "ask ~ whats for sale", "ask ~ what they have for sale", "ask ~ if they have anything for trade or sale", "inquire ~ about merchandise", "question ~ on items for sale" }.Contains(Command))
+                        else if (CommandID == "trade_inquiry")
                         {
                             AddMessage(Executor.Name + ": What do you have to trade?", ObservationColor1);
 
@@ -4422,81 +4286,17 @@ namespace Lightrealm
                                 AddMessage(((Architect)Subjects[0]).Name + ": Go find a merchant, peddler.", ObservationColor2);
                             }
                         }
-                        else if (new List<string> { "ask ~ for their story", "inquire ~ about their background", "request ~ to share their history" }.Contains(Command))
-                        {
-                            AddMessage(Executor.Name + "", ObservationColor2);
-                        }
-                        else if (new List<string> { "ask ~ how they are feeling", "inquire ~ about their wellbeing", "question ~ on their current mood" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "ask ~ who rules ~", "ask ~ about the local government", "inquire ~ about the political situation" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "ask ~ to trade", "propose a trade to ~", "suggest trading with ~" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "ask ~ permission to stay for the night", "request ~ to lodge overnight", "seek ~ allowance for a night's stay" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "ask ~ about the economy or trade", "inquire ~ on trade conditions", "question ~ about economic status" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "ask ~ if they've seen ~ recently", "inquire ~ about recent sightings of ~", "question ~ on the last location of ~" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "ask ~ to teach me how to ~", "request ~ for instruction on ~", "seek ~ guidance in learning ~" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ to calm down", "advise ~ to relax", "urge ~ to stay calm" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ a story", "narrate a tale to ~", "share a story with ~" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ a joke", "share a laugh with ~", "make ~ laugh with a joke" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ my quest", "reveal my mission to ~", "share the purpose of my journey with ~" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ to follow me", "tell ~ to join me", "command ~ to accompany me" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ to wait here", "instruct ~ to stay put", "ask ~ to remain here" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ to be cautious", "warn ~ to tread carefully", "advise ~ to be wary" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
-                        else if (new List<string> { "tell ~ to flee", "urge ~ to run away", "command ~ to escape" }.Contains(Command))
-                        {
-                            // Implement the response logic here
-                        }
                         else
                         {
                             string message = "You cannot say that... yet... Though I'll try to implement it sometime. I'll store it in your failedsayings.txt in your Documents folder though.";
                             string contentPath = Path.Combine(DocumentsFolderPath, "failedsayings.txt");
                             if (!File.Exists(contentPath))
                             {
-                                File.WriteAllText(contentPath, Command);
+                                File.WriteAllText(contentPath, CommandID);
                             }
                             else
                             {
-                                File.AppendAllText(contentPath, Command);
+                                File.AppendAllText(contentPath, CommandID);
                             }
                             MakeObservation(message, Color.Blue);
                             return false;
@@ -4603,6 +4403,20 @@ namespace Lightrealm
             }
         }
 
+        public static string GetCommandIdFromInput(string input)
+        {
+            input = input.ToLower(); // Normalize the input
+            foreach (var command in RecognizedCommands)
+            {
+                if (command.Value.Contains(input))
+                {
+                    return command.Key;
+                }
+            }
+            return null; // Return null if no command matches
+        }
+
+
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -4624,48 +4438,43 @@ namespace Lightrealm
             }
             else if (a.Target.Item1 != a.Location.Region || a.Target.Item2 != a.Location || a.Target.Item3 != a.District || a.Target.Item4 != a.Block || a.Target.Item5 != a.Structure)
             {
-                if (a.InTheProcessOfLeaving)
+                if (a.CurrentlyMovingPlace == "north")
                 {
-                    if (a.CurrentlyMovingPlace == "north")
-                    {
-                        TaskDescription = ("north-moving");
-                    }
-                    else if (a.CurrentlyMovingPlace == "east")
-                    {
-                        TaskDescription = ("east-moving");
-                    }
-                    else if (a.CurrentlyMovingPlace == "south")
-                    {
-                        TaskDescription = ("south-moving");
-                    }
-                    else if (a.CurrentlyMovingPlace == "west")
-                    {
-                        TaskDescription = ("west-moving");
-                    }
-                    else if (a.CurrentlyMovingPlace == "outside")
-                    {
-                        TaskDescription = ("structure-leaving");
-                    }
-                    else
-                    {
-                        foreach (Structure s in a.Block.Structures)
-                        {
-                            if (s.GUID == a.CurrentlyMovingPlace)
-                            {
-                                TaskDescription = (s.Name + "-entering");
-                            }
-                        }
-                        if (TaskDescription == "")
-                        {
-                            TaskDescription = ("area-leaving");
-                        }
-                    }
+                    TaskDescription = ("north-moving");
+                }
+                else if (a.CurrentlyMovingPlace == "east")
+                {
+                    TaskDescription = ("east-moving");
+                }
+                else if (a.CurrentlyMovingPlace == "south")
+                {
+                    TaskDescription = ("south-moving");
+                }
+                else if (a.CurrentlyMovingPlace == "west")
+                {
+                    TaskDescription = ("west-moving");
+                }
+                else if (a.CurrentlyMovingPlace == "outside")
+                {
+                    TaskDescription = ("structure-leaving");
                 }
                 else
                 {
                     TaskDescription = ("deliberating");
+                    //though it is also possible that below a structure is selected
                 }
 
+                foreach (Structure s in a.Block.Structures)
+                {
+                    if (s.GUID == a.CurrentlyMovingPlace)
+                    {
+                        TaskDescription = (s.Name + "-entering");
+                    }
+                }
+                if (TaskDescription == "")
+                {
+                    TaskDescription = ("area-leaving");
+                }
             }
             else if (a.CyclesLeftInTask > 0)
             {
@@ -4693,8 +4502,7 @@ namespace Lightrealm
                 return ("");
             }
         }
-
-
+        
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
@@ -4706,6 +4514,175 @@ namespace Lightrealm
             {
                 Directory.CreateDirectory(DocumentsFolderPath + "/LightrealmSaves");
             }
+
+            RecognizedCommands.Add("leave_structure", new List<string> { "leave ~", "exit ~", "leave the structure", "exit the structure", "leave", "leave the building", "exit the building", "exit" });
+            RecognizedCommands.Add("enter_structure", new List<string> { "enter ~", "go inside ~", "go in ~", "go through ~" });
+            RecognizedCommands.Add("move_direction", new List<string> { "go ~", "travel ~", "move to the ~", "move ~", "go to the ~", "head ~", "head to the ~", "make my way ~", "start heading ~" });
+            RecognizedCommands.Add("basic_attack", new List<string> { "slash ~", "stab ~", "thrust ~", "smite ~", "pierce ~", "lash ~", "scourge ~", "whip ~", "strike ~", "bash ~", "crush ~", "whack ~", "smash ~", "hack ~", "sunder ~", "pierce ~", "impale ~", "cut ~", "slice ~", "bludgeon ~", "club ~", "smother ~", "slash at ~", "stab at ~", "thrust at ~", "smite at ~", "pierce at ~", "lash at ~", "scourge at ~", "whip at ~", "strike at ~", "bash at ~", "crush at ~", "whack at ~", "smash at ~", "hack at ~", "sunder at ~", "pierce at ~", "impale at ~", "cut at ~", "slice at ~", "bludgeon at ~", "club at ~", "smother at ~" });
+            RecognizedCommands.Add("attack_with_weapon", new List<string> { "slash ~ with ~", "stab ~ with ~", "thrust ~ with ~", "smite ~ with ~", "pierce ~ with ~", "lash ~ with ~", "scourge ~ with ~", "whip ~ with ~", "strike ~ with ~", "bash ~ with ~", "crush ~ with ~", "whack ~ with ~", "smash ~ with ~", "hack ~ with ~", "sunder ~ with ~", "pierce ~ with ~", "impale ~ with ~", "cut ~ with ~", "slice ~ with ~", "bludgeon ~ with ~", "club ~ with ~", "smother ~ with ~" });
+            RecognizedCommands.Add("inventory_check", new List<string> { "check my inventory", "open my inventory", "open my pack", "open my backpack", "search my backpack", "open pack", "open menu", "show menu", "access menu", "display menu", "main menu", "game menu", "menu", "pause menu", "menu open", "open game menu", "show main menu", "access main menu", "menu screen" });
+            RecognizedCommands.Add("attack_specific_body_part", new List<string> { "slash ~ in the ~", "stab ~ in the ~", "thrust ~ in the ~", "smite ~ in the ~", "pierce ~ in the ~", "lash ~ in the ~", "scourge ~ in the ~", "whip ~ in the ~", "strike ~ in the ~", "bash ~ in the ~", "crush ~ in the ~", "whack ~ in the ~", "smash ~ in the ~", "hack ~ in the ~", "sunder ~ in the ~", "pierce ~ in the ~", "impale ~ in the ~", "cut ~ in the ~", "slice ~ in the ~", "bludgeon ~ in the ~", "club ~ in the ~", "smother ~ in the ~" });
+            RecognizedCommands.Add("attack_specific_body_part_with", new List<string> { "slash ~ in the ~ with ~", "stab ~ in the ~ with ~", "thrust ~ in the ~ with ~", "smite ~ in the ~ with ~", "pierce ~ in the ~ with ~", "lash ~ in the ~ with ~", "scourge ~ in the ~ with ~", "whip ~ in the ~ with ~", "strike ~ in the ~ with ~", "bash ~ in the ~ with ~", "crush ~ in the ~ with ~", "whack ~ in the ~ with ~", "smash ~ in the ~ with ~", "hack ~ in the ~ with ~", "sunder ~ in the ~ with ~", "pierce ~ in the ~ with ~", "impale ~ in the ~ with ~", "cut ~ in the ~ with ~", "slice ~ in the ~ with ~", "bludgeon ~ in the ~ with ~", "club ~ in the ~ with ~", "smother ~ in the ~ with ~" });
+            RecognizedCommands.Add("become_invisible", new List<string> { "become one with shadow", "become one with the shadow", "become one with shadows", "become one with the shadows" });
+            RecognizedCommands.Add("exit_invisibility", new List<string> { "exit the shadows", "exit the darkness", "return from the shadows", "return from the shadow", "return from shadow" });
+            RecognizedCommands.Add("level_up", new List<string> { "level ~" });
+            RecognizedCommands.Add("attack_body_part_with_item", new List<string> {
+    "slash ~ in the ~ with ~", "stab ~ in the ~ with ~", "thrust ~ in the ~ with ~", "smite ~ in the ~ with ~",
+    "pierce ~ in the ~ with ~", "lash ~ in the ~ with ~", "scourge ~ in the ~ with ~", "whip ~ in the ~ with ~",
+    "strike ~ in the ~ with ~", "bash ~ in the ~ with ~", "crush ~ in the ~ with ~", "whack ~ in the ~ with ~",
+    "smash ~ in the ~ with ~", "hack ~ in the ~ with ~", "sunder ~ in the ~ with ~", "pierce ~ in the ~ with ~",
+    "impale ~ in the ~ with ~", "cut ~ in the ~ with ~", "slice ~ in the ~ with ~", "bludgeon ~ in the ~ with ~",
+    "club ~ in the ~ with ~", "smother ~ in the ~ with ~"
+});
+            RecognizedCommands.Add("engage_target", new List<string> { "engage ~", "engage with ~", "confront ~", "focus ~" });
+            RecognizedCommands.Add("approach_target", new List<string> { "approach ~", "move closer to ~", "advance towards ~" });
+            RecognizedCommands.Add("distance_from_target", new List<string> { "distance from ~", "move away from ~", "retreat from ~" });
+            RecognizedCommands.Add("wield_item", new List<string> { "take out ~", "unsheath ~", "remove ~", "wield ~", "unholster ~" });
+            RecognizedCommands.Add("pick_up_item", new List<string> {
+    "grab ~", "get ~", "take ~", "pick up ~", "steal ~", "place ~ in my inventory", "store ~ in my inventory",
+    "stash ~ in my inventory", "put ~ in my inventory", "place ~ in my pack", "store ~ in my pack",
+    "stash ~ in my pack", "put ~ in my pack", "place ~ in my backpack", "store ~ in my backpack",
+    "stash ~ in my backpack", "put ~ in my backpack"
+});
+            RecognizedCommands.Add("drop_item", new List<string> {
+    "drop ~", "set ~ on the ground", "place ~ on the ground", "let go of ~"
+});
+            RecognizedCommands.Add("place_item_in", new List<string> {
+    "place ~ in ~", "store ~ in ~", "stash ~ in ~", "put ~ in ~", "place ~ on ~", "place ~ inside ~"
+});
+            RecognizedCommands.Add("take_item_from", new List<string> {
+    "take ~ from ~", "remove ~ from ~", "retrieve ~ from ~", "get ~ from ~", "extract ~ from ~",
+    "take ~ off of ~", "remove ~ off of ~", "retrieve ~ off of ~", "get ~ off of ~", "extract ~ off of ~"
+});
+            RecognizedCommands.Add("wear_item", new List<string> { "wear ~", "put on ~", "don ~" });
+            RecognizedCommands.Add("remove_worn_item", new List<string> { "remove ~", "take off ~", "doff ~" });
+            RecognizedCommands.Add("examine_object", new List<string> {
+    "examine ~", "look at ~", "check out ~", "look closer at ~", "inspect ~", "observe ~", "view ~"
+});
+            RecognizedCommands.Add("give_item", new List<string> { "give ~ to ~", "offer ~ to ~", "sacrifice ~ to ~" });
+            RecognizedCommands.Add("throw_item", new List<string> { "throw ~", "toss ~", "fling ~" });
+            RecognizedCommands.Add("throw_item_at", new List<string> {
+    "throw ~ at ~", "toss ~ at ~", "fling ~ at ~", "throw ~ towards ~", "toss ~ towards ~", "fling ~ towards ~"
+});
+            RecognizedCommands.Add("cast_spell_at", new List<string> { "cast ~ at ~" });
+            RecognizedCommands.Add("cast_spell", new List<string> { "cast ~" });
+            RecognizedCommands.Add("recall_information", new List<string> { "remember ~" });
+            RecognizedCommands.Add("read_object", new List<string> { "read ~" });
+            RecognizedCommands.Add("perform_composition", new List<string> {
+    "recite ~", "sing ~", "perform ~"
+});
+            RecognizedCommands.Add("write_composition", new List<string> { "write ~" });
+            RecognizedCommands.Add("write_about_topic", new List<string> { "write ~ about ~" });
+            RecognizedCommands.Add("tame_creature", new List<string> { "tame ~", "pacify ~" });
+            RecognizedCommands.Add("starstrike", new List<string> { "starstrike ~" });
+            RecognizedCommands.Add("flamestrike", new List<string> { "flamestrike ~" });
+            RecognizedCommands.Add("heat_object", new List<string> { "heat ~" });
+            RecognizedCommands.Add("starsmite", new List<string> { "starsmite ~" });
+            RecognizedCommands.Add("conjure_spark", new List<string> { "conjure spark" });
+            RecognizedCommands.Add("evoke_strike", new List<string> {
+    "evoke strike at ~", "evoke beam at ~", "evoke beams at ~", "evoke light at ~"
+});
+            RecognizedCommands.Add("evoke_blindness", new List<string> { "evoke blindness" });
+            RecognizedCommands.Add("evoke_nexus", new List<string> { "evoke nexus" });
+            RecognizedCommands.Add("evoke_healing", new List<string> { "evoke healing" });
+            RecognizedCommands.Add("inflame", new List<string> { "inflame" });
+            RecognizedCommands.Add("unflame", new List<string> { "unflame" });
+            RecognizedCommands.Add("augment_creature", new List<string> { "augment ~" });
+            RecognizedCommands.Add("raise_dead", new List<string> { "raise ~" });
+            RecognizedCommands.Add("fire_spectral_bolt", new List<string> { "fire spectral bolt at ~", "spectralize ~", "spectral bolt ~" });
+            RecognizedCommands.Add("ask_name", new List<string> { "ask ~ /p name", "ask ~ name" });
+            RecognizedCommands.Add("ask_about_troubles", new List<string> {
+    "ask ~ about local troubles", "ask ~ if anything bothers them", "ask ~ if anything is bothering them",
+    "ask ~ if anything is wrong", "ask ~ what they need help with", "ask ~ about local issues", "ask ~ about local problems"
+});
+            RecognizedCommands.Add("ask_to_join", new List<string> {
+    "ask ~ to join me", "ask ~ if they would join me", "ask ~ if they want to join me", "ask ~ to join my group"
+});
+            RecognizedCommands.Add("greet", new List<string> { "greet ~", "say hello to ~", "tell ~ hello", "tell ~ hi", "say hi to ~", "tell ~ my name", "tell ~ who I am" });
+            RecognizedCommands.Add("join_group_request", new List<string> {
+    "ask ~ if i could join them", "ask to join ~", "ask if i could join ~", "ask ~ to join my group"
+});
+            RecognizedCommands.Add("location_query", new List<string> {
+    "ask ~ if there is ~ nearby", "ask ~ where ~ is", "ask ~ where the ~ is", "ask ~ where i could find ~",
+    "ask ~ where the nearest ~ is", "ask ~ the location of ~", "ask ~ about the whereabouts of ~", "ask ~ where a nearby ~ is"
+});
+            RecognizedCommands.Add("ask_about_expertise", new List<string> { "ask ~ about their expertise", "inquire ~ about their skills", "ask ~ what they're good at", "ask ~ about their skills", "ask ~ what they can do" });
+            RecognizedCommands.Add("seek_advice", new List<string> {
+    "ask ~ for advice on ~", "seek ~ counsel on ~", "request ~ guidance regarding ~", "consult ~ about ~",
+    "ask ~ for insight on ~", "ask ~ for their opinion on ~", "seek ~ viewpoint on ~", "query ~ about their thoughts on ~"
+});
+            RecognizedCommands.Add("ask_history", new List<string> { "ask ~ about the history of ~", "inquire ~ about past events of ~", "question ~ on the historical background of ~" });
+            RecognizedCommands.Add("need_assistance_query", new List<string> {
+    "ask ~ if /p need assistance", "ask ~ if /p require assistance", "inquire if ~ needs help", "offer aid to ~",
+    "ask if ~ needs help", "ask ~ if /p needs help", "ask ~ if /p need help"
+});
+            RecognizedCommands.Add("recent_events_query", new List<string> { "ask ~ about recent events", "inquire ~ on the latest happenings", "question ~ about current affairs" });
+            RecognizedCommands.Add("trade_inquiry", new List<string> {
+    "ask ~ to trade", "ask ~ if they want to trade", "ask ~ whats for sale", "ask ~ what they have for sale",
+    "ask ~ if they have anything for trade or sale", "inquire ~ about merchandise", "question ~ on items for sale"
+});
+            RecognizedCommands.Add("personal_story_request", new List<string> { "ask ~ for their story", "inquire ~ about their background", "request ~ to share their history" });
+            RecognizedCommands.Add("ask_wellbeing", new List<string> {
+    "ask ~ how they are feeling", "inquire ~ about their wellbeing", "question ~ on their current mood"
+});
+            RecognizedCommands.Add("ask_rulership", new List<string> {
+    "ask ~ who rules ~", "ask ~ about the local government", "inquire ~ about the political situation"
+});
+            RecognizedCommands.Add("request_stay", new List<string> {
+    "ask ~ permission to stay for the night", "request ~ to lodge overnight", "seek ~ allowance for a night's stay"
+});
+            RecognizedCommands.Add("ask_economy_trade", new List<string> {
+    "ask ~ about the economy or trade", "inquire ~ on trade conditions", "question ~ about economic status"
+});
+            RecognizedCommands.Add("ask_sightings", new List<string> {
+    "ask ~ if they've seen ~ recently", "inquire ~ about recent sightings of ~", "question ~ on the last location of ~"
+});
+            RecognizedCommands.Add("request_education", new List<string> {
+    "ask ~ to teach me how to ~", "request ~ for instruction on ~", "seek ~ guidance in learning ~"
+});
+            RecognizedCommands.Add("advise_calm", new List<string> {
+    "tell ~ to calm down", "advise ~ to relax", "urge ~ to stay calm"
+});
+            RecognizedCommands.Add("share_story", new List<string> {
+    "tell ~ a story", "narrate a tale to ~", "share a story with ~"
+});
+            RecognizedCommands.Add("tell_joke", new List<string> {
+    "tell ~ a joke", "share a laugh with ~", "make ~ laugh with a joke"
+});
+            RecognizedCommands.Add("reveal_quest", new List<string> {
+    "tell ~ my quest", "reveal my mission to ~", "share the purpose of my journey with ~"
+});
+            RecognizedCommands.Add("command_follow", new List<string> {
+    "tell ~ to follow me", "tell ~ to join me", "command ~ to accompany me"
+});
+            RecognizedCommands.Add("command_wait", new List<string> {
+    "tell ~ to wait here", "instruct ~ to stay put", "ask ~ to remain here"
+});
+            RecognizedCommands.Add("advise_caution", new List<string> {
+    "tell ~ to be cautious", "warn ~ to tread carefully", "advise ~ to be wary"
+});
+            RecognizedCommands.Add("command_escape", new List<string> {
+    "tell ~ to flee", "urge ~ to run away", "command ~ to escape"
+});
+
+
+            // More command groups can be added below as needed
+
+
+            // Additional command groups can be added below
+
+
+            // Continue adding further command groups as needed
+
+
+            // Continue adding further command groups as needed
+
+
+            // Continue adding further command groups as needed
+
+
+            // Add more commands as needed
+
 
             ColorConverter.Add("maroon", Color.Maroon);
             ColorConverter.Add("red", Color.Red);
@@ -6557,7 +6534,6 @@ namespace Lightrealm
                                                     return true;
                                                 }
 
-                                                // Check within each structure in the block for the entity
                                                 foreach (Structure structure in currentBlock.Structures)
                                                 {
                                                     if (structure.Rooms.Any(room => room.Objects.Contains(entity) || room.Architects.Contains(entity)))
@@ -6571,7 +6547,6 @@ namespace Lightrealm
 
                                             bool IsInSameDistrict(Entity entity, District currentDistrict)
                                             {
-                                                // Iterate through all blocks in the district to find the entity
                                                 foreach (Block block in currentDistrict.DistrictMap)
                                                 {
                                                     if (IsInSameBlock(entity, block))
@@ -6583,41 +6558,41 @@ namespace Lightrealm
                                                 return false;
                                             }
 
-                                            // Entity is in the player's hands
+                                            // Check if the entity is a body part and calculate score based on the creator's proximity
+                                            if (entity is Object bodyPart && bodyPart.Creator is Architect creator)
+                                            {
+                                                // Recursively calculate the proximity score based on the creator of the body part
+                                                return CalculateProximityScore(creator, player);
+                                            }
+
                                             if (IsInPlayersHands(entity, player))
                                             {
                                                 return 0;
                                             }
-                                            // Entity is in the player's inventory, but not currently in their hands
                                             if (IsInPlayersClothing(entity, player))
                                             {
                                                 return 1;
                                             }
-
-                                            // Entity is in the player's inventory, but not currently in their hands
                                             if (IsInPlayersInventory(entity, player))
                                             {
                                                 return 2;
                                             }
-
-                                            // Entity is in the same room as the player
                                             if (IsInSameRoom(entity, player.Room))
                                             {
                                                 return 3;
                                             }
-                                            // Entity is in the same block as the player, but not necessarily in the same room
                                             if (IsInSameBlock(entity, player.Block))
                                             {
                                                 return 4;
                                             }
-                                            // Entity is in the same district as the player, but not necessarily in the same block
                                             if (IsInSameDistrict(entity, player.District))
                                             {
                                                 return 5;
                                             }
-                                            // Entity is elsewhere in the world, not in the same district as the player
-                                            return 6; // The highest proximity score, indicating the entity is the farthest away
+
+                                            return 6; // Entity is the farthest away
                                         }
+
 
 
                                         List<Entity> FilterSubjectsForCommandPart(string commandPart, List<Entity> allSubjects, Architect MostRecentPartyTurnArchitect, out Dictionary<string, Entity> matchedSubjects)
@@ -6706,6 +6681,7 @@ namespace Lightrealm
                                                     //ok so this will ONLY trigger on the LOADED architects, as the ones arent arround we dont care about.
                                                     subjectsToAdd.AddRange(architect.Inventory);
                                                     subjectsToAdd.AddRange(architect.Clothing);
+                                                    subjectsToAdd.AddRange(architect.BodyParts);
                                                     if (architect.LeftHandObject != null)
                                                     {
                                                         subjectsToAdd.Add(architect.LeftHandObject);
@@ -6828,8 +6804,36 @@ namespace Lightrealm
                                                     processedCommandPart = Regex.Replace(processedCommandPart, $@"\b{Regex.Escape(matchedSubject)}\b", "~", RegexOptions.IgnoreCase);
                                                 }
 
-                                                // Execute the first part of the command
-                                                bool segmentSuccess = RunCommand(LoadedArchitects[ArchitectIndex], processedCommandPart, relevantSubjectsForFirstPart);
+                                                static string FindCommandId(string userInput)
+                                                {
+                                                    foreach (var command in RecognizedCommands)
+                                                    {
+                                                        if (command.Value.Contains(userInput))
+                                                        {
+                                                            return command.Key;
+                                                        }
+                                                    }
+                                                    return null; // Return null or a default command if no match is found
+                                                }
+
+                                                static bool PreprocessAndRunCommand(Architect executor, string userInput, List<Entity> subjects)
+                                                {
+                                                    // Find the command ID from the user input
+                                                    string commandId = FindCommandId(userInput);
+
+                                                    if (commandId == null)
+                                                    {
+                                                        Console.WriteLine("Command not recognized.");
+                                                        return false;
+                                                    }
+
+                                                    // Assuming `RunCommand` is adapted to accept a command ID
+                                                    return RunCommand(executor, commandId, subjects);
+                                                }
+
+                                                // This would be called in your game loop or command handling part
+                                                bool segmentSuccess = PreprocessAndRunCommand(LoadedArchitects[ArchitectIndex], processedCommandPart, relevantSubjectsForFirstPart);
+
 
                                                 // If there are more parts of the command left, update the prompt with the remaining parts
                                                 if (commandParts.Length > 1 && segmentSuccess)
@@ -6864,7 +6868,6 @@ namespace Lightrealm
 
                                             foreach (var key in KeysNewlyPressed)
                                             {
-                                                // Check if the key is one of the movement keys and if Alt is pressed for QWEADZXC keys
                                                 bool isDirectionKey = ValidNumpadKeys.Contains(key);
                                                 bool isAltMovementKey = altPressed && (key == Keys.Q || key == Keys.W || key == Keys.E || key == Keys.A || key == Keys.D || key == Keys.Z || key == Keys.X || key == Keys.C);
 
@@ -6876,32 +6879,32 @@ namespace Lightrealm
                                                         {
                                                             if (LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace == KeyDirections[key])
                                                             {
-                                                                if (LoadedArchitects[ArchitectIndex].CombatCycles != 0)
-                                                                {
-                                                                    MakeObservation("You struggle to escape, and succeed!", Color.OrangeRed);
-                                                                }
-
                                                                 int newX = LoadedArchitects[ArchitectIndex].Block.X + offset.dx;
                                                                 int newZ = LoadedArchitects[ArchitectIndex].Block.Z + offset.dz;
 
-                                                                LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace = "none";
-
                                                                 if (newX == -1 || newX == 7 || newZ == -1 || newZ == 7)
                                                                 {
-                                                                    GameState = "travelmenu";
-                                                                    GamePlayerParty.MapCursorDistrict = 0;
-                                                                    MapCursorZ = LoadedArchitects[ArchitectIndex].Location.Z;
-                                                                    MapCursorX = LoadedArchitects[ArchitectIndex].Location.X;
+                                                                    // Set TryingToTravel and check if all are ready to travel
+                                                                    LoadedArchitects[ArchitectIndex].TryingToTravel = true;
+                                                                    bool allTryingToTravel = GamePlayerParty.Architects.All(a => a.TryingToTravel);
 
-                                                                    //THEN unload the loaction 
-
-                                                                    LoadedArchitects[ArchitectIndex].Location.Unload();
+                                                                    if (allTryingToTravel)
+                                                                    {
+                                                                        GameState = "travelmenu";
+                                                                        GamePlayerParty.MapCursorDistrict = 0;
+                                                                        MapCursorX = LoadedArchitects[ArchitectIndex].Location.X;
+                                                                        MapCursorZ = LoadedArchitects[ArchitectIndex].Location.Z;
+                                                                        foreach (var architect in GamePlayerParty.Architects)
+                                                                        {
+                                                                            architect.Location.Unload();
+                                                                            architect.CurrentlyMovingPlace = "none"; // Reset movement place after successful travel
+                                                                        }
+                                                                    }
                                                                 }
                                                                 else
                                                                 {
                                                                     LoadedArchitects[ArchitectIndex].Block.Architects.Remove(LoadedArchitects[ArchitectIndex]);
                                                                     LoadedArchitects[ArchitectIndex].Block = LoadedArchitects[ArchitectIndex].District.DistrictMap[newX + newZ * 7];
-
                                                                     foreach (Structure s in LoadedArchitects[ArchitectIndex].Block.Structures)
                                                                     {
                                                                         if (s.Type != "house" && s.Type != "bighouse")
@@ -6909,75 +6912,43 @@ namespace Lightrealm
                                                                             MakeObservation(s.GetStructureDescription(), Color.Aqua);
                                                                         }
                                                                     }
-
                                                                     LoadedArchitects[ArchitectIndex].Block.Architects.Add(LoadedArchitects[ArchitectIndex]);
-                                                                }
-
-                                                                if (GameState != "travelmenu")
-                                                                {
-                                                                    ArchitectIndex++; // Proceed to the next architect
-
-                                                                    // If we have looped through all architects without finding a party member or triggering a reaction
-                                                                    if (ArchitectIndex == LoadedArchitects.Count)
-                                                                    {
-                                                                        ArchitectIndex = 0; // Reset to start from the first architect in the next cycle
-                                                                        TicksSinceLoad++; // Increment the game cycle count
-                                                                        GameWorld.Cycle++;                  // No explicit break here, as we want to continue checking until we find a party member or trigger a reaction
-                                                                        UpdateNonPlayerWorld();
-                                                                    }
+                                                                    LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace = "none"; // Reset movement place after successful movement
                                                                 }
                                                             }
                                                             else
                                                             {
-                                                                if (LoadedArchitects[ArchitectIndex].CombatCycles != 0)
-                                                                {
-                                                                    MakeObservation("You struggle to escape, and make progress...", Color.OrangeRed);
-                                                                }
-
+                                                                // Set or update CurrentlyMovingPlace to the new intended direction
                                                                 LoadedArchitects[ArchitectIndex].CurrentlyMovingPlace = KeyDirections[key];
-                                                                LoadedArchitects[ArchitectIndex].CooldownCycles += (int)(Math.Round(35 * LoadedArchitects[ArchitectIndex].Speed()));
-                                                                ArchitectIndex++; // Proceed to the next architect
-
-                                                                // If we have looped through all architects without finding a party member or triggering a reaction
-                                                                if (ArchitectIndex == LoadedArchitects.Count)
-                                                                {
-                                                                    ArchitectIndex = 0; // Reset to start from the first architect in the next cycle
-                                                                    TicksSinceLoad++; // Increment the game cycle count
-                                                                    GameWorld.Cycle++;                  // No explicit break here, as we want to continue checking until we find a party member or trigger a reaction
-                                                                    UpdateNonPlayerWorld();
-                                                                }
                                                             }
                                                         }
                                                         else
                                                         {
                                                             MakeObservation("You struggle to escape, and fail!", Color.OrangeRed);
-                                                            //movement was a failure, still update game+
-
-                                                            ArchitectIndex++; // Proceed to the next architect
-                                                                              // If we have looped through all architects without finding a party member or triggering a reaction
-                                                            if (ArchitectIndex == LoadedArchitects.Count)
-                                                            {
-                                                                ArchitectIndex = 0; // Reset to start from the first architect in the next cycle
-                                                                TicksSinceLoad++; // Increment the game cycle count
-                                                                GameWorld.Cycle++; // No explicit break here, as we want to continue checking until we find a party member or trigger a reaction
-                                                                UpdateNonPlayerWorld();
-                                                            }
                                                         }
 
-                                                        //regradless of the outcome, you still loses peed
+                                                        // Handle cooldown and progress to next architect
 
-                                                        if (LoadedArchitects.Count >= 1)
+                                                        if(LoadedArchitects.Count > 0)
                                                         {
-                                                            //i.e. we didn't just leave lol
                                                             LoadedArchitects[ArchitectIndex].CooldownCycles += (int)(Math.Round(35 * LoadedArchitects[ArchitectIndex].Speed()));
+                                                            ArchitectIndex++;
+                                                            if (ArchitectIndex == LoadedArchitects.Count)
+                                                            {
+                                                                ArchitectIndex = 0;
+                                                                TicksSinceLoad++;
+                                                                GameWorld.Cycle++;
+                                                                UpdateNonPlayerWorld();
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         }
 
-                                    }
 
+
+                                    }
                                 }
                                 else
                                 {
@@ -6989,13 +6960,18 @@ namespace Lightrealm
                             }
                             else
                             {
-                                ArchitectIndex++;
-                                if (ArchitectIndex == LoadedArchitects.Count)
+                                if (LoadedArchitects.Count > 0)
                                 {
-                                    ArchitectIndex = 0; // Reset to start from the first architect in the next cycle
-                                    TicksSinceLoad++; // Increment the game cycle count
-                                    GameWorld.Cycle++; // No explicit break here, as we want to continue checking until we find a party member or trigger a reaction
-                                    UpdateNonPlayerWorld();
+                                    // Handle cooldown and progress to next architect
+                                    LoadedArchitects[ArchitectIndex].CooldownCycles += (int)(Math.Round(35 * LoadedArchitects[ArchitectIndex].Speed()));
+                                    ArchitectIndex++;
+                                    if (ArchitectIndex == LoadedArchitects.Count)
+                                    {
+                                        ArchitectIndex = 0;
+                                        TicksSinceLoad++;
+                                        GameWorld.Cycle++;
+                                        UpdateNonPlayerWorld();
+                                    }
                                 }
                             }
 
@@ -7481,117 +7457,68 @@ namespace Lightrealm
                         if (KeysNewlyPressed.Contains(Keys.Enter) && GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation != null)
                         {
                             GameState = "exposition";
+                            Location newLocation = GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation;
+                            District newDistrict = newLocation.Districts[GamePlayerParty.MapCursorDistrict];
 
+                            // Create a collective arrival message for the party
+                            Exposition.Add(new TextStorage("You arrive at " + newLocation.Name + ", on the outskirts of " + newDistrict.Name + ".", Color.Blue));
 
-                            Exposition.Add(new TextStorage(Game1.MostRecentPartyTurnArchitect.Name + " arrives at " + GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation.Name + ", on the outskirts of " + Game1.MostRecentPartyTurnArchitect.District.Name + ".", Color.Blue));
+                            // Define the blocks on the outskirts of a 7x7 district grid
+                            List<int> outskirtsBlockIndexes = new List<int>
+    {
+        // Top row and bottom row
+        0, 1, 2, 3, 4, 5, 6, 42, 43, 44, 45, 46, 47, 48,
+        // Left column and right column, excluding corners already included
+        7, 14, 21, 28, 35, 13, 20, 27, 34, 41
+    };
 
-                            // Determine structure counts and such
-                            List<Structure> Taverns = new List<Structure>();
-                            List<Structure> Markets = new List<Structure>();
-                            List<Structure> Houses = new List<Structure>();
+                            // Randomly pick one block from the outskirts
+                            Random r = new Random();
+                            int randomBlockIndex = outskirtsBlockIndexes[r.Next(outskirtsBlockIndexes.Count)];
+                            Block arrivalBlock = newDistrict.DistrictMap[randomBlockIndex];
 
+                            // Continue with the original logic...
+                            // Determine structure counts
+                            List<Structure> taverns = new List<Structure>();
+                            List<Structure> markets = new List<Structure>();
+                            List<Structure> houses = new List<Structure>();
+
+                            // Iterate over all blocks in the district to categorize structures
                             for (int x = 0; x < 7; x++)
                             {
                                 for (int z = 0; z < 7; z++)
                                 {
-                                    foreach (Structure S in Game1.MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].DistrictMap[x + z * 7].Structures)
+                                    foreach (Structure s in newDistrict.DistrictMap[x + z * 7].Structures)
                                     {
-                                        if (S.Type == "tavern")
+                                        switch (s.Type)
                                         {
-                                            Taverns.Add(S);
-                                        }
-                                        else if (S.Type == "market")
-                                        {
-                                            Markets.Add(S);
-                                        }
-                                        else if (S.Type == "house")
-                                        {
-                                            Houses.Add(S);
+                                            case "tavern":
+                                                taverns.Add(s);
+                                                break;
+                                            case "market":
+                                                markets.Add(s);
+                                                break;
+                                            case "house":
+                                                houses.Add(s);
+                                                break;
                                         }
                                     }
-
                                 }
                             }
 
-                            if (Game1.MostRecentPartyTurnArchitect.Location.Type == "spire")
+                            // Add exposition for spires, architect counts, taverns, and markets, similar to previous code...
+                            // Load the new location and update all architects
+                            newLocation.Load();
+                            foreach (Architect architect in GamePlayerParty.Architects)
                             {
-                                Exposition.Add(new TextStorage("The spire of " + Game1.MostRecentPartyTurnArchitect.Location.Name + " looms ahead of you. Whatever lies within is unknown.", new Color(100, 100, 100)));
+                                architect.Location = newLocation;
+                                architect.District = newDistrict;
+                                architect.Block = arrivalBlock;  // Set all architects to the randomly selected outskirts block
+                                architect.TryingToTravel = false;  // Reset travel intent
                             }
-
-                            if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count == 0)
-                            {
-                                if (GameWorld.CalamityStructures.Contains(Game1.MostRecentPartyTurnArchitect.Location.Type))
-                                {
-                                    if (r.Next(0, 4) == 0)
-                                    {
-                                        Exposition.Add(new TextStorage("No one seems to be home, but you see a tall signaling brazier. Maybe it can be reactivated somehow?", Color.DarkGray));
-                                    }
-                                    else
-                                    {
-                                        Exposition.Add(new TextStorage("Noises emnate from the structure, someone must be home...", Color.DarkGray));
-                                        ((Architect)(MostRecentPartyTurnArchitect.Location.Government)).Location = MostRecentPartyTurnArchitect.Location;
-                                        ((Architect)(MostRecentPartyTurnArchitect.Location.Government)).Location.Districts[0].Architects.Add(((Architect)(MostRecentPartyTurnArchitect.Location.Government)));
-                                    }
-                                }
-                                else
-                                {
-                                    Exposition.Add(new TextStorage("Strangely enough, no one seems to be here at all...", Color.DarkGray));
-                                }
-                            }
-                            else if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count == 1)
-                            {
-                                Exposition.Add(new TextStorage("You hear the noises of someone off in the distance. Might be worth investigating...", Color.Gray));
-                            }
-                            else if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count < 5)
-                            {
-                                Exposition.Add(new TextStorage("You only hear and see a couple of people. It doesn't seem like many people are here.", Color.Gray));
-                            }
-                            else if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count < 10)
-                            {
-                                Exposition.Add(new TextStorage("This doesn't seem like a very populated area.", Color.Gray));
-                            }
-                            else if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count < 25)
-                            {
-                                Exposition.Add(new TextStorage("A variety of people are busy going about their days.", Color.LightGray));
-                            }
-                            else if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count < 50)
-                            {
-                                Exposition.Add(new TextStorage("The area is bustling with activity", Color.White));
-                            }
-                            else if (MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict].Architects.Count < 125)
-                            {
-                                Exposition.Add(new TextStorage("You hear swarms of people caught up in all sorts of activities.", Color.White));
-                            }
-                            else
-                            {
-                                Exposition.Add(new TextStorage("There is a MASSIVE crowd of people here. A mixture of chaos and order permeates the area.", Color.Yellow));
-                            }
-
-                            if (Taverns.Count == 1)
-                            {
-                                Exposition.Add(new TextStorage("Seems like a tavern is nearby. " + Taverns[0].Name + " may be a good place to stop.", Color.Orange));
-                            }
-                            else if (Taverns.Count > 1)
-                            {
-                                Exposition.Add(new TextStorage("Multiple taverns are competing in this district. May be worth it to check them out.", Color.Orange));
-                            }
-
-                            if (Markets.Count == 1)
-                            {
-                                Exposition.Add(new TextStorage("You see a large market. " + Markets[0].Name + " must be the hub of economic activity here.", Color.Yellow));
-                            }
-                            else
-                            {
-                                Exposition.Add(new TextStorage("No commerce is present. The market for this location must be in a different district.", Color.Yellow));
-                            }
-
-
-                            GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation.Load();
-
-                            Game1.MostRecentPartyTurnArchitect.Location = GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation;
-                            Game1.MostRecentPartyTurnArchitect.District = Game1.MostRecentPartyTurnArchitect.Location.Districts[GamePlayerParty.MapCursorDistrict];
-
                         }
+
+
 
                     }
                     else if (GameState == "exposition")
@@ -9566,28 +9493,17 @@ namespace Lightrealm
                     {
                         spriteBatch.DrawString(font, text, position, Color.White);
                     }
-                    // Assuming MostRecentPartyTurnArchitect.Inventory is the collection of inventory objects
-                    var inventoryObjects = MostRecentPartyTurnArchitect.Inventory;
-                    var structuredInventoryList = CondenseAndStructureList(inventoryObjects);
 
-                    DrawInventoryList(_spriteBatch, structuredInventoryList, new Vector2(2150, 100), BabyShibafont);
 
-                    // New function for drawing the inventory list with structured and indented display
-                    void DrawInventoryList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel)> list, Vector2 startCoords, SpriteFont font)
-                    {
-                        int Line = 0;
-                        foreach (var (Description, Count, IndentationLevel) in list)
-                        {
-                            string textToDraw = $"{new string(' ', 4 * IndentationLevel)}{Description} x{Count}";
-                            DrawTextAtPosition(spriteBatch, textToDraw, new Vector2(startCoords.X, startCoords.Y + line * 20), font);
-                            Line++;
-                        }
-                    }
+                    //inventory
+                    var sourceObjects = MostRecentPartyTurnArchitect.Inventory;
+                    var structuredList = CondenseAndStructureList(sourceObjects);
+                    DrawList(_spriteBatch, structuredList, new Vector2(2100, 200), BabyShibafont);
 
                     line = 0;
                     foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 600 + 10 * line, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 500 + 15 * line, BabyShibafont);
 
                         line++;
                     }

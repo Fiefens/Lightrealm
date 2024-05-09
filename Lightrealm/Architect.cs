@@ -30,6 +30,9 @@ namespace Lightrealm
 
         public bool RuptureMode = false;
 
+
+        public bool TryingToTravel = false;
+
         public int HalfFocusTicks = 0;
 
         public (Location, District, Block, Structure, Room) SavePoint = (null,null,null,null,null);
@@ -698,15 +701,14 @@ namespace Lightrealm
 
         public string Size { get; set; } = "average";
 
-        public string CurrentlyMovingPlace { get; set; } = "none";
-        public bool InTheProcessOfLeaving { get; set; } = false;
-
         public Location HomeLocation { get; set; }
         public District HomeDistrict { get; set; }
         public Structure HomeStructure { get; set; }
 
         public string Destiny { get; set; } = "none";
         public int DestinyArrivalYear { get; set; } = 999;
+
+        public string CurrentlyMovingPlace = "";
 
         public List<(Architect, int)> KnownArchitectsAndOpinions { get; set; } = new List<(Architect, int)>();
 
@@ -1601,14 +1603,10 @@ namespace Lightrealm
                     string itemName = o.Type; // Assuming 'Type' is a property that indicates the type of clothing, e.g., "left glove"
                     string matchName = itemName.StartsWith("left ") ? "right " + itemName.Substring(5) : itemName.StartsWith("right ") ? "left " + itemName.Substring(6) : null;
 
-                    int decider = Game1.r.Next(3);
+                    int decider = Game1.r.Next(2);
                     string colorToApply;
 
-                    if (decider == 0)
-                    {
-                        colorToApply = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
-                    }
-                    else if (decider == 1)
+                    if (decider == 1)
                     {
                         colorToApply = HomeLocation.HomeCivilization.Color;
                     }
@@ -1797,7 +1795,9 @@ namespace Lightrealm
             {
                 foreach ((string, Material) o in Race.BodyParts)
                 {
-                    BodyParts.Add(new Object(Name + "'s " + o.Item1, o.Item1, new List<Material> { o.Item2 }, false, false, null, this, 5, false, null, null, null, false));
+                    Object O = new Object(Name + "'s " + o.Item1, o.Item1, new List<Material> { o.Item2 }, false, false, null, this, 5, false, null, null, null, false);
+                    O.Owner = this;
+                    BodyParts.Add(O);
                 }
             }
         }
@@ -1931,6 +1931,14 @@ namespace Lightrealm
             }
 
             foreach (Object o in Inventory)
+            {
+                o.UpdateNames();
+            }
+            foreach (Object o in BodyParts)
+            {
+                o.UpdateNames();
+            }
+            foreach (Object o in Clothing)
             {
                 o.UpdateNames();
             }
