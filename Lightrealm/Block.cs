@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.GameEngine;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -99,7 +100,7 @@ namespace Lightrealm
                                     DeterminedLocation = (r, r.MyLocation, district, block, null, "well");
                                 }
                             }
-                            else if (Game1.StructureTypes.Contains(thing))
+                            else if (Engine.Data.StructureTypes.Contains(thing))
                             {
                                 foreach(Structure s in block.Structures)
                                 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
-namespace Lightrealm.Input
+namespace Lightrealm.GameEngine
 {
     class GameInput
     {

@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.GameEngine;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,12 +33,12 @@ namespace Lightrealm
         public List<Civilization> CivsAtWar = new List<Civilization>();
         public int WakeUpAndChooseViolencePoints = 0;
 
-        public string CulturalHeadwear = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count)];
-        public string CulturalNeckwear = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count)];
-        public string CulturalBodywear = Game1.Bodywear[Game1.r.Next(Game1.Bodywear.Count)];
-        public string CulturalLegwear = Game1.Legwear[Game1.r.Next(Game1.Legwear.Count)];
-        public string CulturalHandwear = Game1.Handwear[Game1.r.Next(Game1.Handwear.Count)];
-        public string CulturalFootwear = Game1.Footwear[Game1.r.Next(Game1.Footwear.Count)];
+        public string CulturalHeadwear = Engine.Data.Headwear[Game1.r.Next(Engine.Data.Headwear.Count)];
+        public string CulturalNeckwear = Engine.Data.Neckwear[Game1.r.Next(Engine.Data.Neckwear.Count)];
+        public string CulturalBodywear = Engine.Data.Bodywear[Game1.r.Next(Engine.Data.Bodywear.Count)];
+        public string CulturalLegwear = Engine.Data.Legwear[Game1.r.Next(Engine.Data.Legwear.Count)];
+        public string CulturalHandwear = Engine.Data.Handwear[Game1.r.Next(Engine.Data.Handwear.Count)];
+        public string CulturalFootwear = Engine.Data.Footwear[Game1.r.Next(Engine.Data.Footwear.Count)];
 
         public World World { get; set; }
 

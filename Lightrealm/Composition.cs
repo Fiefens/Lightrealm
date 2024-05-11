@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Lightrealm.GameEngine;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -15,7 +16,7 @@ namespace Lightrealm
             Type = type;
             if (Domain == "")
             {
-                PrimaryDomain = Game1.Domains[Game1.r.Next(Game1.Domains.Count)];
+                PrimaryDomain = Engine.Data.Domains[Game1.r.Next(Engine.Data.Domains.Count)];
             }
             else
             {
@@ -210,7 +211,7 @@ namespace Lightrealm
             double chanceToAddAdditionalDomain = 0.5;  // Start with 50% chance for the first additional domain
             while (Game1.r.NextDouble() < chanceToAddAdditionalDomain)
             {
-                string potentialDomain = Game1.Domains[Game1.r.Next(Game1.Domains.Count)];
+                string potentialDomain = Engine.Data.Domains[Game1.r.Next(Engine.Data.Domains.Count)];
                 if (!generatedDomains.Contains(potentialDomain))  // Ensure no duplicates
                 {
                     generatedDomains.Add(potentialDomain);

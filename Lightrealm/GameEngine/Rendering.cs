@@ -4,7 +4,7 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using System.IO;
 
-namespace Lightrealm.Data
+namespace Lightrealm.GameEngine
 {
     internal class Rendering
     {

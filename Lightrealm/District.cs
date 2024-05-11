@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.GameEngine;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -57,7 +58,7 @@ namespace Lightrealm
             }
 
             UnplacedPopulation = unplacedPopulation;
-            Industry = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
+            Industry = Engine.Data.Industries[Game1.r.Next(Engine.Data.Industries.Count)];
         }
 
         public District()
@@ -92,7 +93,7 @@ namespace Lightrealm
             if (Game1.r.Next(1, 6) <= 2)
             {
                 // 40% chance to make something different
-                DecidedProduction = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
+                DecidedProduction = Engine.Data.Industries[Game1.r.Next(Engine.Data.Industries.Count)];
             }
 
             List<Object> itemsToBeAdded = GenerateItems(DecidedProduction, Intensity);
@@ -293,7 +294,7 @@ namespace Lightrealm
                     {
                         string DyeColor = Game1.GetFamilyColors(Location.HomeCivilization.Color)[Game1.r.Next(3)];
                         Object dyeBottle = new Object(null, "bottle", new List<Material>() { new Material("glass", "stone", 1, 1) }, null);
-                        dyeBottle.ContainedObjects.Add(new Object(null, "dye", new List<Material>() { Game1.MaterialsFromColors[DyeColor][Game1.r.Next(3)] }, null));
+                        dyeBottle.ContainedObjects.Add(new Object(null, "dye", new List<Material>() { Engine.Data.MaterialsFromColors[DyeColor][Game1.r.Next(3)] }, null));
                         Objects.Add(dyeBottle);
                     }
                     break;

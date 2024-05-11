@@ -1,6 +1,4 @@
-﻿using Lightrealm.Data;
-using Lightrealm.Diagnostics;
-using Lightrealm.Input;
+﻿using Lightrealm.GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -8,15 +6,12 @@ using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Color = Microsoft.Xna.Framework.Color;
 using Point = Microsoft.Xna.Framework.Point;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
@@ -40,94 +35,7 @@ namespace Lightrealm
         public static int MaximumObjectPage = 0;
         public static int ItemsPerPage = 50;
 
-        public static List<string> Domains = new List<string>
-        {
-            "shadows",
-            "life",
-            "death",
-            "time",
-            "stars",
-            "heat",
-            "void",
-            "storms",
-            "lore",
-            "mind",
-            "soul",
-            "body",
-            "space",
-            "reality",
-            "chaos",
-            "order",
-            "nature",
-            "earth",
-            "water",
-            "fire",
-            "air",
-            "dreams",
-            "music",
-            "war",
-            "peace",
-            "fate",
-            "luck",
-            "craftsmanship",
-            "wisdom",
-            "mountains",
-            "forests",
-            "seas",
-            "rivers",
-            "deserts",
-            "skies",
-            "twilight",
-            "dusk",
-            "dawn",
-            "justice",
-            "mercy",
-            "vengeance",
-            "joy",
-            "beauty",
-            "fear",
-            "courage",
-            "mystery",
-            "knowledge",
-            "exploration",
-            "civilization",
-            "wilderness",
-            "magic",
-            "art",
-            "celebration",
-            "silence",
-            "echoes",
-            "decay",
-            "balance",
-            "creation",
-            "destruction",
-            "power",
-            "eternity",
-            "nightmares",
-            "sacrifice",
-            "stability",
-            "change",
-            "harmony",
-            "discord",
-            "vision",
-            "memory",
-            "truth",
-            "deception",
-            "hope",
-            "despair",
-            "wealth",
-            "poverty",
-            "disease",
-            "youth",
-            "beginnings",
-            "endings",
-            "exile",
-            "theft",
-            "victory",
-            "defeat",
-            "secrets",
-            "ruin"
-        };
+
         public static Architect MostRecentPartyTurnArchitect = null;
 
         public static string GrievanceReason = "";
@@ -300,8 +208,7 @@ namespace Lightrealm
 
         int CurrentlyAssigningSkill = 7;
 
-        public static List<string> AnimalSizes = new List<string>() { "miniscule", "smaller", "small", "medium", "humanoid", "large", "huge"};
-        public static List<string> AllSizes = new List<string>() { "ethereal", "miniscule", "smaller", "small", "medium", "humanoid", "large", "huge", "colossal", "archancient" };
+        
 
         public bool HasPlayerBeenAttacked(Architect architect)
         {
@@ -348,22 +255,16 @@ namespace Lightrealm
 
         public static Dictionary<string, Color> ColorConverter = new Dictionary<string, Color>();
 
-        public static List<string> AllWeapons = new List<string>
-        {
-            "sword", "greatsword", "axe", "greataxe", "knife",
-            "rapier", "spear", "pike",
-            "mace", "hammer", "shield",
-            "whip", "flail", "chain"
-        };
+
 
         public static Object GenerateRandomWeapon(Material material, string Rarity)
         {
             // Array of possible weapon types
-            string[] weaponTypes = { "sword", "greatsword", "battle axe", "greataxe", "rapier", "spear", "pike", "mace", "hammer", "shield", "whip", "scourge" };
+            
 
             // Randomly select a weapon type
             Random rand = new Random();
-            string selectedWeapon = weaponTypes[rand.Next(weaponTypes.Length)];
+            string selectedWeapon = Engine.Data.WeaponTypes[rand.Next(Engine.Data.WeaponTypes.Count)];
 
             // Randomly select a metal Material from the world's Metals list
 
@@ -492,22 +393,7 @@ namespace Lightrealm
                 }
 
 
-                List<string> CantDuckBodyParts = new List<string>
-                {
-                    "left lower leg",
-                    "right lower leg",
-                    "left upper leg",
-                    "right upper leg",
-                    "left foot",
-                    "right foot"
-                };
 
-                List<string> CantJumpBodyParts = new List<string>
-                {
-                    "head",
-                    "neck",
-                    "torso"
-                };
 
                 if (DefenderAction == "decideforme")
                 {
@@ -677,7 +563,7 @@ namespace Lightrealm
 
 
                         case "duck":
-                            if (r.Next(0, 101) < successChances.duck && !CantDuckBodyParts.Contains(bodyPartInQuestion.Type))
+                            if (r.Next(0, 101) < successChances.duck && !Engine.Data.CantDuckBodyParts.Contains(bodyPartInQuestion.Type))
                             {
                                 Avoided = true;
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " ducked under the attack!";
@@ -690,7 +576,7 @@ namespace Lightrealm
                             break;
 
                         case "jump":
-                            if (r.Next(0, 101) < successChances.jump && !CantJumpBodyParts.Contains(bodyPartInQuestion.Type))
+                            if (r.Next(0, 101) < successChances.jump && !Engine.Data.CantJumpBodyParts.Contains(bodyPartInQuestion.Type))
                             {
                                 Avoided = true;
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " jumped over the attack!";
@@ -1029,71 +915,21 @@ namespace Lightrealm
 
         }
 
-
-        public static Dictionary<string, List<Material>> MaterialsFromColors = new Dictionary<string, List<Material>>
-        {
-            { "maroon", new List<Material>{ new Material("mahogany", "wood", 1, 1), new Material("crimson_beetle", "insect", 1, 1), new Material("rust", "metal", 1, 1) } },
-            { "red", new List<Material>{ new Material("rose", "plant", 1, 1), new Material("redtulip", "plant", 1, 1), new Material("clay", "sediment", 1, 1) } },
-            { "orange", new List<Material>{ new Material("citrus", "plant", 1, 1), new Material("amber", "plant", 1, 1), new Material("bronzelily", "plant", 1, 1) } },
-            { "yellow", new List<Material>{ new Material("emberflare", "plant", 1, 1), new Material("honey", "plant", 1, 1), new Material("lemon", "plant", 1, 1) } },
-            { "limegreen", new List<Material>{ new Material("lime_peel", "plant", 1, 1), new Material("emerald_grass", "plant", 1, 1), new Material("verdantwing feather", "feather", 1, 1) } },
-            { "green", new List<Material>{ new Material("lichen", "plant", 1, 1), new Material("cactus", "plant", 1, 1), new Material("moss", "plant", 1, 1) } },
-            { "lightblue", new List<Material>{ new Material("glimmerplume feather", "feather", 1, 1), new Material("slush", "stone", 1, 1), new Material("aquamarine", "gemstone", 1, 1) } },
-            { "cyan", new List<Material>{ new Material("algae", "plant", 1, 1), new Material("turquoise", "gemstone", 1, 1), new Material("electric_eel_skin", "leather", 1, 1) } },
-            { "blue", new List<Material>{ new Material("blueberry_juice", "fruit", 1, 1), new Material("sapphire_gem", "gem", 1, 1), new Material("deep_ocean_silt", "sediment", 1, 1) } },
-            { "purple", new List<Material>{ new Material("royal_grapes", "fruit", 1, 1), new Material("amethyst_crystal", "gem", 1, 1), new Material("mystic_flower", "plant", 1, 1) } },
-            { "magenta", new List<Material>{ new Material("wild_berry_blend", "fruit", 1, 1), new Material("pink_petals", "plant", 1, 1), new Material("rose_quartz", "gem", 1, 1) } },
-            { "coral", new List<Material>{ new Material("coral_branch", "coral", 1, 1), new Material("sea_anemone", "animal", 1, 1), new Material("tropical_shell", "shell", 1, 1) } },
-            { "white", new List<Material>{ new Material("pure_snowflake", "ice", 1, 1), new Material("moonstone", "gem", 1, 1), new Material("cloud_feathers", "feather", 1, 1) } },
-            { "gray", new List<Material>{ new Material("ashen_soil", "sediment", 1, 1), new Material("smoky_quartz", "gem", 1, 1), new Material("stormy_cloud", "cloud", 1, 1) } },
-            { "black", new List<Material>{ new Material("obsidian_rock", "rock", 1, 1), new Material("midnight_rose", "plant", 1, 1), new Material("shadowy_silk", "fabric", 1, 1) } },
-            { "brown", new List<Material>{ new Material("earthy_bark", "wood", 1, 1), new Material("cocoa_beans", "plant", 1, 1), new Material("hazel_nuts", "nut", 1, 1) } }
-
-            //fix this later but i dont want to right now
-        };
-
-        public static List<string> Headwear = new List<string>() { "none", "none", "none", "large hat", "small hat", "hood" };
-        public static List<string> Neckwear = new List<string>() { "none", "none", "none", "amulet", "amulet/amulet/amulet", "flair"};
-        public static List<string> Handwear = new List<string>() { "none", "none", "none", "left glove/right glove", "left wristwrap/right wristwrap"};
-        public static List<string> Bodywear = new List<string>() { "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt/cape", "longsleeve shirt/cape", "straps/cape", };
-        public static List<string> Legwear = new List<string>() { "pants", "pants", "shorts", "kilt/pants", "kilt", "kilt/wraps"};
-        public static List<string> Footwear = new List<string>() { "none", "left boot/right boot", "left boot/right boot", "left boot/right boot", "left shoe/right shoe", "left shoe/right shoe" };
-
-
         public List<(int,int,Color,int,int, int)> CivilizationParticles = new List<(int, int, Color, int, int, int)>();
 
-        public static List<string> Colors = new List<string>
-        {
-            "maroon",
-            "red",
-            "orange",
-            "yellow",
-            "limegreen",
-            "green",
-            "lightblue",
-            "cyan",
-            "blue",
-            "purple",
-            "magenta",
-            "coral",
-            "white",
-            "gray",
-            "black",
-            "brown"
-        };
 
         public static List<string> GetFamilyColors(string inputColor)
         {
-            int index = Colors.IndexOf(inputColor);
+            int index = Engine.Data.Colors.IndexOf(inputColor);
 
             if (index != -1)
             {
                 // Ensure not to go out of bounds
-                int prevIndex = (index - 1 + Colors.Count) % Colors.Count;
-                int nextIndex = (index + 1) % Colors.Count;
+                int prevIndex = (index - 1 + Engine.Data.Colors.Count) % Engine.Data.Colors.Count;
+                int nextIndex = (index + 1) % Engine.Data.Colors.Count;
 
-                string prevColor = Colors[prevIndex];
-                string nextColor = Colors[nextIndex];
+                string prevColor = Engine.Data.Colors[prevIndex];
+                string nextColor = Engine.Data.Colors[nextIndex];
 
                 return new List<string> { prevColor, inputColor, nextColor };
             }
@@ -1176,6 +1012,7 @@ namespace Lightrealm
         {
             get { return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); }
         }
+
         static string GetDirectionFromCenterDistrict(int x, int y)
         {
             int centerX = 3; // Center x-coordinate of the 7x7 array
@@ -1219,7 +1056,6 @@ namespace Lightrealm
             }
         }
 
-
         private static void SerializeObjectToBinaryFile(string filePath, object obj)
         {
             using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
@@ -1237,6 +1073,7 @@ namespace Lightrealm
                 return (T)binaryFormatter.Deserialize(fileStream);
             }
         }
+      
         List<Keys> ValidNumpadKeys = new List<Keys>
         {
             Keys.NumPad8, // North
@@ -1295,7 +1132,6 @@ namespace Lightrealm
 
         public static List<TextStorage> Exposition = new List<TextStorage>();
 
-
         public static Dictionary<string, string> InvertDoorDirection = new Dictionary<string, string>();
 
         int TotalCivTries = 0;
@@ -1312,73 +1148,7 @@ namespace Lightrealm
         public static List<TextStorage> Messages = new List<TextStorage>();
         public static List<TextStorage> Announcements = new List<TextStorage>();
 
-        public KeyboardState previousState;
-
-        public static Dictionary<string, string> IndustryToProfession = new Dictionary<string, string>()
-        {
-            {"textiles", "weaver"},
-            {"spices", "merchant"},
-            {"metal", "blacksmith"},
-            {"jewelry", "craftsman"},
-            {"tools", "blacksmith"},
-            {"military", "commander"},
-            {"tea", "merchant"},
-            {"coffee", "merchant"},
-            {"wood", "carpenter"},
-            {"ceramics", "potter"},
-            {"glassmaking", "craftsman"},
-            {"dye", "craftsman"},
-            {"waspkeeping", "scholar"},
-            {"fuel", "miner"},
-            {"masonry", "mason"}
-        };
-
-
-        public static List<string> LightingStyles = new List<string> { "none", "none", "none", "none", "none", "candles", "candles", "candles", "candles", "a lone torch in each room", "several braziers", "an oil lamp", "a candelabra", "an oil lantern", "a blazing fireplace" };
-        public static List<string> AllSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "tremor", "immobile illusion", "shadow veil", "mobile illusion", "reactive illusion", "truthfulness", "rise", "hold", "forcethrow", "shatter", "clone", "intercept", "expel", "extract", "emergent growth", "animate", "immortalize", "raise", "resurrect" };
-        public static List<string> AllLegendarySpells = new List<string>() { "ethereal rupture", "emergence", "eternal bind", "expunge", "echo" };
-
-        public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "bracelet", "left gauntlet", "staff", "amulet", "hourglass", "locket", "orb" };
-
-        //public Dictionary<string, Texture2D> TileAtlas = new Dictionary<string, Texture2D>();
-        public static List<string> WeightedRandomArchitectProfessions = new List<string>() { "commander", "craftsman", "craftsman", "craftsman", "mercenary", "mercenary", "mercenary", "musician", "musician", "elder", "prophet", "trader", "trader", "anarchist", "political figure", "scholar", "scholar", "scholar", "scholar" };
-        public static List<string> WeightedRandomNormalProfessions = new List<string>() { "soldier", "peasant", "peasant", "peasant", "blacksmith", "miller", "baker", "merchant", "brewer", "brewer", "tanner", "tailor", "carpenter", "mason", "scribe", "butcher", "fisherman", "weaver", "potter", "miner", "miner", "no profession", "no profession", "no profession", "no profession" };
-
-        public static List<string> ArchitectProfessions = new List<string>() { "commander", "craftsman", "mercenary", "musician", "elder", "prophet", "trader", "anarchist", "political figure", "scholar" };
-        public static List<string> Sexes = new List<string>() { "male", "female" };
-
-        public static List<string> DeathCauses = new List<string>() { " fell to their death ", " drowned ", " died of cancer ", " burned ", " misoperated dangerous equipment ", " died of sickness ", " starved to death ", " dehydrated ", " choked to death ", " was killed by a wild animal " };
-
-        public static List<string> Industries = new List<string>() { "textiles", "spices", "metal", "jewelry", "tools", "military", "tea", "coffee", "wood", "ceramics", "glassmaking", "dye", "waspkeeping", "fuel", "masonry"};
-
-        public static List<string> StructureTypes = new List<string>
-        {
-            "house",
-            "shrine",
-            "library",
-            "tavern",
-            "forge",
-            "watchtower",
-            "market",
-            "bighouse"
-        };
-
-        public static List<string> FirstNames = new List<string>();
-        public static List<string> LastNames = new List<string>();
-        public static List<string> Words = new List<string>();
-        public static List<string> Syllables = new List<string>();
-        public static List<string> NameSuffixes = new List<string>();
-        public static List<string> ClothItemTypes = new List<string>();
-        public static List<string> MetalItemTypes = new List<string>();
-        public static List<string> GlassItemTypes = new List<string>();
-        public static List<string> StoneWoodItemTypes = new List<string>();
-
-        public static List<string> MagicSchools = new List<string>() { "conjuration", "perception", "spatial", "fractal", "necromantic" };
-        public static List<string> CultureSchools = new List<string>() { "music", "artistry", "choreography", "theater", "literature" };
-        public static List<string> ScienceSchools = new List<string>() { "engineering", "mathematics", "biology", "chemistry", "physical" };
-
-        public static List<string> WrittenObjectTypes = new List<string>() { "scroll", "book", "scroll", "book", "scroll", "book", "waxtablet", "sheet" };
-
+        public KeyboardState previousState;       
         public List<Keys> KeysNewlyPressed = new List<Keys>();
 
         public int FindTicks = 0;
@@ -1445,73 +1215,7 @@ namespace Lightrealm
 
         public string ObservationsAndMessages = "both";
 
-        /*
-        public Texture2D DesertT;
-        public Texture2D ForestT;
-        public Texture2D LightforestT;
-        public Texture2D MountainT;
-        public Texture2D OceanT;
-        public Texture2D PlainsT;
-        public Texture2D SnowpeakT;
-        public Texture2D TaigaT;
-        public Texture2D TundraT;
-        public Texture2D VoidT;
-        public Texture2D OutlineT;
-        public Texture2D EtherealT;
-        public Texture2D EmptyTileT;
-        
-
-        public Texture2D nightfellCampT;
-        public Texture2D nightfellVillageT;
-        public Texture2D nightfellTownT;
-        public Texture2D nightfellCityT;
-        public Texture2D LuminarchCampT;
-        public Texture2D LuminarchVillageT;
-        public Texture2D LuminarchTownT;
-        public Texture2D LuminarchCityT;
-        public Texture2D LostCampT;
-        public Texture2D LostVillageT;
-        public Texture2D LostTownT;
-        public Texture2D LostCityT;
-        public Texture2D PortT;
-
-        public Texture2D PhotonexusOutpostT;
-        public Texture2D PhotonexusCoreT;
-        public Texture2D IsofractalOutpostT;
-        public Texture2D IsofractalCoreT;
-        public Texture2D ShadeOutpostT;
-        public Texture2D ShadeCoreT;
-
-        public Texture2D SpireT;
-        public Texture2D SanctumT;
-        public Texture2D OutpostT;
-
-        public Texture2D KeepT;
-        public Texture2D TowerT;
-        public Texture2D FortressT;
-        public Texture2D MonumentT;
-        public Texture2D StrongholdT;
-
-        public Texture2D DistrictBuildingT;
-        public Texture2D DistrictEmptyDesertT;
-        public Texture2D DistrictEmptyPlainsT;
-        public Texture2D DistrictEmptySnowT;
-        public Texture2D DistrictEmptyTreesT;
-        public Texture2D DistrictEmptyOceanT;
-        public Texture2D DistrictManyBuildingsT;
-        public Texture2D DistrictSpecialAndBuildingsT;
-        public Texture2D DistrictSpecialBuildingT;
-        public Texture2D DistrictSpireT;
-        public Texture2D DistrictSanctumT;
-        public Texture2D DistrictWellT;
-        public Texture2D DistrictShadowStorageT;
-        public Texture2D DistrictMarketT;
-        public Texture2D DistrictMarketSurroundedT;
-        public Texture2D DistrictPrismT;
-
-        */
-
-
+      
 
         int WaitingTicks = 0;
         int EscapeTicks = 0;
@@ -1754,7 +1458,6 @@ namespace Lightrealm
                     MakeObservation("You can't go that \"way\".", Color.Yellow);
                 }
             }
-
             else if (new List<string> {
                 "slash ~", "stab ~", "thrust ~", "smite ~", "pierce ~", "lash ~", "scourge ~", "whip ~",
                 "strike ~", "bash ~", "crush ~", "whack ~", "smash ~", "hack ~", "sunder ~", "pierce ~",
@@ -3750,7 +3453,7 @@ namespace Lightrealm
 
                     if (FoundSpark != null)
                     {
-                        Architect a = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], Game1.GameWorld.GetRace("photonexus"), 0, "prismancer", new List<Object>(), Executor.Location, Executor.District, Executor.Block, "", 1);
+                        Architect a = new Architect("", Engine.Data.Sexes[r.Next(Engine.Data.Sexes.Count)], Game1.GameWorld.GetRace("photonexus"), 0, "prismancer", new List<Object>(), Executor.Location, Executor.District, Executor.Block, "", 1);
                         GamePlayerParty.Architects.Add(a);
                         MakeObservation("A photonexus appears!", Color.Cyan);
 
@@ -4482,23 +4185,15 @@ namespace Lightrealm
             return result;
         }
 
-        public static List<string> RPGBookNamePrefixes = new List<string>
-        {
-            "Chronicles of", "Explorations in", "Wonders of", "Musings on", "Revelations about", "Delights in", "Ramblings on", "Adventures in", "Discoveries in", "Secrets of", "Quests for", "Journeys in", "Studies on", "Inquiries on", "Observations of", "Mysteries in", "Legends of", "Myths and", "Echoes of", "Histories of", "Whispers from", "Enigmas of", "Chronicles from", "Odysseys through", "Sagas of", "Dreams of", "Enchantments in", "Fables of", "Chronicles of", "Wonders in", "Musings on", "Revelations about", "Delights in", "Ramblings on", "Adventures in", "Discoveries of", "Secrets from", "Quests for", "Journeys through", "Studies of", "Inquiries about", "Observations from", "Mysteries in", "Legends from", "Myths of", "Echoes from", "Histories in", "Whispers about", "Enigmas of", "Chronicles in"
-        };
-        public static List<string> RPGBookNameSuffixes = new List<string>
-        {
-            ": A Grand Exploration", ": An Epic Journey", ": An Unusual Encounter", ": A Baffling Conundrum", ": A Curious Revelation", ": A Whimsical Quest", ": A Mysterious Adventure", ": An Enchanted Odyssey", ": A Secret Chronicle", ": A Mythical Encounter", ": A Puzzling Expedition", ": A Fascinating Discovery", ": A Remarkable Study", ": A Bewildering Investigation", ": A Legendary Chronicle", ": An Enigmatic Tale", ": A Magical Quest", ": A Mystical Journey", ": An Ancient Discovery", ": A Timeless Exploration", ": A Surprising Revelation", ": A Hidden Mystery", ": An Astonishing Saga", ": An Illuminating Narrative", ": An Uncharted Journey", ": A Legendary Exploration", ": A Mythical Adventure", ": A Remarkable Investigation", ": An Unfolding Mystery", ": A Mysterious Chronicle", ": A Whimsical Discovery", ": An Enchanted Quest", ": A Curious Journey", ": A Thrilling Expedition", ": An Epic Odyssey", ": A Wondrous Revelation", ": An Intriguing Inquiry", ": A Timeless Chronicle", ": A Bewildering Exploration", ": A Puzzling Discovery", ": A Journey of Legends", ": A Study in Wonder", ": An Enigma Unveiled", ": A Quest for Secrets", ": A Tale of Wonders", ": A Mythical Chronicle", ": An Enchanted Adventure", ": A Mysterious Revelation", ": An Odyssey Beyond", ": A Grand Adventure", " for the Curious Mind", " at Your Fingertips", " a Masterwork", " Made Simple", ": Secrets Revealed", ": In-Depth Insights", ": a Comprehensive Manual", " in a Nutshell", ": the Expert's Perspective", " Essentials", ", Demystified", ", The Complete Handbook", ": Mastering the Art", " Unveiled", " a Masterwork", " Made Simple", ": Secrets Revealed", ": In-Depth Insights", ": a Comprehensive Manual", " in a Nutshell", ": the Expert's Perspective", " Essentials", ", Demystified", ", The Complete Handbook", ": Mastering the Art", " Unveiled"
-        };
         public static string GenerateBookName(string SubjectOrSpell)
         {
             if (r.Next(1, 3) == 1)
             {
-                return (char.ToUpper(SubjectOrSpell[0]) + SubjectOrSpell.Substring(1) + RPGBookNameSuffixes[r.Next(RPGBookNameSuffixes.Count)]);
+                return (char.ToUpper(SubjectOrSpell[0]) + SubjectOrSpell.Substring(1) + Engine.Data.RPGBookNameSuffixes[r.Next(Engine.Data.RPGBookNameSuffixes.Count)]);
             }
             else
             {
-                return (RPGBookNamePrefixes[r.Next(RPGBookNamePrefixes.Count)] + " " + char.ToUpper(SubjectOrSpell[0]) + SubjectOrSpell.Substring(1));
+                return (Engine.Data.RPGBookNamePrefixes[r.Next(Engine.Data.RPGBookNamePrefixes.Count)] + " " + char.ToUpper(SubjectOrSpell[0]) + SubjectOrSpell.Substring(1));
             }
         }
 
@@ -4821,14 +4516,6 @@ namespace Lightrealm
 
             ContentPath = Path.GetFullPath("Content");
             string dataPath = string.Concat(ContentPath, "\\data\\");
-
-            FirstNames = File.ReadAllLines(string.Concat(dataPath, "names.txt")).ToList();
-            LastNames = File.ReadAllLines(string.Concat(dataPath, "last-names.txt")).ToList();
-            Words = File.ReadAllLines(string.Concat(dataPath, "words.txt")).ToList();
-            Syllables = File.ReadAllLines(string.Concat(dataPath, "syllables.txt")).ToList();
-            NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
-
-
 
             /*
             DesertT = Content.Load<Texture2D>("tiles/desert");
@@ -5673,7 +5360,7 @@ namespace Lightrealm
                         if (KeysNewlyPressed.Contains(Keys.D2))
                         {
                             CurrentlySelectingSex = CurrentlySelectingSex + 1;
-                            if (CurrentlySelectingSex > Sexes.Count - 1)
+                            if (CurrentlySelectingSex > Engine.Data.Sexes.Count - 1)
                             {
                                 CurrentlySelectingSex = 0;
                             }
@@ -5685,7 +5372,7 @@ namespace Lightrealm
                         if (KeysNewlyPressed.Contains(Keys.D3))
                         {
                             CurrentlySelectingArchitectProfession = CurrentlySelectingArchitectProfession + 1;
-                            if (CurrentlySelectingArchitectProfession > ArchitectProfessions.Count - 1)
+                            if (CurrentlySelectingArchitectProfession > Engine.Data.ArchitectProfessions.Count - 1)
                             {
                                 CurrentlySelectingArchitectProfession = 0;
                             }
@@ -5762,9 +5449,9 @@ namespace Lightrealm
                         {
                             if (a.IsAlive && a.Location != null && GameWorld.SettlementTypes.Contains(a.Location.Type))
                             {
-                                if (a.Sex == Sexes[CurrentlySelectingSex] &&
+                                if (a.Sex == Engine.Data.Sexes[CurrentlySelectingSex] &&
                                     a.Race == GameWorld.HumanoidRaces[CurrentlySelectingRace - 1] &&
-                                    a.Profession == ArchitectProfessions[CurrentlySelectingArchitectProfession] &&
+                                    a.Profession == Engine.Data.ArchitectProfessions[CurrentlySelectingArchitectProfession] &&
                                     a.Location.TradersAtThisLocation.Count > 0 &&
                                     a.Grievances.Any(g => GameWorld.Calamity.Contains(g.Item1)))
                                 {
@@ -6386,11 +6073,11 @@ namespace Lightrealm
                                             }
 
                                             // Spells known to the architect
-                                            foreach (var spell in Game1.AllSpells)
+                                            foreach (var spell in Engine.Data.AllSpells)
                                             {
                                                 subjects.Add(new Entity(spell.ToLower()));
                                             }
-                                            foreach (var spell in Game1.AllLegendarySpells)
+                                            foreach (var spell in Engine.Data.AllLegendarySpells)
                                             {
                                                 subjects.Add(new Entity(spell.ToLower()));
                                             }
@@ -6412,9 +6099,9 @@ namespace Lightrealm
                                                 "book", "poem", "song"
                                             };
 
-                                            entitiesToAdd = entitiesToAdd.Except(Domains).ToList();
+                                            entitiesToAdd = entitiesToAdd.Except(Engine.Data.Domains).ToList();
                                             subjects.AddRange(entitiesToAdd.Select(entity => new Entity(entity)));
-                                            subjects.AddRange(Domains.Select(domain => new Entity(domain))); // Ensure all domains are also added as entities if not already covered
+                                            subjects.AddRange(Engine.Data.Domains.Select(domain => new Entity(domain))); // Ensure all domains are also added as entities if not already covered
 
 
                                             foreach (Entity e in subjects)
@@ -7740,8 +7427,8 @@ namespace Lightrealm
 
                 string GenerateUniqueFakeName()
                 {
-                    string firstName = Game1.FirstNames[Game1.r.Next(Game1.FirstNames.Count)] + Game1.NameSuffixes[Game1.r.Next(Game1.NameSuffixes.Count)];
-                    string lastName = ((Game1.LastNames[Game1.r.Next(Game1.LastNames.Count)]).Substring(0, 1)).ToUpper() + (Game1.LastNames[Game1.r.Next(Game1.LastNames.Count)]).Substring(1).ToLower();
+                    string firstName = Engine.Data.FirstNames[Game1.r.Next(Engine.Data.FirstNames.Count)] + Engine.Data.NameSuffixes[Game1.r.Next(Engine.Data.NameSuffixes.Count)];
+                    string lastName = ((Engine.Data.LastNames[r.Next(Engine.Data.LastNames.Count)]).Substring(0, 1)).ToUpper() + (Engine.Data.LastNames[Game1.r.Next(Engine.Data.LastNames.Count)]).Substring(1).ToLower();
 
                     //OK so this system litterally takes a last name from the list, and then takes a random letter from a random last name and replaces the first letter. Its not supposed to do that, BUT IT WORKS SO WELL WHAT
 
@@ -8015,7 +7702,7 @@ namespace Lightrealm
                 }
 
                 _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[1] Race: " + GameWorld.Races[CurrentlySelectingRace].Name, new Vector2(DrawX + 500, 150), Color.White);
-                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[2] Sex: " + Sexes[CurrentlySelectingSex], new Vector2(DrawX + 500, 200), Color.White);
+                _spriteBatch.DrawString(Engine.Render.BabyShibafont, "[2] Sex: " + Engine.Data.Sexes[CurrentlySelectingSex], new Vector2(DrawX + 500, 200), Color.White);
                 _spriteBatch.DrawString(Engine.Render.BabyShibafont, "Press ENTER to continue...):", new Vector2(DrawX + 500, 300), Color.White);
 
                 _spriteBatch.DrawString(Engine.Render.BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);

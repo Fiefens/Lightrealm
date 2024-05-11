@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.GameEngine;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using System;
 using System.Collections.Generic;
@@ -42,7 +43,7 @@ namespace Lightrealm
         {
             Type = type;
 
-            FakePhotonexusColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+            FakePhotonexusColor = Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)];
             GUID = Guid.NewGuid().ToString();
             Rooms = rooms;
             Block = block;

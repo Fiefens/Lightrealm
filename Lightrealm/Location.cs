@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.GameEngine;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -119,7 +120,7 @@ namespace Lightrealm
 
             PrimaryLightingStyles = new List<string>
             {
-                Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)]
+                Engine.Data.LightingStyles[Game1.r.Next(Engine.Data.LightingStyles.Count)]
             };
         }
         public Location()
@@ -225,7 +226,7 @@ namespace Lightrealm
 
                                     for (int i = 0; i < shibas; i++)
                                     {
-                                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Region.World.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new List<Object>(), this, d, d.DistrictMap[DistrictX + DistrictZ * 7], "", 4);
+                                        Architect a = new Architect("", Engine.Data.Sexes[Game1.r.Next(2)], Region.World.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new List<Object>(), this, d, d.DistrictMap[DistrictX + DistrictZ * 7], "", 4);
                                         a.Name = this.Region.World.GenerateUniqueArchitectName(a);
                                         a.HomeStructure = Market;
                                         DebtShibas.Add(a);
@@ -254,7 +255,7 @@ namespace Lightrealm
                         Sex = "female";
                     }
 
-                    string Role = Game1.WeightedRandomNormalProfessions[Game1.r.Next(Game1.WeightedRandomNormalProfessions.Count)];
+                    string Role = Engine.Data.WeightedRandomNormalProfessions[Game1.r.Next(Engine.Data.WeightedRandomNormalProfessions.Count)];
                     Race Race;
 
                     if (Game1.r.Next(1, 20) == 1 && (PrimaryRace.Name != "shade" && PrimaryRace.Name != "photonexus"))

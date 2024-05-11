@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Lightrealm.GameEngine;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using MonoGame.Framework.Utilities;
 using System;
@@ -919,7 +920,7 @@ namespace Lightrealm
             {
                 // Create a weapon
                 Material weaponMaterial = Location.HomeCivilization.CulturalMetal;
-                string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
+                string weaponType = Engine.Data.AllWeapons[Game1.r.Next(Engine.Data.AllWeapons.Count())];
                 Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
 
                 // Assign the weapon to the appropriate hand
@@ -985,7 +986,7 @@ namespace Lightrealm
             {
                 // Equip with a weapon
                 Material weaponMaterial = FavoriteMetal;
-                string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
+                string weaponType = Engine.Data.AllWeapons[Game1.r.Next(Engine.Data.AllWeapons.Count())];
                 Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
                 if (RightHanded)
                 {
@@ -1048,7 +1049,7 @@ namespace Lightrealm
                 // Add extra weapons (50% chance)
                 if (random.Next(2) == 0)
                 {
-                    string WeaponType = Game1.AllWeapons[random.Next(Game1.AllWeapons.Count())];
+                    string WeaponType = Engine.Data.AllWeapons[random.Next(Engine.Data.AllWeapons.Count())];
                     Object extraWeapon = new Object(null, WeaponType, new List<Material>() { FavoriteMetal }, null);
                     Inventory.Add(extraWeapon);
                 }
@@ -1571,7 +1572,7 @@ namespace Lightrealm
             Focus = shuffledSkills[6];
 
             //give him a ton of alligned domains.
-            AlignedDomains = Game1.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)).ToList();
+            AlignedDomains = Engine.Data.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)).ToList();
 
             // Function to add cultural clothing items
             void AddCulturalClothing(string culturalItems, Material material)
@@ -1630,11 +1631,11 @@ namespace Lightrealm
             Loaded = false;
 
 
-            FavoriteCultureField = Game1.CultureSchools[Game1.r.Next(Game1.CultureSchools.Count)];
-            FavoriteScienceField = Game1.ScienceSchools[Game1.r.Next(Game1.ScienceSchools.Count)];
-            FavoriteMagicField = Game1.MagicSchools[Game1.r.Next(Game1.MagicSchools.Count)];
+            FavoriteCultureField = Engine.Data.CultureSchools[Game1.r.Next(Engine.Data.CultureSchools.Count)];
+            FavoriteScienceField = Engine.Data.ScienceSchools[Game1.r.Next(Engine.Data.ScienceSchools.Count)];
+            FavoriteMagicField = Engine.Data.MagicSchools[Game1.r.Next(Engine.Data.MagicSchools.Count)];
 
-            FavoriteColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+            FavoriteColor = Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)];
             FavoriteGemstone = Game1.GameWorld.Gemstones[Game1.r.Next(Game1.GameWorld.Gemstones.Count)];
             FavoriteStone = Game1.GameWorld.Stones[Game1.r.Next(Game1.GameWorld.Stones.Count)];
             FavoriteWood = Game1.GameWorld.Woods[Game1.r.Next(Game1.GameWorld.Woods.Count)];
@@ -2758,7 +2759,7 @@ namespace Lightrealm
 
                                 if (Race == Game1.GameWorld.GetRace("debtshiba"))
                                 {
-                                    offensiveSpellsInKit = Game1.AllSpells.Where(spell => OffensiveSpells.Contains(spell)).ToList();
+                                    offensiveSpellsInKit = Engine.Data.AllSpells.Where(spell => OffensiveSpells.Contains(spell)).ToList();
                                 }
                                 else
                                 {

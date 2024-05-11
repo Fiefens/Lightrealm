@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Lightrealm.GameEngine;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -123,7 +124,7 @@ namespace Lightrealm
 
                     foreach (Object o in Structure.Block.District.Location.UnplacedArtifacts)
                     {
-                        if (Game1.AllLegendarySpells.Contains(o.SpellContained))
+                        if (Engine.Data.AllLegendarySpells.Contains(o.SpellContained))
                         {
                             Structure.Block.District.Location.UnplacedArtifacts.Remove(o);
                             Artifact = o;

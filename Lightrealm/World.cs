@@ -1,4 +1,5 @@
 ﻿using Lightrealm;
+using Lightrealm.GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics.PackedVector;
@@ -404,7 +405,7 @@ namespace Lightrealm
 
             List<Material> Materials = new List<Material>();
 
-            if(Game1.AllWeapons.Contains(ChosenItem))
+            if(Engine.Data.AllWeapons.Contains(ChosenItem))
             {
                 Materials.Add(Metals[Game1.r.Next(Metals.Count)]);
             }
@@ -605,7 +606,7 @@ namespace Lightrealm
 
                 for (int i = 0; i < WordsToCombine; i++)
                 {
-                    word += Game1.Words[random.Next(Game1.Words.Count)];
+                    word += Engine.Data.Words[random.Next(Engine.Data.Words.Count)];
                 }
 
                 if (Caps)
@@ -621,7 +622,7 @@ namespace Lightrealm
                 string word = string.Empty;
                 for (int i = 0; i < SyllablesCount; i++)
                 {
-                    word += Game1.Syllables[Game1.r.Next(Game1.Syllables.Count)];
+                    word += Engine.Data.Syllables[Game1.r.Next(Engine.Data.Syllables.Count)];
                 }
 
                 if (Caps)
@@ -689,8 +690,8 @@ namespace Lightrealm
 
             while (SubjectCatalogue.ContainsKey(generatedName))
             {
-                string firstName = Game1.FirstNames[Game1.r.Next(Game1.FirstNames.Count)] + Game1.NameSuffixes[Game1.r.Next(Game1.NameSuffixes.Count)];
-                string lastName = ((Game1.LastNames[Game1.r.Next(Game1.LastNames.Count)]).Substring(0, 1)).ToUpper() + (Game1.LastNames[Game1.r.Next(Game1.LastNames.Count)]).Substring(1).ToLower();
+                string firstName = Engine.Data.FirstNames[Game1.r.Next(Engine.Data.FirstNames.Count)] + Engine.Data.NameSuffixes[Game1.r.Next(Engine.Data.NameSuffixes.Count)];
+                string lastName = ((Engine.Data.LastNames[Game1.r.Next(Engine.Data.LastNames.Count)]).Substring(0, 1)).ToUpper() + (Engine.Data.LastNames[Game1.r.Next(Engine.Data.LastNames.Count)]).Substring(1).ToLower();
                 //OK so this system litterally takes a last name from the list, and then takes a random letter from a random last name and replaces the first letter. Its not supposed to do that, BUT IT WORKS SO WELL WHAT
 
                 generatedName = $"{firstName} {lastName}";
@@ -886,7 +887,7 @@ namespace Lightrealm
 
         public World(int width, int length, int civCount)
         {
-            foreach (string c in Game1.Colors)
+            foreach (string c in Engine.Data.Colors)
             {
                 UnusedCivColors.Add(c);
             }
@@ -1102,17 +1103,17 @@ namespace Lightrealm
             for(int i = Game1.r.Next(5,10); i != 0; i--)
             {
                 Material ChosenMetal = Metals[Game1.r.Next(Metals.Count)];
-                Race r = new Race("", new List<string>() { "medium", "average", "large" }[Game1.r.Next(3)], new List<(string, Material)>() { ("head", ChosenMetal), ("body", ChosenMetal), ("front left leg", ChosenMetal), ("front right leg", ChosenMetal), ("back left leg", ChosenMetal), ("back right leg", ChosenMetal), ("tail", ChosenMetal) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body"}, new List<string>(){ "allunalike" }, 50);
+                Race r = new Race("", new List<string>() { "medium", "average", "large" }[Game1.r.Next(3)], new List<(string, Material)>() { ("head", ChosenMetal), ("body", ChosenMetal), ("front left leg", ChosenMetal), ("front right leg", ChosenMetal), ("back left leg", ChosenMetal), ("back right leg", ChosenMetal), ("tail", ChosenMetal) }, Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string>() { "head", "body"}, new List<string>(){ "allunalike" }, 50);
                 r.Name = GenerateUniqueName("8s", r) + " construct";
                 Races.Add(r);
                 ConstructRaces.Add(r);
             }
 
-            ColossalTypes.Add(new Race("quetzal", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left wing", Membrane), ("right wing", Membrane), ("tail", Membrane), ("left leg", Biocrystal), ("right leg", Biocrystal) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 50));
-            ColossalTypes.Add(new Race("wyrm", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("front left fin", Membrane), ("front right fin", Membrane), ("back left fin", Membrane), ("back right fin", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 60));
-            ColossalTypes.Add(new Race("serpent", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 70));
-            ColossalTypes.Add(new Race("shobe", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 80));
-            ColossalTypes.Add(new Race("cnidriarch", "colossal", new List<(string, Material)>() { ("bell", Membrane), ("mantle", Membrane) }.Concat(Enumerable.Range(1, 12).Select(i => ($"tentacle{i}", Membrane))).ToList(), Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "bell", "mantle" }, new List<string>() { "allunalike" }, 50));
+            ColossalTypes.Add(new Race("quetzal", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left wing", Membrane), ("right wing", Membrane), ("tail", Membrane), ("left leg", Biocrystal), ("right leg", Biocrystal) }, Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 50));
+            ColossalTypes.Add(new Race("wyrm", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("front left fin", Membrane), ("front right fin", Membrane), ("back left fin", Membrane), ("back right fin", Membrane), ("tail", Membrane) }, Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 60));
+            ColossalTypes.Add(new Race("serpent", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 70));
+            ColossalTypes.Add(new Race("shobe", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 80));
+            ColossalTypes.Add(new Race("cnidriarch", "colossal", new List<(string, Material)>() { ("bell", Membrane), ("mantle", Membrane) }.Concat(Enumerable.Range(1, 12).Select(i => ($"tentacle{i}", Membrane))).ToList(), Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string>() { "bell", "mantle" }, new List<string>() { "allunalike" }, 50));
             Races.AddRange(ColossalTypes);
 
             //generate random animal races
@@ -1136,7 +1137,7 @@ namespace Lightrealm
                 int Teeth = RandomChance(80) ? Game1.r.Next(12, 48) : 0;
 
                 // Randomizing other attributes
-                string Size = Game1.AnimalSizes[Game1.r.Next(Game1.AnimalSizes.Count)];
+                string Size = Engine.Data.AnimalSizes[Game1.r.Next(Engine.Data.AnimalSizes.Count)];
                 bool HasScales = Game1.r.Next(0, 2) == 1;
                 bool HasGills = Game1.r.Next(0, 2) == 1;
                 bool HasFur = Game1.r.Next(0, 2) == 1;
@@ -1186,7 +1187,7 @@ namespace Lightrealm
                     BodyParts.Add(("tooth", Membrane));
 
                 // Add to list (assuming GenerateUniqueName and Race constructor are defined elsewhere)
-                Race r = new Race("", Size, BodyParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string>() { "allunalike" }, Game1.r.Next(10,20));
+                Race r = new Race("", Size, BodyParts, Engine.Data.Colors[Game1.r.Next(Engine.Data.Colors.Count)], new List<string> { "head", "body" }, new List<string>() { "allunalike" }, Game1.r.Next(10,20));
                 r.Name = GenerateUniqueName("1S" + Game1.r.Next(5) + "s", r);
                 WildRaces.Add(r);
             }
@@ -1441,8 +1442,8 @@ namespace Lightrealm
                 Unknown = new Architect("someone lost to time.", null, GetRace(""), 0, null, null, null, null, null, null, 0);
                 SubjectCatalogue.Add("someone lost to time", Unknown);
 
-                UndiscoveredSpells.AddRange(Game1.AllSpells);
-                UndiscoveredLegendarySpells.AddRange(Game1.AllLegendarySpells);
+                UndiscoveredSpells.AddRange(Engine.Data.AllSpells);
+                UndiscoveredLegendarySpells.AddRange(Engine.Data.AllLegendarySpells);
 
                 foreach (Civilization c in Civilizations)
                 {
@@ -1453,7 +1454,7 @@ namespace Lightrealm
                     ClaimSwathOfTerritory(c, l.X, l.Z, 2);
 
                     Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                    Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                    Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalStone }, new List<string>(), new List<string> { Engine.Data.LightingStyles[Game1.r.Next(Engine.Data.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
                     l.AllStructures.Add(Prism);
                     chosenBlock.Structures.Add(Prism);
                     l.Prism = Prism;
@@ -1461,7 +1462,7 @@ namespace Lightrealm
                     for (int i = 0; i < Game1.r.Next(10, 20); i++)
                     {
                         Block ChosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                        Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { c.CulturalWood }, new List<string> { c.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                        Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { c.CulturalWood }, new List<string> { c.CulturalWood.Name }, new List<string> { Engine.Data.LightingStyles[Game1.r.Next(Engine.Data.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
                         l.AllStructures.Add(s);
                         ChosenBlock.Structures.Add(s);
                     }
@@ -1481,7 +1482,7 @@ namespace Lightrealm
                 for (int i = 0; i < ColossalCount; i++)
                 {
 
-                    Architect a = new Architect("", Game1.Sexes[Game1.r.Next(Game1.Sexes.Count)], ColossalTypes[Game1.r.Next(ColossalTypes.Count)], 0, "end", new List<Object>(), null, null, null, null, 7);
+                    Architect a = new Architect("", Engine.Data.Sexes[Game1.r.Next(Engine.Data.Sexes.Count)], ColossalTypes[Game1.r.Next(ColossalTypes.Count)], 0, "end", new List<Object>(), null, null, null, null, 7);
 
                     string Name = "";
 
@@ -1590,7 +1591,7 @@ namespace Lightrealm
                         for (int i = 0; i < Game1.r.Next(10, 20); i++)
                         {
                             Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                            Structure s = new Structure("house", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalWood }, new List<string> { c.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                            Structure s = new Structure("house", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalWood }, new List<string> { c.CulturalWood.Name }, new List<string> { Engine.Data.LightingStyles[Game1.r.Next(Engine.Data.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
                             l.AllStructures.Add(s);
                             chosenBlock.Structures.Add(s);
                         }
@@ -1744,7 +1745,7 @@ namespace Lightrealm
                     };
 
                     string name = FirstPartNames[r.Next(FirstPartNames.Count)] + SecondPartNames[r.Next(SecondPartNames.Count)] + ", the " + Adjectives[r.Next(Adjectives.Count)] + " " + (codeNameThemes[CalamityIdeologicalObsession])[r.Next(codeNameThemes[CalamityIdeologicalObsession].Count)];
-                    Calamity.Add(new Architect(name, Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 34), "calamity", new List<Object>(), Civilizations[r.Next(Civilizations.Count)].Capitol, null, null, "", 10));
+                    Calamity.Add(new Architect(name, Engine.Data.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 34), "calamity", new List<Object>(), Civilizations[r.Next(Civilizations.Count)].Capitol, null, null, "", 10));
                     Calamity[0].HomeLocation = Calamity[0].Location;
                     Calamity[0].InteractionLocation = Calamity[0].Location;
                     CalamityLore.Add(Calamity[0].Name + " was a " + Calamity[0].Race.Name + " from " + Calamity[0].HomeLocation.Name + ".");
@@ -1909,7 +1910,7 @@ namespace Lightrealm
                                 else if (CreateYourOwnTypes.Contains(ChosenType))
                                 {
                                     //set A to a new GUY
-                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10,80), ChosenType, new List<Object>(), null, null, null, "", Calamitizer.Level - 2);
+                                    FoundGuy = new Architect("", Engine.Data.Sexes[r.Next(Engine.Data.Sexes.Count)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10,80), ChosenType, new List<Object>(), null, null, null, "", Calamitizer.Level - 2);
                                     FoundGuy.Name = GenerateUniqueArchitectName(FoundGuy);
                                 }
                                 else
@@ -2344,7 +2345,7 @@ namespace Lightrealm
                                         }
                                         if (Calamitizer.KilledChildren + Calamitizer.KilledMen + Calamitizer.KilledWomen + Calamitizer.KilledPeopleWhoActuallyMatter.Count > 500 && Calamitizer.SpellsKnown.Count < 3)
                                         {
-                                            Calamitizer.SpellsKnown = Game1.AllSpells.Union(Game1.AllLegendarySpells).ToList();
+                                            Calamitizer.SpellsKnown = Engine.Data.AllSpells.Union(Engine.Data.AllLegendarySpells).ToList();
                                             LogEvent("After harvesting enough energy and renouncing the deities of the land, " + Calamitizer.Name + " became infused with unfathomable power from an unknown origin, but continued on to tempt the universe further.");
                                         }
                                     }
@@ -2619,7 +2620,7 @@ namespace Lightrealm
 
                                     if (d.Industry == null && (location.Type == "village" || location.Type == "town" || location.Type == "city"))
                                     {
-                                        d.Industry = Game1.Industries[r.Next(Game1.Industries.Count)];
+                                        d.Industry = Engine.Data.Industries[r.Next(Engine.Data.Industries.Count)];
                                         HistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
                                         location.LocationHistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
                                     }
@@ -2656,7 +2657,7 @@ namespace Lightrealm
                                         DecidedType = "bandits";
                                         for(int Arch = r.Next(4,8); Arch != 0; Arch--)
                                         {
-                                            Architect AA = new Architect("", Game1.Sexes[r.Next(2)], location.HomeCivilization.PrimaryInhabiantRace, r.Next(13, 39), "bandit", new List<Object>(), null, null, null, "", 3);
+                                            Architect AA = new Architect("", Engine.Data.Sexes[r.Next(2)], location.HomeCivilization.PrimaryInhabiantRace, r.Next(13, 39), "bandit", new List<Object>(), null, null, null, "", 3);
                                             AA.KitOutArchitect("bandit");
                                             AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
                                             GuarranteedArch.Add(AA);
@@ -2664,13 +2665,13 @@ namespace Lightrealm
                                         break;
                                     case int decider when decider < 3:
                                         DecidedType = "shadebeast";
-                                        Architect SB = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shadebeast"), r.Next(Year), "shadebeast", new List<Object>(), null, null, null, "", 3);
+                                        Architect SB = new Architect("", Engine.Data.Sexes[r.Next(2)], GetRace("shadebeast"), r.Next(Year), "shadebeast", new List<Object>(), null, null, null, "", 3);
                                         SB.Name = Game1.GameWorld.GenerateUniqueArchitectName(SB);
                                         GuarranteedArch.Add(SB);
                                         break;
                                     case int decider when decider < 4:
                                         DecidedType = "construct"; 
-                                        Architect CN = new Architect("", Game1.Sexes[r.Next(2)], ConstructRaces[r.Next(ConstructRaces.Count)], r.Next(Year), "construct", new List<Object>(), null, null, null, "", 3);
+                                        Architect CN = new Architect("", Engine.Data.Sexes[r.Next(2)], ConstructRaces[r.Next(ConstructRaces.Count)], r.Next(Year), "construct", new List<Object>(), null, null, null, "", 3);
                                         CN.Name = Game1.GameWorld.GenerateUniqueArchitectName(CN);
                                         GuarranteedArch.Add(CN);
                                         break;
@@ -2680,7 +2681,7 @@ namespace Lightrealm
 
                                         for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
                                         {
-                                            Architect AA = new Architect("", Game1.Sexes[r.Next(2)], DecidedRace, r.Next(13, 39), "beast", new List<Object>(), null, null, null, "", 2);
+                                            Architect AA = new Architect("", Engine.Data.Sexes[r.Next(2)], DecidedRace, r.Next(13, 39), "beast", new List<Object>(), null, null, null, "", 2);
                                             AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
                                             GuarranteedArch.Add(AA);
                                         }
@@ -2692,21 +2693,21 @@ namespace Lightrealm
                                         break;
                                     case int decider when decider < 8:
                                         DecidedType = "vagabond";
-                                        Architect VB = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "vagabond", new List<Object>(), null, null, null, "", 3);
+                                        Architect VB = new Architect("", Engine.Data.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "vagabond", new List<Object>(), null, null, null, "", 3);
                                         VB.KitOutArchitect("vagabond");
                                         VB.Name = Game1.GameWorld.GenerateUniqueArchitectName(VB);
                                         GuarranteedArch.Add(VB);
                                         break;
                                     case int decider when decider < 9:
                                         DecidedType = "adventurer";
-                                        Architect AD = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "adventurer", new List<Object>(), null, null, null, "", 3);
+                                        Architect AD = new Architect("", Engine.Data.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "adventurer", new List<Object>(), null, null, null, "", 3);
                                         AD.KitOutArchitect("adventurer");
                                         AD.Name = Game1.GameWorld.GenerateUniqueArchitectName(AD);
                                         GuarranteedArch.Add(AD);
                                         break;
                                     case int decider when decider < 10:
                                         DecidedType = "priest";
-                                        Architect PR = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "priest", new List<Object>(), null, null, null, "", 1);
+                                        Architect PR = new Architect("", Engine.Data.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "priest", new List<Object>(), null, null, null, "", 1);
                                         PR.KitOutArchitect("priest");
                                         PR.Name = Game1.GameWorld.GenerateUniqueArchitectName(PR);
                                         GuarranteedArch.Add(PR);
@@ -3100,7 +3101,7 @@ namespace Lightrealm
                                     if (f.MoneyValue >= 3 && f.StabilityCompass < 40 && r.Next(AmbitionRank) == 1)
                                     {
                                         string industry = location.Districts[r.Next(location.Districts.Count)].Industry;
-                                        string profession = Game1.IndustryToProfession[industry];
+                                        string profession = Engine.Data.IndustryToProfession[industry];
 
                                         if (industry == "military" || industry == "waspkeeping")
                                         {
@@ -3404,7 +3405,7 @@ namespace Lightrealm
 
                                             for (int i = ImportantChildren; i != 0; i--)
                                             {
-                                                Architect a = new Architect("", Game1.Sexes[r.Next(2)], ChildRace, 0, "child", new List<Object>(), ((Architect)f.Base).Location, ((Architect)f.Base).District, ((Architect)f.Base).Block, "", 0);
+                                                Architect a = new Architect("", Engine.Data.Sexes[r.Next(2)], ChildRace, 0, "child", new List<Object>(), ((Architect)f.Base).Location, ((Architect)f.Base).District, ((Architect)f.Base).Block, "", 0);
                                                 a.Name = GenerateUniqueArchitectName(a);
                                                 location.Districts[r.Next(location.Districts.Count)].Architects.Add(a);
                                             }
@@ -3554,7 +3555,7 @@ namespace Lightrealm
                                     for (int i = 0; i < Game1.r.Next(6, 10); i++)
                                     {
                                         Block ChosenBlock = NewD.DistrictMap[Game1.r.Next(0, 49)];
-                                        Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { location.HomeCivilization.CulturalWood }, new List<string> { location.HomeCivilization.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                                        Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { location.HomeCivilization.CulturalWood }, new List<string> { location.HomeCivilization.CulturalWood.Name }, new List<string> { Engine.Data.LightingStyles[Game1.r.Next(Engine.Data.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
                                         location.AllStructures.Add(s);
                                         ChosenBlock.Structures.Add(s);
                                     }
@@ -3610,7 +3611,7 @@ namespace Lightrealm
 
                                     string gender = Ismale ? "male" : "female";
 
-                                    string role = Game1.WeightedRandomArchitectProfessions[Game1.r.Next(Game1.WeightedRandomArchitectProfessions.Count)];
+                                    string role = Engine.Data.WeightedRandomArchitectProfessions[Game1.r.Next(Engine.Data.WeightedRandomArchitectProfessions.Count)];
                                     Role = role;
 
                                     Architect architect = new Architect("", gender, Race, Game1.r.Next(14, 60), Role, new List<Object>(), location, d, null, Destiny, 1);
@@ -3947,7 +3948,7 @@ namespace Lightrealm
 
                                     if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock") /*for some reason this is running for everyone and infusing everyone lmaoooo*/)
                                     {
-                                        foreach (string s in Game1.AllSpells)
+                                        foreach (string s in Engine.Data.AllSpells)
                                         {
                                             if (!a.SpellsKnown.Contains(s))
                                             {
@@ -4634,7 +4635,7 @@ namespace Lightrealm
                                         UndiscoveredLegendarySpells.Remove(Spell);
                                         DiscoveredLegendarySpells.Add(Spell);
 
-                                        Object o = new Object("", Game1.PossibleMagicalItems[r.Next(Game1.PossibleMagicalItems.Count)], new List<Material> { Metals[r.Next(Metals.Count)] }, false, false, null, a, 5, false, null, null, null, false);
+                                        Object o = new Object("", Engine.Data.PossibleMagicalItems[r.Next(Engine.Data.PossibleMagicalItems.Count)], new List<Material> { Metals[r.Next(Metals.Count)] }, false, false, null, a, 5, false, null, null, null, false);
                                         o.Name = GenerateUniqueName("1S" + Game1.r.Next(2, 4) + "s1w", o);
                                         o.SpellContained = Spell;
                                         o.Owner = a;
@@ -4729,7 +4730,7 @@ namespace Lightrealm
                                         }
                                         else
                                         {
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " ", Game1.DeathCauses[Game1.r.Next(Game1.DeathCauses.Count)], " in ", location.Name, "."));
+                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " ", Engine.Data.DeathCauses[Game1.r.Next(Engine.Data.DeathCauses.Count)], " in ", location.Name, "."));
                                         }
 
                                         if (a.Group != null)
@@ -4877,7 +4878,7 @@ namespace Lightrealm
 
                         //prism
                         Block chosenBlock = NewLocation.Districts[0].DistrictMap[Game1.r.Next(0, 49)]; 
-                        Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { NewLocation.HomeCivilization.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                        Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { NewLocation.HomeCivilization.CulturalStone }, new List<string>(), new List<string> { Engine.Data.LightingStyles[Game1.r.Next(Engine.Data.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
                         Prism.Name = GenerateUniqueName("1W 1S2s", Prism);
                         NewLocation.Prism = Prism;
                         NewLocation.AllStructures.Add(Prism);
