@@ -394,7 +394,6 @@ namespace Lightrealm
     "scourge",
     "flail",
     "chain",
-    "bolt",
     "large hat",
     "small hat",
     "hood",
@@ -2324,7 +2323,7 @@ namespace Lightrealm
                                             {
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, " noticed a change in " + ChosenDistrict.Architects[Index].Name + " towards evil"));
+                                                    a.Grievances.Add((Calamitizer, " was noticed by " + a.Name + ", who began to see a major change in " + ChosenDistrict.Architects[Index].Name + " towards evil"));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
@@ -2845,149 +2844,153 @@ namespace Lightrealm
 
                             foreach (Group g in location.TradersAtThisLocation)
                             {
-                                if (!g.TradedThisMonth)
+                                if(location.Market != null)
                                 {
-                                    //trade at your current location
-                                    for (int i = r.Next(20, 30); i != 0; i--)
+
+                                    if (!g.TradedThisMonth)
                                     {
-                                        if (location.GeneralItemsWeHave.Count < 5)
+                                        //trade at your current location
+                                        for (int i = r.Next(20, 30); i != 0; i--)
                                         {
-                                            break;
-                                        }
-
-                                        int CaravanIndex = r.Next(g.CaravanItems.Count);
-                                        Object CaravanObject = g.CaravanItems[CaravanIndex];
-
-                                        int LocationIndex = r.Next(location.GeneralItemsWeHave.Count);
-                                        Object LocationObject = location.GeneralItemsWeHave[LocationIndex];
-
-                                        g.CaravanItems.Remove(CaravanObject);
-                                        location.GeneralItemsWeHave.Add(CaravanObject);
-                                        CaravanObject.Owner = null;
-
-                                        location.GeneralItemsWeHave.Remove(LocationObject);
-                                        g.CaravanItems.Add(LocationObject);
-                                        LocationObject.Owner = g;
-
-                                        if (!ItemTypesInCirculation.Contains(CaravanObject.Type))
-                                        {
-                                            ItemTypesInCirculation.Add(CaravanObject.Type);
-                                        }
-                                        if (!ItemTypesInCirculation.Contains(LocationObject.Type))
-                                        {
-                                            ItemTypesInCirculation.Add(LocationObject.Type);
-                                        }
-
-                                        //make sure the traders make a profit from the general wealth of the community, yeah this system probably will change somewhat
-
-                                        //was originally going to make it so the civilization has to pay to make up for the g.storedviatlium, but im not sure how to do that without plummeting the cost of currency. will need a rework soon.
-
-                                        g.StoredVitalium += r.Next(10, 30);
-                                    }
-
-
-                                    g.TradedThisMonth = true;
-
-                                    if (Cycle % (int)Math.Round((decimal)(Math.Round((decimal)(Cycle / 2903040000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity) == 0)
-                                    {
-                                        //i.e. if its the start of a new decade lmao
-                                        //consider adding new locations to your route
-
-                                        if (r.Next(1, 3) == 1 && g.TradeRoute.Count <= g.MaxTradeRouteLength)
-                                        {
-                                            foreach (Location l in AllLocations)
+                                            if (location.Market.Block.District.GeneralItemsWeHave.Count < 5)
                                             {
-                                                if (Vector2.Distance(new Vector2(l.X, l.Z), new Vector2(location.X, location.Z)) < 20 && !(g.TradeRoute.Contains(l)))
-                                                {
-                                                    if (SettlementTypes.Contains(l.Type))
-                                                    {
-                                                        HistoricalEvents.Add(string.Concat(Date, g.Name, " added ", l.Name, " to their list of trading partners."));
-                                                        g.TradeRoute.Add(l);
-                                                        break;
+                                                break;
+                                            }
 
+                                            int CaravanIndex = r.Next(g.CaravanItems.Count);
+                                            Object CaravanObject = g.CaravanItems[CaravanIndex];
+
+                                            int LocationIndex = r.Next(location.Market.Block.District.GeneralItemsWeHave.Count);
+                                            Object LocationObject = location.Market.Block.District.GeneralItemsWeHave[LocationIndex];
+
+                                            g.CaravanItems.Remove(CaravanObject);
+                                            location.Market.Block.District.GeneralItemsWeHave.Add(CaravanObject);
+                                            CaravanObject.Owner = null;
+
+                                            location.Market.Block.District.GeneralItemsWeHave.Remove(LocationObject);
+                                            g.CaravanItems.Add(LocationObject);
+                                            LocationObject.Owner = g;
+
+                                            if (!ItemTypesInCirculation.Contains(CaravanObject.Type))
+                                            {
+                                                ItemTypesInCirculation.Add(CaravanObject.Type);
+                                            }
+                                            if (!ItemTypesInCirculation.Contains(LocationObject.Type))
+                                            {
+                                                ItemTypesInCirculation.Add(LocationObject.Type);
+                                            }
+
+                                            //make sure the traders make a profit from the general wealth of the community, yeah this system probably will change somewhat
+
+                                            //was originally going to make it so the civilization has to pay to make up for the g.storedviatlium, but im not sure how to do that without plummeting the cost of currency. will need a rework soon.
+
+                                            g.StoredVitalium += r.Next(10, 30);
+                                        }
+
+
+                                        g.TradedThisMonth = true;
+
+                                        if (Cycle % (int)Math.Round((decimal)(Math.Round((decimal)(Cycle / 2903040000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity) == 0)
+                                        {
+                                            //i.e. if its the start of a new decade lmao
+                                            //consider adding new locations to your route
+
+                                            if (r.Next(1, 3) == 1 && g.TradeRoute.Count <= g.MaxTradeRouteLength)
+                                            {
+                                                foreach (Location l in AllLocations)
+                                                {
+                                                    if (Vector2.Distance(new Vector2(l.X, l.Z), new Vector2(location.X, location.Z)) < 20 && !(g.TradeRoute.Contains(l)))
+                                                    {
+                                                        if (SettlementTypes.Contains(l.Type))
+                                                        {
+                                                            HistoricalEvents.Add(string.Concat(Date, g.Name, " added ", l.Name, " to their list of trading partners."));
+                                                            g.TradeRoute.Add(l);
+                                                            break;
+
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
 
 
-                                    //actually MOVE The trader this time!
-                                    if (g.TradeRoute.Count > 1)
-                                    {
-                                        int TravelIndex = g.TradeRoute.IndexOf(location);
-
-                                        if (TravelIndex == g.TradeRoute.Count - 1)
+                                        //actually MOVE The trader this time!
+                                        if (g.TradeRoute.Count > 1)
                                         {
-                                            TravelIndex = 0;
-                                        }
-                                        else
-                                        {
-                                            TravelIndex++;
-                                        }
+                                            int TravelIndex = g.TradeRoute.IndexOf(location);
 
-                                        location.TradersAtThisLocationToRemove.Add(g);
-                                        g.TradeRoute[TravelIndex].TradersAtThisLocation.Add(g);
-
-                                        foreach (Architect a in g.Architects)
-                                        {
-                                            a.NextMigrationLocation = g.TradeRoute[TravelIndex];
-                                        }
-                                    }
-
-
-
-                                    // Random chance to build a port
-                                    if (r.Next(1900) == 0)
-                                    {
-                                        // Assuming the existence of static int ContinentalPortMaximum = X; where X is your desired maximum number of ports on the largest island.
-                                        // Initialize lists for islands and port locations
-                                        List<List<Region>> islands = new List<List<Region>>();
-                                        List<List<Region>> portLocations = new List<List<Region>>();
-
-                                        // Detect islands and potential port locations
-                                        DetectIslandsAndPorts(WorldMap, Width, islands, portLocations);
-
-                                        // Identify the biggest island
-                                        List<Region> biggestIsland = islands.OrderByDescending(island => island.Count).FirstOrDefault();
-
-                                        // Initialize a counter for ports on the biggest island based on current port conditions
-                                        int portsOnBiggestIsland = biggestIsland.SelectMany(region => portLocations[islands.IndexOf(biggestIsland)]).Count(port => !string.IsNullOrEmpty(port.PortName));
-                                        bool portBuilt = false;
-
-                                        foreach (var island in islands)
-                                        {
-                                            var potentialPorts = FindPotentialPorts(WorldMap, Width, island);
-                                            bool islandHasPort = potentialPorts.Any(port => !string.IsNullOrEmpty(port.PortName));
-
-                                            if (island == biggestIsland && portsOnBiggestIsland < ContinentalPortMaximum)
+                                            if (TravelIndex == g.TradeRoute.Count - 1)
                                             {
-                                                // For the biggest island, check if it hasn't exceeded the ContinentalPortMaximum
-                                                Region portLocation = potentialPorts.FirstOrDefault(port => string.IsNullOrEmpty(port.PortName));
-                                                if (portLocation != null)
-                                                {
-                                                    portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-                                                    HistoricalEvents.Add($"A new port named {portLocation.PortName} was built to facilitate trade.");
-                                                    portBuilt = true;
-                                                    portsOnBiggestIsland++; // Update the counter for ports on the biggest island
-                                                }
+                                                TravelIndex = 0;
                                             }
-                                            else if (!islandHasPort)
+                                            else
                                             {
-                                                // For other islands, build only one port if there isn't already one
-                                                Region portLocation = potentialPorts.FirstOrDefault(port => string.IsNullOrEmpty(port.PortName));
-                                                if (portLocation != null)
-                                                {
-                                                    portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-                                                    HistoricalEvents.Add($"A new port named {portLocation.PortName} was built to facilitate trade.");
-                                                    portBuilt = true;
-                                                }
+                                                TravelIndex++;
                                             }
 
-                                            if (portBuilt) break; // Exit the loop once a port is built
-                                        }
-                                    }
+                                            location.TradersAtThisLocationToRemove.Add(g);
+                                            g.TradeRoute[TravelIndex].TradersAtThisLocation.Add(g);
 
+                                            foreach (Architect a in g.Architects)
+                                            {
+                                                a.NextMigrationLocation = g.TradeRoute[TravelIndex];
+                                            }
+                                        }
+
+
+
+                                        // Random chance to build a port
+                                        if (r.Next(1900) == 0)
+                                        {
+                                            // Assuming the existence of static int ContinentalPortMaximum = X; where X is your desired maximum number of ports on the largest island.
+                                            // Initialize lists for islands and port locations
+                                            List<List<Region>> islands = new List<List<Region>>();
+                                            List<List<Region>> portLocations = new List<List<Region>>();
+
+                                            // Detect islands and potential port locations
+                                            DetectIslandsAndPorts(WorldMap, Width, islands, portLocations);
+
+                                            // Identify the biggest island
+                                            List<Region> biggestIsland = islands.OrderByDescending(island => island.Count).FirstOrDefault();
+
+                                            // Initialize a counter for ports on the biggest island based on current port conditions
+                                            int portsOnBiggestIsland = biggestIsland.SelectMany(region => portLocations[islands.IndexOf(biggestIsland)]).Count(port => !string.IsNullOrEmpty(port.PortName));
+                                            bool portBuilt = false;
+
+                                            foreach (var island in islands)
+                                            {
+                                                var potentialPorts = FindPotentialPorts(WorldMap, Width, island);
+                                                bool islandHasPort = potentialPorts.Any(port => !string.IsNullOrEmpty(port.PortName));
+
+                                                if (island == biggestIsland && portsOnBiggestIsland < ContinentalPortMaximum)
+                                                {
+                                                    // For the biggest island, check if it hasn't exceeded the ContinentalPortMaximum
+                                                    Region portLocation = potentialPorts.FirstOrDefault(port => string.IsNullOrEmpty(port.PortName));
+                                                    if (portLocation != null)
+                                                    {
+                                                        portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
+                                                        HistoricalEvents.Add($"A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        portBuilt = true;
+                                                        portsOnBiggestIsland++; // Update the counter for ports on the biggest island
+                                                    }
+                                                }
+                                                else if (!islandHasPort)
+                                                {
+                                                    // For other islands, build only one port if there isn't already one
+                                                    Region portLocation = potentialPorts.FirstOrDefault(port => string.IsNullOrEmpty(port.PortName));
+                                                    if (portLocation != null)
+                                                    {
+                                                        portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
+                                                        HistoricalEvents.Add($"A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        portBuilt = true;
+                                                    }
+                                                }
+
+                                                if (portBuilt) break; // Exit the loop once a port is built
+                                            }
+                                        }
+
+                                    }
                                 }
                             }
 
@@ -3346,7 +3349,6 @@ namespace Lightrealm
     "scourge",
     "flail",
     "chain",
-    "bolt",
     "urn",
     "pot",
     "helmet",

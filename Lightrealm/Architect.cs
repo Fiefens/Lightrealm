@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Net.Http;
@@ -30,6 +31,7 @@ namespace Lightrealm
 
         public bool RuptureMode = false;
 
+        public bool Crafting = false;
 
         public bool TryingToTravel = false;
 
@@ -1664,6 +1666,11 @@ namespace Lightrealm
                     {
                         Clothing.Add(new Object(null, item.Trim(), new List<Material>() { material }, null));
                     }
+                }
+
+                foreach(Object o in Clothing)
+                {
+                    o.Imbuements.Clear();
                 }
             }
 
@@ -4144,7 +4151,7 @@ namespace Lightrealm
                         // Cloning KnownArchitectsAndOpinions
                         Clone.KnownArchitectsAndOpinions = new List<(Architect, int)>(Base.KnownArchitectsAndOpinions);
 
-                        if (Base.Location.IsLoaded)
+                        if (Base.District.IsLoaded)
                         {
                             if(Base.Room != null)
                             {
@@ -4226,7 +4233,7 @@ namespace Lightrealm
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
                         {
-                            if (a.Location.IsLoaded)
+                            if (a.District.IsLoaded)
                             {
                                 if (a.LeftHandObject == Base)
                                 {
@@ -4320,7 +4327,7 @@ namespace Lightrealm
                     {
                         if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
                         {
-                            Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
+                            Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                             Room.Objects.Add(o);
                             o.AirborneTarget = a;
                             o.AirborneCyclesToHitTarget = 15 - FocusForReal();
@@ -4334,7 +4341,7 @@ namespace Lightrealm
                     {
                         if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
                         {
-                            Object o = new Object(null, "bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
+                            Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                             Block.Objects.Add(o);
                             o.AirborneTarget = a;
                             o.AirborneCyclesToHitTarget = 15 - FocusForReal();

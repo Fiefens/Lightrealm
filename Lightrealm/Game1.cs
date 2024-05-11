@@ -38,8 +38,9 @@ namespace Lightrealm
         public static int TicksSinceLoad = 0;
 
         public static Dictionary<string, List<string>> RecognizedCommands = new Dictionary<string, List<string>>();
-        public static List<string> AllCommands = new List<string>();
+        public static List<string> SuggestibleCommands = new List<string>();
 
+        public static List<(string, List<string>)> Recipes = new List<(string, List<string>)>();
 
         public static int CurrentObjectPage = 0;
         public static int MaximumObjectPage = 0;
@@ -372,7 +373,7 @@ namespace Lightrealm
 
         public static List<string> AllWeapons = new List<string>
         {
-            "sword", "greatsword", "axe", "greataxe", "knife",
+            "sword", "greatsword", "axe","battle axe", "greataxe", "knife",
             "rapier", "spear", "pike",
             "mace", "hammer", "shield",
             "whip", "flail", "chain"
@@ -1076,7 +1077,7 @@ namespace Lightrealm
 
 
 
-        public static List<string> Headwear = new List<string>() { "none", "none", "none", "none", "none", "none", "none", "large hat", "small hat", "hood", "hood", "hood" };
+        public static List<string> Headwear = new List<string>() { "none", "none", "none", "none", "none", "none", "none", "small hat", "hood", "hood", "hood" };
         public static List<string> Neckwear = new List<string>() { "none", "none", "none", "amulet", "amulet/amulet/amulet", "flair"};
         public static List<string> Handwear = new List<string>() { "none", "none", "none", "left glove/right glove", "left wristwrap/right wristwrap"};
         public static List<string> Bodywear = new List<string>() { "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "shortsleeve shirt/uppershirt", "longsleeve shirt/uppershirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt/cape", "longsleeve shirt/cape", "straps/cape", };
@@ -1573,6 +1574,7 @@ namespace Lightrealm
         public Texture2D LeftGloveT;
         public Texture2D LeftShoeT;
         public Texture2D LeftWristwrapT;
+        public Texture2D LeggingsT;
         public Texture2D LongsleeveShirtFemaleT;
         public Texture2D LongsleeveShirtMaleT;
         public Texture2D LuminarchFemaleT;
@@ -1599,6 +1601,8 @@ namespace Lightrealm
         public Texture2D UpperShirtMaleT;
         public Texture2D WrapsT;
 
+        public Texture2D MirrorT;
+
         public Texture2D Astrionalis;
         public Texture2D Celestrioris;
 
@@ -1613,6 +1617,7 @@ namespace Lightrealm
         public Texture2D SkyT;
         public Texture2D SunT;
         public Texture2D MoonT;
+        public Texture2D FrameT;
 
         public Texture2D ArchitectHere;
         public Texture2D HealthGuiT;
@@ -1788,9 +1793,9 @@ namespace Lightrealm
                             bool allTryingToTravel = GamePlayerParty.Architects.All(a => a.TryingToTravel);
                             if (allTryingToTravel)
                             {
+                                GamePlayerParty.Architects[0].District.Unload();
                                 foreach (Architect a in GamePlayerParty.Architects)
                                 {
-                                    a.Location?.Unload();
                                     a.Location = null;
                                     a.District = null;
                                 }
@@ -2930,7 +2935,7 @@ namespace Lightrealm
                 {
                     Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
                     MakeObservation("You fling your " + Subjects[0] + " at nothing. Expectedly, it falls to the ground.", Color.Yellow);
-                    Executor.Inventory.Remove((Object)Subjects[0]);
+                    Executor.Inventory.Remove(ThrowingObject);
 
                     if (Executor.Room == null)
                     {
@@ -2941,6 +2946,20 @@ namespace Lightrealm
                         Executor.Room.Objects.Add(ThrowingObject);
                     }
                 }
+            }
+            else if (CommandID == "craft")
+            {
+                var objectsToSearch = Executor.Room?.Objects ?? Executor.Block?.Objects;
+                var forgeNearby = objectsToSearch?.FirstOrDefault(obj => obj.Type == "forge") != null;
+                if (forgeNearby)
+                {
+                    Executor.Crafting = true;
+                }
+                else
+                {
+                    MakeObservation("You need to be near a forge to do that.", Color.Orange);
+                }
+
             }
             else if (CommandID == "throw_item_at")
             {
@@ -2987,6 +3006,7 @@ namespace Lightrealm
                         Executor.RightHandObject = null;
                     }
 
+                    ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, r.Next(8, 12) - Executor.Dexterity);
                     ((Object)Subjects[0]).AirborneTarget = Subjects[1];
                     ((Object)Subjects[0]).Thrower = Executor;
                     ((Object)Subjects[0]).AirbornePower = Executor.Dexterity + Executor.GetDistance(Subjects[0]) + 3;
@@ -3870,7 +3890,7 @@ namespace Lightrealm
                 {
                     if (Subjects[0] is Architect)
                     {
-                        Object o = new Object(null, "bolt", new List<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
+                        Object o = new Object(null, "energy bolt", new List<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
                         o.AirborneTarget = Subjects[0];
 
                         if (Executor.Room != null)
@@ -4328,6 +4348,13 @@ namespace Lightrealm
         public static string GameState = "mainscreen";
         public static string GameMode = "unknown";
 
+        public static string CraftingPhase = "selectrecipe"; //this is the phase you are in. it can also be "selectingredients"
+        public static int RecipeIndex = 0; //this is the currently selected recipe in the list. pressing enter switches your crafting phase.
+        public List<Object> ObjectsInInventoryUsableForResources = new List<Object>(); //these objects are the ones that can be added to your recipe
+        public static int InventoryCraftingIndex = 0; //this is the currently selected item in the crafting objects list. pressing enter adds it to indexes for resources.
+        public List<int> IndexesForResources = new List<int>(); //the indexes of the objects you selected.
+
+
         public static string FormatList(List<string> items)
         {
             int count = items.Count;
@@ -4350,15 +4377,12 @@ namespace Lightrealm
                 return $"{otherItems}, and {lastItem}";
             }
         }
+
         public static string FormatMaterialList(List<Material> materials)
         {
-            List<string> List = new List<string>();
-            foreach (Material m in materials)
-            {
-                List.Add(m.Name);
-            }
-            return (FormatList(List));
+            return string.Join(" ", materials.Select(m => m.Name));
         }
+
 
         public static string RestOfListIncludingThisIndex(List<string> list, int index)
         {
@@ -4508,6 +4532,8 @@ namespace Lightrealm
                 Directory.CreateDirectory(DocumentsFolderPath + "/LightrealmSaves");
             }
 
+            //these commands may be suggested to the player while typing
+
             RecognizedCommands.Add("leave_structure", new List<string> { "leave ~", "exit ~", "leave the structure", "exit the structure", "leave", "leave the building", "exit the building", "exit" });
             RecognizedCommands.Add("enter_structure", new List<string> { "enter ~", "go inside ~", "go in ~", "go through ~" });
             RecognizedCommands.Add("move_direction", new List<string> { "go ~", "travel ~", "move to the ~", "move ~", "go to the ~", "head ~", "head to the ~", "make my way ~", "start heading ~" });
@@ -4543,6 +4569,12 @@ namespace Lightrealm
             RecognizedCommands.Add("place_item_in", new List<string> {
     "place ~ in ~", "store ~ in ~", "stash ~ in ~", "put ~ in ~", "place ~ on ~", "place ~ inside ~"
 });
+            RecognizedCommands.Add("craft", new List<string>{
+    "craft", "craft ~", "build", "build ~", "construct", "construct ~", "create", "create ~", "forge", "forge ~", "sew", "sew ~",
+    "assemble", "assemble ~", "manufacture", "manufacture ~", "fabricate", "fabricate ~", "design", "design ~", "knit", "knit ~",
+    "weave", "weave ~", "shape", "shape ~", "mold", "mold ~", "sculpt", "sculpt ~", "form", "form ~", "fashion", "fashion ~"
+});
+
             RecognizedCommands.Add("take_item_from", new List<string> {
     "take ~ from ~", "remove ~ from ~", "retrieve ~ from ~", "get ~ from ~", "extract ~ from ~",
     "take ~ off of ~", "remove ~ off of ~", "retrieve ~ off of ~", "get ~ off of ~", "extract ~ off of ~"
@@ -4658,7 +4690,10 @@ namespace Lightrealm
     "tell ~ to flee", "urge ~ to run away", "command ~ to escape"
 });
 
-            AllCommands.AddRange(RecognizedCommands.SelectMany(pair => pair.Value));
+            SuggestibleCommands.AddRange(RecognizedCommands.SelectMany(pair => pair.Value));
+
+            //these commands will never be suggested
+
 
             ColorConverter.Add("maroon", Color.Maroon);
             ColorConverter.Add("red", Color.Red);
@@ -4880,6 +4915,7 @@ namespace Lightrealm
             SkyT = Content.Load<Texture2D>("sky");
             SunT = Content.Load<Texture2D>("sun");
             MoonT = Content.Load<Texture2D>("moon");
+            FrameT = Content.Load<Texture2D>("frame");
 
             Shibafont = Content.Load<SpriteFont>("shibafont");
             BabyShibafont = Content.Load<SpriteFont>("babyshibafont");
@@ -5026,6 +5062,7 @@ namespace Lightrealm
             CharacterAtlas["left glove"] = LeftGloveT = Content.Load<Texture2D>("character art/left glove");
             CharacterAtlas["left shoe"] = LeftShoeT = Content.Load<Texture2D>("character art/left shoe");
             CharacterAtlas["left wristwrap"] = LeftWristwrapT = Content.Load<Texture2D>("character art/left wristwrap");
+            CharacterAtlas["leggings"] = LeggingsT = Content.Load<Texture2D>("character art/leggings");
             CharacterAtlas["longsleeve shirt female"] = LongsleeveShirtFemaleT = Content.Load<Texture2D>("character art/longsleeve shirt female");
             CharacterAtlas["longsleeve shirt male"] = LongsleeveShirtMaleT = Content.Load<Texture2D>("character art/longsleeve shirt male");
             CharacterAtlas["luminarchfemale"] = LuminarchFemaleT = Content.Load<Texture2D>("character art/luminarchfemale");
@@ -5051,9 +5088,51 @@ namespace Lightrealm
             CharacterAtlas["uppershirt female"] = UpperShirtFemaleT = Content.Load<Texture2D>("character art/uppershirt female");
             CharacterAtlas["uppershirt male"] = UpperShirtMaleT = Content.Load<Texture2D>("character art/uppershirt male");
             CharacterAtlas["wraps"] = WrapsT = Content.Load<Texture2D>("character art/wraps");
+            
+            MirrorT = Content.Load<Texture2D>("character art/mirror");
 
 
-            // TODO: use this.Content to load your game content here
+            // Define the file path for 'recipes.txt'
+            string filePath = Path.Combine(dataPath, "recipes.txt");
+
+            // Check if the file exists
+            if (File.Exists(filePath))
+            {
+                // Read all lines from the file
+                string[] lines = File.ReadAllLines(filePath);
+
+                // Initialize a list to store the parsed data, assuming 'Recipes' is already defined
+                Recipes = new List<(string, List<string>)>();
+
+                // Loop through each line
+                foreach (string line in lines)
+                {
+                    // Split the line into parts based on commas
+                    string[] parts = line.Split(',');
+
+                    // Check if there are any parts to process
+                    if (parts.Length > 0)
+                    {
+                        string id = parts[0].Trim();  // Trim spaces around the ID
+                        List<string> materials = new List<string>();
+
+                        // Loop through each part after the ID to get materials
+                        for (int i = 1; i < parts.Length; i++)
+                        {
+                            materials.Add(parts[i].Trim()); // Trim spaces around each material
+                        }
+
+                        // Add the ID and materials to the list of recipes
+                        Recipes.Add((id, materials));
+                    }
+                }
+            }
+            else
+            {
+                // Handle the case where the file does not exist
+                Console.WriteLine("Recipes file not found.");
+            }
+
         }
 
         protected override void Update(GameTime gameTime)
@@ -5107,7 +5186,7 @@ namespace Lightrealm
                     {
                         if (o.AirborneTarget != null)
                         {
-                            if (o.AirborneCyclesToHitTarget != 0)
+                            if (o.AirborneCyclesToHitTarget > 0)
                             {
                                 o.AirborneCyclesToHitTarget--;
                                 continue;
@@ -5213,9 +5292,9 @@ namespace Lightrealm
                         int InitialStagnantObjectIntegrity = ArchitectBodyPart.Integrity;
                         int InitialThrowingObjectIntegrity = o.Integrity;
 
-                        ArchitectBodyPart.TakeDamageFromObject(o, 0); // Assuming a method exists to handle this
-
                         Observations.Add(new TextStorage("The " + o.Name + " has collided into " + ArchitectBodyPart.Name + "!", Color.Orange));
+
+                        Announcements.AddRange(ArchitectBodyPart.TakeDamageFromObject(o, 0)); // Assuming a method exists to handle this
 
                         if (o.Type == "falling star" && ((Architect)(o.Creator)).PathOfStarsLevel > 4)
                         {
@@ -5372,7 +5451,7 @@ namespace Lightrealm
                     a.FractalCycles--;
                     if (a.FractalCycles < 1)
                     {
-                        if (a.RematerializeLocation.Item2.IsLoaded)
+                        if (a.RematerializeLocation.Item3.IsLoaded)
                         {
                             a.Location = a.RematerializeLocation.Item2;
                             a.District = a.RematerializeLocation.Item3;
@@ -5654,6 +5733,7 @@ namespace Lightrealm
                             }
                         }
 
+                        /*
                         // Increment the World Width with 'T'
                         if (KeysNewlyPressed.Contains(Keys.T))
                         {
@@ -5693,6 +5773,7 @@ namespace Lightrealm
                                 CurrentlySelectedWorldLength = 32;
                             }
                         }
+                        */
                     }
 
                     if (GameState == "savinggame")
@@ -5822,7 +5903,7 @@ namespace Lightrealm
 
                         if (GameWorld.Cycle < maxAgeCycles)
                         {
-                            if (GameWorld.Cycle < 24192000000)
+                            if(GameWorld.Cycle < 24192000000)
                             {
                                 for (int i = 0; i < 12; i++)
                                 {
@@ -6101,7 +6182,7 @@ namespace Lightrealm
                     {
                         if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            GamePlayerParty.Architects[0].Location.Load();
+                            GamePlayerParty.Architects[0].District.Load();
 
                             //place player
 
@@ -6246,13 +6327,20 @@ namespace Lightrealm
                             GameWorld.Cycle += 1000;
                         }
 
-                        if(GamePlayerParty.Architects.Count == 0)
+                        if (GamePlayerParty.Architects.Count == 0)
                         {
                             GameState = "dead";
                         }
                         else if (!(GamePlayerParty.Architects.Contains(LoadedArchitects[ArchitectIndex])))
                         {
                             GameState = "otherturn";
+                        }
+                        else if (LoadedArchitects[ArchitectIndex].Crafting)
+                        {
+                            GameState = "crafting";
+                            CraftingPhase = "selectrecipe";
+                            RecipeIndex = 0;
+                            InventoryCraftingIndex = 0;
                         }
                         else
                         {
@@ -6425,7 +6513,7 @@ namespace Lightrealm
                                             }
                                             else if (KeyAtlas.ContainsKey(k))
                                             {
-                                                if(!Keyboard.GetState().IsKeyDown(Keys.OemTilde))
+                                                if (!Keyboard.GetState().IsKeyDown(Keys.OemTilde))
                                                 {
                                                     if (Keyboard.GetState().CapsLock == true || Keyboard.GetState().IsKeyDown(Keys.LeftShift) || Keyboard.GetState().IsKeyDown(Keys.RightShift))
                                                     {
@@ -6718,11 +6806,11 @@ namespace Lightrealm
                                                 "hunting", "quests", "gathering", "imbuement", "healing", "navigation",
                                                 "tactics", "survival", "diplomacy", "lockpicking", "animal taming", "herbalism",
                                                 "herbs", "blacksmithing", "tailoring", "carpentry", "architecture",
-                                                "history", "sailing", "farming", "brewing", "jewel crafting", "divination",
-                                                "rune crafting", "spellcasting", "negotiation", "investigation", "potions",
-                                                "archery", "swordsmanship", "armor crafting", "thievery", "bardic arts",
-                                                "mountaineering", "cartography", "astronomy", "necromancy", "elemental magic",
-                                                "beast mastery", "divine magic", "illusion", "mechanics", "engineering",
+                                                "history", "sailing", "farming", "brewing", "divination",
+                                                "spellcasting", "negotiation", "investigation", "potions",
+                                                "archery", "swordsmanship", "armor crafting", "thievery",
+                                                "mountaineering", "cartography", "astronomy", "necromancy", "spatiomancy", "conjuromancy", "fractalmancy", "perceptomancy",
+                                                "beasts", "divination", "divinity", "illusion", "mechanics", "engineering",
                                                 "book", "poem", "song"
                                             };
 
@@ -6870,9 +6958,11 @@ namespace Lightrealm
                                                                         GamePlayerParty.MapCursorDistrict = 0;
                                                                         MapCursorX = LoadedArchitects[ArchitectIndex].Location.X;
                                                                         MapCursorZ = LoadedArchitects[ArchitectIndex].Location.Z;
+
+                                                                        GamePlayerParty.Architects[0].District.Unload();
+
                                                                         foreach (var architect in GamePlayerParty.Architects)
                                                                         {
-                                                                            architect.Location.Unload();
                                                                             architect.CurrentlyMovingPlace = "none"; // Reset movement place after successful travel
                                                                         }
                                                                     }
@@ -6905,7 +6995,7 @@ namespace Lightrealm
 
                                                         // Handle cooldown and progress to next architect
 
-                                                        if(LoadedArchitects.Count > 0)
+                                                        if (LoadedArchitects.Count > 0)
                                                         {
                                                             LoadedArchitects[ArchitectIndex].CooldownCycles += (int)(Math.Round(35 * LoadedArchitects[ArchitectIndex].Speed()));
                                                             ArchitectIndex++;
@@ -7135,7 +7225,7 @@ namespace Lightrealm
                         }
 
 
-                        if(KeysNewlyPressed.Contains(Keys.Enter))
+                        if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
                             GameWorld.TriggerRupture(MapCursorX, MapCursorZ, LoadedArchitects[ArchitectIndex], 10);
 
@@ -7404,7 +7494,7 @@ namespace Lightrealm
 
                         if (KeysNewlyPressed.Contains(Keys.S) && GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation == null)
                         {
-                            GameState = "gatheringandcrafting";
+                            GameState = "gathering";
                         }
                         else if (KeysNewlyPressed.Contains(Keys.E) && StoredEvent != null)
                         {
@@ -7441,12 +7531,12 @@ namespace Lightrealm
 
                             // Define the blocks on the outskirts of a 7x7 district grid
                             List<int> outskirtsBlockIndexes = new List<int>
-    {
-        // Top row and bottom row
-        0, 1, 2, 3, 4, 5, 6, 42, 43, 44, 45, 46, 47, 48,
-        // Left column and right column, excluding corners already included
-        7, 14, 21, 28, 35, 13, 20, 27, 34, 41
-    };
+                            {
+                                // Top row and bottom row
+                                0, 1, 2, 3, 4, 5, 6, 42, 43, 44, 45, 46, 47, 48,
+                                // Left column and right column, excluding corners already included
+                                7, 14, 21, 28, 35, 13, 20, 27, 34, 41
+                            };
 
                             // Randomly pick one block from the outskirts
                             Random r = new Random();
@@ -7484,7 +7574,7 @@ namespace Lightrealm
 
                             // Add exposition for spires, architect counts, taverns, and markets, similar to previous code...
                             // Load the new location and update all architects
-                            newLocation.Load();
+                            newDistrict.Load();
                             foreach (Architect architect in GamePlayerParty.Architects)
                             {
                                 architect.Location = newLocation;
@@ -7513,7 +7603,7 @@ namespace Lightrealm
                                 MostRecentPartyTurnArchitect.District = MostRecentPartyTurnArchitect.Location.Districts[0];
                                 MostRecentPartyTurnArchitect.Block = MostRecentPartyTurnArchitect.District.DistrictMap[new[] { 0, 1, 2, 3, 4, 5, 6, 7, 13, 14, 20, 21, 27, 28, 34, 35, 41, 42, 43, 44, 45, 46, 47, 48 }[new Random().Next(24)]];
 
-                                MostRecentPartyTurnArchitect.Location.Load();
+                                MostRecentPartyTurnArchitect.District.Load();
 
                                 LoadedArchitects.Clear();
 
@@ -7548,7 +7638,7 @@ namespace Lightrealm
                                 else
                                 {
                                     SeenTips = true;
-                                    Exposition.Clear(); ;
+                                    Exposition.Clear();
                                     Exposition.Add(new TextStorage("Use commands to explore. Anything from \"ask where a tavern is\" to \"forcefully throw Diamoi Voklizo at happy debtshiba\" is accepted.", Color.White));
                                     Exposition.Add(new TextStorage("Watch your Energy and Bleeding, dictated by the Heart and its droplets at the top of the screen. Do not let it go dark.", Color.White));
                                     Exposition.Add(new TextStorage("Access player information with commands or use \"open menu\" to see all of it.", Color.White));
@@ -7572,7 +7662,7 @@ namespace Lightrealm
                             }
                         }
                     }
-                    else if (GameState == "gatheringandcrafting")
+                    else if (GameState == "gathering")
                     {
                         if (KeysNewlyPressed.Contains(Keys.X))
                         {
@@ -7615,12 +7705,12 @@ namespace Lightrealm
 
                         // Mapping of numeric keys to resource types
                         var resourceKeyMap = new Dictionary<int, string> {
-                            {1, "HarvestableWood"},
-                            {2, "HarvestableStone"},
-                            {3, "HarvestableMetal"},
-                            {4, "HarvestableSand"},
-                            {5, "HarvestableFiber"},
-                            {6, "HarvestableIce"}
+                            {1, "wood"},
+                            {2, "stone"},
+                            {3, "metal"},
+                            {4, "sand"},
+                            {5, "fiber"},
+                            {6, "ice"}
                         };
 
                         bool HasRequiredTool(Architect architect, string toolRequirements)
@@ -7638,7 +7728,7 @@ namespace Lightrealm
                             foreach (string requiredTool in requiredTools)
                             {
                                 // Assuming the Architect class has an Inventory property that is a list of some kind of Tool or Item objects
-                                if (architect.Inventory.Any(item => item.Name.Equals(requiredTool, StringComparison.OrdinalIgnoreCase)))
+                                if (architect.Inventory.Any(item => item.Type.Equals(requiredTool, StringComparison.OrdinalIgnoreCase)))
                                 {
                                     // Return true as soon as one required tool is found
                                     return true;
@@ -7656,7 +7746,7 @@ namespace Lightrealm
                             if (KeysNewlyPressed.Contains((Keys)Enum.Parse(typeof(Keys), $"D{resourceKey.Key}")))
                             {
                                 // Check if the biome has the corresponding resource
-                                Material resourceMaterial = harvestableMaterials.FirstOrDefault(hm => hm.Value.GetType().Name.Contains(resourceKey.Value)).Value;
+                                Material resourceMaterial = harvestableMaterials.FirstOrDefault(hm => hm.Value.Type.Contains(resourceKey.Value)).Value;
                                 if (resourceMaterial != null)
                                 {
                                     string resourceType = ResourcetoType[resourceMaterial];
@@ -7669,7 +7759,7 @@ namespace Lightrealm
                                         if (HasRequiredTool(architect, toolRequired))
                                         {
                                             toolNeeded = false;
-                                            int count = r.Next(0, architect.Strength);
+                                            int count = r.Next(0, architect.Strength + 1);
 
                                             // List of break activities for architects when they don't gather resources
                                             List<string> breakActivities = new List<string>()
@@ -7717,6 +7807,189 @@ namespace Lightrealm
                             }
                         }
                     }
+                    else if (GameState == "crafting")
+                    {
+                        if (CraftingPhase == "selectrecipe")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.Escape))
+                            {
+                                GameState = "partyturn";
+                                MostRecentPartyTurnArchitect.Crafting = false;
+                            }
+
+                            if (KeysNewlyPressed.Contains(Keys.Up) || KeysNewlyPressed.Contains(Keys.NumPad8))
+                            {
+                                RecipeIndex--;
+
+                                if (RecipeIndex < 0)
+                                {
+                                    RecipeIndex = Recipes.Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down) || KeysNewlyPressed.Contains(Keys.NumPad2))
+                            {
+                                RecipeIndex++;
+
+                                if (RecipeIndex > Recipes.Count - 1)
+                                {
+                                    RecipeIndex = 0;
+                                }
+                            }
+                            if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                CraftingPhase = "selectingredients";
+                            }
+                        }
+                        else if (CraftingPhase == "selectingredients")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.Escape))
+                            {
+                                CraftingPhase = "selectrecipe";
+                                IndexesForResources = new List<int>();
+                            }
+
+                            if (KeysNewlyPressed.Contains(Keys.Up) || KeysNewlyPressed.Contains(Keys.NumPad8))
+                            {
+                                InventoryCraftingIndex--;
+
+                                if (InventoryCraftingIndex < 0)
+                                {
+                                    InventoryCraftingIndex = Recipes.Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down) || KeysNewlyPressed.Contains(Keys.NumPad2))
+                            {
+                                InventoryCraftingIndex++;
+
+                                if (InventoryCraftingIndex > Recipes.Count - 1)
+                                {
+                                    InventoryCraftingIndex = 0;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Right) || KeysNewlyPressed.Contains(Keys.NumPad6))
+                            {
+                                if(!IndexesForResources.Contains(InventoryCraftingIndex))
+                                {
+                                    IndexesForResources.Add(InventoryCraftingIndex);
+                                }
+                            }
+
+                            if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                // Prepare to check inventory items against the selected recipe
+                                var currentRecipe = Recipes[RecipeIndex];
+                                bool hasAllIngredients = true;
+                                List<Material> allUsedMaterials = new List<Material>();  // List to store all used materials
+
+                                // Dictionary to map material types to object types
+                                Dictionary<string, string> materialToObjectMap = new Dictionary<string, string>
+                                {
+                                    {"cloth", "bolt"},
+                                    {"wood", "log"},
+                                    {"stone", "stone"},
+                                    {"metal", "bar"},
+                                    {"gemstone", "gemstone"},
+                                    {"sand", "pile"},
+                                    {"fiber", "bunch"},
+                                    {"ice", "block"},
+                                    {"glass", "sheet"}
+                                };
+
+                                // Count needed items from the recipe
+                                var requiredItems = currentRecipe.Item2
+                                    .GroupBy(x => x)
+                                    .ToDictionary(g => g.Key, g => g.Count());
+
+                                // Check if the player has all the required items in the inventory
+                                foreach (var requiredItem in requiredItems)
+                                {
+                                    string requiredType = requiredItem.Key;
+                                    int requiredCount = requiredItem.Value;
+                                    string requiredObject = materialToObjectMap[requiredType];
+
+                                    // Count how many items of the required type and object the player has
+                                    int countFound = MostRecentPartyTurnArchitect.Inventory
+                                        .Count(obj => obj.Type == requiredObject && obj.Materials[0].Type == requiredType);
+
+                                    if (countFound < requiredCount)
+                                    {
+                                        hasAllIngredients = false;
+                                        break;
+                                    }
+                                }
+
+                                if (hasAllIngredients)
+                                {
+                                    // Consume the required items
+                                    foreach (var requiredItem in requiredItems)
+                                    {
+                                        string requiredType = requiredItem.Key;
+                                        int requiredCount = requiredItem.Value;
+                                        string requiredObject = materialToObjectMap[requiredType];
+
+                                        // Find and remove the required number of items from inventory
+                                        var itemsToRemove = MostRecentPartyTurnArchitect.Inventory
+                                            .Where(obj => obj.Type == requiredObject && obj.Materials[0].Type == requiredType)
+                                            .Take(requiredCount)
+                                            .ToList();
+
+                                        foreach (var item in itemsToRemove)
+                                        {
+                                            allUsedMaterials.AddRange(item.Materials); // Add all materials of the consumed item
+                                            MostRecentPartyTurnArchitect.Inventory.Remove(item);
+                                        }
+                                    }
+
+                                    // Add the crafted item to the inventory
+                                    Object o = new Object("", currentRecipe.Item1, allUsedMaterials, MostRecentPartyTurnArchitect);
+                                    o.Name = GameWorld.GenerateUniqueName("1S" + r.Next(2, 5) + "sw", o);
+                                    MostRecentPartyTurnArchitect.Inventory.Add(o);
+
+                                    MakeObservation(MostRecentPartyTurnArchitect.Name + " has created " + o.Name + ".", Color.Coral);
+
+
+                                    if (o.Imbuements.Count > 1 || o.IsWeapon || o.Name != null)
+                                    {
+                                        IsInGui = true;
+
+                                        if (o.Name != null)
+                                        {
+                                            ItemPickupGuiLines.Add(Capitalize(o.Name) + ", " + Capitalize(o.Materials[0].Name) + " " + Capitalize(o.Type));
+                                        }
+                                        else
+                                        {
+                                            ItemPickupGuiLines.Add(Capitalize(o.Materials[0].Name) + " " + Capitalize(o.Type));
+                                        }
+
+                                        if (o.Imbuements.Count == 0)
+                                        {
+                                            ItemPickupGuiLines.Add("This object has no imbuements.");
+                                        }
+                                        else
+                                        {
+                                            List<string> ImbuementDescriptions = new List<string>();
+                                            foreach (Imbuement i in o.Imbuements)
+                                            {
+                                                ImbuementDescriptions.Add(i.GetDescription());
+                                            }
+                                            ItemPickupGuiLines.Add("This object has some magical properties. " + ConvertListToString(ImbuementDescriptions));
+                                        }
+                                    }
+
+                                    // Update crafting phase or state as necessary
+                                    GameState = "otherturn";
+
+                                    MostRecentPartyTurnArchitect.CooldownCycles += (int)Math.Round((600 * MostRecentPartyTurnArchitect.Speed()));
+                                }
+                                else
+                                {
+                                    Exposition.Add(new TextStorage("Not enough materials to craft.", Color.Red));
+                                    CraftingPhase = "selectrecipe";
+                                }
+                            }
+                        }
+                    }
+
 
                 }
             }
@@ -7846,6 +8119,21 @@ namespace Lightrealm
 
                 // Setup sampler state for smooth scaling if using XNA/MonoGame
                 _spriteBatch.GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+                // New dimensions for MirrorT
+                int newWidth = (int)(500 * Scale);
+                int newHeight = (int)(1150 * Scale);
+
+                // Calculate the new x and y coordinates to center MirrorT with ChosenRect
+                int centerX = x + scaledWidth / 2;  // Center X of the original rectangle
+                int centerY = y + scaledHeight / 2; // Center Y of the original rectangle
+
+                int newX = centerX - newWidth / 2;  // New X coordinate for centered placement
+                int newY = centerY - newHeight / 2; // New Y coordinate for centered placement
+
+                Rectangle newRect = new Rectangle(newX, newY, newWidth, newHeight);
+
+                // Continue with drawing
+                _spriteBatch.Draw(MirrorT, newRect, Color.White);
 
                 if (!GameWorld.HumanoidRaces.Contains(a.Race))
                 {
@@ -8135,9 +8423,12 @@ namespace Lightrealm
                 }
                 _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
                 _spriteBatch.DrawString(Shibafont, "(E/D) Number of Civilizations: " + NumberOfCivilizations, new Vector2(200, 600), Color.Red);
-                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + Math.Round(ProsperityMultiplier, 1).ToString("0.0"), new Vector2(200, 650), Color.Goldenrod);
+                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + Math.Round(ProsperityMultiplier, 1).ToString("0.0"), new Vector2(200, 650), Color.Cyan);
+                
+                /*
                 _spriteBatch.DrawString(Shibafont, "(T/G) [BROKEN] World Width (in region tiles, east/west, max 128): " + CurrentlySelectedWorldWidth, new Vector2(200, 700), Color.LimeGreen);
                 _spriteBatch.DrawString(Shibafont, "(Y/H) [BROKEN] World Length (in region tiles, north/south, max 128): " + CurrentlySelectedWorldLength, new Vector2(200, 750), Color.Cyan);
+                */
 
                 _spriteBatch.DrawString(Shibafont, "Press ENTER to begin world generation.", new Vector2(200, 950), Color.White);
             }
@@ -8439,8 +8730,9 @@ namespace Lightrealm
 
                                 _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Items: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.GeneralItemsWeHave.Count, new Vector2(DrawX, DrawY + 300), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White); 
+                                _spriteBatch.DrawString(BabyShibafont, "General Items: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Sum(d => d.GeneralItemsWeHave.Count), new Vector2(DrawX, DrawY + 300), Color.White);
+
                             }
                         }
                     }
@@ -8859,7 +9151,7 @@ namespace Lightrealm
 
                     // Use a gradient from red (low energy) to green (high energy) to represent energy level visually
                     // Red component decreases with energy increase, green component increases with energy increase
-                    Color energyColor = new Color(255 - colorIntensity, colorIntensity, 0, 255); // No blue component
+                    Color energyColor = new Color(colorIntensity, colorIntensity, colorIntensity, 255); // No blue component
 
                     // Draw the energy GUI with the calculated color
                     _spriteBatch.Draw(HealthGuiT, energyGuiRect, energyColor);
@@ -9030,7 +9322,7 @@ namespace Lightrealm
                         Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
                         float StartX = 50 + sizeOfInitialText.X;
 
-                        var matchingCommands = AllCommands
+                        var matchingCommands = SuggestibleCommands
                             .Select(cmd => new { Command = cmd, MatchData = GetMatchScoreAndValidity(cmd, MostRecentPartyTurnArchitect.Prompt) })
                             .Where(x => x.MatchData.isMatch)
                             .OrderByDescending(x => x.MatchData.matchScore)
@@ -9081,6 +9373,15 @@ namespace Lightrealm
 
 
                     //district map
+
+                    // Draw the background rectangle
+                    // Draw the background rectangle// Draw the background rectangle
+                    Rectangle backgroundRect = new Rectangle(118, 1258, 176, 176);
+                    _spriteBatch.Draw(FrameT, backgroundRect, Color.White); // Assuming FrameT is your texture for the background
+
+
+
+
                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                     {
                         for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
@@ -10412,7 +10713,7 @@ namespace Lightrealm
                 DrawWorld();
                 _spriteBatch.DrawString(BabyShibafont, "Use RTDGCV and Enter to position your focus.", new Vector2(DrawX + 500, DrawY + 60), Color.White);
             }
-            else if (GameState == "gatheringandcrafting")
+            else if (GameState == "gathering")
             {
                 if (GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "forest" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "lightforest" || GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome == "taiga")
                 {
@@ -10497,6 +10798,78 @@ namespace Lightrealm
                     Line++;
                 }
             }
+            else if (GameState == "crafting")
+            {
+                int sectionIndex = RecipeIndex / 30;
+                int startIndex = sectionIndex * 30;
+                int endIndex = Math.Min((sectionIndex + 1) * 30, Recipes.Count);
+
+                // Draw keybind instructions depending on the crafting phase
+                string instructions = CraftingPhase == "selectrecipe" ?
+                    "Use Arrow Keys to navigate recipes. Press Enter to select. ESC to exit." :
+                    "Use Arrow Keys to pick materials. Enter to craft. Right to add. ESC to cancel.";
+                _spriteBatch.DrawString(Shibafont, instructions, new Vector2(10, 1040), Color.LightGray);
+
+                if (CraftingPhase == "selectrecipe")
+                {
+                    for (int i = startIndex; i < endIndex; i++)
+                    {
+                        string prefix = (i == RecipeIndex) ? "(X) " : "( ) ";
+                        Color color = (i == RecipeIndex) ? Color.Yellow : Color.White;
+                        Vector2 position = new Vector2(10, 30 * (i - startIndex) + 100);
+                        _spriteBatch.DrawString(Shibafont, prefix + Recipes[i].Item1, position, color);
+                    }
+                }
+                else if (CraftingPhase == "selectingredients")
+                {
+                    for (int i = startIndex; i < endIndex; i++)
+                    {
+                        string prefix = (i == RecipeIndex) ? "(X) " : "( ) ";
+                        Color color = (i == RecipeIndex) ? Color.Yellow : Color.White;
+                        Vector2 position = new Vector2(10, 30 * (i - startIndex) + 100);
+                        _spriteBatch.DrawString(Shibafont, prefix + Recipes[i].Item1, position, color);
+                    }
+
+                    Dictionary<string, string> materialToObjectMap = new Dictionary<string, string>
+        {
+            {"cloth", "bolt"}, {"wood", "log"}, {"stone", "stone"},
+            {"metal", "bar"}, {"gemstone", "gemstone"}, {"sand", "pile"},
+            {"fiber", "bunch"}, {"ice", "block"}, {"glass", "sheet"}
+        };
+
+                    var currentRecipeMaterials = Recipes[RecipeIndex].Item2
+                        .Distinct()
+                        .Select(mat => materialToObjectMap[mat])
+                        .ToList();
+
+                    List<Object> relevantItems = MostRecentPartyTurnArchitect.Inventory
+                        .Where(obj => currentRecipeMaterials.Contains(obj.Type))
+                        .ToList();
+
+                    int inventorySectionIndex = InventoryCraftingIndex / 30;
+                    int inventoryStartIndex = inventorySectionIndex * 30;
+                    int inventoryEndIndex = Math.Min((inventorySectionIndex + 1) * 30, relevantItems.Count);
+
+                    if (relevantItems.Count == 0)
+                    {
+                        _spriteBatch.DrawString(Shibafont, "You do not have the required materials for this.", new Vector2(960, 100), Color.Red);
+                        _spriteBatch.DrawString(Shibafont, "You can gather resources at empty regions.", new Vector2(960, 150), Color.Red);
+                    }
+                    else
+                    {
+                        for (int i = inventoryStartIndex; i < inventoryEndIndex; i++)
+                        {
+                            string prefix = (i == InventoryCraftingIndex) ? "(X) " : "( ) ";
+                            Color color = (i == InventoryCraftingIndex) ? Color.Lime : (IndexesForResources.Contains(i) ? Color.Green : Color.White);
+                            Vector2 position = new Vector2(960, 30 * (i - inventoryStartIndex) + 100);
+                            _spriteBatch.DrawString(Shibafont, prefix + relevantItems[i].Materials[0].Name + " " + relevantItems[i].Type, position, color);
+                        }
+                    }
+                }
+            }
+
+
+
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
             {
                 _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);

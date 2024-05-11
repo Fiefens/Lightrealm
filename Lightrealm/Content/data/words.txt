@@ -1585,14 +1585,10 @@ measurement
 meat
 mechanism
 media
-medical
-medication
-medicine
 medium
 meet
 meeting
 member
-membership
 memory
 mental
 mention
@@ -2034,9 +2030,6 @@ provide
 provider
 province
 provision
-psychological
-psychologist
-psychology
 public
 publication
 publicly

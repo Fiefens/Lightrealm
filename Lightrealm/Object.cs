@@ -24,6 +24,8 @@ namespace Lightrealm
         public List<Object> ContainedObjects { get; set; } = new List<Object>();
         public bool IfTrueUseInIfFalseUseOn { get; set; }
 
+        public List<string> Tags = new List<string>();
+
         public string DyedColor = "none";
 
         public int YLevelInFeet { get; set; } = 0;
@@ -414,6 +416,7 @@ namespace Lightrealm
 
             Block = b;
             Structure = s;
+            Room = r;
 
             Name = name;
 
@@ -541,7 +544,7 @@ namespace Lightrealm
                     IsWritable = true;
                     CompositionContent = null;
                     WordCount = "~" + Game1.r.Next(1, 30) + "0";
-                    Description = "A flattened stretch of cloth.";
+                    Description = "A sheet of /m";
                     Weight = 50; // example weight
                     break;
                 case "waxtablet":
@@ -940,7 +943,12 @@ namespace Lightrealm
                 case "pickaxe":
                     Weight = 1200;
                     DamageType = "piercing";
-                    Description = "A useful mining tool. Can be used to gather some hard materials.";
+                    Description = "A useful mining tool. Can be used to gather materials.";
+                    break;
+                case "scythe":
+                    Weight = 1200;
+                    DamageType = "piercing";
+                    Description = "A too lwith a long curved blade used to gather plants.";
                     break;
                 case "mace":
                     Weight = 1800;
@@ -991,7 +999,7 @@ namespace Lightrealm
                     DamageType = "scourging";
                     Description = "A lengthy chain attached to a rod, capable causing extensive bleeding and pain.";
                     break;
-                case "bolt":
+                case "energy bolt":
                     Weight = 10;
                     IsWeapon = true;
                     DamageType = "piercing";
@@ -1339,7 +1347,15 @@ namespace Lightrealm
 
             if(IsWearable || IsWeapon)
             {
-                int rarityInt = Game1.r.Next(1, 500);
+                int CoolioNumber = 500;
+                if(Creator is Architect)
+                {
+                    CoolioNumber -= ((Architect)Creator).Creativity * 25;
+                }
+
+                
+
+                int rarityInt = Game1.r.Next(1, CoolioNumber);
 
                 if (rarityInt == 1)
                 {
