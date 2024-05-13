@@ -49,6 +49,8 @@ namespace Lightrealm
 
         public bool IsWearable;
 
+        public bool RealityAugumented = false;
+
         public string Rarity;
 
         public bool IsBodyPart = false;
@@ -152,118 +154,126 @@ namespace Lightrealm
 
         public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency)
         {
-            int Bleeding = 0;
-            int Pain = 0;
-            int EnergyLoss = 0;
+            // Base damage values
+            double basePain = 10;
+            double baseIntegrityLoss = 10;
+            double baseBleeding = 2;
+            double baseEnergyLoss = 5;
 
-            // Introduce a new constant for modifying combat intensity
-            int combatIntensityMultiplier = 10; // You can change this value to modify combat intensity
+            // Modifiers based on weapon type
+            double painModifier = 1;
+            double integrityModifier = 1;
+            double bleedingModifier = 1;
+            double energyLossModifier = 1;
+
+            // Adjust modifiers based on weapon type
+            switch (o.DamageType)
+            {
+                case "piercing":
+                    integrityModifier = 1.5;
+                    bleedingModifier = 0.5;
+                    energyLossModifier = 1.2;
+                    break;
+                case "slashing":
+                    bleedingModifier = 1.5;
+                    integrityModifier = 0.8;
+                    painModifier = 1.2;
+                    break;
+                case "bashing":
+                    integrityModifier = 1.2;
+                    painModifier = 1.1;
+                    energyLossModifier = 1.3;
+                    bleedingModifier = 0.3;
+                    break;
+                case "scourging":
+                    bleedingModifier = 2;
+                    painModifier = 1.5;
+                    integrityModifier = 0.5;
+                    break;
+            }
+
+            // Proficiency factor
+            double proficiencyFactor = 1 + (WielderProficiency * 0.05);
+
+            // Combat intensity factor (example dynamic adjustment)
+            double combatIntensityMultiplier = 3; // This value should be dynamically adjusted based on combat conditions
+
+            // Calculate damage outcomes
+            int Pain = (int)(basePain * painModifier * proficiencyFactor * combatIntensityMultiplier * (1 - (0.1)*(((Architect)Owner).Focus)));
+            int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * proficiencyFactor * combatIntensityMultiplier);
+            int Bleeding = (int)(baseBleeding * bleedingModifier * proficiencyFactor * combatIntensityMultiplier);
+            int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * proficiencyFactor * combatIntensityMultiplier);
 
             List<TextStorage> Announcements = new List<TextStorage>();
 
-            //determine if the attack gets blocked by coverage. Coverage for an object ranges from 0-22.5
-            double missChance = (Coverage / 22.5) * 75; // 75% max chance at 22.5 coverage
-
-            // Determine if the attack misses based on calculated miss chance
-            if (Game1.r.Next(100) < missChance) // Random chance to miss
+            // Determine if the attack gets blocked by coverage or armor
+            double coverageMissChance = (Coverage / 22.5) * 75;
+            if (Game1.r.Next(100) < coverageMissChance)
             {
                 Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green));
-                return Announcements; // Early return as the attack missed
+                return Announcements;
             }
-            else if(Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
+
+            if (Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
             {
-                Announcements.Add(new TextStorage("The attack breaks down " + ((Architect)o.Owner).ReferredToNames[0] + "'s natural armor!", Color.Green));
-                ((Architect)o.Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
+                Announcements.Add(new TextStorage("The attack breaks through and damages " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green));
+                ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
+            }
+            else if (((Architect)Owner).NaturalArmor > 0)
+            {
+                Announcements.Add(new TextStorage("The attack damages, but does not pierce " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green));
+                ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
+                return Announcements;
+            }
+
+
+            // Apply damage to integrity
+
+            Integrity = Math.Max(0, o.Integrity - IntegrityDamage);
+
+            if (IntegrityDamage > 0)
+            {
+                Announcements.Add(new TextStorage("The attack damages " + ReferredToNames[0] + "!", Color.Orange));
             }
             else
             {
-                if (o != null)
-                {
-                    double proficiencyFactor = o.AirborneTarget != null ? 1 : (1 + (WielderProficiency * 0.1));
-
-                    if (o.DamageType == "piercing")
-                    {
-                        Pain += (int)(o.FindObjectGenericStrength() / 2 * proficiencyFactor * combatIntensityMultiplier);
-                        if (Type == "head")
-                        {
-                            Integrity -= (int)(o.FindObjectGenericStrength() * 2 * proficiencyFactor * combatIntensityMultiplier);
-                            Bleeding += Game1.r.Next(1, 3);
-                            EnergyLoss -= Game1.r.Next(1, 4);
-                        }
-                        else
-                        {
-                            Integrity -= (int)(o.FindObjectGenericStrength() * proficiencyFactor * combatIntensityMultiplier);
-                            Bleeding += Game1.r.Next(1, 3);
-                            EnergyLoss -= Game1.r.Next(1, 4);
-                        }
-                    }
-                    else if (o.DamageType == "slashing")
-                    {
-                        Integrity -= (int)(o.FindObjectGenericStrength() / 2 * proficiencyFactor * combatIntensityMultiplier);
-                        Bleeding += Game1.r.Next(2, 4);
-                        EnergyLoss -= Game1.r.Next(1, 3);
-                        Pain += (int)(o.FindObjectGenericStrength() / 4 * proficiencyFactor * combatIntensityMultiplier);
-                    }
-                    else if (o.DamageType == "bashing")
-                    {
-                        Integrity -= (int)(o.FindObjectGenericStrength() * proficiencyFactor * combatIntensityMultiplier);
-                        Bleeding += Game1.r.Next(0, 2);
-                        EnergyLoss -= Game1.r.Next(0, 2);
-                        Pain += (int)(o.FindObjectGenericStrength() / 3 * proficiencyFactor * combatIntensityMultiplier);
-                    }
-                    else if (o.DamageType == "scourging")
-                    {
-                        Integrity -= (int)(o.FindObjectGenericStrength() / 4 * proficiencyFactor * combatIntensityMultiplier);
-                        Bleeding += Game1.r.Next(3, 5);
-                        EnergyLoss -= Game1.r.Next(0, 1);
-                        Pain += (int)(o.FindObjectGenericStrength() / 2 * proficiencyFactor * combatIntensityMultiplier);
-                    }
-
-                }
-                else
-                {
-                    throw new Exception("Error: Attempting to apply damage with a null object.");
-                }
-
-                if (IsBodyPart)
-                {
-                    if (Integrity > 0)
-                    {
-                        if (Bleeding > 3)
-                        {
-                            Announcements.Add(new TextStorage("Energy seeps from " + ReferredToNames[0] + "!", Color.Orange));
-                        }
-                        else if (Bleeding > 1)
-                        {
-                            Announcements.Add(new TextStorage(ReferredToNames[0] + " is bleeding heavily!", Color.Orange));
-                        }
-                        else if (Bleeding > 0)
-                        {
-                            Announcements.Add(new TextStorage(ReferredToNames[0] + " starts to bleed!", Color.Orange));
-                        } 
-
-                        ((Architect)Creator).Bleeding = ((Architect)Creator).Bleeding + (int)Math.Round((double)Bleeding, MidpointRounding.ToPositiveInfinity);
-                    }
-                    else
-                    {
-                        Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Orange));
-                    }
-                }
-                else
-                {
-                    if (Integrity > 0)
-                    {
-                        Announcements.Add(new TextStorage(ReferredToNames[0] + " vibrates intensely!", Color.Orange));
-                    }
-                    else
-                    {
-                        Announcements.Add(new TextStorage(ReferredToNames[0] + " shatters!", Color.Orange));
-                    }
-                }
+                Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red));
             }
+
+            if (Bleeding > 5)
+            {
+                Announcements.Add(new TextStorage("The attack pierces multiple membranes, causing heavy bleeding!", Color.Green));
+            }
+            else if (Bleeding > 3)
+            {
+                Announcements.Add(new TextStorage("The attack pierces a membrane, causing bleeding!", Color.Green));
+            }
+            else if (Bleeding > 1)
+            {
+                Announcements.Add(new TextStorage("The attack draws a small amount of blood!", Color.Green));
+            }
+
+            if (Pain > 10)
+            {
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green));
+            }
+            else if (Pain > 7)
+            {
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green));
+            }
+            else if (Pain > 5)
+            {
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green));
+            }
+
+            ((Architect)Owner).Bleeding += Bleeding;
+            ((Architect)Owner).Pain += Pain;
+            ((Architect)Owner).Energy -= EnergyLoss;
 
             return Announcements;
         }
+
+
         public void UpdateNames()
         {
             ReferredToNames = new List<string>();
@@ -329,6 +339,14 @@ namespace Lightrealm
                 ReferredToNames.AddRange(Newnames);
             }
 
+
+            //inside items
+
+
+            foreach(Object o in ContainedObjects)
+            {
+                o.UpdateNames();
+            }
 
             ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
         }
@@ -454,7 +472,7 @@ namespace Lightrealm
                 IsWeapon = true;
                 DamageType = "slashing";
             }
-            else if (Type == "rapier" || Type == "spear" || Type == "pike")
+            else if (Type == "rapier" || Type == "spear" || Type == "pike" || Type == "dagger")
             {
                 IsWeapon = true;
                 DamageType = "piercing";
@@ -892,7 +910,8 @@ namespace Lightrealm
                     Weight = 300;
                     IsWeapon = true;
                     DamageType = "piercing";
-                    Description = "A versatile tool used for stabbing, carving, and sometimes cutting.";
+                    Description = "An aerodynamic weapon often used for throwing or stabbing.";
+                    ProjectileAerodynamic = true;
                     break;
                 case "greatsword":
                     Weight = 2000;

@@ -6,7 +6,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Drawing;
 using System.Linq;
 using System.Net.Http;
 using System.Numerics;
@@ -17,6 +19,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Color = Microsoft.Xna.Framework.Color;
 
 namespace Lightrealm
 {
@@ -28,6 +31,11 @@ namespace Lightrealm
         public string Pronoun { get; set; }
         public string PossessivePronoun { get; set; }
         public string ObjectivePronoun { get; set; }
+
+        public Entity RealityBlipFocus;
+        public int RealityFocusTries;
+
+        public List<string> Intrigue = new List<string>();
 
         public bool RuptureMode = false;
 
@@ -49,26 +57,30 @@ namespace Lightrealm
         public string Prompt = "";
         public string LastPrompt = "";
 
-        // Function to get distance to another architect
+        public bool RecievedBodyPhysicalStatIncrease = false;
+
         public int GetDistance(object entity)
         {
             // Check if the entity is an Architect
             if (entity is Architect otherArchitect)
             {
-                // Find the distance record for the architect
-                var distanceRecord = Distances.FirstOrDefault(d => d.Item1 == otherArchitect);
-
-                // Return the distance if found, otherwise return -1
-                return distanceRecord.Item1 != null ? distanceRecord.Item2 : -1;
+                // Attempt to get the distance from the dictionary
+                if (Distances.TryGetValue(otherArchitect, out int distance))
+                {
+                    return distance;
+                }
+                else
+                {
+                    // Return -1 if no distance record is found
+                    return -1;
+                }
             }
 
             // If the entity is not an Architect, return 0 to automatically succeed
             return 0;
         }
 
-        public int BleedingCycle = 0;
-
-        public List<(Architect, int)> Distances = new List<(Architect, int)>();
+        public Dictionary<Architect, int> Distances = new Dictionary<Architect, int>();
 
         public int DivineProtection = 0;
         public int DivineMight = 0;
@@ -81,30 +93,24 @@ namespace Lightrealm
 
         public void DistanceFromArchitect(Architect otherArchitect, int distanceModifier)
         {
-            // Check and update existing distance for this architect
-            var existingDistance = Distances.FindIndex(d => d.Item1 == otherArchitect);
-            if (existingDistance != -1)
+            // Update or initialize distance for this architect to the other
+            if (Distances.TryGetValue(otherArchitect, out int currentDistance))
             {
-                // Modify the existing distance by the distanceModifier and ensure it's within the 0-5 range
-                int newDistance = Distances[existingDistance].Item2 + distanceModifier;
-                Distances[existingDistance] = (otherArchitect, Math.Clamp(newDistance, 0, 5));
+                Distances[otherArchitect] = Math.Clamp(currentDistance + distanceModifier, 0, 5);
             }
             else
             {
-                // Initialize new distance if not exist, capped at 5
-                Distances.Add((otherArchitect, Math.Clamp(distanceModifier, 0, 5)));
+                Distances[otherArchitect] = Math.Clamp(distanceModifier, 0, 5);
             }
 
             // Ensure the other architect also updates its distance list symmetrically
-            var otherArchitectDistance = otherArchitect.Distances.FindIndex(d => d.Item1 == this);
-            if (otherArchitectDistance != -1)
+            if (otherArchitect.Distances.TryGetValue(this, out int otherCurrentDistance))
             {
-                int newDistance = otherArchitect.Distances[otherArchitectDistance].Item2 + distanceModifier;
-                otherArchitect.Distances[otherArchitectDistance] = (this, Math.Clamp(newDistance, 0, 5));
+                otherArchitect.Distances[this] = Math.Clamp(otherCurrentDistance + distanceModifier, 0, 5);
             }
             else
             {
-                otherArchitect.Distances.Add((this, Math.Clamp(distanceModifier, 0, 5)));
+                otherArchitect.Distances[this] = Math.Clamp(distanceModifier, 0, 5);
             }
         }
 
@@ -117,8 +123,10 @@ namespace Lightrealm
             double agilityModifier = CalculateAgilityModifier(Agility); // Adjusted to keep speed not too high
             double totalWeight = Inventory.Concat(Clothing).Sum(item => item.Weight);
             double weightPenaltyModifier = CalculateWeightPenaltyModifier(totalWeight, Endurance);
+            double radiantPenalty = RadiantCycles > 0 ? 0.8 : 1.0;
+            double bodyPathBonus = PathOfBodyLevel >= 8 ? 1.5 : 1.0;
 
-            double rawSpeed = baseSpeed * legSpeedModifier * agilityModifier * weightPenaltyModifier;
+            double rawSpeed = baseSpeed * legSpeedModifier * agilityModifier * weightPenaltyModifier * radiantPenalty;
             return Math.Round(rawSpeed, 2); // Rounding to the nearest two decimal places
 
             double CalculateLegSpeedModifier(int numberOfLegs)
@@ -736,6 +744,7 @@ namespace Lightrealm
         public int BlindCycles { get; set; } = 0;
         public int DestabilizedCycles { get; set; } = 0;
         public int ConcussionCycles { get; set; } = 0;
+        public int RadiantCycles { get; set; } = 0;
 
         public bool OnGround { get; set; } = false;
 
@@ -787,6 +796,7 @@ namespace Lightrealm
 
 
         public double Bleeding = 0;
+        public double Pain = 0;
 
         public List<Object> BodyParts { get; set; } = new List<Object>();
 
@@ -824,6 +834,7 @@ namespace Lightrealm
             ("blocking", 0),
             ("disarming", 0),
             ("redirection", 0),
+            ("throwing", 0),
             ("parrying", 0)
         };
 
@@ -1994,15 +2005,116 @@ namespace Lightrealm
 
 
 
-
+        public void AnnounceToParty(string announcement, Color color)
+        {
+            foreach(Architect a in Game1.GamePlayerParty.Architects)
+            {
+                if (a.Room == Room && a.Block == Block)
+                {
+                    Game1.MakeObservation(announcement, color);
+                }
+            }
+        }
 
         public List<Attack> UpdateSelfActionsAndSuch()
         {
             //cycle hunger, health, etc.
             //update general information
 
-          
+            List<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
+
             List<Attack> Attacks = new List<Attack>();
+
+
+
+            //die lmaoooo
+
+
+            bool allNecessaryPartsIntact = Race.NecessaryBodyParts.All(requiredType => BodyParts.Any(bp => bp.Type == requiredType && bp.Integrity > 0));
+
+            if(!allNecessaryPartsIntact)
+            {
+                Bleeding += 10;
+                if(Game1.GamePlayerParty.Architects.Contains(this))
+                {
+                    AnnounceToParty(this.Name + " is critically wounded and bleeding heavily!", Color.Red);
+                }
+            }
+
+            if (Bleeding > 0)
+            {
+                if (Game1.r.Next(20) == 0)
+                {
+                    Energy -= Bleeding;
+                    Bleeding -= 1;
+                }
+            }
+
+            if(IsAlive)
+            {
+                if (Energy <= 0)
+                {
+                    IsAlive = false;
+
+                    if (Game1.GamePlayerParty.Architects.Contains(this))
+                    {
+                        AnnounceToParty(this.Name + " has fallen. ", Color.Red);
+                        Game1.GamePlayerParty.Architects.Remove(this);
+                    }
+                    else
+                    {
+                        AnnounceToParty(this.Name + " has fallen. ", Color.PaleGoldenrod);
+                        if (Master != null)
+                        {
+                            switch (new Random().Next(1, 6)) // Randomly selects one of the messages
+                            {
+                                case 1:
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", forgive me... I could not succeed...", Color.PaleGoldenrod);
+                                    break;
+                                case 2:
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", my journey ends here...", Color.PaleGoldenrod);
+                                    break;
+                                case 3:
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", alas, I have fallen...", Color.PaleGoldenrod);
+                                    break;
+                                case 4:
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", I apologize, I've let you down...", Color.PaleGoldenrod);
+                                    break;
+                                case 5:
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", the end has come for me...", Color.PaleGoldenrod);
+                                    break;
+                            }
+
+                            AnnounceToParty("You sense something odd about the name " + Master.Name + "...", Color.Aqua);
+                            AnnounceToParty("[Intrigue Updated]", Color.Aqua);
+
+                            foreach (Architect a in Game1.GamePlayerParty.Architects)
+                            {
+                                if (a.District == District)
+                                {
+                                    a.Intrigue.Add(Name + " said something about " + Master.Name + ".");
+                                }
+                            }
+                        }
+
+                    }
+
+
+                    foreach (Architect a in Room != null ? Room.Architects : Block.Architects)
+                    {
+                        if (a.Level < Level)
+                        {
+                            a.Level++;
+                            a.SpendableLevels++;
+                            AnnounceToParty(a.Name + " has absorbed some of their essence! ", Color.PaleGoldenrod);
+                            a.Energy += 20;
+                        }
+                    }
+                }
+
+            }
+
+
 
             if (Room == null && Block == null)
             {
@@ -2016,20 +2128,7 @@ namespace Lightrealm
 
             if(CombatCycles == 0 && Energy < MaxEnergy())
             {
-                Energy++;
-            }
-
-            void AnnounceToParty(string announcement, Color color)
-            {
-                if (Game1.LoadedArchitects[Game1.ArchitectIndex].Room == Room || Game1.LoadedArchitects[Game1.ArchitectIndex].Block == Block)
-                {
-                    Game1.MakeObservation(announcement, color);
-                    if (Game1.LoadedArchitects[Game1.ArchitectIndex].Level < Level)
-                    {
-                        Game1.LoadedArchitects[Game1.ArchitectIndex].Level++;
-                        Game1.LoadedArchitects[Game1.ArchitectIndex].SpendableLevels++;
-                    }
-                }
+                Energy += 0.05;
             }
 
             //distancing
@@ -2038,50 +2137,47 @@ namespace Lightrealm
             {
                 HalfFocusTicks--;
             }
-            //first clear old ones
-            List<(Architect, int)> DistancesToRemove = new List<(Architect, int)>();
 
-            foreach ((Architect, int) a in Distances)
+
+            // Assume Distances is a Dictionary<Architect, int> for better performance
+            if (Distances == null)
+                Distances = new Dictionary<Architect, int>();
+
+            HashSet<Architect> currentArchitects = new HashSet<Architect>(Room != null ? Room.Architects : Block.Architects);
+
+            // Remove outdated distances
+            var keysToRemove = Distances.Keys.Where(k => !currentArchitects.Contains(k)).ToList();
+            foreach (var key in keysToRemove)
             {
-                if(a.Item1.Room != Room || a.Item1.Block != Block)
-                {
-                    DistancesToRemove.Add(a);
-                }
+                Distances.Remove(key);
             }
 
-            // Finally, remove the old distances that are not relevant anymore
-            foreach ((Architect, int) a in DistancesToRemove)
+            // Update or add new distances and manage reciprocal distances
+            foreach (Architect a in currentArchitects)
             {
-                Distances.Remove(a);
-            }
-
-            // Add new ones, or update based on existing ones
-            List<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
-
-            foreach (Architect a in ArchitectsToUse)
-            {
-                // Check if the architect is already in the distances list
-                if (!Distances.Any(d => d.Item1 == a))
+                if (!Distances.ContainsKey(a))
                 {
-                    // Check if there is a reciprocal distance already determined by another architect
-                    var existingDistance = Distances.FirstOrDefault(d => d.Item1 == a && ArchitectsToUse.Contains(d.Item1));
                     int distance;
-
-                    if (existingDistance.Item1 != null)
+                    // Check if the other architect already has a distance to this one
+                    if (a.Distances.TryGetValue(this, out int existingDistance))
                     {
-                        // If a reciprocal distance exists, use the same distance
-                        distance = existingDistance.Item2;
+                        // Use the existing reciprocal distance
+                        distance = existingDistance;
                     }
                     else
                     {
-                        // Generate a random distance between 0 and 5
-                        distance = Game1.r.Next(0, 6);
+                        // Generate a new random distance if not existing
+                        distance = Game1.r.Next(2, 6);
                     }
 
-                    // Add the new architect and distance to the list
-                    Distances.Add((a, distance));
+                    // Update this architect's distance to the other
+                    Distances[a] = distance;
+
+                    // Ensure reciprocal distance is set
+                    a.Distances[this] = distance;
                 }
             }
+
 
 
 
@@ -2329,7 +2425,26 @@ namespace Lightrealm
                 }
             }
 
-
+            if(PathOfBodyLevel >= 2)
+            {
+                if(!RecievedBodyPhysicalStatIncrease)
+                {
+                    AnnounceToParty(Name + " has gained increases to all physical stats.", Color.Pink);
+                    Strength++;
+                    Dexterity++;
+                    Agility++;
+                    Focus++;
+                }
+            }
+            else if (PathOfBodyLevel >= 4)
+            {
+                if (!RecievedBodyPhysicalStatIncrease)
+                {
+                    AnnounceToParty(Name + " has gained an increased agility!", Color.Pink);
+                    Agility++;
+                    Agility++;
+                }
+            }
 
             //go ahead and apply the imbuement effect if its a passive imbuement, but if it isnt then wait for later
             foreach (Imbuement i in CurrentlyActiveImbuements)
@@ -2492,6 +2607,10 @@ namespace Lightrealm
             {
                 ConcussionCycles--;
             }
+            if (RadiantCycles > 0)
+            {
+                RadiantCycles--;
+            }
 
             if (YLevelInFeet > 0)
             {
@@ -2537,8 +2656,10 @@ namespace Lightrealm
 
             //actions
 
-            if (!Game1.GamePlayerParty.Architects.Contains(this) && ConcussionCycles == 0 && SpellHoldCycles == 0 && CooldownCycles == 0 && Race != Game1.GameWorld.GetRace("moari"))
+            if (IsAlive && CooldownCycles == 0 && !Game1.GamePlayerParty.Architects.Contains(this) && ConcussionCycles == 0 && SpellHoldCycles == 0 && Race != Game1.GameWorld.GetRace("moari"))
             {
+                //opinions
+
                 foreach (Architect a in architects)
                 {
                     if (GetOpinion(a) == 0 && a != this)
@@ -2572,40 +2693,35 @@ namespace Lightrealm
                     }
                 }
 
-
-
-
                 //delete known spells, race, compositions, etc.
-
-                SpellsKnown.RemoveAll(item => Game1.GameWorld.DeletedSpells.Contains(item));
-                CultureBank.RemoveAll(item => Game1.GameWorld.DeletedCompositions.Contains(item));
-                Inventory.RemoveAll(item => Game1.GameWorld.DeletedObjects.Contains(item));
-
-                if (Game1.GameWorld.DeletedObjects.Contains(LeftHandObject))
-                    LeftHandObject = null;
-                if (Game1.GameWorld.DeletedObjects.Contains(RightHandObject))
-                    RightHandObject = null;
-
-                if(Game1.GameWorld.DeletedRaces.Contains(this.Race))
                 {
-                    Race = Game1.GameWorld.GetRace("shade");
-                    BodyParts.Clear();
-                    AddBodyParts();
+                    SpellsKnown.RemoveAll(item => Game1.GameWorld.DeletedSpells.Contains(item));
+                    CultureBank.RemoveAll(item => Game1.GameWorld.DeletedCompositions.Contains(item));
+                    Inventory.RemoveAll(item => Game1.GameWorld.DeletedObjects.Contains(item));
+                    if (Game1.GameWorld.DeletedObjects.Contains(LeftHandObject))
+                        LeftHandObject = null;
+                    if (Game1.GameWorld.DeletedObjects.Contains(RightHandObject))
+                        RightHandObject = null;
+                    if (Game1.GameWorld.DeletedRaces.Contains(this.Race))
+                    {
+                        Race = Game1.GameWorld.GetRace("shade");
+                        BodyParts.Clear();
+                        AddBodyParts();
+                    }
                 }
-
 
                 //first see if you want to kill someone lmao
                 Architect KillTarget = null;
                 Architect DisableTarget = null;
 
                 //stop tryin to kill iftheyre allready dead lmao
-
                 if ((Task == "killtarget" || Task == "disabletarget") && TargetArchitect.IsAlive == false)
                 {
                     Task = "";
                     TargetArchitect = null;
                 }
 
+                //set new kill target
                 if (Room != null)
                 {
                     foreach (Architect a in Room.Architects)
@@ -2636,38 +2752,20 @@ namespace Lightrealm
                     }
                 }
 
+
                 int ChangeInX = 0;
                 int ChangeInZ = 0;
                 string AlternateMove = "";
 
-                if (KillTarget != null)
-                {
-                    Task = "killtarget";
-                    CyclesLeftInTask = 500;
-                    TargetArchitect = KillTarget;
-                }
-                else if (DisableTarget != null)
-                {
-                    Task = "disabletarget";
-                    CyclesLeftInTask = 500;
-                    TargetArchitect = DisableTarget;
-                }
 
-                if (Task == "killtarget" && KillTarget != null)
-                {
-                    //update the targetting system so you go to where they are naturally
-                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
-                }
-                if (Task == "disabletarget" && DisableTarget != null)
-                {
-                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
-                }
-
-
+                //set task if you need to
 
                 if (Group != null && Group.Leader.Loaded)
                 {
-
+                    Task == Group.Leader.Task;
+                    Target == Group.Leader.Task;
+                    TargetArchitect == Group.Leader.TargetArchitect;
+                    TargetObject == Group.Leader.TargetObject;
                 }
                 else if (Task == "" && BlindCycles == 0 && Profession != "warlock" && Profession != "sorcerer" && Race != Game1.GameWorld.GetRace("debtshiba") /*cant make judgements if ur blind lol, and cant if you already have a basic job.*/)
                 {
@@ -2794,8 +2892,33 @@ namespace Lightrealm
                     }
                 }
 
+                //set target properly
+
+                if (KillTarget != null)
+                {
+                    Task = "killtarget";
+                    CyclesLeftInTask = 500;
+                    TargetArchitect = KillTarget;
+                }
+                else if (DisableTarget != null)
+                {
+                    Task = "disabletarget";
+                    CyclesLeftInTask = 500;
+                    TargetArchitect = DisableTarget;
+                }
+                if (Task == "killtarget" && KillTarget != null)
+                {
+                    //update the targetting system so you go to where they are naturally
+                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
+                }
+                if (Task == "disabletarget" && DisableTarget != null)
+                {
+                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
+                }
+
                 double angleDegrees = 99991;
 
+                //have you finished task? then reap the benefits
                 if (CyclesLeftInTask <= 0 && (Location.Region, Location, District, Block, Structure, "") == Target)
                 {
                     //CONGRAGULATIONS! youre done with your task lool, you can reap the benefits.
@@ -2850,6 +2973,8 @@ namespace Lightrealm
 
                     Task = "";
                 }
+
+                //otherwise, youre at the right place so either kill someone or finish your task
                 else if (Task != "" && (Location.Region, Location, District, Block, Structure, "") == Target)
                 {
                     string DetermineAttackVerb(string weaponType)
@@ -2946,18 +3071,22 @@ namespace Lightrealm
                                 {
                                     DistanceFromArchitect(TargetArchitect, -2); // Decrease distance by 2
                                     CooldownCycles += (int)(4 * Math.Round(Speed()));
+
+                                    AnnounceToParty(Name + " gets closer to " + TargetArchitect.Name + "!", Color.DarkMagenta);
                                 }
                             }
+                        }
+                        else
+                        {
+                            Target = (KillTarget.Location.Region, KillTarget.Location, KillTarget.District, KillTarget.Block, KillTarget.Structure, "");
                         }
                     }
 
                     CyclesLeftInTask--;
                 }
 
-                // Method to determine the attack verb based on weapon type
-
-
-                else if (Task != "" && Target != (Location.Region, Location, District, Block, Structure, "") && Target != (null, null, null, null, null, null) && BlindCycles == 0 /*cant make judgements if ur blind lol*/)
+                //if you need to move somewhere to complete your task, use this function.
+                if (Task != "" && Target != (Location.Region, Location, District, Block, Structure, "") && Target != (null, null, null, null, null, null) && BlindCycles == 0 /*cant make judgements if ur blind lol*/)
                 {
                     //you can't complete your task because you arent at your target yet.
 
@@ -3113,6 +3242,7 @@ namespace Lightrealm
                     {(-1, -1), "northwest"}
                 };
 
+                //then, you can actually initiate the move here.
 
                 if (ChangeInX != 0 || ChangeInZ != 0)
                 {
@@ -3205,17 +3335,6 @@ namespace Lightrealm
 
 
 
-            if (Bleeding > 0)
-            {
-                BleedingCycle += 1;
-
-                if(Bleeding == 5)
-                {
-                    BleedingCycle = 0;
-                    Energy -= Bleeding;
-                    Bleeding -= 1;
-                }
-            }
 
             if (BlockLastCycle != Block)
             {
@@ -4054,8 +4173,6 @@ namespace Lightrealm
                                 break;
                             }
                         }
-
-                        //unimplemented fsr
                     }
                     else if (CurrentTarget is Material)
                     {

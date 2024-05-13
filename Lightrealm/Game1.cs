@@ -6,18 +6,13 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.Design;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Color = Microsoft.Xna.Framework.Color;
 using Point = Microsoft.Xna.Framework.Point;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
@@ -49,7 +44,7 @@ namespace Lightrealm
         public static List<string> ThreatTypes = new List<string>() { "random", "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
 
         public static int CurrentlySelectedWorldAge = 250; //100, 150, 200, 250 (recommended), 300, 350, 400, 450, 500, Until Stopped
-        public static int CurrentlySelectedGrievanceType = 0; 
+        public static int CurrentlySelectedGrievanceType = 0;
         public static int NumberOfCivilizations = 16; //maximum is 16, minimum is 6. Subtract 4 before calculation.
         public static double ProsperityMultiplier = 1; //determines wealth increase, aka general flourishing
         public static int CurrentlySelectedWorldWidth = 128; //max 128
@@ -223,7 +218,7 @@ namespace Lightrealm
 
         public bool SeenTips = false;
         // Assuming you have a list of objects
-        List<string> Tips = new List<string> { 
+        List<string> Tips = new List<string> {
             ""
             /*
             "You need to start moving in a direction before you can escape a block.", 
@@ -323,7 +318,7 @@ namespace Lightrealm
 
         int CurrentlyAssigningSkill = 7;
 
-        public static List<string> AnimalSizes = new List<string>() { "miniscule", "smaller", "small", "medium", "humanoid", "large", "huge"};
+        public static List<string> AnimalSizes = new List<string>() { "miniscule", "smaller", "small", "medium", "humanoid", "large", "huge" };
         public static List<string> AllSizes = new List<string>() { "ethereal", "miniscule", "smaller", "small", "medium", "humanoid", "large", "huge", "colossal", "archancient" };
 
         public bool HasPlayerBeenAttacked(Architect architect)
@@ -429,7 +424,7 @@ namespace Lightrealm
                     default:
                         proficiencyModifier = attacker.GetProficiency("bashing");
                         break;
-                } 
+                }
             }
             else
             {
@@ -466,8 +461,8 @@ namespace Lightrealm
                 }
             }
 
-            if(TargetArchitect != null && !(GamePlayerParty.Architects.Contains(TargetArchitect)))
-            {  
+            if (TargetArchitect != null && !(GamePlayerParty.Architects.Contains(TargetArchitect)))
+            {
                 TargetArchitect.ChangeOpinion(attacker, -75);
             }
             else
@@ -475,11 +470,24 @@ namespace Lightrealm
 
             }
 
-
+            bool IsPlayerPartyNearby(Architect attacker)
+            {
+                // Loop through each architect in the GamePlayerParty
+                foreach (Architect partyMember in GamePlayerParty.Architects)
+                {
+                    // Check if they are in the same room or block as the attacker
+                    if ((attacker.Room != null && attacker.Room == partyMember.Room) ||
+                        (attacker.Block != null && attacker.Block == partyMember.Block))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
 
             //pls make sure one more time that the weapon is correct
 
-            if(bodyPartInQuestion != null)
+            if (bodyPartInQuestion != null)
             {
                 //calculate blcokign paryign and such, make sure we set avoided to true if its blocked.
                 Object DefenderWeapon = null;
@@ -561,7 +569,7 @@ namespace Lightrealm
 
                 var successChances = TargetArchitect.CalculateSuccessChances(new Attack(verb, attacker, target, weapon), GameWorld.ReactionModifierInt, attacker, proficiencyModifier);
 
-                if(r.Next(0,100) < TargetArchitect.ExtraStealth)
+                if (r.Next(0, 100) < TargetArchitect.ExtraStealth)
                 {
                     Avoided = true;
                     AvoidFeedback = "The attack slices through a shadow of " + TargetArchitect.ReferredToNames[0] + "'s past self!";
@@ -869,7 +877,6 @@ namespace Lightrealm
                     }
                 }
 
-
                 //falling star
 
                 int StarCount = 0;
@@ -877,15 +884,17 @@ namespace Lightrealm
                 if (attacker.PathOfStarsLevel >= 2)
                 {
                     StarCount = 1;
-                    Observations.Add(new TextStorage($"A star falls from the heavens!", Color.Goldenrod));
+                    if (IsPlayerPartyNearby(attacker))
+                        Observations.Add(new TextStorage($"A star falls from the heavens!", Color.Goldenrod));
                 }
                 else if (attacker.PathOfStarsLevel >= 6)
                 {
                     StarCount = 3;
-                    Observations.Add(new TextStorage($"Stars fall from the heavens!", Color.Goldenrod));
+                    if (IsPlayerPartyNearby(attacker))
+                        Observations.Add(new TextStorage($"Stars fall from the heavens!", Color.Goldenrod));
                 }
 
-                for(int i = 0; i < StarCount; i++)
+                for (int i = 0; i < StarCount; i++)
                 {
                     List<Architect> FightingArchitects = new List<Architect>();
                     foreach (Architect a in attacker.Room.Architects)
@@ -920,27 +929,24 @@ namespace Lightrealm
 
             if (bodyPartInQuestion != null)
             {
-                if((attacker.Room != null && attacker.Room.Architects.Contains(LoadedArchitects[ArchitectIndex])) || (attacker.Block != null && attacker.Block.Architects.Contains(LoadedArchitects[ArchitectIndex])))
+                if ((attacker.Room != null && attacker.Room.Architects.Contains(LoadedArchitects[ArchitectIndex])) ||
+                   (attacker.Block != null && attacker.Block.Architects.Contains(LoadedArchitects[ArchitectIndex])))
                 {
-                    Observations.Add(new TextStorage($"{attacker.Name} {verb.Substring(0, verb.Length)}es {target} with {weapon.ReferredToNames[0]}!", Color.Blue));
-                    Announcements.Add(new TextStorage($"{attacker.Name} {verb.Substring(0, verb.Length)}es {target} with {weapon.ReferredToNames[0]}!", Color.Blue));
+                    if (IsPlayerPartyNearby(attacker))
+                    {
+                        Observations.Add(new TextStorage($"{attacker.Name} {verb.Substring(0, verb.Length)}es {target} with {weapon.ReferredToNames[0]}!", Color.Blue));
+                        Announcements.Add(new TextStorage($"{attacker.Name} {verb.Substring(0, verb.Length)}es {target} with {weapon.ReferredToNames[0]}!", Color.Blue));
+                    }
                 }
 
-                List<TextStorage> announcements;
-                if (Avoided)
+                List<TextStorage> announcements = new List<TextStorage>();
+                announcements.Add(new TextStorage(AvoidFeedback, Color.HotPink));
+                if (!Avoided)
                 {
-                    announcements = new List<TextStorage>() { new TextStorage(AvoidFeedback, Color.HotPink) };
-                }
-                else
-                {
-                    announcements = new List<TextStorage>();
-                    announcements.AddRange(bodyPartInQuestion.TakeDamageFromObject(weapon, proficiencyModifier * (1 + attacker.ExtraAttackPower/100)));
-                    announcements.Insert(0, new TextStorage(AvoidFeedback, Color.OrangeRed));
+                    CalculateAndApplyDamage(attacker, target, weapon, bodyPartInQuestion, announcements);
                 }
 
-
-
-                if ((attacker.Room != null && attacker.Room.Architects.Contains(LoadedArchitects[ArchitectIndex])) || (attacker.Block != null && attacker.Block.Architects.Contains(LoadedArchitects[ArchitectIndex])))
+                if (IsPlayerPartyNearby(attacker))
                 {
                     Announcements.AddRange(announcements);
                     Observations.AddRange(announcements);
@@ -949,85 +955,99 @@ namespace Lightrealm
             }
             else
             {
-                IEnumerable<Object> objects;
-
-                if (attacker.Structure != null)
-                {
-                    // Attacker is in a room
-                    objects = attacker.Room.Objects.Concat(attacker.Block.Objects);
-                }
-                else
-                {
-                    // Attacker is in a block
-                    objects = attacker.Block.Objects;
-                }
+                IEnumerable<Object> objects = attacker.Structure != null ?
+                                              attacker.Room.Objects.Concat(attacker.Block.Objects) :
+                                              attacker.Block.Objects;
 
                 foreach (Object o in objects.Where(o => o.ReferredToNames.Contains(target)))
                 {
-                    if ((attacker.Room != null && attacker.Room.Architects.Contains(LoadedArchitects[ArchitectIndex])) || (attacker.Block != null && attacker.Block.Architects.Contains(LoadedArchitects[ArchitectIndex])))
+                    if (IsPlayerPartyNearby(attacker))
                     {
                         Observations.Add(new TextStorage($"{attacker.Name} {verb.Substring(0, verb.Length)}es {o.Name} with {weapon.ReferredToNames[0]}!", Color.Blue));
                         Announcements.Add(new TextStorage($"{attacker.Name} {verb.Substring(0, verb.Length)}es {o.Name} with {weapon.ReferredToNames[0]}!", Color.Blue));
                     }
 
-                    List<TextStorage> announcements;
+                    List<TextStorage> announcements = new List<TextStorage>();
                     if (Avoided)
                     {
-                        announcements = new List<TextStorage>() { new TextStorage("The attack is " + AvoidFeedback + "!", Color.HotPink) };
+                        announcements.Add(new TextStorage("The attack is " + AvoidFeedback + "!", Color.HotPink));
                     }
                     else
                     {
-                        announcements = new List<TextStorage>();
-
-                        int DivineMight = 0;
-
-                        if(attacker.DivineMight > 0)
-                        {
-                            DivineMight = 1;
-                            attacker.DivineMight--;
-                            announcements.Add(new TextStorage("The divine have intevened! The attack is empowered in a brilliant energy!", Color.Aquamarine));
-
-                            if (attacker.DivineMight == 0)
-                            {
-                                announcements.Add(new TextStorage("The divine might has worn off!", Color.Aquamarine));
-                            }
-                        }
-
-                        if (TargetArchitect.DivineProtection > 0)
-                        {
-                            TargetArchitect.DivineProtection--;
-                            announcements.Add(new TextStorage("The divine have intevened! The attack is avoided by " + TargetArchitect.ReferredToNames[0] + "'s divine protection. It wears thin, though...", Color.Aquamarine));
-                            if (TargetArchitect.DivineProtection == 0)
-                            {
-                                announcements.Add(new TextStorage("The divine protection has worn off!", Color.Aquamarine));
-                            }
-                        }
-                        else
-                        {
-                            announcements.AddRange(
-                                o.TakeDamageFromObject(
-                                    weapon,
-                                    (int)Math.Round((
-                                        (1 + (0.1 * attacker.Strength)) *
-                                        (proficiencyModifier * (1 + attacker.ExtraAttackPower / 100))
-                                    ) + DivineMight)
-                                )
-                            );
-                        }
+                        CalculateAndApplyDamage(attacker, o.Name, weapon, o, announcements);
                     }
-                    if ((attacker.Room != null && attacker.Room.Architects.Contains(LoadedArchitects[ArchitectIndex])) || (attacker.Block != null && attacker.Block.Architects.Contains(LoadedArchitects[ArchitectIndex])))
+
+                    if (IsPlayerPartyNearby(attacker))
                     {
                         Announcements.AddRange(announcements);
                     }
 
                     actuallyFoundSomething = true;
-                    break;
+                    break; // Stop after the first successful attack
                 }
             }
 
+            void CalculateAndApplyDamage(Architect attacker, string targetName, Object weapon, Object targetObject, List<TextStorage> announcements)
+            {
+                int DivineMight = attacker.DivineMight > 0 ? 1 : 0;
+                if (attacker.DivineMight > 0)
+                {
+                    attacker.DivineMight--;
+                    announcements.Add(new TextStorage("The divine have intervened! The attack is empowered with brilliant energy!", Color.Aquamarine));
+                    if (attacker.DivineMight == 0)
+                    {
+                        announcements.Add(new TextStorage("The divine might has worn off!", Color.Aquamarine));
+                    }
+                }
+
+                if (TargetArchitect.DivineProtection > 0)
+                {
+                    TargetArchitect.DivineProtection--;
+                    announcements.Add(new TextStorage($"The divine have intervened! The attack is avoided by {targetName}'s divine protection. It wears thin, though...", Color.Aquamarine));
+                    if (TargetArchitect.DivineProtection == 0)
+                    {
+                        announcements.Add(new TextStorage("The divine protection has worn off!", Color.Aquamarine));
+                    }
+                }
+                else
+                {
+                    // Constants for initial damage calculation
+                    double baseDamageMultiplier = 1.0;
+                    double strengthMultiplier = 0.1 * attacker.Strength;
+                    double proficiencyEffect = proficiencyModifier * (1 + attacker.ExtraAttackPower / 100);
+                    int DamageModifier = (int)Math.Round((baseDamageMultiplier + strengthMultiplier) * proficiencyEffect + DivineMight);
+
+                    // Check if the attacker's PathOfBodyLevel is 4 or higher
+                    if (attacker.PathOfBodyLevel >= 4 && attacker.BodyParts.Contains(weapon))
+                    {
+                        DamageModifier += 2;  // Slightly increase the damage
+                    }
+
+                    // Check for Radiant Energy channeling at level 6 or higher
+                    if (attacker.PathOfBodyLevel >= 6)
+                    {
+                        int radiantIncrease = new Random().Next(10, 41);  // Random increase between 10 and 40
+                        ((Architect)(targetObject.Owner)).RadiantCycles += radiantIncrease;  // Increase RadiantCycles of the body part's owner
+
+                        // Announcement for Radiant Energy effect
+                        announcements.Add(new TextStorage($"{attacker.Name} channels a radiant energy into their strike!", Color.Aquamarine));
+                    }
+
+                    // Apply Damage to Target
+                    announcements.AddRange(
+                        targetObject.TakeDamageFromObject(
+                            weapon,
+                            DamageModifier
+                        )
+                    );
+                }
+
+            }
+
+
             if (!actuallyFoundSomething)
             {
-                if ((attacker.Room != null && attacker.Room.Architects.Contains(LoadedArchitects[ArchitectIndex])) || (attacker.Block != null && attacker.Block.Architects.Contains(LoadedArchitects[ArchitectIndex])))
+                if (IsPlayerPartyNearby(attacker))
                 {
                     Observations.Add(new TextStorage(attacker.Name + " flails around!", Color.Blue));
                     Announcements.Add(new TextStorage(attacker.Name + " flails around!", Color.Blue));
@@ -1078,14 +1098,14 @@ namespace Lightrealm
 
 
         public static List<string> Headwear = new List<string>() { "none", "none", "none", "none", "none", "none", "none", "small hat", "hood", "hood", "hood" };
-        public static List<string> Neckwear = new List<string>() { "none", "none", "none", "amulet", "amulet/amulet/amulet", "flair"};
-        public static List<string> Handwear = new List<string>() { "none", "none", "none", "left glove/right glove", "left wristwrap/right wristwrap"};
+        public static List<string> Neckwear = new List<string>() { "none", "none", "none", "amulet", "amulet/amulet/amulet", "flair" };
+        public static List<string> Handwear = new List<string>() { "none", "none", "none", "left glove/right glove", "left wristwrap/right wristwrap" };
         public static List<string> Bodywear = new List<string>() { "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "shortsleeve shirt/uppershirt", "longsleeve shirt/uppershirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt", "longsleeve shirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shortsleeve shirt/cape", "longsleeve shirt/cape", "straps/cape", };
-        public static List<string> Legwear = new List<string>() { "pants", "pants", "shorts", "kilt/pants", "kilt", "kilt/wraps"};
+        public static List<string> Legwear = new List<string>() { "pants", "pants", "shorts", "kilt/pants", "kilt", "kilt/wraps" };
         public static List<string> Footwear = new List<string>() { "none", "left boot/right boot", "left boot/right boot", "left boot/right boot", "left shoe/right shoe", "left shoe/right shoe" };
 
 
-        public List<(int,int,Color,int,int, int)> CivilizationParticles = new List<(int, int, Color, int, int, int)>();
+        public List<(int, int, Color, int, int, int)> CivilizationParticles = new List<(int, int, Color, int, int, int)>();
 
         public static List<string> Colors = new List<string>
 {
@@ -1133,11 +1153,11 @@ namespace Lightrealm
         {
             int Players = 0;
 
-            for(int x = 0; x < 7; x++)
+            for (int x = 0; x < 7; x++)
             {
                 for (int z = 0; z < 7; z++)
                 {
-                    foreach(Architect a in D.DistrictMap[x+z*7].Architects)
+                    foreach (Architect a in D.DistrictMap[x + z * 7].Architects)
                     {
                         Players++;
                     }
@@ -1194,12 +1214,12 @@ namespace Lightrealm
 
             //temporary bandaid on this interesting problem
 
-            foreach(Architect a in GamePlayerParty.Architects)
+            foreach (Architect a in GamePlayerParty.Architects)
             {
-                if(!LoadedArchitects.Contains(a))
+                if (!LoadedArchitects.Contains(a))
                 {
                     LoadedArchitects.Add(a);
-                }    
+                }
             }
         }
 
@@ -1370,7 +1390,7 @@ namespace Lightrealm
 
 
         public static List<string> LightingStyles = new List<string> { "none", "none", "none", "none", "none", "candles", "candles", "candles", "candles", "a lone torch in each room", "several braziers", "an oil lamp", "a candelabra", "an oil lantern", "a blazing fireplace" };
-        public static List<string> AllSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "tremor", "immobile illusion", "shadow veil", "mobile illusion", "reactive illusion", "truthfulness", "rise", "hold", "forcethrow", "shatter", "clone", "intercept", "expel", "extract", "emergent growth", "animate", "immortalize", "raise", "resurrect" };
+        public static List<string> AllSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "tremor", /*"immobile illusion", "shadow veil", "mobile illusion", "reactive illusion", "truthfulness",*/ "rise", "hold", "forcethrow", "shatter", "clone", "intercept", "expel", "extract", "emergent growth", "animate", "immortalize", "raise", "resurrect" };
         public static List<string> AllLegendarySpells = new List<string>() { "ethereal rupture", "emergence", "eternal bind", "expunge", "echo" };
 
         public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "bracelet", "left gauntlet", "staff", "amulet", "hourglass", "locket", "orb" };
@@ -1385,7 +1405,7 @@ namespace Lightrealm
         public static List<string> DeathCauses = new List<string>() { " fell to their death ", " drowned ", " died of cancer ", " burned ", " misoperated dangerous equipment ", " died of sickness ", " starved to death ", " dehydrated ", " choked to death ", " was killed by a wild animal " };
 
 
-        public static List<string> Industries = new List<string>() { "textiles", "spices", "metal", "jewelry", "tools", "military", "tea", "coffee", "wood", "ceramics", "glassmaking", "dye", "waspkeeping", "fuel", "masonry"};
+        public static List<string> Industries = new List<string>() { "textiles", "spices", "metal", "jewelry", "tools", "military", "tea", "coffee", "wood", "ceramics", "glassmaking", "dye", "waspkeeping", "fuel", "masonry" };
 
         public static List<string> StructureTypes = new List<string>
             {
@@ -1711,7 +1731,7 @@ namespace Lightrealm
                 {
                     MakeObservation("There is not a door to exit through.", Color.Yellow);
                 }
-                else 
+                else
                 {
                     Executor.Room.Architects.Remove(Executor);
                     Executor.Structure = null;
@@ -1719,10 +1739,10 @@ namespace Lightrealm
                     Executor.Block.Architects.Add(Executor);
                 }
             }
-            else if (CommandID == "enter_structure")
+            else if (CommandID == "enter")
             {
                 Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-                if (LoadedArchitects[ArchitectIndex].Structure != null && Subjects[0] is Door)
+                if (LoadedArchitects[ArchitectIndex].Structure != null && Subjects[0] is Door && (Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
                 {
                     Executor.Room.Architects.Remove(Executor);
                     Executor.Room = ((Door)Subjects[0]).DestinationRoom;
@@ -1878,11 +1898,13 @@ namespace Lightrealm
             }
             else if (CommandID == "attack_with_weapon")
             {
-                Object Weapon = LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].MainHandObject() : LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].OffHandObject() : null;
+                Object Weapon = LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].MainHandObject() :
+                               LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].OffHandObject() :
+                               Executor.BodyParts.FirstOrDefault(bp => bp == Subjects[1] && bp.IsWeapon);
 
-                if (Weapon != null && (Weapon.IsWeapon && Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0])))
+                if (Weapon != null && Weapon.IsWeapon && Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0]))
                 {
-                    CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", (Object)(Subjects[1]));
+                    CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", Weapon);
                 }
                 else if (Weapon == null || !Weapon.IsWeapon)
                 {
@@ -1893,6 +1915,7 @@ namespace Lightrealm
                     Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
                 }
             }
+
             else if (CommandID == "inventory_check")
             {
                 InInventory = true;
@@ -1918,19 +1941,24 @@ namespace Lightrealm
                 else
                 {
                     // If both hands are empty or don't have weapons, find a weapon on the body
-                    Weapon = LoadedArchitects[ArchitectIndex].FindBodyPart("");
+                    Weapon = LoadedArchitects[ArchitectIndex].BodyParts[r.Next(LoadedArchitects[ArchitectIndex].BodyParts.Count)];
                 }
-
 
                 if (Subjects[0] is Architect)
                 {
-                    if (((Architect)(Subjects[0])).BodyParts.Any(bodyPart => bodyPart.Type == Subjects[1].Metadata))
+                    Object targetBodyPart = ((Architect)(Subjects[0])).FindBodyPart(Subjects[1].Metadata);
+
+                    if (targetBodyPart != null && Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0]))
                     {
-                        CalculateAttack(CommandID.Substring(0, CommandID.Length - 2), Executor, (((Architect)(Subjects[0])).FindBodyPart(Subjects[1].Metadata)).Name, "decideforme", Weapon);
+                        CalculateAttack(CommandID.Substring(0, CommandID.Length - 2), Executor, targetBodyPart.Name, "decideforme", Weapon);
+                    }
+                    else if (targetBodyPart == null)
+                    {
+                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow);
                     }
                     else
                     {
-                        MakeObservation("The targetted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow);
+                        Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
                     }
                 }
                 else
@@ -1938,6 +1966,7 @@ namespace Lightrealm
                     MakeObservation("You can't target body parts of an object.", Color.Yellow);
                 }
             }
+
             else if (CommandID == "become_invisible")
             {
                 if (Executor.Invisible)
@@ -1983,13 +2012,17 @@ namespace Lightrealm
                     {
                         if (Subjects[2] is Object)
                         {
-                            if (LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[2] || LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[2])
+                            Object item = LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[2] ? LoadedArchitects[ArchitectIndex].MainHandObject() :
+                                          LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[2] ? LoadedArchitects[ArchitectIndex].OffHandObject() :
+                                          Executor.BodyParts.FirstOrDefault(bp => bp == Subjects[2]);
+
+                            if (item != null)
                             {
-                                CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, ((Architect)Subjects[0]).FindBodyPart((Subjects[1].Metadata)).Name, "decideforme", (Object)(Subjects[2]));
+                                CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, ((Architect)Subjects[0]).FindBodyPart(Subjects[1].Metadata).Name, "decideforme", (Object)(Subjects[2]));
                             }
                             else
                             {
-                                MakeObservation("You need to have that object in your hands.", Color.Yellow);
+                                MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow);
                             }
                         }
                         else
@@ -1999,7 +2032,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("The targetted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow);
+                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow);
                     }
                 }
                 else
@@ -2007,6 +2040,7 @@ namespace Lightrealm
                     MakeObservation("You can't target body parts of an object.", Color.Yellow);
                 }
             }
+
             else if (CommandID == "engage_target")
             {
                 if (Subjects[0] is Architect targetArchitect)
@@ -2267,6 +2301,25 @@ namespace Lightrealm
                     MakeObservation("You don't have that.", Color.Yellow);
                 }
 
+            }
+            else if (CommandID == "strip_clothing")
+            {
+                List<Object> Clothings = new List<Object>();
+                foreach(Object o in Executor.Clothing)
+                {
+                    if(o.Type != "undergarment" && o.Type != "uppergarment")
+                    {
+                        Clothings.Add(o);
+                    }
+                }
+
+                foreach(Object o in Clothings)
+                {
+                    Executor.Clothing.Remove(o);
+                    Executor.Inventory.Add(o);
+                }
+
+                MakeObservation("You remove all your clothing.", Color.Green);
             }
             else if (CommandID == "place_item_in")
             {
@@ -3021,7 +3074,7 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (CommandID == "cast_spell")
+            else if (CommandID == "cast_spell_at")
             {
                 if (Executor.SpellsKnown.Contains(Subjects[0].Metadata) ||
     (Executor.LeftHandObject != null && Executor.LeftHandObject.SpellContained == Subjects[0].Metadata) ||
@@ -3029,7 +3082,7 @@ namespace Lightrealm
 
                 {
                     string Spell = Subjects[0].Metadata;
-    
+
                     Subjects.RemoveAt(0);
 
                     List<Entity> Targets = new List<Entity>();
@@ -3038,7 +3091,7 @@ namespace Lightrealm
                     {
                         //add spells that can be casted at litterally anything to the list below
 
-                        if ((e is Object || e is Architect) || new List<string> {"expunge"}.Contains(Spell))
+                        if ((e is Object || e is Architect) || new List<string> { "expunge" }.Contains(Spell))
                         {
                             Targets.Add(e);
                         }
@@ -3063,7 +3116,7 @@ namespace Lightrealm
                     MakeObservation("You don't know a spell like that.", Color.Yellow);
                 }
             }
-            else if (CommandID == "cast_spell_at")
+            else if (CommandID == "cast_spell")
             {
                 MakeObservation("You fail to concentrate. You will need a point of interest to cast the spell at, even if unnecessary.", Color.Yellow);
             }
@@ -3230,7 +3283,7 @@ namespace Lightrealm
                     Executor.CultureBank.Add(newComposition); // Assuming Executor has a Memory list to store compositions
 
                     // Provide detailed feedback to the user
-                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + ". " +newComposition.getCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue);
+                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + ". " + newComposition.getCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue);
                 }
             }
             else if (CommandID == "write_about_topic")
@@ -3345,7 +3398,7 @@ namespace Lightrealm
                         Object o = new Object(null, "falling star", new List<Material>() { GameWorld.Energy }, Executor);
                         o.AirborneTarget = Subjects[0];
 
-                        if(targetArchitect.Room != null)
+                        if (targetArchitect.Room != null)
                         {
                             targetArchitect.Room.Objects.Add(o);
                         }
@@ -3909,6 +3962,539 @@ namespace Lightrealm
                 }
             }
 
+
+
+            else if (CommandID == "increase_weight")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            MakeObservation(Subjects[0] + " increases in weight!", Color.Green);
+                            ((Object)Subjects[0]).Weight += 100; // Adjust the weight increase as necessary
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+            else if (CommandID == "increase_temperature")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            MakeObservation(Subjects[0] + " heats up!", Color.Green);
+                            ((Object)Subjects[0]).HeatInCelsius += 50; // Adjust the temperature increase as needed
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+            // Increase aerodynamics of an object
+            // Increase aerodynamics of an object
+            else if (CommandID == "increase_aerodynamics")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            MakeObservation(Subjects[0] + " becomes more aerodynamic!", Color.Green);
+                            ((Object)Subjects[0]).ProjectileAerodynamic = true;
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+            // Increase integrity of an object
+            // Increase integrity of an object
+            else if (CommandID == "increase_integrity")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            // Increase integrity but ensure it does not exceed 100
+                            ((Object)Subjects[0]).Integrity = Math.Min(100, ((Object)Subjects[0]).Integrity + 20); // Assuming each use increases integrity by 10
+                            ((Object)Subjects[0]).RealityAugumented = true;
+
+                            MakeObservation(Subjects[0] + " becomes more structurally sound!", Color.Green);
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augumented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+            // Decrease weight of an object
+            else if (CommandID == "decrease_weight")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            ((Object)Subjects[0]).Weight /= 2; // Halve the weight
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                            MakeObservation(Subjects[0] + " decreases in weight!", Color.Green);
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+            // Decrease temperature of an object
+            else if (CommandID == "decrease_temperature")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            ((Object)Subjects[0]).HeatInCelsius -= 50; // Decrease the temperature by a balanced amount
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                            MakeObservation(Subjects[0] + " cools down!", Color.Green);
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+            // Decrease aerodynamics of an object
+            else if (CommandID == "decrease_aerodynamics")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            ((Object)Subjects[0]).ProjectileAerodynamic = false; // Reverse the aerodynamic property
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                            MakeObservation(Subjects[0] + " becomes less aerodynamic!", Color.Green);
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+            // Decrease integrity of an object
+            else if (CommandID == "decrease_integrity")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
+
+                if (Executor.PathOfRealityLevel >= 2)
+                {
+                    if (Subjects[0] is Object)
+                    {
+                        if (!((Object)Subjects[0]).RealityAugumented)
+                        {
+                            ((Object)Subjects[0]).Integrity = Math.Max(0, ((Object)Subjects[0]).Integrity - 20); // Decrease integrity, ensuring it doesn't go below 0
+                            ((Object)Subjects[0]).RealityAugumented = true;
+                            MakeObservation(Subjects[0] + " becomes less structurally sound!", Color.Green);
+                        }
+                        else
+                        {
+                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+            // Liquify an object, building, or structure
+            else if (CommandID == "liquify")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
+
+                if (Executor.PathOfRealityLevel >= 4)
+                {
+                    if (Subjects[0] is Object || Subjects[0] is Structure)
+                    {
+                        MakeObservation(Subjects[0] + " liquifies, and slowly seeps into the ground...", Color.Green);
+
+                        if (Subjects[0] is Structure)
+                        {
+                            foreach (Room r in ((Structure)Subjects[0]).Rooms)
+                            {
+                                foreach (Object o in r.Objects)
+                                {
+                                    o.Block = ((Structure)Subjects[0]).Block;
+                                    o.Room = null;
+                                    o.Structure = null;
+                                    ((Structure)Subjects[0]).Block.Objects.Add(o);
+                                }
+                                foreach (Architect a in r.Architects)
+                                {
+                                    a.Block = ((Structure)Subjects[0]).Block;
+                                    a.Room = null;
+                                    a.Structure = null;
+                                    ((Structure)Subjects[0]).Block.Architects.Add(a);
+                                }
+                            }
+                            ((Structure)Subjects[0]).Block.Structures.Remove((Structure)Subjects[0]);
+                        }
+                        else
+                        {
+                            bool Success = false;
+                            foreach (Architect a in LoadedArchitects)
+                            {
+                                if (a.Inventory.Contains((Object)Subjects[0]))
+                                {
+                                    Success = true;
+
+                                    a.Inventory.Remove((Object)Subjects[0]);
+                                }
+                                else if (a.Clothing.Contains((Object)Subjects[0]))
+                                {
+                                    Success = true;
+                                    a.Clothing.Remove((Object)Subjects[0]);
+                                }
+                                else if (a.LeftHandObject == (Object)Subjects[0])
+                                {
+                                    Success = true;
+                                    a.LeftHandObject = null;
+                                }
+                                else if (a.RightHandObject == (Object)Subjects[0])
+                                {
+                                    Success = true;
+                                    a.LeftHandObject = null;
+                                }
+                            }
+
+
+                            if (!Success)
+                            {
+                                List<Object> NecessaryList = ((Object)Subjects[0]).Room != null ? ((Object)Subjects[0]).Room.Objects : ((Object)Subjects[0]).Block.Objects;
+
+                                NecessaryList.Remove((Object)Subjects[0]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " is not a suitable target for liquification.", Color.Red);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+            // Split an object into two copies of itself
+            else if (CommandID == "split")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 30));
+
+                if (Executor.PathOfRealityLevel >= 6)
+                {
+                    if (Subjects[0] is Object currentObject)
+                    {
+                        MakeObservation("You manifest spatial particles...", Color.Purple);
+
+                        // Create clone of the current object
+                        Object Clone = new Object
+                        {
+                            Type = currentObject.Type,
+                            Materials = new List<Material>(currentObject.Materials),
+                            Description = currentObject.Description,
+                            IsContainer = currentObject.IsContainer,
+                            ContainedObjects = new List<Object>(currentObject.ContainedObjects),
+                            IfTrueUseInIfFalseUseOn = currentObject.IfTrueUseInIfFalseUseOn,
+                            YLevelInFeet = currentObject.YLevelInFeet,
+                            YVelocity = currentObject.YVelocity,
+                            Weight = currentObject.Weight,
+                            WeaponMaximumRange = currentObject.WeaponMaximumRange,
+                            Structure = currentObject.Structure,
+                            Block = currentObject.Block,
+                            Room = currentObject.Room,
+                            HeatInCelsius = currentObject.HeatInCelsius,
+                            IsConsumable = currentObject.IsConsumable,
+                            VariableToChange = currentObject.VariableToChange,
+                            VariableChange = currentObject.VariableChange,
+                            IsWearable = currentObject.IsWearable,
+                            Rarity = currentObject.Rarity,
+                            IsBodyPart = currentObject.IsBodyPart,
+                            MajorArteryIsSevered = currentObject.MajorArteryIsSevered,
+                            AirborneTarget = currentObject.AirborneTarget,
+                            AirbornePower = currentObject.AirbornePower,
+                            AirborneCyclesToHitTarget = currentObject.AirborneCyclesToHitTarget,
+                            Creator = currentObject.Creator,
+                            WordCount = currentObject.WordCount,
+                            Subject = currentObject.Subject,
+                            FireCycles = currentObject.FireCycles,
+                            WetCycles = currentObject.WetCycles,
+                            DestabilizedCycles = currentObject.DestabilizedCycles,
+                            FractalCycles = currentObject.FractalCycles,
+                            RematerializeLocation = currentObject.RematerializeLocation,
+                            IsCoveredInPlants = currentObject.IsCoveredInPlants,
+                            CoverageValues = new List<(string, int)>(currentObject.CoverageValues),
+                            Coverage = currentObject.Coverage,
+                            CoverageName = currentObject.CoverageName,
+                            IsWeapon = currentObject.IsWeapon,
+                            DamageType = currentObject.DamageType,
+                            ProjectileAerodynamic = currentObject.ProjectileAerodynamic,
+                            Strength = currentObject.Strength,
+                            Dissipating = currentObject.Dissipating,
+                            Integrity = currentObject.Integrity,
+                            IsWritable = currentObject.IsWritable,
+                            SpellContained = currentObject.SpellContained,
+                            IsGeneralGood = currentObject.IsGeneralGood,
+                            // Assume deep cloning specifics here as necessary
+                        };
+
+                        // Place the clone in the same environment as the original
+                        if (currentObject.Room != null)
+                        {
+                            currentObject.Room.Objects.Add(Clone);
+                        }
+                        else if (currentObject.Block != null)
+                        {
+                            currentObject.Block.Objects.Add(Clone);
+                        }
+                        else
+                        {
+                            Executor.Block.Objects.Add(Clone);
+                        }
+
+                        MakeObservation(Subjects[0] + " splits into two!", Color.Green);
+                    }
+                    else
+                    {
+                        MakeObservation(Subjects[0] + " is not an object and cannot be split.", Color.Red);
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+            else if (CommandID == "blip")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 40));
+
+                if (Executor.PathOfRealityLevel >= 8)
+                {
+                    if (Subjects[0] == Executor.RealityBlipFocus)
+                    {
+                        Executor.RealityFocusTries += 1; // Increment focus count
+                    }
+                    else
+                    {
+                        Executor.RealityBlipFocus = Subjects[0];
+                        Executor.RealityFocusTries = 1; // Reset focus count
+                    }
+
+                    if (Executor.RealityFocusTries >= 5)
+                    {
+                        // Perform the expunge-like deletion
+                        if (Subjects[0] is Architect a)
+                        {
+                            Game1.GameWorld.AllArchitects.Remove(a);
+                            foreach (Architect A in Game1.GameWorld.AllArchitects)
+                            {
+                                A.KnownArchitectsAndOpinions.RemoveAll(opinion => opinion.Item1 == a);
+                            }
+                            if (Game1.GameWorld.Colossals.Contains(a))
+                                Game1.GameWorld.Colossals.Remove(a);
+                            if (Game1.LoadedArchitects.Contains(a))
+                                Game1.LoadedArchitects.Remove(a);
+                            foreach (Location l in Game1.GameWorld.AllLocations)
+                            {
+                                if (l.Government == a)
+                                    l.Government = null;
+                            }
+                            if (a.Room != null)
+                            {
+                                a.Room.Architects.Remove(a);
+                                a.DropInventory();
+                            }
+                            else if (a.Block != null)
+                            {
+                                a.Block.Architects.Remove(a);
+                                a.DropInventory();
+                            }
+                            a.IsAlive = false;
+                            a.Location = null;
+                            a.District = null;
+                        }
+                        else if (Subjects[0] is Object obj)
+                        {
+                            Game1.GameWorld.DeletedObjects.Add(obj);
+                            foreach (Architect arch in Game1.GameWorld.AllArchitects)
+                            {
+                                if (arch.Inventory.Contains(obj))
+                                    arch.Inventory.Remove(obj);
+                                if (arch.LeftHandObject == obj)
+                                    arch.LeftHandObject = null;
+                                if (arch.RightHandObject == obj)
+                                    arch.RightHandObject = null;
+                            }
+                        }
+                        else if (Subjects[0] is Structure s)
+                        {
+                            foreach (Room r in s.Rooms)
+                            {
+                                foreach (Architect A in r.Architects)
+                                {
+                                    s.Block.Architects.Add(A);
+                                    A.Room = null;
+                                    A.Structure = null;
+                                }
+                                foreach (Object o in r.Objects)
+                                {
+                                    s.Block.Objects.Add(o);
+                                    o.Room = null;
+                                    o.Structure = null;
+                                }
+                            }
+                            foreach (Object o in s.HistoricalObjects)
+                            {
+                                s.Block.Objects.Add(o);
+                                o.Room = null;
+                                o.Structure = null;
+                            }
+                        }
+                        Executor.Focus = 0; // Reset after successful expunge
+                        Executor.RealityBlipFocus = null;
+                        Announcements.Add(new TextStorage($"{Subjects[0].Name} is blipped from reality!", Color.Purple));
+                    }
+                    else
+                    {
+                        Announcements.Add(new TextStorage($"You focus your reality-bending energy on {Subjects[0].Name}.", Color.Purple));
+                    }
+                }
+                else
+                {
+                    MakeObservation("You don't know how to do that.", Color.Red);
+                }
+            }
+
+
+
+
+
+
             //THIS IS THE REALM OF MESSAGING BWAHAHAHAHAHAHAHA
 
 
@@ -4345,6 +4931,7 @@ namespace Lightrealm
             //if we got to this point that means we exited the if statement by running a command successfully, therefore we can return "true"
             return (true);
         }
+
         public static string GameState = "mainscreen";
         public static string GameMode = "unknown";
 
@@ -4445,7 +5032,7 @@ namespace Lightrealm
         {
             string TaskDescription = "";
 
-            if(!a.IsAlive)
+            if (!a.IsAlive)
             {
                 TaskDescription = "dead";
             }
@@ -4502,8 +5089,8 @@ namespace Lightrealm
                 TaskDescription = "";
             }
 
-            
-            if(TaskDescription != "")
+
+            if (TaskDescription != "")
             {
                 if (a.ReferredToNames.Count > 1)
                 {
@@ -4519,7 +5106,7 @@ namespace Lightrealm
                 return ("");
             }
         }
-        
+
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
@@ -4527,7 +5114,7 @@ namespace Lightrealm
 
             //create save directory if not already
 
-            if(Directory.Exists(DocumentsFolderPath + "/LightrealmSaves"))
+            if (Directory.Exists(DocumentsFolderPath + "/LightrealmSaves"))
             {
                 Directory.CreateDirectory(DocumentsFolderPath + "/LightrealmSaves");
             }
@@ -4535,7 +5122,7 @@ namespace Lightrealm
             //these commands may be suggested to the player while typing
 
             RecognizedCommands.Add("leave_structure", new List<string> { "leave ~", "exit ~", "leave the structure", "exit the structure", "leave", "leave the building", "exit the building", "exit" });
-            RecognizedCommands.Add("enter_structure", new List<string> { "enter ~", "go inside ~", "go in ~", "go through ~" });
+            RecognizedCommands.Add("enter", new List<string> { "enter ~", "go inside ~", "go in ~", "go through ~" });
             RecognizedCommands.Add("move_direction", new List<string> { "go ~", "travel ~", "move to the ~", "move ~", "go to the ~", "head ~", "head to the ~", "make my way ~", "start heading ~" });
             RecognizedCommands.Add("basic_attack", new List<string> { "slash ~", "stab ~", "thrust ~", "smite ~", "pierce ~", "lash ~", "scourge ~", "whip ~", "strike ~", "bash ~", "crush ~", "whack ~", "smash ~", "hack ~", "sunder ~", "pierce ~", "impale ~", "cut ~", "slice ~", "bludgeon ~", "club ~", "smother ~", "slash at ~", "stab at ~", "thrust at ~", "smite at ~", "pierce at ~", "lash at ~", "scourge at ~", "whip at ~", "strike at ~", "bash at ~", "crush at ~", "whack at ~", "smash at ~", "hack at ~", "sunder at ~", "pierce at ~", "impale at ~", "cut at ~", "slice at ~", "bludgeon at ~", "club at ~", "smother at ~" });
             RecognizedCommands.Add("attack_with_weapon", new List<string> { "slash ~ with ~", "stab ~ with ~", "thrust ~ with ~", "smite ~ with ~", "pierce ~ with ~", "lash ~ with ~", "scourge ~ with ~", "whip ~ with ~", "strike ~ with ~", "bash ~ with ~", "crush ~ with ~", "whack ~ with ~", "smash ~ with ~", "hack ~ with ~", "sunder ~ with ~", "pierce ~ with ~", "impale ~ with ~", "cut ~ with ~", "slice ~ with ~", "bludgeon ~ with ~", "club ~ with ~", "smother ~ with ~" });
@@ -4592,6 +5179,7 @@ namespace Lightrealm
             RecognizedCommands.Add("cast_spell_at", new List<string> { "cast ~ at ~" });
             RecognizedCommands.Add("cast_spell", new List<string> { "cast ~" });
             RecognizedCommands.Add("recall_information", new List<string> { "remember ~" });
+            RecognizedCommands.Add("strip_clothing", new List<string> { "strip" });
             RecognizedCommands.Add("read_object", new List<string> { "read ~" });
             RecognizedCommands.Add("perform_composition", new List<string> {
     "recite ~", "sing ~", "perform ~"
@@ -4689,6 +5277,18 @@ namespace Lightrealm
             RecognizedCommands.Add("command_escape", new List<string> {
     "tell ~ to flee", "urge ~ to run away", "command ~ to escape"
 });
+            RecognizedCommands.Add("increase_weight", new List<string> { "increase weight of ~" });
+            RecognizedCommands.Add("increase_temperature", new List<string> { "increase temperature of ~" });
+            RecognizedCommands.Add("increase_aerodynamics", new List<string> { "increase aerodynamics of ~" });
+            RecognizedCommands.Add("increase_integrity", new List<string> { "increase integrity of ~" });
+            RecognizedCommands.Add("decrease_weight", new List<string> { "decrease weight of ~" });
+            RecognizedCommands.Add("decrease_temperature", new List<string> { "decrease temperature of ~" });
+            RecognizedCommands.Add("decrease_aerodynamics", new List<string> { "decrease aerodynamics of ~" });
+            RecognizedCommands.Add("decrease_integrity", new List<string> { "decrease integrity of ~" });
+            RecognizedCommands.Add("liquify", new List<string> { "liquify ~" });
+            RecognizedCommands.Add("split", new List<string> { "split ~" });
+            RecognizedCommands.Add("blip", new List<string> { "blip ~" });
+
 
             SuggestibleCommands.AddRange(RecognizedCommands.SelectMany(pair => pair.Value));
 
@@ -4770,9 +5370,35 @@ namespace Lightrealm
             ConvertProfessionToBuilding.Add("scholar", "library");
             ConvertProfessionToBuilding.Add("sorcerer", "none");
             ConvertProfessionToBuilding.Add("warlock", "none");
-            ConvertProfessionToBuilding.Add("alpha", "house");
+            ConvertProfessionToBuilding.Add("alpha", "prism");
             ConvertProfessionToBuilding.Add("child", "house");
             ConvertProfessionToBuilding.Add("prestiged", "house");
+            ConvertProfessionToBuilding.Add("archbard", "tavern");
+            ConvertProfessionToBuilding.Add("archluminary", "library");
+            ConvertProfessionToBuilding.Add("archartificer", "forge");
+            ConvertProfessionToBuilding.Add("archduelist", "watchtower");
+            ConvertProfessionToBuilding.Add("elemental", "none");
+            ConvertProfessionToBuilding.Add("hypernexus", "none");
+            ConvertProfessionToBuilding.Add("icosidodecahedron", "none");
+            ConvertProfessionToBuilding.Add("shadeheart", "tavern");
+            ConvertProfessionToBuilding.Add("spatiomancer", "library");
+            ConvertProfessionToBuilding.Add("perceptomancer", "library");
+            ConvertProfessionToBuilding.Add("conjumancer", "library");
+            ConvertProfessionToBuilding.Add("fractalmancer", "library");
+            ConvertProfessionToBuilding.Add("embezzler", "tavern");
+            ConvertProfessionToBuilding.Add("beast", "none");
+            ConvertProfessionToBuilding.Add("knight", "watchtower");
+            ConvertProfessionToBuilding.Add("thief", "tavern");
+            ConvertProfessionToBuilding.Add("archmage", "library");
+            ConvertProfessionToBuilding.Add("beastmaster", "none");
+            ConvertProfessionToBuilding.Add("largebeast", "none");
+            ConvertProfessionToBuilding.Add("spy", "tavern");
+            ConvertProfessionToBuilding.Add("diplomancer", "library");
+            ConvertProfessionToBuilding.Add("magician", "shrine");
+            ConvertProfessionToBuilding.Add("scout", "watchtower");
+            ConvertProfessionToBuilding.Add("animal", "none");
+            ConvertProfessionToBuilding.Add("hunter", "watchtower");
+            ConvertProfessionToBuilding.Add("end", "sanctum");
 
             ConvertProfessionToBuilding.Add("soldier", "watchtower");
             ConvertProfessionToBuilding.Add("peasant", "none");
@@ -5088,7 +5714,7 @@ namespace Lightrealm
             CharacterAtlas["uppershirt female"] = UpperShirtFemaleT = Content.Load<Texture2D>("character art/uppershirt female");
             CharacterAtlas["uppershirt male"] = UpperShirtMaleT = Content.Load<Texture2D>("character art/uppershirt male");
             CharacterAtlas["wraps"] = WrapsT = Content.Load<Texture2D>("character art/wraps");
-            
+
             MirrorT = Content.Load<Texture2D>("character art/mirror");
 
 
@@ -5139,13 +5765,13 @@ namespace Lightrealm
         {
             GameInput.Update();
 
-            if( GameInput.WasKeyPressed(FrameCounter.Key) )
+            if (GameInput.WasKeyPressed(FrameCounter.Key))
             {
                 FrameCounter.RenderFps = !FrameCounter.RenderFps;
             }
             FrameCounter.Update(gameTime);
 
-            if(!AllEnteredGameStates.Contains(GameState))
+            if (!AllEnteredGameStates.Contains(GameState))
             {
                 AllEnteredGameStates.Add(GameState);
             }
@@ -5170,7 +5796,7 @@ namespace Lightrealm
 
             //BEFORE WE DO ANYTHING, FIX THE LOADED ARCHITECT THINGY
 
-            if(ArchitectIndex > LoadedArchitects.Count)
+            if (ArchitectIndex > LoadedArchitects.Count)
             {
                 ArchitectIndex = 0;
             }
@@ -5284,8 +5910,8 @@ namespace Lightrealm
                 {
                     if (!o.Materials.Contains(GameWorld.Spectre))
                     {
-                        target.CombatCycles = 25;
-                        ((Architect)(o.Thrower)).CombatCycles = 25;
+                        target.CombatCycles = 100;
+                        ((Architect)(o.Thrower)).CombatCycles = 100;
 
                         Object ArchitectBodyPart = target.BodyParts[r.Next(target.BodyParts.Count)];
 
@@ -5294,7 +5920,7 @@ namespace Lightrealm
 
                         Observations.Add(new TextStorage("The " + o.Name + " has collided into " + ArchitectBodyPart.Name + "!", Color.Orange));
 
-                        Announcements.AddRange(ArchitectBodyPart.TakeDamageFromObject(o, 0)); // Assuming a method exists to handle this
+                        Announcements.AddRange(ArchitectBodyPart.TakeDamageFromObject(o, 2 * (o.Thrower.Dexterity + o.Thrower.GetProficiency("throwing")))); // Assuming a method exists to handle this
 
                         if (o.Type == "falling star" && ((Architect)(o.Creator)).PathOfStarsLevel > 4)
                         {
@@ -5524,19 +6150,19 @@ namespace Lightrealm
                 {
                     MediaPlayer.Play(LightrealmMainTheme);
                 }
-                
-                if(MediaPlayer.Volume < 1 && Mute == false)
+
+                if (MediaPlayer.Volume < 1 && Mute == false)
                 {
                     MediaPlayer.Volume = MediaPlayer.Volume + 0.004F;
                 }
-                else if(MediaPlayer.Volume > 0 && Mute == true)
+                else if (MediaPlayer.Volume > 0 && Mute == true)
                 {
                     MediaPlayer.Volume = MediaPlayer.Volume -= 0.02F;
                 }
 
-                if(KeysNewlyPressed.Contains(Keys.M))
+                if (KeysNewlyPressed.Contains(Keys.M))
                 {
-                    if(Mute)
+                    if (Mute)
                     {
                         Mute = false;
                     }
@@ -5548,7 +6174,7 @@ namespace Lightrealm
             }
             else if (GameState == "partyturn" || GameState == "travelmenu")
             {
-                if(MediaPlayer.Volume > 0)
+                if (MediaPlayer.Volume > 0)
                 {
                     MediaPlayer.Volume = MediaPlayer.Volume - 0.004F;
                 }
@@ -5595,7 +6221,7 @@ namespace Lightrealm
                     {
                         //switch to generatingworld
 
-                        if(KeysNewlyPressed.Contains(Keys.Enter))
+                        if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
                             GameState = "generatingworld";
                         }
@@ -5817,7 +6443,7 @@ namespace Lightrealm
                         }
 
 
-                        if(KeysNewlyPressed.Contains(Keys.Escape))
+                        if (KeysNewlyPressed.Contains(Keys.Escape))
                         {
                             GameState = "mainscreen";
                         }
@@ -5903,7 +6529,7 @@ namespace Lightrealm
 
                         if (GameWorld.Cycle < maxAgeCycles)
                         {
-                            if(GameWorld.Cycle < 24192000000)
+                            if (GameWorld.Cycle < 24192000000)
                             {
                                 for (int i = 0; i < 12; i++)
                                 {
@@ -6391,108 +7017,199 @@ namespace Lightrealm
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfShadowLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfShadowLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Agility++; // Level up Agility
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.L))
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfLifeLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfLifeLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Charisma++; // Level up Charisma
+                                                    }
+
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.D))
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfDeathLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfDeathLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Focus++; // Level up Focus
+                                                    }
+
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.T))
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfTimeLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfTimeLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Focus++; // Level up Focus
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.A)) // Assuming 'A' for Path of Stars
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfStarsLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfStarsLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Creativity++; // Level up Creativity
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.H)) // Assuming 'H' for Path of Heat
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfHeatLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfHeatLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Endurance++; // Level up Endurance
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.I)) // Assuming 'I' for Path of Illusions
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfIllusionsLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfIllusionsLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Charisma++; // Level up Charisma
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.E)) // Assuming 'E' for Path of Ethereality
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfEtherealityLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfEtherealityLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Dexterity++; // Level up Dexterity
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.V)) // Assuming 'V' for Path of Void
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfVoidLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfVoidLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Creativity++; // Level up Creativity
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.S)) // Assuming 'S' for Path of Storms
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfStormsLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfStormsLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Strength++; // Level up Strength
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.F))
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfForgeLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfForgeLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Dexterity++; // Level up Dexterity
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.K)) // Assuming 'K' for Path of Lore
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfLoreLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfLoreLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Creativity++; // Level up Creativity
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.M)) // Assuming 'M' for Path of Mind
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfMindLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfMindLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Focus++; // Level up Focus
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.U)) // Assuming 'U' for Path of Soul
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfSoulLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfSoulLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Endurance++; // Level up Endurance
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.B)) // Assuming 'B' for Path of Body
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfBodyLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfBodyLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Strength++; // Level up Strength
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.P)) // Assuming 'P' for Path of Space
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfSpaceLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfSpaceLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Strength++; // Level up Strength
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.R)) // Assuming 'R' for Path of Reality
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfRealityLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfRealityLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Dexterity++; // Level up Dexterity
+                                                    }
                                                 }
 
                                                 else if (KeysNewlyPressed.Contains(Keys.G)) // Assuming 'G' for Path of Light
                                                 {
                                                     LoadedArchitects[ArchitectIndex].PathOfLightLevel += 1;
                                                     LoadedArchitects[ArchitectIndex].SpendableLevels -= 1;
+
+                                                    if (LoadedArchitects[ArchitectIndex].PathOfLightLevel % 2 != 0) // Odd levels
+                                                    {
+                                                        LoadedArchitects[ArchitectIndex].Agility++; // Level up Agility
+                                                    }
                                                 }
                                             }
                                         }
@@ -6513,7 +7230,7 @@ namespace Lightrealm
                                             }
                                             else if (KeyAtlas.ContainsKey(k))
                                             {
-                                                if (!Keyboard.GetState().IsKeyDown(Keys.OemTilde))
+                                                if (!Keyboard.GetState().IsKeyDown(Keys.OemTilde) && !Keyboard.GetState().IsKeyDown(Keys.LeftControl) && !Keyboard.GetState().IsKeyDown(Keys.RightControl))
                                                 {
                                                     if (Keyboard.GetState().CapsLock == true || Keyboard.GetState().IsKeyDown(Keys.LeftShift) || Keyboard.GetState().IsKeyDown(Keys.RightShift))
                                                     {
@@ -6796,6 +7513,20 @@ namespace Lightrealm
                                                 subjects.Add(new Entity(spell.ToLower()));
                                             }
 
+                                            //add types of body parts
+
+                                            foreach (Race r in GameWorld.Races)
+                                            {
+                                                foreach ((string, Material) s in r.BodyParts)
+                                                {
+                                                    if (!subjects.Any(e => e.Metadata == s.Item1))
+                                                    {
+                                                        subjects.Add(new Entity(s.Item1));
+                                                    }
+                                                }
+                                            }
+
+
 
                                             List<string> entitiesToAdd = new List<string>
                                             {
@@ -6826,6 +7557,43 @@ namespace Lightrealm
                                             subjects.Add(GameWorld);
 
 
+                                            //Collect the objects hiding inside containers
+
+                                            // Define lists
+                                            List<Entity> allObjects = new List<Entity>();
+                                            // Method to recursively retrieve all objects
+                                            void RetrieveAllObjects(Object obj)
+                                            {
+                                                // Add the object to the allObjects list if it's not already included
+                                                if (!allObjects.Contains(obj))
+                                                {
+                                                    allObjects.Add(obj);
+                                                }
+
+                                                foreach (Entity containedEntity in obj.ContainedObjects)
+                                                {
+                                                    if (containedEntity is Object containedObject)
+                                                    {
+                                                        RetrieveAllObjects(containedObject);
+                                                    }
+                                                }
+                                            }
+                                            // Retrieve all objects from subjects
+                                            foreach (Entity e in subjects)
+                                            {
+                                                if (e is Object obj)
+                                                {
+                                                    RetrieveAllObjects(obj);
+                                                }
+                                            }
+                                            // After collecting all objects, add them to the subjects list if they aren't already there
+                                            foreach (Entity entity in allObjects)
+                                            {
+                                                if (!subjects.Contains(entity))
+                                                {
+                                                    subjects.Add(entity);
+                                                }
+                                            }
                                             foreach (Entity e in subjects)
                                             {
                                                 if (e is Object)
@@ -6837,6 +7605,10 @@ namespace Lightrealm
                                                     ((Architect)e).UpdateNames();
                                                 }
                                             }
+
+
+                                            
+
 
                                             return subjects;
                                         }
@@ -6877,19 +7649,13 @@ namespace Lightrealm
                                                             return command.Key;
                                                         }
                                                     }
-                                                    return null; // Return null or a default command if no match is found
+                                                    return userInput; // Just send the initail
                                                 }
 
                                                 static bool PreprocessAndRunCommand(Architect executor, string userInput, List<Entity> subjects)
                                                 {
                                                     // Find the command ID from the user input
                                                     string commandId = FindCommandId(userInput);
-
-                                                    if (commandId == null)
-                                                    {
-                                                        Console.WriteLine("Command not recognized.");
-                                                        return false;
-                                                    }
 
                                                     // Assuming `RunCommand` is adapted to accept a command ID
                                                     return RunCommand(executor, commandId, subjects);
@@ -7051,20 +7817,23 @@ namespace Lightrealm
                                 }
                                 PlayerSpendableLevelsLastTick = LoadedArchitects[ArchitectIndex].SpendableLevels;
 
-                                if (KeysNewlyPressed.Contains(Keys.OemPlus)) // Check if the Plus key is newly pressed
+                                if (Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl))
                                 {
-                                    // Increment the current page if it's not the last page
-                                    if (CurrentObjectPage < MaximumObjectPage)
+                                    if (KeysNewlyPressed.Contains(Keys.OemPlus)) // Check if the Plus key is newly pressed
                                     {
-                                        CurrentObjectPage++;
+                                        // Increment the current page if it's not the last page
+                                        if (CurrentObjectPage < MaximumObjectPage)
+                                        {
+                                            CurrentObjectPage++;
+                                        }
                                     }
-                                }
-                                else if (KeysNewlyPressed.Contains(Keys.OemMinus)) // Check if the Minus key is newly pressed
-                                {
-                                    // Decrement the current page if it's not the first page
-                                    if (CurrentObjectPage > 0)
+                                    else if (KeysNewlyPressed.Contains(Keys.OemMinus)) // Check if the Minus key is newly pressed
                                     {
-                                        CurrentObjectPage--;
+                                        // Decrement the current page if it's not the first page
+                                        if (CurrentObjectPage > 0)
+                                        {
+                                            CurrentObjectPage--;
+                                        }
                                     }
                                 }
                             }
@@ -7797,7 +8566,7 @@ namespace Lightrealm
 
                                     if (toolNeeded)
                                     {
-                                        Exposition.Add(new TextStorage($"You need a {toolRequired} to harvest {resourceType} here.", Color.Yellow));
+                                        Exposition.Add(new TextStorage($"You need a {toolRequired} to harvest {resourceMaterial.Type} here.", Color.Yellow));
                                     }
                                 }
                                 else
@@ -7868,7 +8637,7 @@ namespace Lightrealm
                             }
                             else if (KeysNewlyPressed.Contains(Keys.Right) || KeysNewlyPressed.Contains(Keys.NumPad6))
                             {
-                                if(!IndexesForResources.Contains(InventoryCraftingIndex))
+                                if (!IndexesForResources.Contains(InventoryCraftingIndex))
                                 {
                                     IndexesForResources.Add(InventoryCraftingIndex);
                                 }
@@ -7927,18 +8696,32 @@ namespace Lightrealm
                                         int requiredCount = requiredItem.Value;
                                         string requiredObject = materialToObjectMap[requiredType];
 
+                                        // Initialize a counter for how many materials have been added
+                                        int materialsAdded = 0;
+
                                         // Find and remove the required number of items from inventory
                                         var itemsToRemove = MostRecentPartyTurnArchitect.Inventory
                                             .Where(obj => obj.Type == requiredObject && obj.Materials[0].Type == requiredType)
-                                            .Take(requiredCount)
                                             .ToList();
 
                                         foreach (var item in itemsToRemove)
                                         {
-                                            allUsedMaterials.AddRange(item.Materials); // Add all materials of the consumed item
+                                            foreach (var material in item.Materials)
+                                            {
+                                                if (material.Type == requiredType && materialsAdded < requiredCount)
+                                                {
+                                                    allUsedMaterials.Add(material); // Add the material of the consumed item
+                                                    materialsAdded++;
+                                                }
+                                            }
                                             MostRecentPartyTurnArchitect.Inventory.Remove(item);
+
+                                            // Break out of the loop if the required amount of materials has been added
+                                            if (materialsAdded >= requiredCount)
+                                                break;
                                         }
                                     }
+
 
                                     // Add the crafted item to the inventory
                                     Object o = new Object("", currentRecipe.Item1, allUsedMaterials, MostRecentPartyTurnArchitect);
@@ -7946,7 +8729,7 @@ namespace Lightrealm
                                     MostRecentPartyTurnArchitect.Inventory.Add(o);
 
                                     MakeObservation(MostRecentPartyTurnArchitect.Name + " has created " + o.Name + ".", Color.Coral);
-
+                                    GameState = "otherturn";
 
                                     if (o.Imbuements.Count > 1 || o.IsWeapon || o.Name != null)
                                     {
@@ -8025,8 +8808,8 @@ namespace Lightrealm
                             TileSize,
                             TileSize
                         );
-                        
-                        
+
+
                         if ((GameState == "travelmenu" || GameState == "etherealrupture") && !GameWorld.WorldMap[index].Explored)
                         {
                             continue; // Skip drawing unexplored tiles in travelmode
@@ -8145,7 +8928,7 @@ namespace Lightrealm
                 {
                     if (a.Race == GameWorld.GetRace("luminarch"))
                     {
-                        _spriteBatch.Draw(ArchaixFemaleT, ChosenRect, Color.White);
+                        _spriteBatch.Draw(LuminarchFemaleT, ChosenRect, Color.White);
                     }
                     else if (a.Race == GameWorld.GetRace("nightfell"))
                     {
@@ -8153,14 +8936,14 @@ namespace Lightrealm
                     }
                     else
                     {
-                        _spriteBatch.Draw(LuminarchFemaleT, ChosenRect, Color.White);
+                        _spriteBatch.Draw(ArchaixFemaleT, ChosenRect, Color.White);
                     }
                 }
                 else
                 {
                     if (a.Race == GameWorld.GetRace("luminarch"))
                     {
-                        _spriteBatch.Draw(ArchaixMaleT, ChosenRect, Color.White);
+                        _spriteBatch.Draw(LuminarchMaleT, ChosenRect, Color.White);
                     }
                     else if (a.Race == GameWorld.GetRace("nightfell"))
                     {
@@ -8168,28 +8951,23 @@ namespace Lightrealm
                     }
                     else
                     {
-                        _spriteBatch.Draw(LuminarchMaleT, ChosenRect, Color.White);
+                        _spriteBatch.Draw(ArchaixMaleT, ChosenRect, Color.White);
                     }
                 }
 
-                foreach (Object o in a.Clothing)
+                foreach (Object o in a.Clothing.OrderBy(o => !(o.Type.EndsWith("shoe")) && !(o.Type.EndsWith("boot"))))
                 {
                     string s = o.Type;
 
                     if (s.EndsWith("shirt"))
                     {
-                        s = s + (" " + a.Sex);
+                        s += " " + a.Sex;
                     }
 
-                    if(o.DyedColor != "none")
-                    {
-                        _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, ColorConverter[o.DyedColor]);
-                    }
-                    else
-                    {
-                        _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, ColorConverter[o.Materials[0].Color]);
-                    }
+                    Color drawColor = o.DyedColor != "none" ? ColorConverter[o.DyedColor] : ColorConverter[o.Materials[0].Color];
+                    _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
                 }
+
             }
 
 
@@ -8260,16 +9038,23 @@ namespace Lightrealm
             // GetCurrentPageList as you've defined
 
             // DrawList as you've defined
-            void DrawList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel)> list, Vector2 startCoords, SpriteFont font)
+            void DrawList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel)> list, Vector2 startCoords, SpriteFont font, int CurrentItemListPage, int itemsPerPage)
             {
                 int line = 0;
-                foreach (var (Description, Count, IndentationLevel) in list)
+                int startIndex = CurrentItemListPage * itemsPerPage;
+                int endIndex = Math.Min(startIndex + itemsPerPage, list.Count);
+
+                for (int i = startIndex; i < endIndex; i++)
                 {
+                    var (Description, Count, IndentationLevel) = list[i];
                     string textToDraw = $"{new string(' ', 4 * IndentationLevel)}{Description} x{Count}";
                     spriteBatch.DrawString(font, textToDraw, new Vector2(startCoords.X, startCoords.Y + line * 20), Color.White);
                     line++;
                 }
+
+                MaximumObjectPage = (int)Math.Round((decimal)(list.Count / ItemsPerPage), 0, MidpointRounding.ToPositiveInfinity);
             }
+
 
             // Assuming you have a method to handle user input to navigate pages, you would update CurrentObjectPage accordingly
             // And call PaginateAndDrawList again to redraw the list for the new page
@@ -8360,7 +9145,7 @@ namespace Lightrealm
 
                 _spriteBatch.Draw(TitleScreen, destinationRectangle, Color.White);
 
-                if(FakeName == "")
+                if (FakeName == "")
                 {
                     FakeName = GenerateUniqueFakeName();
                 }
@@ -8380,7 +9165,7 @@ namespace Lightrealm
 
                 NameCycles++;
 
-                if(NameCycles < 50)
+                if (NameCycles < 50)
                 {
                     NameOpacity += 5;
                 }
@@ -8389,13 +9174,13 @@ namespace Lightrealm
                     NameOpacity -= 5;
                 }
 
-                if(NameCycles == 100)
+                if (NameCycles == 100)
                 {
                     NameOpacity = 255;
                     //off sync but i cant tell why so ill do this
                 }
 
-                if(NameCycles > 199)
+                if (NameCycles > 199)
                 {
                     FakeName = GenerateUniqueFakeName();
                     NameCycles = 0;
@@ -8413,7 +9198,7 @@ namespace Lightrealm
                 _spriteBatch.DrawString(Shibafont, "Press ENTER to start playing with the most balanced settings.", new Vector2(200, 200), Color.White);
                 _spriteBatch.DrawString(Shibafont, "If you wish, use denoted keys to change settings. Custom settings not guarranteed to produce a playable world.", new Vector2(200, 250), Color.White);
 
-                if(CurrentlySelectedWorldAge == 10000)
+                if (CurrentlySelectedWorldAge == 10000)
                 {
                     _spriteBatch.DrawString(Shibafont, "(Q/A) World Age: Until Cancelled", new Vector2(200, 500), Color.Orange);
                 }
@@ -8424,7 +9209,7 @@ namespace Lightrealm
                 _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
                 _spriteBatch.DrawString(Shibafont, "(E/D) Number of Civilizations: " + NumberOfCivilizations, new Vector2(200, 600), Color.Red);
                 _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + Math.Round(ProsperityMultiplier, 1).ToString("0.0"), new Vector2(200, 650), Color.Cyan);
-                
+
                 /*
                 _spriteBatch.DrawString(Shibafont, "(T/G) [BROKEN] World Width (in region tiles, east/west, max 128): " + CurrentlySelectedWorldWidth, new Vector2(200, 700), Color.LimeGreen);
                 _spriteBatch.DrawString(Shibafont, "(Y/H) [BROKEN] World Length (in region tiles, north/south, max 128): " + CurrentlySelectedWorldLength, new Vector2(200, 750), Color.Cyan);
@@ -8483,7 +9268,7 @@ namespace Lightrealm
             {
                 int Line = 1;
 
-                if(StatOptions.Count == 7)
+                if (StatOptions.Count == 7)
                 {
                     _spriteBatch.DrawString(Shibafont, "Choose your most prefered stat of these:", new Vector2(100, 100), Color.White);
                 }
@@ -8492,9 +9277,9 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "Lovely, now choose your next-highest stat:", new Vector2(100, 100), Color.White);
                 }
 
-                foreach(string s in StatOptions)
+                foreach (string s in StatOptions)
                 {
-                    _spriteBatch.DrawString(Shibafont, s, new Vector2(100, 100 + Line*50), Color.White);
+                    _spriteBatch.DrawString(Shibafont, s, new Vector2(100, 100 + Line * 50), Color.White);
                     Line++;
                 }
             }
@@ -8730,7 +9515,7 @@ namespace Lightrealm
 
                                 _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White); 
+                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont, "General Items: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Sum(d => d.GeneralItemsWeHave.Count), new Vector2(DrawX, DrawY + 300), Color.White);
 
                             }
@@ -9176,7 +9961,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "D: " + MostRecentPartyTurnArchitect.District.Name, new Vector2(50, 110), Color.White);
                     if (MostRecentPartyTurnArchitect.Structure != null)
                     {
-                        _spriteBatch.DrawString(Shibafont, "S: " + MostRecentPartyTurnArchitect.Structure.Name, new Vector2(50, 130), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "S: " + MostRecentPartyTurnArchitect.Structure.Name + ", R: " + MostRecentPartyTurnArchitect.Structure.Rooms.IndexOf(MostRecentPartyTurnArchitect.Room), new Vector2(50, 130), Color.White);
                     }
 
                     if (MostRecentPartyTurnArchitect.LeftHandObject != null)
@@ -9662,7 +10447,7 @@ namespace Lightrealm
                     var structuredList = CondenseAndStructureList(sourceObjects);
 
                     // Draw the structured list
-                    DrawList(_spriteBatch, structuredList, new Vector2(2150, 100), BabyShibafont);
+                    DrawList(_spriteBatch, structuredList, new Vector2(2150, 100), BabyShibafont, CurrentObjectPage, ItemsPerPage);
 
                     int Houses = 0;
 
@@ -9676,7 +10461,7 @@ namespace Lightrealm
                                 continue;
                             }
                             // Create a description for the architect
-                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)} CD:{architect.CooldownCycles} {architect.Energy} {architect.Bleeding} DIS: {architect.GetDistance(MostRecentPartyTurnArchitect)}";
+                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)} (C: {architect.CooldownCycles}, E: {architect.Energy}, B: {architect.Bleeding}, D: {architect.GetDistance(MostRecentPartyTurnArchitect)})";
                             if (uniqueArchitects.ContainsKey(description))
                             {
                                 uniqueArchitects[description]++;
@@ -9694,7 +10479,7 @@ namespace Lightrealm
                         foreach (var architect in uniqueArchitects)
                         {
                             string textToDraw = $"{architect.Key} x{architect.Value}";
-                            Vector2 indentCoords = new Vector2(startCoords.X, startCoords.Y + line * 20);
+                            Vector2 indentCoords = new Vector2(startCoords.X, startCoords.Y + line * 15);
                             spriteBatch.DrawString(font, textToDraw, indentCoords, Color.White);
                             line++;
                         }
@@ -9708,14 +10493,14 @@ namespace Lightrealm
 
                         // Assuming you have a method to get a dictionary of unique architects
                         var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Room.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), Shibafont, 20);
+                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), BabyShibafont, 20);
                     }
                     else
                     {
 
                         // Assuming you have a method to get a dictionary of unique architects
                         var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Block.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), Shibafont, 20);
+                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), BabyShibafont, 20);
 
                         Line = 0;
                         foreach (Structure s in MostRecentPartyTurnArchitect.Block.Structures)
@@ -9919,7 +10704,7 @@ namespace Lightrealm
                     //inventory
                     var sourceObjects = MostRecentPartyTurnArchitect.Inventory;
                     var structuredList = CondenseAndStructureList(sourceObjects);
-                    DrawList(_spriteBatch, structuredList, new Vector2(2100, 200), BabyShibafont);
+                    DrawList(_spriteBatch, structuredList, new Vector2(2100, 200), BabyShibafont, CurrentObjectPage, ItemsPerPage);
 
                     line = 0;
                     foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
@@ -9934,7 +10719,7 @@ namespace Lightrealm
                     foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
                     {
                         line++;
-                        DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 1050, 600 + 10 * line, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 975, 600 + 10 * line, BabyShibafont);
                     }
 
                     line = 0;
@@ -9992,16 +10777,26 @@ namespace Lightrealm
                             DrawPathLevel(spriteBatch, babyShibaFont, "[D] Path of Death", MostRecentPartyTurnArchitect.PathOfDeathLevel, position, Color.DarkRed);
                             position += spacing;
 
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[T] Path of Time", MostRecentPartyTurnArchitect.PathOfTimeLevel, position, Color.SkyBlue);
-                            position += spacing;
-
                             DrawPathLevel(spriteBatch, babyShibaFont, "[A] Path of Stars", MostRecentPartyTurnArchitect.PathOfStarsLevel, position, Color.Gold);
                             position += spacing;
 
                             DrawPathLevel(spriteBatch, babyShibaFont, "[H] Path of Heat", MostRecentPartyTurnArchitect.PathOfHeatLevel, position, Color.OrangeRed);
                             position += spacing;
 
+                            DrawPathLevel(spriteBatch, babyShibaFont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
+                            position += spacing;
+
+                            DrawPathLevel(spriteBatch, babyShibaFont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
+                            position += spacing;
+
+                            DrawPathLevel(spriteBatch, babyShibaFont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
+                            position += spacing;
+
+                            /*
                             DrawPathLevel(spriteBatch, babyShibaFont, "[I] Path of Illusions", MostRecentPartyTurnArchitect.PathOfIllusionsLevel, position, Color.Magenta);
+                            position += spacing;
+
+                            DrawPathLevel(spriteBatch, babyShibaFont, "[T] Path of Time", MostRecentPartyTurnArchitect.PathOfTimeLevel, position, Color.SkyBlue);
                             position += spacing;
 
                             DrawPathLevel(spriteBatch, babyShibaFont, "[E] Path of Ethereality", MostRecentPartyTurnArchitect.PathOfEtherealityLevel, position, Color.LightBlue);
@@ -10025,16 +10820,10 @@ namespace Lightrealm
                             DrawPathLevel(spriteBatch, babyShibaFont, "[U] Path of Soul", MostRecentPartyTurnArchitect.PathOfSoulLevel, position, Color.MediumPurple);
                             position += spacing;
 
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
-                            position += spacing;
-
                             DrawPathLevel(spriteBatch, babyShibaFont, "[P] Path of Space", MostRecentPartyTurnArchitect.PathOfSpaceLevel, position, Color.DarkOrchid);
                             position += spacing;
+                            */
 
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
                         }
 
                         DrawPathLevels(GamePlayerParty, _spriteBatch, BabyShibafont);
@@ -10131,32 +10920,6 @@ namespace Lightrealm
                                 DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", 680, BabyShibafont, Color.White);
                             }
 
-                            else if (Keyboard.GetState().IsKeyDown(Keys.T))
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
-                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF TIME", 500, BabyShibafont, Color.SkyBlue);
-                                // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
-                                // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", 680, BabyShibafont, Color.White);
-                            }
-
                             else if (Keyboard.GetState().IsKeyDown(Keys.A)) // Assuming 'A' is the key for Path of Stars
                             {
                                 _spriteBatch.Draw(
@@ -10209,6 +10972,83 @@ namespace Lightrealm
                                 DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", 680, BabyShibafont, Color.White);
                             }
 
+                            else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
+                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF BODY", 500, BabyShibafont, Color.SandyBrown);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased unarmed melee capabilities.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Move your body in any physically imaginable way.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", 680, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
+                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF LIGHT", 500, BabyShibafont, Color.Yellow);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure photons to create a spark.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Sparks fire radiant beams at enemies.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Use sparks to heal nearby creatures.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Create a Photonexus, loyal to you.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD L FOR PATH DETAILS. CTRL+L TO LEVEL.", 680, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
+                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF REALITY", 500, BabyShibafont, Color.IndianRed);
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Alter object properties.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Change state of matter by touch.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Remove objects from reality.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", 680, BabyShibafont, Color.White);
+                            }
+
+                            /*
+
                             else if (Keyboard.GetState().IsKeyDown(Keys.I)) // For Path of Illusions
                             {
                                 _spriteBatch.Draw(
@@ -10232,6 +11072,32 @@ namespace Lightrealm
                                 DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
                                 // Instruction for leveling up
                                 DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", 680, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.T))
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
+                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                // Title
+                                DrawCenteredText(_spriteBatch, "PATH OF TIME", 500, BabyShibafont, Color.SkyBlue);
+                                // Abilities
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
+                                DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
+                                // Leveling up instruction
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", 680, BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.E)) // For Path of Ethereality
@@ -10383,6 +11249,7 @@ namespace Lightrealm
                                 // Instruction for leveling up
                                 DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", 680, BabyShibafont, Color.White);
                             }
+
                             else if (Keyboard.GetState().IsKeyDown(Keys.U)) // For Path of Soul
                             {
                                 _spriteBatch.Draw(
@@ -10406,31 +11273,6 @@ namespace Lightrealm
                                 DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
                                 // Instruction for leveling up
                                 DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", 680, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
-                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF BODY", 500, BabyShibafont, Color.SandyBrown);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased unarmed melee capabilities.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Move your body in any physically imaginable way.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", 680, BabyShibafont, Color.White);
                             }
 
                             else if (Keyboard.GetState().IsKeyDown(Keys.P)) // For Path of Space
@@ -10457,56 +11299,8 @@ namespace Lightrealm
                                 // Instruction for leveling up
                                 DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", 680, BabyShibafont, Color.White);
                             }
+                            */
 
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
-                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF REALITY", 500, BabyShibafont, Color.IndianRed);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Alter object properties.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Change state of matter by touch.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Remove objects from reality.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", 680, BabyShibafont, Color.White);
-                            }
-                            else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (_graphics.PreferredBackBufferWidth - newWidth) / 2, // Centered X
-                                        (_graphics.PreferredBackBufferHeight - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF LIGHT", 500, BabyShibafont, Color.Yellow);
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL", 520, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure photons to create a spark.", 540, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", 560, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 4: Sparks fire radiant beams at enemies.", 580, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", 600, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 6: Use sparks to heal nearby creatures.", 620, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", 640, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
-                                DrawCenteredText(_spriteBatch, "LVL 8: Create a Photonexus, loyal to you.", 660, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD L FOR PATH DETAILS. CTRL+L TO LEVEL.", 680, BabyShibafont, Color.White);
-                            }
                         }
                     }
 
@@ -10642,7 +11436,7 @@ namespace Lightrealm
                                     }
                                     else
                                     {
-                                        if(d.Industry.Length > 4)
+                                        if (d.Industry.Length > 4)
                                         {
                                             _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
                                         }
@@ -10704,7 +11498,7 @@ namespace Lightrealm
 
                 foreach (TextStorage t in Exposition)
                 {
-                    _spriteBatch.DrawString(BabyShibafont, t.Data, new Vector2(DrawX + 500, (DrawY + Line*15)-400), t.Color);
+                    _spriteBatch.DrawString(BabyShibafont, t.Data, new Vector2(DrawX + 500, (DrawY + Line * 15) - 400), t.Color);
                     Line++;
                 }
             }

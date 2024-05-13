@@ -77,16 +77,6 @@ namespace Lightrealm
             return Architects.Count + UnplacedPopulation;
         }
 
-        public void AddItemsAndIncreaseCrafts(List<Object> items)
-        {
-            foreach (var item in items)
-            {
-                GeneralItemsWeHave.Add(item);
-            }
-
-            Location.HomeCivilization.World.TotalCrafts += items.Count;
-        }
-
         public void SupplyLocation(int Intensity)
         {
             if (Industry == null)
@@ -96,15 +86,31 @@ namespace Lightrealm
 
             string DecidedProduction = Industry;
 
+            // 40% chance to make something different
             if (Game1.r.Next(1, 6) <= 2)
             {
-                // 40% chance to make something different
                 DecidedProduction = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
             }
 
             List<Object> itemsToBeAdded = GenerateItems(DecidedProduction, Intensity);
-            AddItemsAndIncreaseCrafts(itemsToBeAdded);
+
+            // Adding items and increasing crafts within the same method
+            foreach (var item in itemsToBeAdded)
+            {
+                if (Game1.r.Next(1, 3) == 1)
+                {
+                    Location.Districts[0].GeneralItemsWeHave.Add(item);
+                }
+                else
+                {
+
+                    GeneralItemsWeHave.Add(item);
+                }
+            }
+
+            Location.HomeCivilization.World.TotalCrafts += itemsToBeAdded.Count;
         }
+
 
         public List<Object> GenerateItems(string industry, int intensity)
         {
@@ -353,6 +359,14 @@ namespace Lightrealm
             IsLoaded = true;
 
             List<Architect> PlacedArchitects = new List<Architect>();
+            List<Structure> Structures = new List<Structure>();
+            for(int x = 0; x < 7; x++)
+            {
+                for (int z = 0; z < 7; z++)
+                {
+                    Structures.AddRange(DistrictMap[x + z * 7].Structures);
+                }
+            }
 
             int TotalArchitects = 0;
 
@@ -367,17 +381,36 @@ namespace Lightrealm
                             Room CoreRoom = new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>());
                             s.Rooms.Add(CoreRoom);
 
-                            int ExtraRoomCount = s.Type switch
+                            int ExtraRoomCount;
+                            switch (s.Type)
                             {
-                                "house" => Game1.r.Next(0, 4),
-                                "spire" => Game1.r.Next(10, 20),
-                                "keep" => Game1.r.Next(3, 7),
-                                "tower" => Game1.r.Next(10, 13),
-                                "fortress" => Game1.r.Next(10, 20),
-                                "monument" => Game1.r.Next(10, 20),
-                                "outpost" or "sanctum" => Game1.r.Next(10, 20),
-                                _ => Game1.r.Next(2, 2)
-                            };
+                                case "house":
+                                    ExtraRoomCount = Game1.r.Next(0, 4);
+                                    break;
+                                case "spire":
+                                    ExtraRoomCount = Game1.r.Next(10, 20);
+                                    break;
+                                case "keep":
+                                    ExtraRoomCount = Game1.r.Next(3, 7);
+                                    break;
+                                case "tower":
+                                    ExtraRoomCount = Game1.r.Next(10, 13);
+                                    break;
+                                case "fortress":
+                                    ExtraRoomCount = Game1.r.Next(10, 20);
+                                    break;
+                                case "monument":
+                                    ExtraRoomCount = Game1.r.Next(10, 20);
+                                    break;
+                                case "outpost":
+                                case "sanctum":
+                                    ExtraRoomCount = Game1.r.Next(10, 20);
+                                    break;
+                                default:
+                                    ExtraRoomCount = Game1.r.Next(2, 2); // This range always results in 2. Consider adjusting if that's not the intended outcome.
+                                    break;
+                            }
+
 
                             for (int i = 0; i < ExtraRoomCount; i++)
                             {
@@ -441,6 +474,19 @@ namespace Lightrealm
 
             UnplacedPopulation = 0;
 
+            //traders be trading
+
+            if(Location.Market != null && Location.Market.Block.District == this)
+            {
+                foreach(Group g in Location.TradersAtThisLocation)
+                {
+                    foreach(Architect a in g.Architects)
+                    {
+                        Location.Market.Rooms[0].Architects.Add(a);
+                    }
+                }
+            }
+
             // Place/replace architects
             foreach (Architect a in Architects)
             {
@@ -486,7 +532,66 @@ namespace Lightrealm
                 }
             }
 
+            //distribute items
+
+            foreach (Object o in GeneralItemsWeHave)
+            {  
+                if(Location.Market != null && Location.Market.Block.District == this)
+                {
+                    if (Game1.r.Next(1, 3) == 1)
+                    {
+                        Location.Market.Rooms[0].Objects.Add(o);
+                    }
+                    else
+                    {
+                        var randomStructure = Structures[Game1.r.Next(Structures.Count)];
+                        var randomRoom = randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
+                        randomRoom.Objects.Add(o);
+                    }
+                }
+                else
+                {
+                    var randomStructure = Structures[Game1.r.Next(Structures.Count)];
+                    var randomRoom = randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
+                    randomRoom.Objects.Add(o);
+                }
+            }
+
             Game1.LoadedArchitects.AddRange(Game1.GamePlayerParty.Architects);
+
+            //one last patch up bc its all broekn anyway
+
+            for (int x = 0; x < 7; x++)
+            {
+                for (int z = 0; z < 7; z++)
+                {
+                    foreach(Architect a in DistrictMap[x + z * 7].Architects)
+                    {
+                        a.Block = DistrictMap[x + z * 7];
+                    }
+                    foreach (Object o in DistrictMap[x + z * 7].Objects)
+                    {
+                        o.Block = DistrictMap[x + z * 7];
+                    }
+
+                    foreach(Structure s in DistrictMap[x + z * 7].Structures)
+                    {
+                        foreach(Room r in s.Rooms)
+                        {
+                            foreach (Architect a in r.Architects)
+                            {
+                                a.Block = DistrictMap[x + z * 7];
+                                a.Room = r;
+                            }
+                            foreach (Object o in r.Objects)
+                            {
+                                o.Block = DistrictMap[x + z * 7];
+                                o.Room = r;
+                            }
+                        }
+                    }
+                }
+            }
 
             Architects.Clear();
 

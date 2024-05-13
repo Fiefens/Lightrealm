@@ -24,9 +24,44 @@ namespace Lightrealm
         {
             foreach(Architect a in architects)
             {
-                if(a.RightHanded)
+                //give tje, resources for testing
+
+                // We assume that 'Region' has properties for each harvestable material type.
+                var region = a.Location.Region;
+
+                // We'll use a dictionary to map the resource types to their corresponding properties.
+                var resources = new Dictionary<string, Material>
+                {
+                    {"log", region.HarvestableWood},
+                    {"stone", region.HarvestableStone},
+                    {"ore", region.HarvestableMetal},
+                    {"pile", region.HarvestableSand},
+                    {"bunch", region.HarvestableFiber},
+                    {"block", region.HarvestableIce}
+                };
+
+                foreach (var resource in resources)
+                {
+                    if (resource.Value != null)  // Check if the resource exists in the region.
+                    {
+                        for (int i = 0; i < 5; i++)  // Add 5 of each resource.
+                        {
+                            a.Inventory.Add(new Object(null, resource.Key, new List<Material>() { resource.Value }, null));
+                        }
+                    }
+                }
+
+
+                List<Material> m = new List<Material>() { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)] };
+                for (int i = Game1.r.Next(10, 30); i != 0; i--)
+                {
+                    a.Inventory.Add(new Object(null, "dagger", m, null));
+                }
+
+                if (a.RightHanded)
                 {
                     a.RightHandObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
+
                 }
                 else
                 {

@@ -542,6 +542,16 @@ namespace Lightrealm
                     list.Add(new Object(null, weapons[Game1.r.Next(weapons.Count)], new List<Material>() { Metals[Game1.r.Next(Metals.Count)] }, null));
                 }
 
+                if(Game1.r.Next(1,100) <= 4) //4 percent chance
+                {
+                    List<Material> m = new List<Material>() { Metals[Game1.r.Next(Metals.Count)] };
+
+                    for (int i = Game1.r.Next(10, 30); i != 0; i--)
+                    {
+                        list.Add(new Object(null, "dagger", m, null));
+                    }
+                }
+
                 // Generate a piece of armor with random material
                 if (Game1.r.Next(1, 100) <= 5) // 5% chance
                 {
@@ -861,8 +871,8 @@ namespace Lightrealm
         public Material Archaeon { get; set; } = new Material("archaeon", "glass", 1337, 5, "white");
         public Material Membrane { get; set; } = new Material("membrane", "membrane", 3, 0, "gray");
         public Material Biocrystal { get; set; } = new Material("biocrystal", "stone", 3, 0, "white");
-        public Material Glass { get; set; } = new Material("clay", "stone", 1, 1, "brown");
-        public Material Clay { get; set; } = new Material("glass", "stone", 1, 1, "white");
+        public Material Glass { get; set; } = new Material("glass", "stone", 1, 1, "white");
+        public Material Clay { get; set; } = new Material("clay", "stone", 1, 1, "brown"); 
         public Material Steel { get; set; } = new Material("steel", "metal", 3, 4, "gray");
         public Material ShadeSludge { get; set; } = new Material("shadesludge", "sludge", 5, 2, "black");
         public Material Coffee { get; set; } = new Material("coffee", "plant", 1, 1, "brown");
@@ -1014,17 +1024,17 @@ namespace Lightrealm
                 Gemstones.Add(new Material("lapis lazuli", "gemstone", 3, 4, "blue"));
                 Gemstones.Add(new Material("amethyst", "gemstone", 3, 4, "purple"));
 
-                Sands.Add(new Material("redsand", "sand", 3, 4, "red"));
+                Sands.Add(new Material("red sand", "sand", 3, 4, "red"));
                 Sands.Add(new Material("sand", "sand", 3, 4, "yellow"));
-                Sands.Add(new Material("rockysand", "sand", 3, 4, "brown"));
+                Sands.Add(new Material("rocky sand", "sand", 3, 4, "brown"));
 
                 Fibers.Add(new Material("hemp", "fiber", 3, 4, "brown"));
                 Fibers.Add(new Material("flax", "fiber", 3, 4, "brown"));
                 Fibers.Add(new Material("jute", "fiber", 3, 4, "brown"));
 
-                Ices.Add(new Material("blueice", "ice", 3, 4, "lightblue"));
-                Ices.Add(new Material("crystalice", "ice", 3, 4, "white"));
-                Ices.Add(new Material("clearice", "ice", 3, 4, "white"));
+                Ices.Add(new Material("blue ice", "ice", 3, 4, "lightblue"));
+                Ices.Add(new Material("crystal ice", "ice", 3, 4, "white"));
+                Ices.Add(new Material("clear ice", "ice", 3, 4, "white"));
             }
 
 
@@ -4809,7 +4819,6 @@ namespace Lightrealm
                                         }
 
                                         LocationBuilderPacket l = new LocationBuilderPacket(a, X, Z, "sanctum", GetRace(""), 0, 0, null, new List<Object> { o }, location);
-                                        HistoricalEvents.Add(string.Concat(Date, a.Name, " built ", Name, " to house ", o.Name, "."));
                                         LocationBuilderPackets.Add(l);
                                     }
                                 }
@@ -4945,8 +4954,12 @@ namespace Lightrealm
                     }
                     else if (l.Type == "spire")
                     {
-                        HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " left ", l.BaseLocation.Name, " and constructed a glorious spire, ", Name));
+                        HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " left ", l.BaseLocation.Name, " and constructed a glorious spire, ", NewLocation.Name));
                         ((Architect)l.Government).OppositionTags.Add("intruders");
+                    }
+                    else if (l.Type == "sanctum")
+                    {
+                        HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " built ", NewLocation.Name, " to house ", l.Artifacts[0].Name, "."));
                     }
                     else if (l.Type == "outpost")
                     {

@@ -106,21 +106,32 @@ namespace Lightrealm
             {
                 int Position = Structure.Rooms.IndexOf(this);
 
-                // Add exit door if it's the first room
-                if (Position == 0)
-                    AddObject("door", Game1.GameWorld.Glass);
-
-                if(Game1.r.Next(1,4) == 1)
+                // Generate loot if applicable
+                if (Game1.r.Next(1, 4) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
                 }
 
-                // Add specific objects for a sanctum
-                if (Position + 1 == Structure.Rooms.Count)
+                if (Position == 0)
                 {
+                    // First room specific setup
+                    AddObject("door", Game1.GameWorld.Glass);  // Entrance door for the first room
+
+                    // Door leading to the next room
+                    string ForwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count)];
+                    Door forwardDoor = new Door(this, Structure.Rooms[Position + 1], ForwardDirection, null, "archway", new List<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(forwardDoor);
+                }
+                else if (Position == Structure.Rooms.Count - 1)
+                {
+                    // Last room specific setup
+                    // Door leading back to the previous room
+                    string BackwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count)];
+                    Door backwardDoor = new Door(this, Structure.Rooms[Position - 1], BackwardDirection, null, "archway", new List<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(backwardDoor);
+
                     // Logic to find and place an artifact in the final room of the sanctum
                     Object Artifact = null;
-
                     foreach (Object o in Structure.Block.District.Location.UnplacedArtifacts)
                     {
                         if (Game1.AllLegendarySpells.Contains(o.SpellContained))
@@ -143,22 +154,21 @@ namespace Lightrealm
                 }
                 else
                 {
-                    for (int i = Game1.r.Next(0, 5); i > 0; i--)
-                        AddObject("pillar", Game1.GameWorld.Archaeon);
+                    // Middle rooms setup
+                    // Door leading back to the previous room
+                    string BackwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count)];
+                    Door backwardDoor = new Door(this, Structure.Rooms[Position - 1], BackwardDirection, null, "archway", new List<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(backwardDoor);
 
-                    // Add doors to connect with other rooms
-                    if (Position != 0)
-                    {
-                        string MainDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count)];
-
-                        Door d = new Door(this, Structure.Rooms[Position - 1], MainDirection, null, "archway", new List<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(d);
-
-                        Door D = new Door(Structure.Rooms[Position - 1], this, Game1.InvertDoorDirection[MainDirection], null, "archway", new List<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
-                        Structure.Rooms[Position - 1].Objects.Add(D);
-                    }
+                    // Door leading to the next room
+                    string ForwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count)];
+                    Door forwardDoor = new Door(this, Structure.Rooms[Position + 1], ForwardDirection, null, "archway", new List<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(forwardDoor);
                 }
             }
+
+
+
 
 
             if (Structure.Type == "house")
