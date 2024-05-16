@@ -864,7 +864,7 @@ namespace Lightrealm
         }
         private int CalculateLevel(int xp)
         {
-            int level = 1;
+            int level = 0;
             int currentThreshold = 100;
             while (xp >= currentThreshold)
             {
@@ -2021,6 +2021,11 @@ namespace Lightrealm
             //cycle hunger, health, etc.
             //update general information
 
+            if(Block == null && Room == null)
+            {
+                //idk whats happening but I actually want to play my game;
+                return new List<Attack>();
+            }
             List<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
 
             List<Attack> Attacks = new List<Attack>();
@@ -2113,8 +2118,6 @@ namespace Lightrealm
                 }
 
             }
-
-
 
             if (Room == null && Block == null)
             {
@@ -2758,14 +2761,14 @@ namespace Lightrealm
                 string AlternateMove = "";
 
 
-                //set task if you need to
+                //set task if you need to, or copy your leader's task :)
 
                 if (Group != null && Group.Leader.Loaded)
                 {
-                    Task == Group.Leader.Task;
-                    Target == Group.Leader.Task;
-                    TargetArchitect == Group.Leader.TargetArchitect;
-                    TargetObject == Group.Leader.TargetObject;
+                    Task = Group.Leader.Task;
+                    Target = Group.Leader.Target;
+                    TargetArchitect = Group.Leader.TargetArchitect;
+                    TargetObject = Group.Leader.TargetObject;
                 }
                 else if (Task == "" && BlindCycles == 0 && Profession != "warlock" && Profession != "sorcerer" && Race != Game1.GameWorld.GetRace("debtshiba") /*cant make judgements if ur blind lol, and cant if you already have a basic job.*/)
                 {
@@ -2906,12 +2909,15 @@ namespace Lightrealm
                     CyclesLeftInTask = 500;
                     TargetArchitect = DisableTarget;
                 }
-                if (Task == "killtarget" && KillTarget != null)
+
+
+
+                if (Task == "killtarget" && TargetArchitect != null)
                 {
                     //update the targetting system so you go to where they are naturally
                     Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
                 }
-                if (Task == "disabletarget" && DisableTarget != null)
+                if (Task == "disabletarget" && TargetArchitect != null)
                 {
                     Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
                 }

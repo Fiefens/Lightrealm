@@ -45,8 +45,6 @@ namespace Lightrealm
 
         public string Color;
 
-        public Group Leader { get; set; }
-
         public Civilization(Race race, int Startx, int Startz, World world)
         {
             Random r = new Random();
@@ -59,8 +57,12 @@ namespace Lightrealm
 
 
             int Index = r.Next(World.UnusedCivColors.Count);
-            Color = World.UnusedCivColors[Index];
-            World.UnusedCivColors.RemoveAt(Index);
+
+            if(race != world.GetRace(""))
+            {
+                Color = World.UnusedCivColors[Index];
+                World.UnusedCivColors.RemoveAt(Index);
+            }
 
             CulturalCloth = world.Cloths[Game1.r.Next(world.Cloths.Count())];
             CulturalWood = world.Woods[Game1.r.Next(world.Woods.Count())];

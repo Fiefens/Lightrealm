@@ -103,7 +103,6 @@ namespace Lightrealm
                 }
                 else
                 {
-
                     GeneralItemsWeHave.Add(item);
                 }
             }
@@ -384,27 +383,41 @@ namespace Lightrealm
                             int ExtraRoomCount;
                             switch (s.Type)
                             {
+                                case "scaffold":
+                                case "scum":
+                                case "dock":
+                                    ExtraRoomCount = 0;
+                                    break;
                                 case "house":
+                                case "ship":
+                                case "cove":
+                                case "mound":
+                                case "monastery":
                                     ExtraRoomCount = Game1.r.Next(0, 4);
                                     break;
                                 case "spire":
+                                case "archway":
+                                case "hallway":
+                                case "fortress":
+                                case "monument":
+                                case "toroid":
+                                case "towers":
+                                case "outpost":
+                                case "pyramid":
+                                case "sanctum":
                                     ExtraRoomCount = Game1.r.Next(10, 20);
                                     break;
                                 case "keep":
+                                case "commune":
                                     ExtraRoomCount = Game1.r.Next(3, 7);
+                                    break;
+                                case "core":
+                                case "heart":
+                                case "stronghold":
+                                    ExtraRoomCount = Game1.r.Next(20, 30);
                                     break;
                                 case "tower":
                                     ExtraRoomCount = Game1.r.Next(10, 13);
-                                    break;
-                                case "fortress":
-                                    ExtraRoomCount = Game1.r.Next(10, 20);
-                                    break;
-                                case "monument":
-                                    ExtraRoomCount = Game1.r.Next(10, 20);
-                                    break;
-                                case "outpost":
-                                case "sanctum":
-                                    ExtraRoomCount = Game1.r.Next(10, 20);
                                     break;
                                 default:
                                     ExtraRoomCount = Game1.r.Next(2, 2); // This range always results in 2. Consider adjusting if that's not the intended outcome.

@@ -30,6 +30,14 @@ namespace Lightrealm
                 var region = a.Location.Region;
 
                 // We'll use a dictionary to map the resource types to their corresponding properties.
+
+
+
+
+
+
+
+                /*
                 var resources = new Dictionary<string, Material>
                 {
                     {"log", region.HarvestableWood},
@@ -49,19 +57,14 @@ namespace Lightrealm
                             a.Inventory.Add(new Object(null, resource.Key, new List<Material>() { resource.Value }, null));
                         }
                     }
-                }
-
+                }d
+                */
 
                 List<Material> m = new List<Material>() { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)] };
-                for (int i = Game1.r.Next(10, 30); i != 0; i--)
-                {
-                    a.Inventory.Add(new Object(null, "dagger", m, null));
-                }
-
+                
                 if (a.RightHanded)
                 {
                     a.RightHandObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
-
                 }
                 else
                 {

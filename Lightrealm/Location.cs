@@ -26,6 +26,10 @@ namespace Lightrealm
         public Structure Market;
         public Structure Prism;
 
+        public string Color;
+
+        public string Layout = "";
+
         public bool Active { get; set; } = false;
         public bool IsSavingUpToSettle { get; set; } = false;
 
@@ -39,7 +43,7 @@ namespace Lightrealm
         public int ColonizationDesire { get; set; }
         public int MaxColonizationDesire { get; set; }
 
-        public bool IsCapital = false;
+        public bool IsCapitol = false;
 
         public List<Architect> DebtShibas = new List<Architect>();
 

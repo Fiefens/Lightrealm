@@ -33,15 +33,38 @@ namespace Lightrealm
     {
         public List<string> ItemTypesInCirculation = new List<string>();
 
+        public bool LostPlaced = false;
         public bool FirstNewCivPlaced = false;
         public bool SecondNewCivPlaced = false;
         public bool ThirdNewCivPlaced = false;
 
+        public bool FirstOutcastCivPlaced = false;
+        public bool SecondOutcastCivPlaced = false;
+        public bool ThirdOutcastCivPlaced = false;
+        public int FirstOutcastCivStartYear = 75 + Game1.r.Next(-10, 11);
+        public int SecondOutcastCivStartYear = 100 + Game1.r.Next(-10, 11);
+        public int ThirdOutcastCivStartYear = 125 + Game1.r.Next(-10, 11);
+
         public List<Object> AllWrittenContent = new List<Object>();
 
-        public List<string> CalamityStructures = new List<string>() { "tower", "keep", "monument", "fortress" };
+        public List<string> CalamityStructures = new List<string>() { "tower", "keep", "monument", "fortress" }; 
+        public List<string> ProcgenStructures = new List<string>()
+{
+    "observatory",
+    "library",
+    "conservatory",
+    "prison",
+    "tomb",
+    "gallery",
+    "armory"
+};
+
 
         int ContinentalPortMaximum = Game1.r.Next(5, 8);
+
+        public List<string> OutcastCivTypes = new List<string>() { "druid", "pirate", "cultist", "anarchist", "scavenger" };
+        public List<string> DecidedOutcastCivs = new List<string>();
+        public List<Civilization> OutcastCivs = new List<Civilization>();
 
         public Architect Hypernexus;
         public Architect Icosidodecahedron;
@@ -110,9 +133,9 @@ namespace Lightrealm
                         var location = WorldMap[x + z * Width].MyLocation;
                         if (location != null)
                         {
-                            if (location.Type == "outpost" && distance <= 1)
+                            if ((location.Type == "outpost" || ProcgenStructures.Contains(location.Type)) && distance <= 1)
                             {
-                                // Reveal Outposts within 1 tile radius
+                                // Reveal Outposts and procgen structures within 1 tile radius
                                 location.Explored = true;
                             }
                             else if (distance == 0)
@@ -964,7 +987,14 @@ namespace Lightrealm
             MaxAge = maxAge;
             ProsperityMultiplier = prosperityMultiplier;
 
-            //add materials, collapsed
+
+            for(int i = 0; i < 3; i++)
+            {
+                int Index = Game1.r.Next(OutcastCivTypes.Count);
+                DecidedOutcastCivs.Add(OutcastCivTypes[Index]);
+                OutcastCivTypes.RemoveAt(Index);
+            }
+
             //add materials, collapsed
             {
                 Woods.Add(new Material("oak", "wood", 3, 0, "brown"));
@@ -1518,7 +1548,7 @@ namespace Lightrealm
                 {
                     Location l = new Location("village", c.PrimaryInhabiantRace, Game1.r.Next(50, 100), 1000, Game1.r.Next(4, 8), c.StartX, c.StartZ, c, WorldMap[c.StartX + c.StartZ * Width]);
                     AllLocations.Add(l);
-                    l.IsCapital = true;
+                    l.IsCapitol = true;
                     c.Capitol = l;
                     ClaimSwathOfTerritory(c, l.X, l.Z, 2);
 
@@ -1694,6 +1724,153 @@ namespace Lightrealm
 
                 }
 
+                void PlaceOutcastCiv(string Type)
+                {
+                    // List to store all valid locations
+                    List<(int X, int Z)> validLocations = new List<(int X, int Z)>();
+
+                    // Iterate over every spot in the world grid
+                    for (int TryX = 0; TryX < Width; TryX++)
+                    {
+                        for (int TryZ = 0; TryZ < Length; TryZ++)
+                        {
+                            // Check a square of size 5 centered around (TryX, TryZ)
+                            bool validLocation = true;
+                            for (int i = TryX - 3; i <= TryX + 3 && validLocation; i++)
+                            {
+                                for (int j = TryZ - 3; j <= TryZ + 3 && validLocation; j++)
+                                {
+                                    // Check if any region inside the area's Region.Location is not equal to null
+                                    if (i <= 0 || i >= Width || j <= 0 || j >= Length ||
+                                        WorldMap[i + j * Width].Biome == "void" ||
+                                        WorldMap[i + j * Width].MyLocation != null)
+                                    {
+                                        validLocation = false;
+                                    }
+                                }
+                            }
+
+                            if (validLocation)
+                            {
+                                bool SpecificConditionsMet = false;
+
+                                if (Type == "druid")
+                                {
+                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "forest");
+                                }
+                                else if (Type == "pirate")
+                                {
+                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "ocean" &&
+                                        ((WorldMap[(TryX) + (TryZ + 1) * Width].Biome != "ocean") ||
+                                        (WorldMap[(TryX) + (TryZ - 1) * Width].Biome != "ocean") ||
+                                        (WorldMap[(TryX - 1) + (TryZ) * Width].Biome != "ocean") ||
+                                        (WorldMap[(TryX + 1) + (TryZ) * Width].Biome != "ocean")));
+                                }
+                                else if (Type == "cultist")
+                                {
+                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "snowpeak");
+                                }
+                                else if (Type == "anarchist")
+                                {
+                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "desert");
+                                }
+                                else if (Type == "scavenger")
+                                {
+                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome != "ocean");
+                                }
+
+                                if (SpecificConditionsMet)
+                                {
+                                    validLocations.Add((TryX, TryZ));
+                                }
+                            }
+                        }
+                    }
+
+                    if (validLocations.Count > 0)
+                    {
+                        // Pick a random location from the valid locations
+                        var randomLocation = validLocations[r.Next(validLocations.Count)];
+                        int FoundX = randomLocation.X;
+                        int FoundZ = randomLocation.Z;
+
+                        Civilization c = new Civilization(GetRace(""), FoundX, FoundZ, this);
+
+                        // Find the perfect specimen
+                        List<Architect> PossibleArch = new List<Architect>();
+                        foreach (Architect a in AllArchitects)
+                        {
+                            if (a.Group == null && !Calamity.Contains(a) && a.IsAlive == true)
+                            {
+                                PossibleArch.Add(a);
+                                break;
+                            }
+                        }
+
+                        c.Alpha = PossibleArch[r.Next(PossibleArch.Count)];
+                        c.Color = "black";
+
+                        Dictionary<string, string> OutcastCivToStructure = new Dictionary<string, string>
+        {
+            { "druid", "preserve" },
+            { "pirate", "cove" },
+            { "cultist", "monastery" },
+            { "anarchist", "commune" },
+            { "scavenger", "hoard" }
+        };
+
+                        LocationBuilderPacket l = new LocationBuilderPacket(c.Alpha, FoundX, FoundZ, OutcastCivToStructure[Type], GetRace(""), 20, 2, c, new List<Object>(), c.Alpha.HomeLocation);
+                        LocationBuilderPackets.Add(l);
+                    }
+                    else
+                    {
+                        HistoricalEvents.Add(Date + " The world was too chaotic for even the " + Type + "s to stand.");
+                    }
+                }
+
+
+
+                if (Cycle/290304000 > LostFoundingYear && LostPlaced == false)
+                {
+                    int StartX = 0;
+                    int StartZ = 0;
+
+                    while (WorldMap[StartX + StartZ*Width].Biome == "ocean" || WorldMap[StartX + StartZ * Width].Biome == "void" || WorldMap[StartX + StartZ * Width].MyLocation != null)
+                    {
+                        StartX = r.Next(Width);
+                        StartZ = r.Next(Length);
+                    }
+
+                    Civilization c = new Civilization(GetRace("archaix"), StartX, StartZ, this);
+                    LostPlaced = true;
+
+                    Location l = new Location("village", GetRace("archaix"), Game1.r.Next(50, 100), 1000, Game1.r.Next(4, 8), c.StartX, c.StartZ, c, WorldMap[c.StartX + c.StartZ * Width]);
+                    AllLocations.Add(l);
+                    l.IsCapitol = true;
+                    c.Capitol = l;
+                    ClaimSwathOfTerritory(c, l.X, l.Z, 2);
+
+                    Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
+                    Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                    l.AllStructures.Add(Prism);
+                    chosenBlock.Structures.Add(Prism);
+                    l.Prism = Prism;
+
+                    for (int i = 0; i < Game1.r.Next(10, 20); i++)
+                    {
+                        Block ChosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
+                        Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { c.CulturalWood }, new List<string> { c.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                        l.AllStructures.Add(s);
+                        ChosenBlock.Structures.Add(s);
+                    }
+
+                    Block b = l.Districts[0].DistrictMap[r.Next(2, 6) + r.Next(2, 5) * 7];
+
+                    b.Objects.Add(new Object(null, "well", new List<Material> { l.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
+                    b.Objects.Add(new Object(null, "shadow storage", new List<Material>() { Shadesteel }, DarkDeity));
+
+                    WorldMap[c.StartX + c.StartZ * Width].MyLocation = l;
+                }
 
                 if (Cycle > 14515200000 && FirstNewCivPlaced == false)
                 {
@@ -1712,10 +1889,27 @@ namespace Lightrealm
                 }
 
 
+
+                if (Cycle / 290304000 > FirstOutcastCivStartYear && FirstOutcastCivPlaced == false)
+                {
+                    FirstOutcastCivPlaced = true;
+                    PlaceOutcastCiv(DecidedOutcastCivs[0]);
+                }
+                else if (Cycle / 290304000 > SecondOutcastCivStartYear && SecondOutcastCivPlaced == false)
+                {
+                    SecondOutcastCivPlaced = true;
+                    PlaceOutcastCiv(DecidedOutcastCivs[1]);
+                }
+                else if (Cycle / 290304000 > ThirdOutcastCivStartYear && ThirdOutcastCivPlaced == false)
+                {
+                    ThirdOutcastCivPlaced = true;
+                    PlaceOutcastCiv(DecidedOutcastCivs[2]);
+                }
+
                 //THE ADVERSARY RISES
 
 
-                if(Cycle > 290304000 * CalamityStartingYear && Calamity.Count == 0)
+                if (Cycle > 290304000 * CalamityStartingYear && Calamity.Count == 0)
                 {
                     List<string> FirstPartNames = new List<string>()
                     {
@@ -1750,7 +1944,7 @@ namespace Lightrealm
 
                     if(LockedInThreat == "random")
                     {
-                        CalamityIdeologicalObsession = new List<string>() { "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(9)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
+                        CalamityIdeologicalObsession = new List<string>() { "disease", "dominator", /*"purifier", NO MORE I CAT TAKE IT ANYMOREEERERE*/ "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(8)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
                     }
                     else
                     {
@@ -2114,6 +2308,12 @@ namespace Lightrealm
                                     if (CalamityIdeologicalObsession == "disease")
                                     {
                                         LogEvent(Calamitizer.Name + " deliberately spread the " + Calamitizer.BlightManipulated.Name + " to " + Calamitizer.InteractionLocation.Name + ".");
+
+                                        if(r.Next(500) == 1)
+                                        {
+                                            Calamitizer.InteractionLocation.Region.Blight = Calamitizer.BlightManipulated;
+                                            LogEvent(Calamitizer.Name + " fully established a terrible presence of " + Calamitizer.BlightManipulated.Name + " in " + Calamitizer.InteractionLocation.Name + ".");
+                                        }
 
                                         foreach(Architect a in ChosenDistrict.Architects)
                                         {
@@ -3098,20 +3298,6 @@ namespace Lightrealm
                             {
                                 ArchitectsAtLocation.AddRange(d.Architects);
                             }
-
-                            //culture formation
-
-                            //      celebrations
-
-                            //      art forms
-
-                            //      games
-
-                            //      food styles
-
-                            //      sport
-
-
 
 
                             //other actions favorable or not, based on allignment
@@ -4925,6 +5111,226 @@ namespace Lightrealm
                             }
 
 
+
+                            //captiols build special procgen sites
+
+
+                            if (r.Next(1, 1000) == 1 && location.IsCapitol)
+                            {
+                                // Decide what type of structure you're going to make
+                                string SType = new List<string>() { "observatory", "library", "conservatory", "prison", "tomb", "gallery", "armory" }[r.Next(7)];
+
+                                // List to store all valid locations
+                                List<(int, int)> validLocations = new List<(int, int)>();
+
+                                // Search for valid locations
+                                for (int SearchingX = -10; SearchingX <= 10; SearchingX++)
+                                {
+                                    for (int SearchingZ = -10; SearchingZ <= 10; SearchingZ++)
+                                    {
+                                        int X = location.X + SearchingX;
+                                        int Z = location.Z + SearchingZ;
+                                        if (X >= 0 && X < Width && Z >= 0 && Z < Length && WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void")
+                                        {
+                                            validLocations.Add((X, Z));
+                                        }
+                                    }
+                                }
+
+                                // If there are valid locations, pick a random one
+                                if (validLocations.Count > 0)
+                                {
+                                    var selectedLocation = validLocations[r.Next(validLocations.Count)];
+                                    int selectedX = selectedLocation.Item1;
+                                    int selectedZ = selectedLocation.Item2;
+
+                                    // Decide people to send there
+                                    List<Architect> PossibleArchitects = new List<Architect>();
+
+                                    foreach (District d in location.Districts)
+                                    {
+                                        foreach (Architect a in d.Architects)
+                                        {
+                                            if (!a.IsCalamity && !(location.Government is Architect && (Architect)location.Government == a) && a.Group == null)
+                                            {
+                                                PossibleArchitects.Add(a);
+                                            }
+                                        }
+                                    }
+
+                                    List<Architect> DecidedArchitects = new List<Architect>();
+                                    int Amount = r.Next(1, 6);
+
+                                    if (PossibleArchitects.Count >= Amount)
+                                    {
+                                        for (int i = 0; i < Amount; i++)
+                                        {
+                                            int index = r.Next(PossibleArchitects.Count);
+                                            DecidedArchitects.Add(PossibleArchitects[index]);
+                                            PossibleArchitects.RemoveAt(index);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        DecidedArchitects = new List<Architect>(PossibleArchitects);
+                                    }
+
+                                    if (DecidedArchitects.Count > 0)
+                                    {
+                                        LocationBuilderPacket l = new LocationBuilderPacket(DecidedArchitects[0], selectedX, selectedZ, SType, GetRace(""), 0, r.Next(3), DecidedArchitects[0].HomeLocation.HomeCivilization, new List<Object>(), location);
+                                        LocationBuilderPackets.Add(l);
+                                    }
+                                }
+                            }
+
+
+                            //update outcast civ data
+
+                            Dictionary<string, string> OutcastCivToStructure = new Dictionary<string, string>
+                            {
+                                { "druid", "preserve" },
+                                { "pirate", "cove" },
+                                { "cultist", "monastery" },
+                                { "anarchist", "commune" },
+                                { "scavenger", "hoard" }
+                            };
+                            string CivType = "";
+
+                            foreach (var kvp in OutcastCivToStructure)
+                            {
+                                if (kvp.Value == location.Type)
+                                {
+                                    CivType = kvp.Key;
+                                    break;
+                                }
+                            }
+
+                            if (CivType != "")
+                            {
+                                //recruitment
+
+
+                                if (r.Next(1, 200) == 1)
+                                {
+                                    if (r.Next(2) == 0)
+                                    {
+                                        HistoricalEvents.Add(Date + " A group of " + CivType + "s migrated to " + location.Name + ".");
+                                        location.LocationHistoricalEvents.Add(Date + " A group of " + CivType + "s migrated to " + location.Name + ".");
+                                        location.Districts[0].UnplacedPopulation += r.Next(15, 30);
+                                    }
+                                    else
+                                    {
+                                        List<Architect> PossibleArch = new List<Architect>();
+                                        foreach (Architect a in AllArchitects)
+                                        {
+                                            if (a.Group == null && !Calamity.Contains(a) && a.IsAlive)
+                                            {
+                                                PossibleArch.Add(a);
+                                            }
+                                        }
+
+                                        if (PossibleArch.Count > 0)
+                                        {
+                                            Architect Migrator = PossibleArch[r.Next(PossibleArch.Count)];
+                                            Migrator.NextMigrationLocation = location;
+
+                                            HistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + CivType + "s of " + location.Name + " and decided to migrate there.");
+                                            location.LocationHistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + CivType + "s of " + location.Name + " and decided to migrate there.");
+                                        }
+                                    }
+                                }
+
+
+
+
+                                //spread
+
+                                if (location.TruePopulation() > 80 && location.ColonizationDesire > 0)
+                                {
+                                    // find a location to go to at
+                                    int FoundX = 0;
+                                    int FoundZ = 0;
+                                    bool locationFound = false;
+
+                                    int centerX = location.X;
+                                    int centerZ = location.Z;
+
+                                    // Iterate over a 9x9 area centered at location.X and location.Z
+                                    for (int TryX = centerX - 4; TryX <= centerX + 4 && !locationFound; TryX++)
+                                    {
+                                        for (int TryZ = centerZ - 4; TryZ <= centerZ + 4 && !locationFound; TryZ++)
+                                        {
+                                            // Check a square of size 5 centered around (TryX, TryZ)
+                                            bool validLocation = true;
+                                            for (int i = TryX - 3; i <= TryX + 3 && validLocation; i++)
+                                            {
+                                                for (int j = TryZ - 3; j <= TryZ + 3 && validLocation; j++)
+                                                {
+                                                    // Check if any region inside the area's Region.Location is not equal to null
+                                                    if (i < 0 || i >= Width || j < 0 || j >= Length ||
+                                                        WorldMap[i + j * Width].Biome == "void" ||
+                                                        WorldMap[i + j * Width].MyLocation != null)
+                                                    {
+                                                        validLocation = false;
+                                                    }
+                                                }
+                                            }
+
+                                            if (validLocation)
+                                            {
+                                                bool SpecificConditionsMet = false;
+
+                                                if (CivType == "druid")
+                                                {
+                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "forest");
+                                                }
+                                                else if (CivType == "pirate")
+                                                {
+                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "ocean" &&
+                                                        ((WorldMap[(TryX) + (TryZ + 1) * Width].Biome != "ocean") ||
+                                                        (WorldMap[(TryX) + (TryZ - 1) * Width].Biome != "ocean") ||
+                                                        (WorldMap[(TryX - 1) + (TryZ) * Width].Biome != "ocean") ||
+                                                        (WorldMap[(TryX + 1) + (TryZ) * Width].Biome != "ocean")));
+                                                }
+                                                else if (CivType == "cultist")
+                                                {
+                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "snowpeak");
+                                                }
+                                                else if (CivType == "anarchist")
+                                                {
+                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "desert");
+                                                }
+                                                else if (CivType == "scavenger")
+                                                {
+                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome != "ocean");
+                                                }
+
+                                                if (SpecificConditionsMet)
+                                                {
+                                                    FoundX = TryX;
+                                                    FoundZ = TryZ;
+                                                    locationFound = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (locationFound)
+                                    {
+                                        LocationBuilderPacket l = new LocationBuilderPacket(null, FoundX, FoundZ, location.Type, GetRace(""), r.Next(4,10), location.MaxColonizationDesire - 1, location.HomeCivilization, new List<Object>(), location);
+                                        LocationBuilderPackets.Add(l);
+                                    }
+                                    else
+                                    {
+                                        //we wont do anything this time, its cool
+                                    }
+                                }
+                            }
+
+
+
+
                             //districts you waited to place
 
                             foreach (District d in location.DistrictsToAdd)
@@ -4948,7 +5354,7 @@ namespace Lightrealm
 
                     Location NewLocation = new Location(l.Type, l.PrimaryRace, l.MiscPopulation, Game1.r.Next(1000, 4000), l.ColonizationDesire, l.X, l.Z, l.HomeCivilization, WorldMap[l.X + l.Z * Width]);
 
-                    if(l.Type == "camp")
+                    if (l.Type == "camp")
                     {
                         HistoricalEvents.Add(string.Concat(Date, "After preparing for years, ", l.Government.Name, " left ", l.BaseLocation.Name, " with a following of ", l.MiscPopulation, " people and founded ", NewLocation.Name, "."));
                     }
@@ -4975,6 +5381,80 @@ namespace Lightrealm
                         ((Architect)(l.Government)).InteractionLocation = NewLocation;
 
                         ((Architect)(l.Government)).KitOutArchitect(((Architect)(l.Government)).Profession);
+                    }
+
+
+
+                    else if (l.Type == "preserve")
+                    {
+                        if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new preserve, ", NewLocation.Name, "."));
+                        }
+                        else
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", distraught about the destructive nature of the energy people around him, sought to build ", NewLocation.Name, " to preserve part of the island."));
+                        }
+                    }
+                    else if (l.Type == "cove")
+                    {
+                        if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new cove, ", NewLocation.Name, "."));
+                        }
+                        else
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", desiring the great wealth of the surrounding trade, built ", NewLocation.Name, " to base a massive piracy operation."));
+                        }
+                    }
+                    else if (l.Type == "monastery")
+                    {
+                        if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new monastery, ", NewLocation.Name, "."));
+                        }
+                        else
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", in awe of a beautiful creature, constructed ", NewLocation.Name, " to honor it and its legacy."));
+                        }
+                    }
+                    else if (l.Type == "commune")
+                    {
+                        if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new commune, ", NewLocation.Name, "."));
+                        }
+                        else
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", in hatred of the regulations of society, decided to construct ", NewLocation.Name, ", a commune of complete freedom and expression."));
+                        }
+                    }
+                    else if (l.Type == "hoard")
+                    {
+                        if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new hoard, ", NewLocation.Name, "."));
+                        }
+                        else
+                        {
+                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " began to tear apart the land for its treasures, and constructed ", NewLocation.Name, " to recruit others and scavenge the entire continent."));
+                        }
+                    }
+
+                    else if (ProcgenStructures.Contains(l.Type))
+                    {
+                        NewLocation.Layout = new List<string>() { "hallway", "archway", "pyramid", "toroid", "towers" }[r.Next(5)];
+
+                        int SX = Game1.r.Next(2, 5);
+                        int SZ = Game1.r.Next(2, 5);
+
+                        string c = new List<string>() {"brown", "black", "white", "gray", "maroon"}[Game1.r.Next(5)];
+
+                        NewLocation.Color = c;
+
+                        Structure s = new Structure(NewLocation.Type, l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { l.HomeCivilization.CulturalStone }, new List<string>(), new List<string> { "lanterns" }, 3, 5);
+                        NewLocation.AllStructures.Add(s);
+                        NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }
 
                     AllLocations.Add(NewLocation);

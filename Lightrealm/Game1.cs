@@ -41,7 +41,7 @@ namespace Lightrealm
         public static int MaximumObjectPage = 0;
         public static int ItemsPerPage = 50;
 
-        public static List<string> ThreatTypes = new List<string>() { "random", "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
+        public static List<string> ThreatTypes = new List<string>() { "random", "disease", "dominator", /*"purifier", NO MORE STOP THE MADNESS*/  "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
 
         public static int CurrentlySelectedWorldAge = 250; //100, 150, 200, 250 (recommended), 300, 350, 400, 450, 500, Until Stopped
         public static int CurrentlySelectedGrievanceType = 0;
@@ -267,7 +267,7 @@ namespace Lightrealm
             Announcements.Add(new TextStorage(capitalizedData, color));
         }
 
-        private static string CapitalizeFirstLetter(string data)
+        public static string CapitalizeFirstLetter(string data)
         {
             if (string.IsNullOrEmpty(data))
             {
@@ -334,7 +334,7 @@ namespace Lightrealm
             return false;
         }
 
-        static string ConvertListToString(List<string> items)
+        public static string ConvertListToString(List<string> items)
         {
             StringBuilder result = new StringBuilder();
 
@@ -1552,6 +1552,8 @@ namespace Lightrealm
         public Texture2D ShadeOutpostT;
         public Texture2D ShadeCoreT;
 
+
+
         public Texture2D SpireT;
         public Texture2D SanctumT;
         public Texture2D OutpostT;
@@ -1561,6 +1563,12 @@ namespace Lightrealm
         public Texture2D FortressT;
         public Texture2D MonumentT;
         public Texture2D StrongholdT;
+
+        public Texture2D PyramidT;
+        public Texture2D ToroidT;
+        public Texture2D TowersT;
+        public Texture2D HallwayT;
+        public Texture2D ArchwayT;
 
         public Texture2D DistrictBuildingT;
         public Texture2D DistrictEmptyDesertT;
@@ -1578,6 +1586,28 @@ namespace Lightrealm
         public Texture2D DistrictMarketT;
         public Texture2D DistrictMarketSurroundedT;
         public Texture2D DistrictPrismT;
+
+        public Texture2D DistrictArchwayT;
+        public Texture2D DistrictCommuneT;
+        public Texture2D DistrictDockT;
+        public Texture2D DistrictShipT;
+        public Texture2D DistrictFortressT;
+        public Texture2D DistrictHallwayT;
+        public Texture2D DistrictMoundT;
+        public Texture2D DistrictCoreT;
+        public Texture2D DistrictScaffoldT;
+        public Texture2D DistrictKeepT;
+        public Texture2D DistrictMonasteryT;
+        public Texture2D DistrictMonumentT;
+        public Texture2D DistrictOutpostT;
+        public Texture2D DistrictPyramidT;
+        public Texture2D DistrictHeartT;
+        public Texture2D DistrictScumT;
+        public Texture2D DistrictStrongholdT;
+        public Texture2D DistrictToroidT;
+        public Texture2D DistrictTowerT;
+        public Texture2D DistrictTowersT;
+
 
         public Texture2D AmuletT;
         public Texture2D ArchaixFemaleT;
@@ -1621,6 +1651,12 @@ namespace Lightrealm
         public Texture2D UpperShirtMaleT;
         public Texture2D WrapsT;
 
+        public Texture2D CoveT;
+        public Texture2D CommuneT;
+        public Texture2D HoardT;
+        public Texture2D PreserveT;
+        public Texture2D MonasteryT;
+
         public Texture2D MirrorT;
 
         public Texture2D Astrionalis;
@@ -1648,3289 +1684,6 @@ namespace Lightrealm
         int LoadTicks = 0;
         int LoadGameCursor = 0;
 
-
-        public static bool RunCommand(Architect Executor, string CommandID, List<Entity> Subjects)
-        {
-            //replace inside command pronouns
-
-            List<Architect> ArchitectsToUse;
-            if (Executor.Room != null)
-            {
-                ArchitectsToUse = Executor.Room.Architects; // Use architects from the room if it's not null
-            }
-            else
-            {
-                ArchitectsToUse = Executor.Block.Architects; // Otherwise, use architects from the block
-            }
-
-            var waitCommands = new Dictionary<string, int>
-            {
-                { "wait a second", 1 },
-                { "wait one second", 1 },
-                { "wait 1 second", 1 },
-                { "wait two seconds", 2 },
-                { "wait 2 seconds", 2 },
-                { "wait three seconds", 3 },
-                { "wait 3 seconds", 3 },
-                { "wait four seconds", 4 },
-                { "wait 4 seconds", 4 },
-                { "wait five seconds", 5 },
-                { "wait 5 seconds", 5 },
-                { "wait six seconds", 6 },
-                { "wait 6 seconds", 6 },
-                { "wait seven seconds", 7 },
-                { "wait 7 seconds", 7 },
-                { "wait eight seconds", 8 },
-                { "wait 8 seconds", 8 },
-                { "wait nine seconds", 9 },
-                { "wait 9 seconds", 9 },
-                { "wait ten seconds", 10 },
-                { "wait 10 seconds", 10 },
-                { "wait twenty seconds", 20 },
-                { "wait 20 seconds", 20 },
-                { "wait thirty seconds", 30 },
-                { "wait 30 seconds", 30 },
-                { "wait forty seconds", 40 },
-                { "wait 40 seconds", 40 },
-                { "wait fifty seconds", 50 },
-                { "wait 50 seconds", 50 },
-                { "wait a minute", 60 },
-                { "wait one minute", 60 },
-                { "wait 60 seconds", 60 },
-                { "wait 2 minutes", 120 },
-                { "wait two minutes", 120 },
-                { "wait 3 minutes", 180 },
-                { "wait three minutes", 180 },
-                { "wait 4 minutes", 240 },
-                { "wait four minutes", 240 },
-                { "wait 5 minutes", 300 },
-                { "wait five minutes", 300 }
-            };
-
-
-            var speakingPrefixes = new string[] { "ask", "tell", "explain", "say", "speak", "inquire", "request", "greet", "command" };
-            bool isSpeakingCommand = speakingPrefixes.Any(prefix => CommandID.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-            string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that", "his", "their" };
-
-            foreach (var pronoun in pronouns)
-            {
-                // Use regular expression to match whole words
-                string pattern = @"\b" + Regex.Escape(pronoun) + @"\b";
-                CommandID = Regex.Replace(CommandID, pattern, "/p");
-            }
-
-
-            if (CommandID == "leave_structure")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-                if (Executor.Structure == null)
-                {
-                    MakeObservation("You are not in a structure.", Color.Yellow);
-                }
-                else if (Executor.Room != Executor.Structure.Rooms[0])
-                {
-                    MakeObservation("There is not a door to exit through.", Color.Yellow);
-                }
-                else
-                {
-                    Executor.Room.Architects.Remove(Executor);
-                    Executor.Structure = null;
-                    Executor.Room = null;
-                    Executor.Block.Architects.Add(Executor);
-                }
-            }
-            else if (CommandID == "enter")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-                if (LoadedArchitects[ArchitectIndex].Structure != null && Subjects[0] is Door && (Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
-                {
-                    Executor.Room.Architects.Remove(Executor);
-                    Executor.Room = ((Door)Subjects[0]).DestinationRoom;
-                    Executor.Room.Architects.Add(Executor);
-                }
-                else if (LoadedArchitects[ArchitectIndex].Structure == null && Subjects[0] is Structure)
-                {
-                    Executor.Structure = (Structure)Subjects[0];
-                    Executor.Room = ((Structure)Subjects[0]).Rooms[0];
-                    Executor.Block.Architects.Remove(Executor);
-                    Executor.Structure.Rooms[0].Architects.Add(Executor);
-
-                    Exposition.Add(new TextStorage(Executor.Name + " enters " + ((Structure)Subjects[0]).Name + ", a " + ((Structure)Subjects[0]).Type + ".", Color.Blue));
-
-                    if (((Structure)Subjects[0]).PrimarySmells.Count > 0)
-                    {
-                        Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow));
-                    }
-                    if (((Structure)Subjects[0]).Type == "temple" && ((Structure)Subjects[0]).Rooms.Any(room => room.Objects.Any(obj => obj.Type == "altar")))
-                    {
-                        Exposition.Add(new TextStorage("An altar lies in the grand hall of this temple. Maybe you could offer it something?", Color.Yellow));
-                    }
-
-                    GameState = "exposition";
-                }
-                else
-                {
-                    MakeObservation("You couldn't find anything like that in the area to enter.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "move_direction")
-            {
-                // Assuming Subjects[0].Metadata contains the direction (e.g., "north", "south", etc.)
-                var stringDirectionOffsets = new Dictionary<string, (int dx, int dz)>
-    {
-        {"north", (0, -1)},
-        {"northeast", (1, -1)},
-        {"east", (1, 0)},
-        {"southeast", (1, 1)},
-        {"south", (0, 1)},
-        {"southwest", (-1, 1)},
-        {"west", (-1, 0)},
-        {"northwest", (-1, -1)}
-    };
-
-                if (!TriedFakeMove)
-                {
-                    MakeObservation("Some commands have shortcuts. For instance, directional movement can use the NUMPAD or by pressing tilde/QWEADZXC.", Color.Lime);
-                    TriedFakeMove = true;
-                }
-
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 25));
-
-                if (stringDirectionOffsets.TryGetValue(Subjects[0].Metadata, out var offset))
-                {
-                    int newX = Executor.Block.X + offset.dx;
-                    int newZ = Executor.Block.Z + offset.dz;
-
-                    // Check if the direction for the move has been previously set
-                    if (Executor.CurrentlyMovingPlace == Subjects[0].Metadata)
-                    {
-                        // Check if moving out of bounds
-                        if (newX == -1 || newX == 7 || newZ == -1 || newZ == 7)
-                        {
-                            Executor.TryingToTravel = true;
-
-                            // Check if all architects are trying to travel
-                            bool allTryingToTravel = GamePlayerParty.Architects.All(a => a.TryingToTravel);
-                            if (allTryingToTravel)
-                            {
-                                GamePlayerParty.Architects[0].District.Unload();
-                                foreach (Architect a in GamePlayerParty.Architects)
-                                {
-                                    a.Location = null;
-                                    a.District = null;
-                                }
-
-                                // Enter travel mode
-                                GameState = "travelmenu";
-
-                                // Update cursor position to a default or a predetermined safe location
-                                MapCursorX = 0;
-                                MapCursorZ = 0;
-                                GamePlayerParty.MapCursorDistrict = 0;
-                            }
-                        }
-                        else if (Executor.CombatCycles == 0 || r.Next(100) <= Executor.EscapeChance())
-                        {
-                            Executor.TryingToTravel = false;
-                            Executor.Block.Architects.Remove(Executor);
-                            Executor.Block = Executor.District.DistrictMap[newX + newZ * 7];
-                            foreach (Structure s in Executor.Block.Structures)
-                            {
-                                if (s.Type != "house" && s.Type != "bighouse")
-                                {
-                                    MakeObservation(s.GetStructureDescription(), Color.Aqua);
-                                }
-                            }
-                            Executor.Block.Architects.Add(Executor);
-                            Executor.CurrentlyMovingPlace = "none";  // Reset after successful movement
-                        }
-                        else
-                        {
-                            MakeObservation("You struggle to escape, and fail!", Color.OrangeRed);
-                        }
-                    }
-                    else
-                    {
-                        // Set the intended move direction for the next command
-                        Executor.CurrentlyMovingPlace = Subjects[0].Metadata;
-                    }
-                }
-                else
-                {
-                    MakeObservation("You can't go that \"way\".", Color.Yellow);
-                }
-            }
-            else if (CommandID == "basic_attack")
-            {
-                //find weapon and then calculate the attack
-
-                Object Weapon;
-
-                // Check the player's main hand based on their handedness
-                Object MainHandObject = LoadedArchitects[ArchitectIndex].RightHanded ? LoadedArchitects[ArchitectIndex].MainHandObject() : LoadedArchitects[ArchitectIndex].OffHandObject();
-                Object OffHandObject = LoadedArchitects[ArchitectIndex].RightHanded ? LoadedArchitects[ArchitectIndex].OffHandObject() : LoadedArchitects[ArchitectIndex].MainHandObject();
-
-                if (MainHandObject != null && MainHandObject.IsWeapon)
-                {
-                    // If the main hand has a weapon, use it
-                    Weapon = MainHandObject;
-                }
-                else if (OffHandObject != null && OffHandObject.IsWeapon)
-                {
-                    // If the off hand has a weapon, use it
-                    Weapon = OffHandObject;
-                }
-                else
-                {
-                    // If both hands are empty or don't have weapons, find a weapon on the body
-                    Weapon = LoadedArchitects[ArchitectIndex].BodyParts[r.Next(LoadedArchitects[ArchitectIndex].BodyParts.Count)];
-                }
-
-
-                if (Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0]))
-                {
-                    CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", Weapon);
-                }
-                else
-                {
-                    Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
-                }
-            }
-            else if (CommandID == "attack_with_weapon")
-            {
-                Object Weapon = LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].MainHandObject() :
-                               LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[1] ? LoadedArchitects[ArchitectIndex].OffHandObject() :
-                               Executor.BodyParts.FirstOrDefault(bp => bp == Subjects[1] && bp.IsWeapon);
-
-                if (Weapon != null && Weapon.IsWeapon && Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0]))
-                {
-                    CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, Subjects[0].ReferredToNames[0], "decideforme", Weapon);
-                }
-                else if (Weapon == null || !Weapon.IsWeapon)
-                {
-                    MakeObservation("You need to have that object in your hands.", Color.Yellow);
-                }
-                else
-                {
-                    Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
-                }
-            }
-
-            else if (CommandID == "inventory_check")
-            {
-                InInventory = true;
-            }
-            else if (CommandID == "attack_specific_body_part")
-            {
-                Object Weapon;
-
-                // Check the player's main hand based on their handedness
-                Object mainHand = LoadedArchitects[ArchitectIndex].RightHanded ? LoadedArchitects[ArchitectIndex].MainHandObject() : LoadedArchitects[ArchitectIndex].OffHandObject();
-                Object offHand = LoadedArchitects[ArchitectIndex].RightHanded ? LoadedArchitects[ArchitectIndex].OffHandObject() : LoadedArchitects[ArchitectIndex].MainHandObject();
-
-                if (mainHand != null && mainHand.IsWeapon)
-                {
-                    // If the main hand has a weapon, use it
-                    Weapon = mainHand;
-                }
-                else if (offHand != null && offHand.IsWeapon)
-                {
-                    // If the off hand has a weapon, use it
-                    Weapon = offHand;
-                }
-                else
-                {
-                    // If both hands are empty or don't have weapons, find a weapon on the body
-                    Weapon = LoadedArchitects[ArchitectIndex].BodyParts[r.Next(LoadedArchitects[ArchitectIndex].BodyParts.Count)];
-                }
-
-                if (Subjects[0] is Architect)
-                {
-                    Object targetBodyPart = ((Architect)(Subjects[0])).FindBodyPart(Subjects[1].Metadata);
-
-                    if (targetBodyPart != null && Weapon.WeaponMaximumRange >= Executor.GetDistance(Subjects[0]))
-                    {
-                        CalculateAttack(CommandID.Substring(0, CommandID.Length - 2), Executor, targetBodyPart.Name, "decideforme", Weapon);
-                    }
-                    else if (targetBodyPart == null)
-                    {
-                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow);
-                    }
-                    else
-                    {
-                        Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow));
-                    }
-                }
-                else
-                {
-                    MakeObservation("You can't target body parts of an object.", Color.Yellow);
-                }
-            }
-
-            else if (CommandID == "become_invisible")
-            {
-                if (Executor.Invisible)
-                {
-                    MakeObservation("You are already in the shadows.", Color.Yellow);
-                }
-                if (Executor.PathOfShadowLevel >= 4)
-                {
-                    MakeObservation("You enter the darkness.", Color.Gray);
-                    Executor.Invisible = true;
-                }
-                else
-                {
-                    MakeObservation("You are not experienced enough in the shadows to partake in such a maneuver.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "exit_invisibility")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (Executor.Invisible)
-                {
-                    MakeObservation("You exit the shadows.", Color.Gray);
-                    Executor.Invisible = false;
-                }
-                else
-                {
-                    MakeObservation("You are not in the shadows.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "level_up" && Subjects[0].Metadata == "up")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                Executor.Level++;
-                Executor.SpendableLevels++;
-                MakeObservation("You divine the imbuement of great power.", Color.Yellow);
-
-            }
-            else if (CommandID == "attack_body_part_with_item")
-            {
-                if (Subjects[0] is Architect)
-                {
-                    if (((Architect)(Subjects[0])).BodyParts.Any(bodyPart => bodyPart.Type == Subjects[1].Metadata))
-                    {
-                        if (Subjects[2] is Object)
-                        {
-                            Object item = LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[2] ? LoadedArchitects[ArchitectIndex].MainHandObject() :
-                                          LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[2] ? LoadedArchitects[ArchitectIndex].OffHandObject() :
-                                          Executor.BodyParts.FirstOrDefault(bp => bp == Subjects[2]);
-
-                            if (item != null)
-                            {
-                                CalculateAttack(CommandID.Substring(CommandID.Length - 2), Executor, ((Architect)Subjects[0]).FindBodyPart(Subjects[1].Metadata).Name, "decideforme", (Object)(Subjects[2]));
-                            }
-                            else
-                            {
-                                MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow);
-                            }
-                        }
-                        else
-                        {
-                            MakeObservation("You can't attack with something that isn't an object.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You can't target body parts of an object.", Color.Yellow);
-                }
-            }
-
-            else if (CommandID == "engage_target")
-            {
-                if (Subjects[0] is Architect targetArchitect)
-                {
-                    if (ArchitectsToUse.Contains(targetArchitect))
-                    {
-                        foreach (var architect in ArchitectsToUse)
-                        {
-                            if (architect == targetArchitect) // The target architect
-                            {
-                                Executor.DistanceFromArchitect(architect, -1); // Decrease distance by 1
-                            }
-                            else
-                            {
-                                Executor.DistanceFromArchitect(architect, 1); // Increase distance with all others by 1
-                            }
-                        }
-                        MakeObservation("You focus your target, shifting distances.", Color.Green);
-                        Executor.CooldownCycles += (int)(4 * Math.Round(Executor.Speed()));
-                    }
-                    else
-                    {
-                        MakeObservation("The target architect is not in the same area.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("The target is not an architect.", Color.Red);
-                }
-            }
-            else if (CommandID == "approach_target")
-            {
-                if (Subjects[0] is Architect targetArchitect)
-                {
-                    if (ArchitectsToUse.Contains(targetArchitect))
-                    {
-                        Executor.DistanceFromArchitect(targetArchitect, -2); // Decrease distance by 2
-                        MakeObservation("You move closer to the target.", Color.Green);
-                        Executor.CooldownCycles += (int)(4 * Math.Round(Executor.Speed()));
-                    }
-                    else
-                    {
-                        MakeObservation("The target architect is not in the same area.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("The target is not an architect.", Color.Red);
-                }
-            }
-            else if (CommandID == "distance_from_target")
-            {
-                if (Subjects[0] is Architect targetArchitect)
-                {
-                    if (ArchitectsToUse.Contains(targetArchitect))
-                    {
-                        Executor.DistanceFromArchitect(targetArchitect, 2); // Increase distance by 2
-                        MakeObservation("You increase your distance from the target.", Color.Green);
-                        Executor.CooldownCycles += (int)(4 * Math.Round(Executor.Speed()));
-                    }
-                    else
-                    {
-                        MakeObservation("The target architect is not in the same area.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("The target is not an architect.", Color.Red);
-                }
-            }
-
-            else if (CommandID == "wield_item")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (Subjects[0] is Object && LoadedArchitects[ArchitectIndex].Inventory.Contains((Object)Subjects[0]))
-                {
-                    if (LoadedArchitects[ArchitectIndex].RightHanded)
-                    {
-                        if (LoadedArchitects[ArchitectIndex].RightHandObject == null)
-                        {
-                            LoadedArchitects[ArchitectIndex].RightHandObject = ((Object)Subjects[0]);
-                            LoadedArchitects[ArchitectIndex].Inventory.Remove(((Object)Subjects[0]));
-                        }
-                        else if (LoadedArchitects[ArchitectIndex].LeftHandObject == null)
-                        {
-                            LoadedArchitects[ArchitectIndex].LeftHandObject = ((Object)Subjects[0]);
-                            LoadedArchitects[ArchitectIndex].Inventory.Remove(((Object)Subjects[0]));
-                        }
-                        else
-                        {
-                            MakeObservation("Your hands are full.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        if (LoadedArchitects[ArchitectIndex].LeftHandObject == null)
-                        {
-                            LoadedArchitects[ArchitectIndex].LeftHandObject = ((Object)Subjects[0]);
-                            LoadedArchitects[ArchitectIndex].Inventory.Remove(((Object)Subjects[0]));
-                        }
-                        else if (LoadedArchitects[ArchitectIndex].RightHandObject == null)
-                        {
-                            LoadedArchitects[ArchitectIndex].LeftHandObject = ((Object)Subjects[0]);
-                            LoadedArchitects[ArchitectIndex].Inventory.Remove(((Object)Subjects[0]));
-                        }
-                        else
-                        {
-                            MakeObservation("Your hands are full.", Color.Yellow);
-                        }
-                    }
-                }
-                else
-                {
-                    MakeObservation("That is not an object in your inventory.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "pick_up_item")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (LoadedArchitects[ArchitectIndex].Room != null && LoadedArchitects[ArchitectIndex].Room.Objects.Contains(Subjects[0]))
-                {
-                    MakeObservation("You pick up the " + Subjects[0].ReferredToNames[0] + " and put it in your inventory.", Color.Yellow);
-                    LoadedArchitects[ArchitectIndex].Room.Objects.Remove((Object)Subjects[0]);
-                    LoadedArchitects[ArchitectIndex].Inventory.Add((Object)Subjects[0]);
-
-                    ((Object)Subjects[0]).Structure = null;
-                    ((Object)Subjects[0]).Block = null;
-
-                    if (((Object)Subjects[0]).Imbuements.Count > 1 || ((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).Name != null)
-                    {
-                        IsInGui = true;
-
-                        if (((Object)Subjects[0]).Name != null)
-                        {
-                            ItemPickupGuiLines.Add(Capitalize(((Object)Subjects[0]).Name) + ", " + Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Capitalize(((Object)Subjects[0]).Type));
-                        }
-                        else
-                        {
-                            ItemPickupGuiLines.Add(Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Capitalize(((Object)Subjects[0]).Type));
-                        }
-
-                        if (((Object)Subjects[0]).Imbuements.Count == 0)
-                        {
-                            ItemPickupGuiLines.Add("This object has no imbuements.");
-                        }
-                        else
-                        {
-                            List<string> ImbuementDescriptions = new List<string>();
-                            foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
-                            {
-                                ImbuementDescriptions.Add(i.GetDescription());
-                            }
-                            ItemPickupGuiLines.Add("This object has some magical properties. " + ConvertListToString(ImbuementDescriptions));
-                        }
-                    }
-
-                    if (Executor.Structure != null && Executor.Structure.Type == "market")
-                    {
-                        Executor.Structure.MarketDebt -= ((Object)(Subjects[0])).Value();
-                    }
-                }
-                else if (LoadedArchitects[ArchitectIndex].Room == null && LoadedArchitects[ArchitectIndex].Block.Objects.Contains(Subjects[0]))
-                {
-                    MakeObservation("You pick up the " + Subjects[0].ReferredToNames[0] + " and put it in your inventory.", Color.Yellow);
-                    LoadedArchitects[ArchitectIndex].Block.Objects.Remove((Object)Subjects[0]);
-                    LoadedArchitects[ArchitectIndex].Inventory.Add((Object)Subjects[0]);
-
-                    ((Object)Subjects[0]).Structure = null;
-                    ((Object)Subjects[0]).Block = null;
-                    ((Object)Subjects[0]).Room = null;
-
-                    if (((Object)Subjects[0]).Imbuements.Count > 1 || ((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).Name != null)
-                    {
-                        IsInGui = true;
-
-                        if (((Object)Subjects[0]).Name != null)
-                        {
-                            ItemPickupGuiLines.Add(Capitalize(((Object)Subjects[0]).Name) + ", " + Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Capitalize(((Object)Subjects[0]).Type));
-                        }
-                        else
-                        {
-                            ItemPickupGuiLines.Add(Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Capitalize(((Object)Subjects[0]).Type));
-                        }
-
-                        if (((Object)Subjects[0]).Imbuements.Count == 0)
-                        {
-                            ItemPickupGuiLines.Add("This object has no imbuements.");
-                        }
-                        else
-                        {
-                            List<string> ImbuementDescriptions = new List<string>();
-                            foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
-                            {
-                                ImbuementDescriptions.Add(i.GetDescription());
-                            }
-                            ItemPickupGuiLines.Add("This object has some magical properties. " + ConvertListToString(ImbuementDescriptions));
-                        }
-                    }
-                }
-                else if (LoadedArchitects[ArchitectIndex].LeftHandObject == Subjects[0])
-                {
-                    MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow);
-                    LoadedArchitects[ArchitectIndex].LeftHandObject = null;
-                    LoadedArchitects[ArchitectIndex].Inventory.Add((Object)Subjects[0]);
-                }
-                else if (LoadedArchitects[ArchitectIndex].RightHandObject == Subjects[0])
-                {
-                    MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow);
-                    LoadedArchitects[ArchitectIndex].RightHandObject = null;
-                    LoadedArchitects[ArchitectIndex].Inventory.Add((Object)Subjects[0]);
-                }
-                else
-                {
-                    MakeObservation("You couldn't find anything like that in the area.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "drop_item")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                bool Found = true;
-                if (Subjects[0] == Executor.RightHandObject)
-                {
-                    Executor.RightHandObject = null;
-                }
-                else if (Subjects[0] == Executor.LeftHandObject)
-                {
-                    Executor.LeftHandObject = null;
-                }
-                else if (Executor.Inventory.Contains(Subjects[0]))
-                {
-                    Executor.Inventory.Remove((Object)(Subjects[0]));
-                }
-                else
-                {
-                    Found = false;
-                }
-
-                if (Found)
-                {
-                    if (Executor.Room != null)
-                    {
-                        Executor.Room.Objects.Add((Object)(Subjects[0]));
-                        MakeObservation("You drop the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow);
-                    }
-                    else
-                    {
-                        Executor.Block.Objects.Add((Object)(Subjects[0]));
-                        MakeObservation("You drop the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow);
-                    }
-
-                    if (Executor.Structure != null && Executor.Structure.Type == "market")
-                    {
-                        Executor.Structure.MarketDebt += ((Object)(Subjects[0])).Value();
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't have that.", Color.Yellow);
-                }
-
-            }
-            else if (CommandID == "strip_clothing")
-            {
-                List<Object> Clothings = new List<Object>();
-                foreach(Object o in Executor.Clothing)
-                {
-                    if(o.Type != "undergarment" && o.Type != "uppergarment")
-                    {
-                        Clothings.Add(o);
-                    }
-                }
-
-                foreach(Object o in Clothings)
-                {
-                    Executor.Clothing.Remove(o);
-                    Executor.Inventory.Add(o);
-                }
-
-                MakeObservation("You remove all your clothing.", Color.Green);
-            }
-            else if (CommandID == "place_item_in")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (Subjects[0] == Executor.RightHandObject || Subjects[0] == Executor.LeftHandObject || Executor.Inventory.Contains(Subjects[0]))
-                {
-                    // Check if the subject is "shadow storage" directly, avoiding the need for it to be an Object
-                    if (Subjects[1].Metadata == "shadow storage")
-                    {
-                        // Shadow storage logic
-                        if (!Executor.ShadowStorage.Contains((Object)Subjects[0]))
-                        {
-                            Executor.ShadowStorage.Add((Object)Subjects[0]);
-
-                            // Optionally clear the object from hands or inventory, but keep it linked to shadow storage
-                            if (Subjects[0] == Executor.RightHandObject)
-                            {
-                                Executor.RightHandObject = null;
-                            }
-                            else if (Subjects[0] == Executor.LeftHandObject)
-                            {
-                                Executor.LeftHandObject = null;
-                            }
-                            else if (Executor.Inventory.Contains(Subjects[0]))
-                            {
-                                Executor.Inventory.Remove((Object)(Subjects[0]));
-                            }
-
-                            MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the shadow storage.", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation("The item is already in the shadow storage.", Color.Green);
-                        }
-                    }
-                    else if (Subjects[1] is Object subjectObject && subjectObject.IsContainer)
-                    {
-                        // Handling normal container logic
-                        if (Subjects[0] == Executor.RightHandObject)
-                        {
-                            Executor.RightHandObject = null;
-                        }
-                        else if (Subjects[0] == Executor.LeftHandObject)
-                        {
-                            Executor.LeftHandObject = null;
-                        }
-                        else if (Executor.Inventory.Contains(Subjects[0]))
-                        {
-                            Executor.Inventory.Remove((Object)(Subjects[0]));
-                        }
-
-                        subjectObject.ContainedObjects.Add((Object)Subjects[0]);
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[1].ReferredToNames[0] + " can't hold anything.", Color.Green);
-                    }
-                }
-                else
-                {
-                    if (Executor.Clothing.Contains(Subjects[1]))
-                    {
-                        if (Executor.Sex == "male")
-                        {
-                            MakeObservation("You are going to have to take that off first, sir.", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation("You are going to have to take that off first, madame.", Color.Green);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("You don't have that.", Color.Green);
-                    }
-                }
-            }
-            else if (CommandID == "take_item_from")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (Subjects[1].Metadata == "shadow storage")
-                {
-                    if (Executor.Room == null)
-                    {
-                        foreach (Object o in Executor.Block.Objects)
-                        {
-                            if (o.Type == "shadow storage")
-                            {
-                                // Assuming we have a way to check if the object is linked in the shadow storage.
-                                if (Executor.ShadowStorage.Contains((Object)Subjects[0]))
-                                {
-                                    // Assuming the executor can carry the object
-                                    if (Executor.RightHandObject == null)
-                                    {
-                                        Executor.RightHandObject = (Object)Subjects[0];
-                                    }
-                                    else if (Executor.LeftHandObject == null)
-                                    {
-                                        Executor.LeftHandObject = (Object)Subjects[0];
-                                    }
-                                    else
-                                    {
-                                        Executor.Inventory.Add((Object)Subjects[0]);
-                                    }
-
-                                    // Note: The object isn't removed from ShadowStorage to maintain the link.
-                                    MakeObservation("You retrieve the " + Subjects[0].ReferredToNames[0] + " from the shadow storage.", Color.Green);
-                                }
-                                else
-                                {
-                                    MakeObservation("The shadow storage does not contain that.", Color.Green);
-                                }
-                                break; // Exit the loop once the shadow storage is processed
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if (Subjects[1] is Object && ((Object)Subjects[1]).IsContainer && ((Object)Subjects[1]).ContainedObjects.Contains((Object)Subjects[0]))
-                    {
-                        // Assuming the executor can carry the object
-                        if (Executor.RightHandObject == null)
-                        {
-                            Executor.RightHandObject = (Object)Subjects[0];
-                        }
-                        else if (Executor.LeftHandObject == null)
-                        {
-                            Executor.LeftHandObject = (Object)Subjects[0];
-                        }
-                        else
-                        {
-                            Executor.Inventory.Add((Object)Subjects[0]);
-                        }
-
-                        ((Object)Subjects[1]).ContainedObjects.Remove((Object)Subjects[0]);
-
-                        MakeObservation("You remove the " + Subjects[0].ReferredToNames[0] + " from the " + Subjects[1].ReferredToNames[0] + ".", Color.Green);
-                    }
-                    else if (!(Subjects[1] is Object) || !((Object)Subjects[1]).IsContainer)
-                    {
-                        MakeObservation(Subjects[1].ReferredToNames[0] + " is not a container.", Color.Green);
-                    }
-                    else if (!((Object)Subjects[1]).ContainedObjects.Contains((Object)Subjects[0]))
-                    {
-                        MakeObservation("The " + Subjects[1].ReferredToNames[0] + " does not contain that.", Color.Green);
-                    }
-                    else
-                    {
-                        // Handle case where object cannot be taken for some other reason
-                        MakeObservation("Can't take that for some reason.", Color.Green);
-                    }
-                }
-            }
-            else if (waitCommands.ContainsKey(CommandID.ToLower()))
-            {
-                int secondsToWait = waitCommands[CommandID.ToLower()];
-                Executor.CooldownCycles += secondsToWait * 10;
-                string observationMessage = secondsToWait == 1 ? "You wait for one second." : $"You wait for {secondsToWait} seconds.";
-                MakeObservation(observationMessage, Color.Green);
-            }
-            else if (CommandID.ToLower().StartsWith("wait"))
-            {
-                MakeObservation("You're too impatient to wait that long.", Color.Red);
-            }
-            else if (CommandID == "wear_item")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-                if (Subjects[0] is Object && (Executor.Inventory.Contains(((Object)Subjects[0])) || Executor.RightHandObject == ((Object)Subjects[0]) || Executor.LeftHandObject == ((Object)Subjects[0])))
-                {
-                    if (((Object)Subjects[0]).IsWearable)
-                    {
-                        if (Executor.Clothing.Any(c => c.Type == ((Object)Subjects[0]).Type) && ((Object)Subjects[0]).Type != "amulet")
-                        {
-                            MakeObservation($"You can't wear more than one {((Object)Subjects[0]).Type}, fascist.", Color.Yellow);
-                        }
-                        else
-                        {
-                            MakeObservation("You put on the " + Subjects[0].ReferredToNames[0] + ".", Color.Green);
-
-                            if (Executor.Inventory.Contains(((Object)Subjects[0])))
-                            {
-                                Executor.Inventory.Remove((Object)Subjects[0]);
-                            }
-                            else if (Executor.LeftHandObject == ((Object)Subjects[0]))
-                            {
-                                Executor.LeftHandObject = null;
-                            }
-                            else
-                            {
-                                Executor.RightHandObject = null;
-                            }
-
-                            Executor.Clothing.Add(((Object)Subjects[0]));
-                        }
-                    }
-                    else
-                    {
-                        if (Executor.Clothing.Count > 0)
-                        {
-                            MakeObservation("You hang the " + Subjects[0].ReferredToNames[0] + " off of your " + Executor.Clothing[Game1.r.Next(Executor.Clothing.Count)].ReferredToNames[0] + ". You feel disadvantaged.", Color.Green);
-                            Executor.Clothing.Add(((Object)Subjects[0]));
-                        }
-                        else
-                        {
-                            MakeObservation("You aren't wearing anything to hang it off of...", Color.Green);
-                        }
-                    }
-                }
-                else if (Subjects[0] is Architect)
-                {
-                    if (((Architect)Subjects[0]).Race == GameWorld.GetRace("shiba") && ((Architect)Subjects[0]).Block == Executor.Block && ((Architect)Subjects[0]).Room == Executor.Room)
-                    {
-                        MakeObservation("You put on the shiba inu. It melds with your face, and you feel an intense euphoria.", Color.Green);
-                    }
-                    else
-                    {
-                        MakeObservation("You can't wear that, it's not a shiba inu.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't have an object like that.", Color.Green);
-                }
-            }
-            else if (CommandID == "remove_worn_item")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-                if (Subjects[0] is Object && Executor.Clothing.Contains(((Object)Subjects[0])))
-                {
-                    MakeObservation("You take off the " + Subjects[0].ReferredToNames[0] + ".", Color.Green);
-
-                    // Remove the item from the Clothing list
-                    Executor.Clothing.Remove((Object)Subjects[0]);
-
-                    // Add the item back to the Executor's inventory
-                    Executor.Inventory.Add((Object)Subjects[0]);
-                }
-                else if (Subjects[0] is Architect)
-                {
-                    if (((Architect)Subjects[0]).Race == GameWorld.GetRace("shiba") && Executor.MeldedShibas.Contains(Subjects[0]))
-                    {
-                        MakeObservation("You remove the shiba inu from your face, feeling a sense of loss.", Color.Green);
-                        Executor.MeldedShibas.Remove(((Architect)Subjects[0]));
-
-                        ((Architect)Subjects[0]).Room = Executor.Room;
-                        ((Architect)Subjects[0]).Block = Executor.Block;
-
-                        if (Executor.Room == null)
-                        {
-                            Executor.Room.Architects.Add((Architect)Subjects[0]);
-                        }
-                        else
-                        {
-                            Executor.Block.Architects.Add((Architect)Subjects[0]);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("You can't take that off, it's not a shiba inu.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You aren't wearing an object like that.", Color.Green);
-                }
-            }
-            else if (CommandID == "examine_object")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-                if (Subjects[0] is Architect)
-                {
-                    MakeObservation(Subjects[0].ReferredToNames[0], Color.White);
-                    MakeObservation(((Architect)Subjects[0]).Race.Description, Color.LimeGreen);
-                    MakeObservation(((Architect)Subjects[0]).CheckEnergyLevel(), Color.Magenta);
-                    MakeObservation(((Architect)Subjects[0]).DescribeArchitectInventory(), Color.Orange);
-                }
-                else if (Subjects[0] is Object)
-                {
-                    if ((LoadedArchitects[ArchitectIndex].Room != null && LoadedArchitects[ArchitectIndex].Room.Objects.Contains(Subjects[0])) || LoadedArchitects[ArchitectIndex].Block.Objects.Contains(Subjects[0]) || (LoadedArchitects[ArchitectIndex].MainHandObject() == Subjects[0] || LoadedArchitects[ArchitectIndex].OffHandObject() == Subjects[0] || LoadedArchitects[ArchitectIndex].Inventory.Contains(Subjects[0])))
-                    {
-                        MakeObservation(Subjects[0].ReferredToNames[0], Color.White);
-                        MakeObservation(((Object)Subjects[0]).Description, Color.White);
-
-                        string Materials = "Materials: ";
-                        List<string> materialNames = ((Object)Subjects[0]).Materials.Select(m => m.Name).ToList();
-
-                        if (materialNames.Count > 1)
-                        {
-                            // Insert "and" before the last element
-                            materialNames[^1] = "and " + materialNames[^1];
-
-                            // Join all elements with a comma, except the last one which already has "and"
-                            Materials += String.Join(", ", materialNames);
-                        }
-                        else if (materialNames.Count == 1)
-                        {
-                            // If there's only one material, just add it
-                            Materials += materialNames[0];
-                        }
-
-                        MakeObservation(Materials, Color.White);
-
-                        foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
-                        {
-                            MakeObservation(i.GetDescription(), Color.Magenta);
-                        }
-
-                    }
-                }
-                else if (Subjects[0] is Structure && LoadedArchitects[ArchitectIndex].Room == null && LoadedArchitects[ArchitectIndex].Block.Structures.Contains(Subjects[0]))
-                {
-
-                }
-                else
-                {
-                    MakeObservation("You couldn't find anything like that nearby.", Color.White);
-                }
-            }
-            else if (CommandID == "give_item")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (!(Subjects[0] is Object))
-                {
-                    MakeObservation("You can't give something that isn't an object.", Color.Yellow);
-                    return (false);
-                }
-                else if ((!(Subjects[1] is Object)) && (!(Subjects[1] is Architect)))
-                {
-                    MakeObservation("You can't give to something that isn't a person or object.", Color.Yellow);
-                    return (false);
-                }
-                else if (!(Executor.Inventory.Contains(Subjects[0])) && !(Executor.LeftHandObject == Subjects[0]) && !(Executor.RightHandObject == Subjects[0]))
-                {
-                    MakeObservation("You don't have that in your inventory or hands.", Color.Yellow);
-                    return (false);
-                }
-                else if (Executor.RightHandObject == Subjects[0])
-                {
-                    Executor.RightHandObject = null;
-                }
-                else if (Executor.LeftHandObject == Subjects[0])
-                {
-                    Executor.LeftHandObject = null;
-                }
-                else if (Executor.Inventory.Contains(Subjects[0]))
-                {
-                    Executor.Inventory.Remove((Object)(Subjects[0]));
-                }
-
-                Object GivenObject = ((Object)(Subjects[0]));
-
-                //if we didnt return it means we found a givingobject and something to give it to. we also took it out of their hands.
-
-                if (Subjects[1] is Architect)
-                {
-                    AddMessage("You: Here, take this.", Color.White);
-                    MakeObservation("You give the " + Subjects[1].ReferredToNames[0] + " to " + GivenObject.ReferredToNames[0] + ".", Color.Blue);
-                    AddMessage(Subjects[0].ReferredToNames[0] + ": Thank you! I appreciate it!", Color.White);
-
-                    ((Architect)Subjects[1]).Inventory.Add(GivenObject);
-                }
-                else
-                {
-                    //subject 1 is an object
-
-                    if (((Object)Subjects[1]).Type == "altar")
-                    {
-                        MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + ". It fizzles...", Color.Yellow);
-
-                        int Quality = 0;
-
-                        if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "gemstone"))
-                        {
-                            Quality = 10;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "metal"))
-                        {
-                            Quality = 8;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "glass"))
-                        {
-                            Quality = 6;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "stone"))
-                        {
-                            Quality = 5;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "cloth"))
-                        {
-                            Quality = 4;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "wood"))
-                        {
-                            Quality = 2;
-                        }
-
-                        int Outcome = (Quality * 2) + r.Next(-2, 3);
-
-                        //outcome will be from 0-22, depending on quality
-                        string OutcomeString = (new List<string>() { "reject", "reject", "reject", "coffee", "tea", "divineprotection", "double", "lightninggrenade", "icedtea", "icedcoffee", "spatialgrenade", "double", "heal", "double", "divinemight", "learnspell", "double", "convertmaterialtodivine", "divineweapon" })[Outcome];
-
-                        Deity PrayingDeity;
-                        if (LoadedArchitects[ArchitectIndex].Structure == null && LoadedArchitects[ArchitectIndex].Structure.Type == "shrine")
-                        {
-                            PrayingDeity = LoadedArchitects[ArchitectIndex].Structure.PrayingDeity;
-                        }
-                        else if (Game1.r.Next(1, 3) == 1)
-                        {
-                            PrayingDeity = Game1.GameWorld.LightDeity;
-                        }
-                        else
-                        {
-                            PrayingDeity = Game1.GameWorld.DarkDeity;
-                        }
-
-                        switch (OutcomeString)
-                        {
-                            case "reject":
-                                {
-                                    MakeObservation("...and absolutely nothing happens.", Color.Red);
-                                    break;
-                                }
-                            case "coffee":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of coffee!", Color.Goldenrod);
-
-                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Coffee }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "tea":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of tea!", Color.Goldenrod);
-
-                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Tea }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "divineprotection":
-                                {
-                                    // Code for the 'divineprotection' case
-                                    MakeObservation(PrayingDeity.Name + " offers you a barrier between the blades of your enemies!", Color.Goldenrod);
-                                    Executor.DivineProtection += 5;
-                                    break;
-                                }
-                            case "double":
-                                {
-                                    // Code for the 'double' case
-                                    MakeObservation(PrayingDeity.Name + " has blessed your offering and doubled it!", Color.Goldenrod);
-                                    Executor.Block.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
-                                    Executor.Block.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
-                                    break;
-                                }
-                            case "lightninggrenade":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with lightning...", Color.Goldenrod);
-                                    Executor.Block.Objects.Add(new Object(null, "lightning grenade", new List<Material>() { GameWorld.Glass }, PrayingDeity));
-                                    break;
-                                }
-                            case "spatialgrenade":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with purple energy...", Color.Goldenrod);
-                                    Executor.Block.Objects.Add(new Object(null, "spatial grenade", new List<Material>() { GameWorld.Glass }, PrayingDeity));
-                                    break;
-                                }
-                            case "icedcoffee":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced coffee!", Color.Goldenrod);
-
-                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Coffee }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "icedtea":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced tea!", Color.Goldenrod);
-
-                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Tea }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "heal":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " envelops you in a beautiful energy wave!", Color.Goldenrod);
-                                    foreach (Object o in Executor.BodyParts)
-                                    {
-                                        o.Integrity = 100;
-                                    }
-                                    Executor.Energy = Executor.MaxEnergy();
-                                    break;
-                                }
-                            case "divinemight":
-                                {
-                                    // Code for the 'divinemight' case
-                                    MakeObservation(PrayingDeity.Name + " offers you a burst of power against your mightiest foes!", Color.Goldenrod);
-                                    Executor.DivineMight += 12;
-                                    break;
-                                }
-                            case "learnspell":
-                                {
-                                    // Code for the 'learnspell' case
-                                    MakeObservation(PrayingDeity.Name + " attempts to infuse magic into your being...", Color.Goldenrod);
-                                    if (r.Next(1, 3) == 1)
-                                    {
-                                        var randomSpell = GameWorld.DiscoveredSpells[r.Next(GameWorld.DiscoveredSpells.Count)];
-                                        if (!LoadedArchitects[ArchitectIndex].SpellsKnown.Contains(randomSpell))
-                                        {
-                                            MakeObservation("You feel a tremendous pain, followed by a strange, uplifting peace.", Color.Goldenrod);
-                                            LoadedArchitects[ArchitectIndex].SpellsKnown.Add(randomSpell);
-                                        }
-                                        else
-                                        {
-                                            MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod);
-                                    }
-                                    break;
-                                }
-                            case "convertmaterialtodivine":
-                                {
-                                    GivenObject.Materials.Clear();
-                                    MakeObservation(PrayingDeity.Name + " alters your object into a brilliant form!", Color.Goldenrod);
-
-                                    if (PrayingDeity == GameWorld.LightDeity)
-                                    {
-                                        GivenObject.Materials.Add(GameWorld.Prismite);
-                                    }
-                                    else
-                                    {
-                                        GivenObject.Materials.Add(GameWorld.Shadesteel);
-                                    }
-
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(GivenObject);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(GivenObject);
-                                    }
-                                    break;
-                                }
-                            case "divineweapon":
-                                {
-                                    // Code for the 'divineweapon' case
-
-                                    Material WeaponMaterial;
-
-                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an incredible form!", Color.Goldenrod);
-
-                                    if (PrayingDeity == GameWorld.LightDeity)
-                                    {
-                                        WeaponMaterial = GameWorld.Prismite;
-                                    }
-                                    else
-                                    {
-                                        WeaponMaterial = GameWorld.Shadesteel;
-                                    }
-
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(GenerateRandomWeapon(WeaponMaterial, "rare"));
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(GenerateRandomWeapon(WeaponMaterial, "rare"));
-                                    }
-
-                                    break;
-                                }
-                            default:
-                                {
-                                    // Code for any other case that is not specifically handled
-                                    break;
-                                }
-                        }
-
-                    }
-                    else
-                    {
-                        MakeObservation("You place your " + Subjects[1] + " on the " + Subjects[1] + " and wait, patiently. Nothing happens. You pick it back up.", Color.Yellow);
-                        Executor.Inventory.Add((Object)(Subjects[1]));
-                    }
-                }
-            }
-            else if (CommandID == "throw_item")
-            {
-                Object ThrowingObject = null;
-                if (Executor.RightHanded)
-                {
-                    if (Executor.RightHandObject == Subjects[0])
-                    {
-                        ThrowingObject = Executor.RightHandObject;
-                        Executor.RightHandObject = null;
-                    }
-                    else if (Executor.LeftHandObject == Subjects[0])
-                    {
-                        ThrowingObject = Executor.LeftHandObject;
-                        Executor.LeftHandObject = null;
-                    }
-                }
-                else
-                {
-                    if (Executor.LeftHandObject == Subjects[0])
-                    {
-                        ThrowingObject = Executor.LeftHandObject;
-                        Executor.LeftHandObject = null;
-                    }
-                    else if (Executor.RightHandObject == Subjects[0])
-                    {
-                        ThrowingObject = Executor.RightHandObject;
-                        Executor.RightHandObject = null;
-                    }
-                }
-
-                if (ThrowingObject == null)
-                {
-                    if (Executor.LeftHandObject == null && Executor.RightHandObject == null)
-                    {
-                        Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow));
-                        Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow));
-                    }
-                    else
-                    {
-                        Observations.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow));
-                        Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow));
-                    }
-                }
-                else
-                {
-                    Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-                    MakeObservation("You fling your " + Subjects[0] + " at nothing. Expectedly, it falls to the ground.", Color.Yellow);
-                    Executor.Inventory.Remove(ThrowingObject);
-
-                    if (Executor.Room == null)
-                    {
-                        Executor.Block.Objects.Add(ThrowingObject);
-                    }
-                    else
-                    {
-                        Executor.Room.Objects.Add(ThrowingObject);
-                    }
-                }
-            }
-            else if (CommandID == "craft")
-            {
-                var objectsToSearch = Executor.Room?.Objects ?? Executor.Block?.Objects;
-                var forgeNearby = objectsToSearch?.FirstOrDefault(obj => obj.Type == "forge") != null;
-                if (forgeNearby)
-                {
-                    Executor.Crafting = true;
-                }
-                else
-                {
-                    MakeObservation("You need to be near a forge to do that.", Color.Orange);
-                }
-
-            }
-            else if (CommandID == "throw_item_at")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-                Object ThrowingObject = null;
-
-                if (Executor.LeftHandObject == Subjects[0])
-                {
-                    ThrowingObject = Executor.LeftHandObject;
-                    Executor.LeftHandObject = null;
-                }
-                else if (Executor.RightHandObject == Subjects[0])
-                {
-                    ThrowingObject = Executor.RightHandObject;
-                    Executor.RightHandObject = null;
-                }
-                else
-                {
-                    if (Executor.LeftHandObject == null && Executor.RightHandObject == null)
-                    {
-                        Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow));
-                        Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow));
-                    }
-                    else
-                    {
-                        Observations.Add(new TextStorage("The specified object is not in your hands.", Color.Yellow));
-                        Announcements.Add(new TextStorage("The specified object is not in your hands.", Color.Yellow));
-                    }
-                }
-
-                if (ThrowingObject == null)
-                {
-                    Observations.Add(new TextStorage("You don't have an object like that in one of your hands.", Color.Yellow));
-                    Announcements.Add(new TextStorage("You don't have an object like that in one of your hands.", Color.Yellow));
-                }
-                else
-                {
-                    if (ThrowingObject == Executor.LeftHandObject)
-                    {
-                        Executor.LeftHandObject = null;
-                    }
-                    else
-                    {
-                        Executor.RightHandObject = null;
-                    }
-
-                    ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, r.Next(8, 12) - Executor.Dexterity);
-                    ((Object)Subjects[0]).AirborneTarget = Subjects[1];
-                    ((Object)Subjects[0]).Thrower = Executor;
-                    ((Object)Subjects[0]).AirbornePower = Executor.Dexterity + Executor.GetDistance(Subjects[0]) + 3;
-
-                    if (Executor.Structure != null)
-                    {
-                        Executor.Room.Objects.Add((Object)Subjects[0]);
-                    }
-                    else
-                    {
-                        Executor.Block.Objects.Add((Object)Subjects[0]);
-                    }
-                }
-            }
-            else if (CommandID == "cast_spell_at")
-            {
-                if (Executor.SpellsKnown.Contains(Subjects[0].Metadata) ||
-    (Executor.LeftHandObject != null && Executor.LeftHandObject.SpellContained == Subjects[0].Metadata) ||
-    Executor.RightHandObject.SpellContained == Subjects[0].Metadata)
-
-                {
-                    string Spell = Subjects[0].Metadata;
-
-                    Subjects.RemoveAt(0);
-
-                    List<Entity> Targets = new List<Entity>();
-
-                    foreach (Entity e in Subjects)
-                    {
-                        //add spells that can be casted at litterally anything to the list below
-
-                        if ((e is Object || e is Architect) || new List<string> { "expunge" }.Contains(Spell))
-                        {
-                            Targets.Add(e);
-                        }
-                        else
-                        {
-                            MakeObservation(Spell + " cannot be casted at " + e.ReferredToNames[0] + ".", Color.Yellow);
-                        }
-                    }
-
-                    if (Targets.Count != 0)
-                    {
-                        Announcements.AddRange(Executor.CastSpell(Spell, Targets));
-                    }
-                    else
-                    {
-                        Observations.Add(new TextStorage("You couldn't find a sufficient target. Spells can only target architects and objects.", Color.Yellow));
-                        Announcements.Add(new TextStorage("You couldn't find a sufficient target. Spells can only target architects and objects.", Color.Yellow));
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know a spell like that.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "cast_spell")
-            {
-                MakeObservation("You fail to concentrate. You will need a point of interest to cast the spell at, even if unnecessary.", Color.Yellow);
-            }
-            else if (CommandID == "recall_information")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (Subjects[0].Metadata == "spells")
-                {
-                    MakeObservation("Spells Known:", Color.Blue);
-                    foreach (string s in Executor.SpellsKnown)
-                    {
-                        MakeObservation(s, Color.Blue);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You can't remember that.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "read_object")
-            {
-                // Check for the specified object in both hands and inventory
-                Object objectToRead = null;
-                if (Executor.MainHandObject() != null && Executor.MainHandObject() == Subjects[0])
-                {
-                    objectToRead = Executor.MainHandObject();
-                }
-                else if (Executor.OffHandObject() != null && Executor.OffHandObject() == Subjects[0])
-                {
-                    objectToRead = Executor.OffHandObject();
-                }
-                else if (Executor.Inventory.Any(item => item == Subjects[0]))
-                {
-                    objectToRead = Executor.Inventory.First(item => item == Subjects[0]);
-                }
-
-                if (objectToRead != null)
-                {
-                    // Object found, provide a reading outcome
-                    MakeObservation("You read " + objectToRead.Name + ". " + objectToRead.CompositionContent.getCompleteWorkDescription(), Color.Blue);
-
-                    // Increase the Executor's cooldown cycles based on the content length
-                    int contentLength = objectToRead.CompositionContent.Sections.Count; // Assuming Content has a Length property representing the number of words or complexity
-                    Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 125 * contentLength)); // Adjusted formula to consider content length
-
-                    // Check if the object contains a spell and the Executor can learn it
-                    if (!string.IsNullOrEmpty(objectToRead.SpellContained))
-                    {
-                        MakeObservation("You learned the spell \"" + objectToRead.SpellContained + "\"!", Color.Blue);
-                    }
-                }
-                else
-                {
-                    // Object not found in hands or inventory
-                    MakeObservation("You don't have " + Subjects[0] + " in your hands or inventory.", Color.Red);
-                }
-            }
-            else if (CommandID == "perform_composition")
-            {
-                string type = CommandID.Contains("recite") ? "poem" : "song";
-                Composition compositionToPerform = Executor.CultureBank.Find(comp => comp.Type == type && comp.Name == Subjects[0].Metadata);
-
-                if (compositionToPerform != null)
-                {
-                    // Performance successful, provide a description
-                    string action = type == "poem" ? "recite" : "sing";
-                    MakeObservation($"You {action} " + compositionToPerform.Name + ". " + compositionToPerform.getCompleteWorkDescription(), Color.Blue);
-                }
-                else
-                {
-                    // Composition not found in memory
-                    MakeObservation("You do not remember a " + type + " named " + Subjects[0] + ".", Color.Red);
-                }
-
-                // Determine the list of architects based on the location of the Executor
-                var architects = Executor.Room == null ? Executor.Block.Architects : Executor.Room.Architects;
-
-                // Randomly select a subset of architects to react, between 1 and 6
-                int numReactions = Math.Min(Game1.r.Next(1, 7), architects.Count);
-                List<Architect> reactingArchitects = architects.OrderBy(a => Game1.r.Next()).Take(numReactions).ToList();
-
-                // React to performance in the vicinity
-                foreach (var architect in reactingArchitects)
-                {
-                    // Create a score for each architect based on Executor's charisma and a random modifier
-                    int randomModifier = Game1.r.Next(-2, 3);  // Random number from -2 to 2
-                    int score = Executor.Charisma + randomModifier;
-                    score = Math.Clamp(score, 0, 9); // Ensure score is within 0-9
-
-                    // Determine the reaction based on the score
-                    string reaction;
-                    switch (score)
-                    {
-                        case 0:
-                            reaction = "Go find a merchant, peddler???";
-                            break;
-                        case 1:
-                            reaction = "I've heard better from my shiba.";
-                            break;
-                        case 2:
-                            reaction = "Keep practicing... far away from here.";
-                            break;
-                        case 3:
-                            reaction = "Hmm, I guess everyone starts somewhere.";
-                            break;
-                        case 4:
-                            reaction = "Not the worst I've endured.";
-                            break;
-                        case 5:
-                            reaction = "Average, but you could improve.";
-                            break;
-                        case 6:
-                            reaction = "Quite decent, I must say!";
-                            break;
-                        case 7:
-                            reaction = "That was actually quite engaging!";
-                            break;
-                        case 8:
-                            reaction = "Impressive performance, truly!";
-                            break;
-                        case 9:
-                            reaction = "Astonishing! You've truly mastered your craft!";
-                            break;
-                        default:
-                            reaction = "How indescribable... I'm unsure how to put my amazement into words.";
-                            break;
-                    }
-
-                    // Display the reaction
-                    AddMessage(architect.Name + ": " + reaction, Color.Magenta);
-                }
-
-            }
-            else if (CommandID == "write_composition")
-            {
-                // Decide on type based on the subject provided
-                string type = Subjects[0].Metadata.ToLower();
-                if (type == "book")
-                {
-                    // Find a writable object for books
-                    Object writableObject = Executor.MainHandObject() != null && Executor.MainHandObject().IsWritable && Executor.MainHandObject().CompositionContent == null
-                                                ? Executor.MainHandObject()
-                                                : Executor.Inventory.FirstOrDefault(item => item.IsWritable && item.CompositionContent == null);
-
-                    if (writableObject == null)
-                    {
-                        MakeObservation("You have nothing suitable for writing in your hands or inventory.", Color.Red);
-                    }
-                    else
-                    {
-                        // Create a new Composition without a specific domain
-                        Composition newComposition = new Composition(type, Executor, "");
-                        writableObject.CompositionContent = newComposition;
-                        writableObject.Name = newComposition.Name; // Assign the generated book name to the object
-
-                        // Provide detailed feedback to the user
-                        MakeObservation("You write a book titled '" + newComposition.Name + "' on whatever you are thinking about at the moment." + newComposition.getCompleteWorkDescription() + " It is now stored in your " + writableObject.Name + ".", Color.Blue);
-                    }
-                }
-                else if (type == "poem" || type == "song")
-                {
-                    // Create a new Composition in memory for poems or songs
-                    Composition newComposition = new Composition(type, Executor, "");
-                    Executor.CultureBank.Add(newComposition); // Assuming Executor has a Memory list to store compositions
-
-                    // Provide detailed feedback to the user
-                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + ". " + newComposition.getCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue);
-                }
-            }
-            else if (CommandID == "write_about_topic")
-            {
-                string domain;
-
-                if (Subjects[1].Metadata == null || Subjects[1].Metadata == "")
-                {
-                    domain = Subjects[1].Metadata;
-                }
-                else
-                {
-                    domain = Subjects[1].Name;
-                }
-                string type = Subjects[0].Metadata; // This should be either "book", "poem", or "song"
-
-                if (type == "book")
-                {
-                    // Find a writable object for books
-                    Object writableObject = Executor.MainHandObject() != null && Executor.MainHandObject().IsWritable && Executor.MainHandObject().CompositionContent == null
-                                                ? Executor.MainHandObject()
-                                                : Executor.Inventory.FirstOrDefault(item => item.IsWritable && item.CompositionContent == null);
-
-                    if (writableObject == null)
-                    {
-                        MakeObservation("You have nothing suitable for writing in your hands or inventory.", Color.Red);
-                    }
-                    else
-                    {
-                        // Create a new Composition with a specific domain
-                        Composition newComposition = new Composition(type, Executor, domain);
-                        writableObject.CompositionContent = newComposition;
-                        writableObject.Name = newComposition.Name; // Assign the generated book name to the object
-
-                        // Provide detailed feedback to the user
-                        MakeObservation("You write a book titled '" + newComposition.Name + "' about " + domain + ". " + newComposition.getCompleteWorkDescription() + ". It is now stored in your " + writableObject.Name + ".", Color.Blue);
-                    }
-                }
-                else if (type == "poem" || type == "song")
-                {
-                    // Create a new Composition in memory for poems or songs
-                    Composition newComposition = new Composition(type, Executor, domain);
-                    Executor.CultureBank.Add(newComposition); // Assuming Executor has a Memory list to store compositions
-
-                    // Provide detailed feedback to the user
-                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + "' about " + domain + ". " + newComposition.getCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue);
-                }
-            }
-
-            else if (CommandID.StartsWith("write ~ about "))
-            {
-                MakeObservation("You can't write about that because it either doesn't exist or no one cares about it.", Color.Red);
-            }
-            else if (CommandID == "tame_creature")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
-                {
-                    AddMessage(Executor.Name + ": Wild one, join the ranks of my great conquest.", Color.Green);
-                    if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race))
-                    {
-                        int ExistingAnimals = 0;
-                        foreach (Architect a in GamePlayerParty.Architects)
-                        {
-                            if (!GameWorld.HumanoidRaces.Contains(a.Race) && !GameWorld.ExtraRaces.Contains(a.Race))
-                            {
-                                ExistingAnimals++;
-                            }
-                        }
-
-                        if (Executor.PathOfLifeLevel >= 6 && ExistingAnimals < Executor.PathOfLifeLevel)
-                        {
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": *happy shiba noises*", Color.Green);
-                            GamePlayerParty.Architects.Add(((Architect)Subjects[0]));
-                        }
-                        else
-                        {
-                            AddMessage(((Architect)Subjects[0]).Name + ": *sad shiba noises*", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": What is this insanity? Calm yourself.", Color.Orange);
-                        ((Architect)Subjects[0]).ChangeOpinion(Executor, -20);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You couldn't find anything like that nearby.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "starstrike")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
-                {
-                    MakeObservation("You flick your wrist...", Color.Green);
-                    int StarCount = 0;
-
-                    if (Executor.PathOfStarsLevel >= 6)
-                    {
-                        StarCount = r.Next(2, 4);
-                        MakeObservation($"Stars fly from your hands!", Color.Goldenrod);
-                    }
-                    else
-                    {
-                        MakeObservation($"...but nothing happens.", Color.Yellow);
-                    }
-
-                    for (int i = 0; i < StarCount; i++)
-                    {
-                        Object o = new Object(null, "falling star", new List<Material>() { GameWorld.Energy }, Executor);
-                        o.AirborneTarget = Subjects[0];
-
-                        if (targetArchitect.Room != null)
-                        {
-                            targetArchitect.Room.Objects.Add(o);
-                        }
-                        else
-                        {
-                            targetArchitect.Block.Objects.Add(o);
-                        }
-                    }
-                }
-                else
-                {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "flamestrike")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
-                {
-                    MakeObservation("You wave...", Color.Green);
-
-                    if (Executor.PathOfHeatLevel >= 2)
-                    {
-                        MakeObservation($"A large flame emnates from your hand!", Color.Goldenrod);
-                        Object o = new Object(null, "wave", new List<Material>() { GameWorld.Flame }, Executor);
-                        o.AirborneTarget = Subjects[0];
-                        targetArchitect.Room.Objects.Add(o);
-                    }
-                    else
-                    {
-                        MakeObservation($"...but nothing happens.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "heat_object")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Executor.PathOfHeatLevel >= 4)
-                {
-                    var targetObject = Subjects[0];
-
-                    if (Executor.LeftHandObject == targetObject || Executor.RightHandObject == targetObject)
-                    {
-                        MakeObservation("You focus...", Color.Green);
-                        ((Object)targetObject).HeatInCelsius += 50;
-                        MakeObservation($"The {targetObject.Name} in your hand heats up intensely!", Color.Goldenrod);
-                    }
-                    else
-                    {
-                        MakeObservation($"...but you're not holding the intended target.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation($"...but your control over heat is not strong enough.", Color.Yellow);
-                }
-            }
-
-            else if (CommandID == "starsmite")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
-                {
-                    MakeObservation("You point and wave...", Color.Green);
-
-                    Executor.Energy -= 5;
-
-                    if (Executor.PathOfStarsLevel >= 8)
-                    {
-                        MakeObservation($"A swirling vortex appears, and a cosmic energy beam strikes " + Subjects[0].ReferredToNames[0] + "!", Color.Goldenrod);
-                        Executor.Energy -= 5;
-                        foreach (Object o in targetArchitect.BodyParts)
-                        {
-                            o.Integrity -= r.Next(10, 40);
-                        }
-                        targetArchitect.Bleeding += r.Next(2, 6);
-
-                        targetArchitect.ChangeOpinion(Executor, -60);
-                    }
-                    else
-                    {
-                        MakeObservation($"...but nothing happens.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "conjure_spark")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 5));
-                if (Executor.PathOfLightLevel >= 2)
-                {
-                    MakeObservation("You hold your hand out, collecting light...", Color.Green);
-                    MakeObservation("A radiant spark appears!", Color.Green);
-
-                    Object Spark = new Object(null, "spark", new List<Material>() { GameWorld.Energy }, Executor);
-                    Executor.Sparks.Add(Spark);
-
-                    if (Executor.Room != null)
-                    {
-                        Executor.Room.Objects.Add(Spark);
-                        Spark.Room = Executor.Room;
-                    }
-                    else
-                    {
-                        Executor.Block.Objects.Add(Spark);
-                        Spark.Block = Executor.Block;
-                    }
-
-                    if (Executor.Sparks.Count > Executor.PathOfLightLevel)
-                    {
-                        if (Executor.Sparks[0].Room != null)
-                        {
-                            Executor.Sparks[0].Room.Objects.Remove(Executor.Sparks[0]);
-                            Executor.Sparks.RemoveAt(0);
-                        }
-                        else
-                        {
-                            Executor.Sparks[0].Block.Objects.Remove(Executor.Sparks[0]);
-                            Executor.Sparks.RemoveAt(0);
-                        }
-                        MakeObservation("You feel a loss of connection to your earliest spark.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "evoke_strike")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                Object FoundSpark = null;
-
-                if (Executor.PathOfStarsLevel >= 4)
-                {
-                    if (Executor.Room != null)
-                    {
-                        foreach (Object o in Executor.Sparks)
-                        {
-                            if (o.Room == Executor.Room)
-                            {
-                                FoundSpark = o;
-
-                                if (Subjects[0] is Architect && ((Architect)(Subjects[0])).Room == Executor.Room)
-                                {
-                                    Object BP = ((Architect)Subjects[0]).BodyParts[r.Next(((Architect)Subjects[0]).BodyParts.Count)];
-                                    BP.Integrity -= r.Next(1, Executor.PathOfStarsLevel * 5);
-                                    MakeObservation("The beam pierces through " + BP.ReferredToNames[0] + "!", Color.Magenta);
-                                }
-                                else if (Subjects[0] is Object && ((Object)(Subjects[0])).Room == Executor.Room)
-                                {
-                                    ((Object)Subjects[0]).Integrity -= r.Next(1, Executor.PathOfStarsLevel * 5);
-                                    MakeObservation("The beam pierces through " + Subjects[0].ReferredToNames[0] + "!", Color.Magenta);
-                                }
-                                else
-                                {
-                                    MakeObservation("The beam fails to target properly.", Color.Yellow);
-                                }
-
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        foreach (Object o in Executor.Sparks)
-                        {
-                            if (o.Block == Executor.Block && o.Room == null)
-                            {
-                                FoundSpark = o;
-
-                                if (Subjects[0] is Architect && ((Architect)(Subjects[0])).Block == Executor.Block)
-                                {
-                                    Object BP = ((Architect)Subjects[0]).BodyParts[r.Next(((Architect)Subjects[0]).BodyParts.Count)];
-                                    BP.Integrity -= r.Next(1, Executor.PathOfStarsLevel * 5);
-                                    MakeObservation("The beam pierces through " + BP.ReferredToNames[0] + "!", Color.Magenta);
-                                }
-                                else if (Subjects[0] is Object && ((Object)(Subjects[0])).Block == Executor.Block)
-                                {
-                                    ((Object)Subjects[0]).Integrity -= r.Next(1, Executor.PathOfStarsLevel * 5);
-                                    MakeObservation("The beam pierces through " + Subjects[0].ReferredToNames[0] + "!", Color.Magenta);
-                                }
-                                else
-                                {
-                                    MakeObservation("The beam fails to target properly.", Color.Yellow);
-                                }
-
-                                break;
-                            }
-                        }
-                    }
-
-                    if (FoundSpark == null)
-                    {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow);
-                    }
-                    else
-                    {
-                        Executor.Sparks.Remove(FoundSpark);
-                        if (FoundSpark.Room != null)
-                        {
-                            FoundSpark.Room.Objects.Remove(FoundSpark);
-                        }
-                        else
-                        {
-                            FoundSpark.Block.Objects.Remove(FoundSpark);
-                        }
-                    }
-                }
-            }
-            else if (CommandID == "evoke_blindness")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                Object FoundSpark = null;
-
-                if (Executor.PathOfStarsLevel >= 2) // Assuming the ability requires a certain level to use
-                {
-                    // Check for spark in the same room or block
-                    foreach (Object o in Executor.Sparks)
-                    {
-                        if ((Executor.Room != null && o.Room == Executor.Room) || (Executor.Block != null && o.Block == Executor.Block && o.Room == null))
-                        {
-                            FoundSpark = o;
-                            break;
-                        }
-                    }
-
-                    if (FoundSpark != null)
-                    {
-                        bool foundArchitects = false;
-
-                        if (Executor.Room != null)
-                        {
-                            foreach (Architect architect in Executor.Room.Architects)
-                            {
-                                architect.BlindCycles += 50; // Add 4 BlindCycles to each Architect
-                                MakeObservation(architect.Name + " is blinded by the radiance!", Color.Magenta);
-                                foundArchitects = true;
-                            }
-                        }
-                        else if (Executor.Block != null)
-                        {
-                            foreach (Architect architect in Executor.Block.Architects.Where(a => a.Room == null))
-                            {
-                                architect.BlindCycles += 50;
-                                MakeObservation(architect.Name + " is blinded by the radiance!", Color.Magenta);
-                                foundArchitects = true;
-                            }
-                        }
-
-                        if (!foundArchitects)
-                        {
-                            MakeObservation("No one is blinded...", Color.Yellow);
-                        }
-
-                        // Consume the spark
-                        Executor.Sparks.Remove(FoundSpark);
-                        if (FoundSpark.Room != null)
-                        {
-                            FoundSpark.Room.Objects.Remove(FoundSpark);
-                        }
-                        else
-                        {
-                            FoundSpark.Block.Objects.Remove(FoundSpark);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-            else if (CommandID == "evoke_healing")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                Object FoundSpark = null;
-
-                if (Executor.PathOfStarsLevel >= 6) // Assuming the ability requires a certain level to use
-                {
-                    // Check for spark in the same room or block
-                    foreach (Object o in Executor.Sparks)
-                    {
-                        if ((Executor.Room != null && o.Room == Executor.Room) || (Executor.Block != null && o.Block == Executor.Block && o.Room == null))
-                        {
-                            FoundSpark = o;
-                            break;
-                        }
-                    }
-
-                    if (FoundSpark != null)
-                    {
-                        bool foundArchitects = false;
-
-                        if (Executor.Room != null)
-                        {
-                            foreach (Architect architect in Executor.Room.Architects)
-                            {
-                                if (architect.CombatCycles == 0)
-                                {
-                                    architect.Energy = architect.MaxEnergy(); // Heal to max energy
-                                    MakeObservation(architect.Name + " is enveloped in brilliance and fully healed!", Color.Magenta);
-                                }
-                                else
-                                {
-                                    MakeObservation(architect.Name + " is too distracted for brilliance.", Color.Yellow);
-                                }
-                                foundArchitects = true;
-                            }
-                        }
-                        else if (Executor.Block != null)
-                        {
-                            foreach (Architect architect in Executor.Block.Architects.Where(a => a.Room == null))
-                            {
-                                if (architect.CombatCycles == 0)
-                                {
-                                    architect.Energy = architect.MaxEnergy(); // Heal to max energy
-                                    MakeObservation(architect.Name + " is enveloped in brilliance and fully healed!", Color.Magenta);
-                                }
-                                else
-                                {
-                                    MakeObservation(architect.Name + " is too distracted for brilliance.", Color.Yellow);
-                                }
-                                foundArchitects = true;
-                            }
-                        }
-
-                        if (!foundArchitects)
-                        {
-                            MakeObservation("There is no one to heal...", Color.Yellow);
-                        }
-
-                        // Consume the spark
-                        Executor.Sparks.Remove(FoundSpark);
-                        if (FoundSpark.Room != null)
-                        {
-                            FoundSpark.Room.Objects.Remove(FoundSpark);
-                        }
-                        else
-                        {
-                            FoundSpark.Block.Objects.Remove(FoundSpark);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-            else if (CommandID == "evoke_nexus")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                Object FoundSpark = null;
-
-                if (Executor.PathOfStarsLevel >= 4) // Assuming the ability requires a certain level to use
-                {
-                    // Check for spark in the same room or block
-                    foreach (Object o in Executor.Sparks)
-                    {
-                        if ((Executor.Room != null && o.Room == Executor.Room) || (Executor.Block != null && o.Block == Executor.Block && o.Room == null))
-                        {
-                            FoundSpark = o;
-                            break;
-                        }
-                    }
-
-                    if (FoundSpark != null)
-                    {
-                        Architect a = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], Game1.GameWorld.GetRace("photonexus"), 0, "prismancer", new List<Object>(), Executor.Location, Executor.District, Executor.Block, "", 1);
-                        GamePlayerParty.Architects.Add(a);
-                        MakeObservation("A photonexus appears!", Color.Cyan);
-
-                        if (Executor.Room != null)
-                        {
-                            Executor.Room.Architects.Add(a);
-                        }
-                        else if (Executor.Block != null)
-                        {
-                            Executor.Block.Architects.Add(a);
-                        }
-
-                        // Consume the spark
-                        Executor.Sparks.Remove(FoundSpark);
-                        if (FoundSpark.Room != null)
-                        {
-                            FoundSpark.Room.Objects.Remove(FoundSpark);
-                        }
-                        else if (FoundSpark.Block != null)
-                        {
-                            FoundSpark.Block.Objects.Remove(FoundSpark);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-            else if (CommandID == "inflame")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Executor.PathOfHeatLevel >= 8)
-                {
-                    Executor.FireCycles += 50;
-                    MakeObservation("Your flame burns brighter!", Color.Red);
-                }
-                else
-                {
-                    MakeObservation("You don't have control over that.", Color.Red);
-                }
-            }
-            else if (CommandID == "unflame")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Executor.PathOfHeatLevel >= 8)
-                {
-                    Executor.FireCycles = 0;
-                    MakeObservation("You stop blazing!", Color.Red);
-                }
-                else
-                {
-                    MakeObservation("You don't have control over that.", Color.Red);
-                }
-            }
-
-            else if (CommandID == "augment_creature")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
-                {
-                    if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && GamePlayerParty.Architects.Contains(Subjects[0]))
-                    {
-                        if (Executor.PathOfLifeLevel >= 8)
-                        {
-                            MakeObservation("You gesture.", Color.Magenta);
-
-                            if (((Architect)Subjects[0]).Augumented == true)
-                            {
-                                MakeObservation(Subjects[0].ReferredToNames[0] + " already has an augumentation.", Color.Magenta);
-                            }
-                            else
-                            {
-                                int Shibe = r.Next(3);
-
-                                if (Shibe == 0)
-                                {
-                                    MakeObservation(Subjects[0].ReferredToNames + " is enveloped in a golden light, becoming stronger!", Color.Magenta);
-                                    ((Architect)Subjects[0]).Strength += 2;
-                                }
-                                else if (Shibe == 1)
-                                {
-                                    MakeObservation(Subjects[0].ReferredToNames + " is enveloped in a white light, becoming more agile!", Color.Magenta);
-                                    ((Architect)Subjects[0]).Strength += 2;
-                                }
-                                else if (Shibe == 2)
-                                {
-                                    MakeObservation(Subjects[0].ReferredToNames + " is enveloped in a red light, becoming more durable!", Color.Magenta);
-                                    ((Architect)Subjects[0]).MaxEnergyMod += 30;
-                                    ((Architect)Subjects[0]).Energy = ((Architect)Subjects[0]).MaxEnergy();
-                                }
-
-                                ((Architect)Subjects[0]).Augumented = true;
-                            }
-                        }
-                        else
-                        {
-                            MakeObservation("You aren't powerful enough to do that.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("You can't augument humanoids or creatures you don't control.", Color.Yellow);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You couldn't find anything augumentable like that nearby.", Color.Yellow);
-                }
-            }
-            else if (CommandID == "raise_dead")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                MakeObservation("You conjure a spark of dark energy, and speak the name of " + Subjects[0].ReferredToNames[0] + "...", Color.Purple);
-
-                //count undead already i nthe party
-
-                int Shadecount = 0;
-
-                foreach (Architect a in GamePlayerParty.Architects)
-                {
-                    if (a.Race == GameWorld.GetRace("shade"))
-                    {
-                        Shadecount++;
-                    }
-                }
-
-                if (Subjects[0] is Architect && ((Architect)Subjects[0]).IsAlive == false && (((Architect)Subjects[0]).Block == Executor.Block && ((Architect)Subjects[0]).Room == Executor.Room) && Shadecount <= Executor.PathOfDeathLevel)
-                {
-                    Announcements.Add(new TextStorage(Subjects[0].ReferredToNames[0] + " rises with a putrid, dark energy!", Color.Purple));
-                    ((Architect)Subjects[0]).IsAlive = true;
-                    ((Architect)Subjects[0]).IsImmortal = true;
-                    ((Architect)Subjects[0]).Race = Game1.GameWorld.GetRace("shade");
-
-                    ((Architect)Subjects[0]).OppositionTags.Add("alllife");
-                    ((Architect)Subjects[0]).Energy = 50;
-                    ((Architect)Subjects[0]).MaxEnergyMod = 50;
-
-                    ((Architect)Subjects[0]).UndeadCreator = Executor;
-
-                    foreach (Object o in ((Architect)Subjects[0]).BodyParts)
-                    {
-                        o.Integrity = Math.Max(50, o.Integrity);
-                    }
-                }
-                else
-                {
-                    Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple));
-                }
-            }
-            else if (CommandID == "fire_spectral_bolt")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 15));
-                if (Executor.PathOfDeathLevel >= 4 || (Executor.UndeadCreator != null && Executor.UndeadCreator.PathOfDeathLevel >= 8))
-                {
-                    if (Subjects[0] is Architect)
-                    {
-                        Object o = new Object(null, "energy bolt", new List<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
-                        o.AirborneTarget = Subjects[0];
-
-                        if (Executor.Room != null)
-                        {
-                            Executor.Room.Objects.Add(o);
-                        }
-                        else
-                        {
-                            Executor.Block.Objects.Add(o);
-                        }
-                    }
-                    else
-                    {
-                        Announcements.Add(new TextStorage("The spirit you pulled from " + GameWorld.DarkDeity + "-knows-where only seeks the living and dead.", Color.Yellow));
-                    }
-                }
-            }
-
-
-
-            else if (CommandID == "increase_weight")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            MakeObservation(Subjects[0] + " increases in weight!", Color.Green);
-                            ((Object)Subjects[0]).Weight += 100; // Adjust the weight increase as necessary
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-            else if (CommandID == "increase_temperature")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            MakeObservation(Subjects[0] + " heats up!", Color.Green);
-                            ((Object)Subjects[0]).HeatInCelsius += 50; // Adjust the temperature increase as needed
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-            // Increase aerodynamics of an object
-            // Increase aerodynamics of an object
-            else if (CommandID == "increase_aerodynamics")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            MakeObservation(Subjects[0] + " becomes more aerodynamic!", Color.Green);
-                            ((Object)Subjects[0]).ProjectileAerodynamic = true;
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-            // Increase integrity of an object
-            // Increase integrity of an object
-            else if (CommandID == "increase_integrity")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            // Increase integrity but ensure it does not exceed 100
-                            ((Object)Subjects[0]).Integrity = Math.Min(100, ((Object)Subjects[0]).Integrity + 20); // Assuming each use increases integrity by 10
-                            ((Object)Subjects[0]).RealityAugumented = true;
-
-                            MakeObservation(Subjects[0] + " becomes more structurally sound!", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augumented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-            // Decrease weight of an object
-            else if (CommandID == "decrease_weight")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            ((Object)Subjects[0]).Weight /= 2; // Halve the weight
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                            MakeObservation(Subjects[0] + " decreases in weight!", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-            // Decrease temperature of an object
-            else if (CommandID == "decrease_temperature")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            ((Object)Subjects[0]).HeatInCelsius -= 50; // Decrease the temperature by a balanced amount
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                            MakeObservation(Subjects[0] + " cools down!", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-            // Decrease aerodynamics of an object
-            else if (CommandID == "decrease_aerodynamics")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            ((Object)Subjects[0]).ProjectileAerodynamic = false; // Reverse the aerodynamic property
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                            MakeObservation(Subjects[0] + " becomes less aerodynamic!", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-            // Decrease integrity of an object
-            else if (CommandID == "decrease_integrity")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 10));
-
-                if (Executor.PathOfRealityLevel >= 2)
-                {
-                    if (Subjects[0] is Object)
-                    {
-                        if (!((Object)Subjects[0]).RealityAugumented)
-                        {
-                            ((Object)Subjects[0]).Integrity = Math.Max(0, ((Object)Subjects[0]).Integrity - 20); // Decrease integrity, ensuring it doesn't go below 0
-                            ((Object)Subjects[0]).RealityAugumented = true;
-                            MakeObservation(Subjects[0] + " becomes less structurally sound!", Color.Green);
-                        }
-                        else
-                        {
-                            MakeObservation(Subjects[0] + " has already been reality augmented.", Color.Yellow);
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " isn't an object.", Color.Green);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-            // Liquify an object, building, or structure
-            else if (CommandID == "liquify")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-
-                if (Executor.PathOfRealityLevel >= 4)
-                {
-                    if (Subjects[0] is Object || Subjects[0] is Structure)
-                    {
-                        MakeObservation(Subjects[0] + " liquifies, and slowly seeps into the ground...", Color.Green);
-
-                        if (Subjects[0] is Structure)
-                        {
-                            foreach (Room r in ((Structure)Subjects[0]).Rooms)
-                            {
-                                foreach (Object o in r.Objects)
-                                {
-                                    o.Block = ((Structure)Subjects[0]).Block;
-                                    o.Room = null;
-                                    o.Structure = null;
-                                    ((Structure)Subjects[0]).Block.Objects.Add(o);
-                                }
-                                foreach (Architect a in r.Architects)
-                                {
-                                    a.Block = ((Structure)Subjects[0]).Block;
-                                    a.Room = null;
-                                    a.Structure = null;
-                                    ((Structure)Subjects[0]).Block.Architects.Add(a);
-                                }
-                            }
-                            ((Structure)Subjects[0]).Block.Structures.Remove((Structure)Subjects[0]);
-                        }
-                        else
-                        {
-                            bool Success = false;
-                            foreach (Architect a in LoadedArchitects)
-                            {
-                                if (a.Inventory.Contains((Object)Subjects[0]))
-                                {
-                                    Success = true;
-
-                                    a.Inventory.Remove((Object)Subjects[0]);
-                                }
-                                else if (a.Clothing.Contains((Object)Subjects[0]))
-                                {
-                                    Success = true;
-                                    a.Clothing.Remove((Object)Subjects[0]);
-                                }
-                                else if (a.LeftHandObject == (Object)Subjects[0])
-                                {
-                                    Success = true;
-                                    a.LeftHandObject = null;
-                                }
-                                else if (a.RightHandObject == (Object)Subjects[0])
-                                {
-                                    Success = true;
-                                    a.LeftHandObject = null;
-                                }
-                            }
-
-
-                            if (!Success)
-                            {
-                                List<Object> NecessaryList = ((Object)Subjects[0]).Room != null ? ((Object)Subjects[0]).Room.Objects : ((Object)Subjects[0]).Block.Objects;
-
-                                NecessaryList.Remove((Object)Subjects[0]);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " is not a suitable target for liquification.", Color.Red);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-            // Split an object into two copies of itself
-            else if (CommandID == "split")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 30));
-
-                if (Executor.PathOfRealityLevel >= 6)
-                {
-                    if (Subjects[0] is Object currentObject)
-                    {
-                        MakeObservation("You manifest spatial particles...", Color.Purple);
-
-                        // Create clone of the current object
-                        Object Clone = new Object
-                        {
-                            Type = currentObject.Type,
-                            Materials = new List<Material>(currentObject.Materials),
-                            Description = currentObject.Description,
-                            IsContainer = currentObject.IsContainer,
-                            ContainedObjects = new List<Object>(currentObject.ContainedObjects),
-                            IfTrueUseInIfFalseUseOn = currentObject.IfTrueUseInIfFalseUseOn,
-                            YLevelInFeet = currentObject.YLevelInFeet,
-                            YVelocity = currentObject.YVelocity,
-                            Weight = currentObject.Weight,
-                            WeaponMaximumRange = currentObject.WeaponMaximumRange,
-                            Structure = currentObject.Structure,
-                            Block = currentObject.Block,
-                            Room = currentObject.Room,
-                            HeatInCelsius = currentObject.HeatInCelsius,
-                            IsConsumable = currentObject.IsConsumable,
-                            VariableToChange = currentObject.VariableToChange,
-                            VariableChange = currentObject.VariableChange,
-                            IsWearable = currentObject.IsWearable,
-                            Rarity = currentObject.Rarity,
-                            IsBodyPart = currentObject.IsBodyPart,
-                            MajorArteryIsSevered = currentObject.MajorArteryIsSevered,
-                            AirborneTarget = currentObject.AirborneTarget,
-                            AirbornePower = currentObject.AirbornePower,
-                            AirborneCyclesToHitTarget = currentObject.AirborneCyclesToHitTarget,
-                            Creator = currentObject.Creator,
-                            WordCount = currentObject.WordCount,
-                            Subject = currentObject.Subject,
-                            FireCycles = currentObject.FireCycles,
-                            WetCycles = currentObject.WetCycles,
-                            DestabilizedCycles = currentObject.DestabilizedCycles,
-                            FractalCycles = currentObject.FractalCycles,
-                            RematerializeLocation = currentObject.RematerializeLocation,
-                            IsCoveredInPlants = currentObject.IsCoveredInPlants,
-                            CoverageValues = new List<(string, int)>(currentObject.CoverageValues),
-                            Coverage = currentObject.Coverage,
-                            CoverageName = currentObject.CoverageName,
-                            IsWeapon = currentObject.IsWeapon,
-                            DamageType = currentObject.DamageType,
-                            ProjectileAerodynamic = currentObject.ProjectileAerodynamic,
-                            Strength = currentObject.Strength,
-                            Dissipating = currentObject.Dissipating,
-                            Integrity = currentObject.Integrity,
-                            IsWritable = currentObject.IsWritable,
-                            SpellContained = currentObject.SpellContained,
-                            IsGeneralGood = currentObject.IsGeneralGood,
-                            // Assume deep cloning specifics here as necessary
-                        };
-
-                        // Place the clone in the same environment as the original
-                        if (currentObject.Room != null)
-                        {
-                            currentObject.Room.Objects.Add(Clone);
-                        }
-                        else if (currentObject.Block != null)
-                        {
-                            currentObject.Block.Objects.Add(Clone);
-                        }
-                        else
-                        {
-                            Executor.Block.Objects.Add(Clone);
-                        }
-
-                        MakeObservation(Subjects[0] + " splits into two!", Color.Green);
-                    }
-                    else
-                    {
-                        MakeObservation(Subjects[0] + " is not an object and cannot be split.", Color.Red);
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-            else if (CommandID == "blip")
-            {
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 40));
-
-                if (Executor.PathOfRealityLevel >= 8)
-                {
-                    if (Subjects[0] == Executor.RealityBlipFocus)
-                    {
-                        Executor.RealityFocusTries += 1; // Increment focus count
-                    }
-                    else
-                    {
-                        Executor.RealityBlipFocus = Subjects[0];
-                        Executor.RealityFocusTries = 1; // Reset focus count
-                    }
-
-                    if (Executor.RealityFocusTries >= 5)
-                    {
-                        // Perform the expunge-like deletion
-                        if (Subjects[0] is Architect a)
-                        {
-                            Game1.GameWorld.AllArchitects.Remove(a);
-                            foreach (Architect A in Game1.GameWorld.AllArchitects)
-                            {
-                                A.KnownArchitectsAndOpinions.RemoveAll(opinion => opinion.Item1 == a);
-                            }
-                            if (Game1.GameWorld.Colossals.Contains(a))
-                                Game1.GameWorld.Colossals.Remove(a);
-                            if (Game1.LoadedArchitects.Contains(a))
-                                Game1.LoadedArchitects.Remove(a);
-                            foreach (Location l in Game1.GameWorld.AllLocations)
-                            {
-                                if (l.Government == a)
-                                    l.Government = null;
-                            }
-                            if (a.Room != null)
-                            {
-                                a.Room.Architects.Remove(a);
-                                a.DropInventory();
-                            }
-                            else if (a.Block != null)
-                            {
-                                a.Block.Architects.Remove(a);
-                                a.DropInventory();
-                            }
-                            a.IsAlive = false;
-                            a.Location = null;
-                            a.District = null;
-                        }
-                        else if (Subjects[0] is Object obj)
-                        {
-                            Game1.GameWorld.DeletedObjects.Add(obj);
-                            foreach (Architect arch in Game1.GameWorld.AllArchitects)
-                            {
-                                if (arch.Inventory.Contains(obj))
-                                    arch.Inventory.Remove(obj);
-                                if (arch.LeftHandObject == obj)
-                                    arch.LeftHandObject = null;
-                                if (arch.RightHandObject == obj)
-                                    arch.RightHandObject = null;
-                            }
-                        }
-                        else if (Subjects[0] is Structure s)
-                        {
-                            foreach (Room r in s.Rooms)
-                            {
-                                foreach (Architect A in r.Architects)
-                                {
-                                    s.Block.Architects.Add(A);
-                                    A.Room = null;
-                                    A.Structure = null;
-                                }
-                                foreach (Object o in r.Objects)
-                                {
-                                    s.Block.Objects.Add(o);
-                                    o.Room = null;
-                                    o.Structure = null;
-                                }
-                            }
-                            foreach (Object o in s.HistoricalObjects)
-                            {
-                                s.Block.Objects.Add(o);
-                                o.Room = null;
-                                o.Structure = null;
-                            }
-                        }
-                        Executor.Focus = 0; // Reset after successful expunge
-                        Executor.RealityBlipFocus = null;
-                        Announcements.Add(new TextStorage($"{Subjects[0].Name} is blipped from reality!", Color.Purple));
-                    }
-                    else
-                    {
-                        Announcements.Add(new TextStorage($"You focus your reality-bending energy on {Subjects[0].Name}.", Color.Purple));
-                    }
-                }
-                else
-                {
-                    MakeObservation("You don't know how to do that.", Color.Red);
-                }
-            }
-
-
-
-
-
-
-            //THIS IS THE REALM OF MESSAGING BWAHAHAHAHAHAHAHA
-
-
-            else if (Subjects.Count > 0 && Subjects[0] is Architect && isSpeakingCommand) /*basically required for messages*/
-            {
-                Color ObservationColor1;
-                Color ObservationColor2;
-
-                Executor.CooldownCycles += (int)(Math.Round(Executor.Speed() * 20));
-
-                if (GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) || (GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && Executor.PathOfLifeLevel >= 2) || Executor.PathOfLifeLevel >= 4)
-                {
-                    if (Subjects.Contains(LoadedArchitects[ArchitectIndex]) || LoadedArchitects[ArchitectIndex] == Executor)
-                    {
-                        ObservationColor1 = Color.LimeGreen;
-                        ObservationColor2 = Color.Cyan;
-                    }
-                    else
-                    {
-                        ObservationColor1 = Color.DarkGreen;
-                        ObservationColor2 = Color.DarkCyan;
-                    }
-
-
-                    if (Subjects[0] == LoadedArchitects[ArchitectIndex]) //this means that its a message to the player and hteres differnet code to react to it.
-                    {
-
-                    }
-                    else
-                    {
-                        if (CommandID == "ask_name")
-                        {
-                            AddMessage(Executor.Name + ": What is your name?", ObservationColor1);
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": My name is " + ((Architect)Subjects[0]).Name + ".", ObservationColor2);
-                            ((Architect)Subjects[0]).ChangeOpinion(Executor, 1);
-                        }
-                        else if (CommandID == "ask_about_troubles")
-                        {
-                            AddMessage(Executor.Name + ": What troubles you today?", ObservationColor1);
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": INSERT TROUBLES HERE.", ObservationColor2);
-                        }
-                        else if (CommandID == "ask_to_join")
-                        {
-                            AddMessage(Executor.Name + ": Join me on my quest!", ObservationColor1);
-
-                            if ((GamePlayerParty.Architects.Count - 1) < (1 + Math.Max(0, GamePlayerParty.Architects[0].Level - 2)))
-                            {
-                                if (((Architect)Subjects[0]).Group != null)
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": I apologize. My loyalties are elsewhere.", ObservationColor2);
-                                }
-                                else
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, I will join you.", ObservationColor2);
-                                    AddMessage(Executor.Name + ": Fantastic! Welcome to " + GamePlayerParty.Name + ".", ObservationColor1);
-
-                                    GamePlayerParty.Architects.Add(((Architect)Subjects[0]));
-                                }
-                            }
-                            else
-                            {
-                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Prove you have what it takes.", ObservationColor2);
-                            }
-                        }
-                        else if (CommandID == "greet")
-                        {
-                            if (((Architect)Subjects[0]).GetOpinion(Executor) == 0)
-                            {
-                                AddMessage(Executor.Name + ": Hello, there. My name is " + Executor.Name + ".", ObservationColor1);
-                                AddMessage(Subjects[0].ReferredToNames[0] + ": Ah, hello there. I am called " + Subjects[0].Name + ".", ObservationColor2);
-                                ((Architect)Subjects[0]).ChangeOpinion(Executor, 1);
-                            }
-                            else
-                            {
-                                AddMessage(Executor.Name + ": Hello, there, " + Subjects[0].Name + ".", ObservationColor1);
-                                AddMessage(Subjects[0].ReferredToNames[0] + ": Hello there, " + Executor.Name + ". It is nice to see you again.", ObservationColor2);
-                            }
-                        }
-                        else if (CommandID == "join_group_request")
-                        {
-                            if (Executor.Group == null)
-                            {
-                                AddMessage(Executor.Name + ": I would be thrilled to join your group. Would you have me?", ObservationColor1);
-
-                                if (((Architect)Subjects[0]).Group != null)
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, you may join us. Welcome to " + ((Architect)Subjects[0]).Group.Name + ".", ObservationColor2);
-                                    Executor.Group = ((Architect)Subjects[0]).Group;
-                                }
-                                else
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": What group? You must be mistaken.", ObservationColor2);
-                                }
-                            }
-                            else
-                            {
-                                AddMessage(Executor.Name + ": I'd be thrilled to join your group. Would you have me?", ObservationColor1);
-                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Are you not associated with " + Executor.Group.Name + "? I can't be sure of your complete loyalty.", ObservationColor2);
-                            }
-                        }
-                        else if (CommandID == "location_query")
-                        {
-                            string GetDirection(int centerPointX, int centerPointZ, int pointTowardsX, int pointTowardsZ)
-                            {
-                                int dx = pointTowardsX - centerPointX;
-                                int dz = centerPointZ - pointTowardsZ; // Invert the Z calculation
-
-                                // Calculate angle in radians
-                                double angle = Math.Atan2(dz, dx);
-
-                                // Convert angle to degrees
-                                double degrees = angle * (180.0 / Math.PI);
-
-                                // Normalize the angle to be positive
-                                if (degrees < 0)
-                                {
-                                    degrees += 360.0;
-                                }
-
-                                // Determine the cardinal/ordinal direction based on degrees
-                                if (degrees >= 22.5 && degrees < 67.5)
-                                {
-                                    return "northeast";
-                                }
-                                else if (degrees >= 67.5 && degrees < 112.5)
-                                {
-                                    return "east";
-                                }
-                                else if (degrees >= 112.5 && degrees < 157.5)
-                                {
-                                    return "southeast";
-                                }
-                                else if (degrees >= 157.5 && degrees < 202.5)
-                                {
-                                    return "south";
-                                }
-                                else if (degrees >= 202.5 && degrees < 247.5)
-                                {
-                                    return "southwest";
-                                }
-                                else if (degrees >= 247.5 && degrees < 292.5)
-                                {
-                                    return "west";
-                                }
-                                else if (degrees >= 292.5 && degrees < 337.5)
-                                {
-                                    return "northwest";
-                                }
-                                else
-                                {
-                                    return "north";
-                                }
-                            }
-
-
-                            if (Subjects[1].Metadata != null)
-                            {
-                                AddMessage(Executor.Name + ": Do you know where I could find " + Subjects[1].Metadata + "?", ObservationColor1);
-
-                                (Region, Location, District, Block, Structure, string) Data = Executor.Block.FindNearestThing(Subjects[1].Metadata);
-
-                                if (Data != (null, null, null, null, null, ""))
-                                {
-                                    if (Data.Item2 != Executor.Location)
-                                    {
-                                        string direction = GetDirection(Executor.Location.X, Executor.Location.Z, Data.Item2.X, Data.Item2.Z);
-                                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, but you will have to travel to " + Data.Item2.Name + ", which is " + direction + " from here. " + Data.Item6 + " is there, " + Subjects[1].Name + " you might be looking for.", ObservationColor2);
-                                    }
-                                    else if (Data.Item3 != Executor.District)
-                                    {
-                                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, in the " + Data.Item3.Name + " district nearby. " + Data.Item6 + " is " + Subjects[1].Name + " you might be looking for.", ObservationColor2);
-                                    }
-                                    else if (Data.Item4 != Executor.Block)
-                                    {
-                                        string direction = GetDirection(Executor.Block.X, Executor.Block.Z, Data.Item4.X, Data.Item4.Z);
-                                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, " + Data.Item6 + " is not far from here. Just head a few blocks " + direction + ".", ObservationColor2);
-                                    }
-                                }
-                                else
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": I have no idea.", ObservationColor2);
-                                }
-                            }
-                            else
-                            {
-                                //for named entities
-
-                                if (((Architect)Subjects[0]).Profession == "scholar")
-                                {
-                                    AddMessage(Executor.Name + ": Do you know where I could find " + Subjects[1].Metadata + "?", ObservationColor1);
-
-                                    (Region, Location, District, Block, Structure, string) Data = (null, null, null, null, null, "");
-
-                                    if (Subjects[1] is Architect)
-                                    {
-                                        Data = (((Architect)Subjects[1]).Location.Region, ((Architect)Subjects[1]).Location, ((Architect)Subjects[1]).District, ((Architect)Subjects[1]).Block, ((Architect)Subjects[1]).Structure, "");
-                                    }
-                                    else if (Subjects[1] is Structure)
-                                    {
-                                        Data = (((Structure)Subjects[1]).Block.District.Location.Region, ((Structure)Subjects[1]).Block.District.Location, ((Structure)Subjects[1]).Block.District, ((Structure)Subjects[1]).Block, null, "");
-                                    }
-                                    else if (Subjects[1] is Object)
-                                    {
-                                        Data = (((Object)Subjects[1]).Structure.Block.District.Location.Region, ((Object)Subjects[1]).Block.District.Location, ((Object)Subjects[1]).Block.District, ((Object)Subjects[1]).Block, ((Object)Subjects[1]).Structure, "");
-                                    }
-
-                                    if (Data != (null, null, null, null, null, ""))
-                                    {
-                                        if (Data.Item2 != Executor.Location)
-                                        {
-                                            string direction = GetDirection(Executor.Location.X, Executor.Location.Z, Data.Item2.X, Data.Item2.Z);
-                                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, but you will have to travel to " + Data.Item2.Name + ", which is " + direction + " from here. " + Data.Item6 + " is somewhere there.", ObservationColor2);
-                                        }
-                                        else if (Data.Item3 != Executor.District)
-                                        {
-                                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, in the " + Data.Item3.Name + " district nearby. " + Data.Item6 + " is there somewhere.", ObservationColor2);
-                                        }
-                                        else if (Data.Item4 != Executor.Block)
-                                        {
-                                            if (Data.Item5 == null)
-                                            {
-                                                string direction = GetDirection(Executor.Block.X, Executor.Block.Z, Data.Item4.X, Data.Item4.Z);
-                                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, " + Data.Item6 + " is " + direction + " of here.", ObservationColor2);
-                                            }
-                                            else
-                                            {
-                                                string direction = GetDirection(Executor.Block.X, Executor.Block.Z, Data.Item4.X, Data.Item4.Z);
-                                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Yes, " + Data.Item6 + " is in " + Data.Item5.Name + ", " + direction + " from here.", ObservationColor2);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            if (Data.Item5 == null)
-                                            {
-                                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + " points towards " + Subjects[1].Metadata + ".", Color.Blue);
-                                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": I think you're looking for that.", ObservationColor2);
-                                            }
-                                            else
-                                            {
-                                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + " points towards " + Data.Item5.Name + ".", Color.Blue);
-                                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Right in there.", ObservationColor2);
-                                            }
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    AddMessage(Executor.Name + ": Do you know where I could find " + Subjects[1].Metadata + "?", ObservationColor1);
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": I dont know, go find a scholar.", ObservationColor2);
-                                }
-                            }
-                        }
-                        else if (CommandID == "ask_about_expertise")
-                        {
-                            AddMessage(Executor.Name + ": What are your skills?", ObservationColor1);
-
-                            (string, int) GreatestProficiency = ("nothing", 0);
-
-                            foreach ((string, int) I in ((Architect)Subjects[0]).XPValues)
-                            {
-                                if (GreatestProficiency.Item2 < I.Item2)
-                                {
-                                    GreatestProficiency = I;
-                                }
-                            }
-
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": I am skilled at " + GreatestProficiency.Item2 + ".", ObservationColor2);
-                        }
-                        else if (CommandID == "seek_advice")
-                        {
-                            AddMessage(Executor.Name + ": I'm not sure about " + Subjects[1].Metadata + ".", ObservationColor2);
-
-                            List<string> Responses = new List<string>() { "It's hopeless.",
-"Steer clear of hopeless situations.",
-"Ignore things more trouble than they're worth.",
-"You might regret your descision, but it must be made nonetheless.",
-"Its difficult.",
-"Dont set your hopes too high.",
-"You can try anything, but I wouldn't expect much.",
-"Its a bit of a gray area.",
-"What you do might not be for nothing, but don't be too hopeful.",
-"There's a glimmer of potential, albeit faint.",
-"The future is inevitable, anyway.",
-"Nothing is impossible.",
-"Everything has its pros and cons, weigh them carefully.",
-"With some effort, it might just be worth it.",
-"There's a chance you could make it work.",
-"It's not hopeless.",
-"I'd say there's a fair chance.",
-"Don't give into temptation.",
-"Your worst fears will be realized, anyway.",
-"There's always potential.",
-"Just make sure you're taking the right approach.",
-"Your plans are worthless.",
-"I am confident in your ability to get through.",
-"Is it truly promising?",
-"Make your choice, but make it quickly.",
-"When in doubt, ask for help.",
-"Only time will tell, but don't hold your breath.",
-"If it feels right, perhaps it's worth the risk.",
-"Sometimes, the journey is its own reward.",
-"Consider this a test of your resolve.",
-"Uncertainty is the soil of growth.",
-"In the end, you'll know if it was meant to be.",
-"Every choice has its shadow and its light.",
-"It might not lead where you expect, but the path is yours.",
-"The answer lies within the question itself.",
-"Some answers come only after the leap.",
-"Doubt can be a guiding star, if you let it.",
-"What matters is the choice to move forward.",
-"The odds are not in your favor.",
-"Consider this a warning rather than advice.",
-"Don't be surprised if things don't pan out.",
-"Expectations are premeditated resentments.",
-"You're likely to come out the other side with scars.",
-"You're playing with fire.",
-"Don't embark on a journey that's doomed from the start.",
-"You may be setting yourself up for failure.",
-"This road is paved with good intentions and bad outcomes.",
-"It's a battle you're not equipped to win.",
-"You're aiming for the heavens with a slingshot.",
-"This could be a tale of caution for others.",
-"You're likely to end up back where you started, or worse.",
-};
-
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": " + Responses[r.Next(Responses.Count)], ObservationColor2);
-                        }
-                        else if (CommandID == "ask_history")
-                        {
-                            // Implement the response logic here
-                            AddMessage(Executor.Name + ": Tell me more about " + Subjects[1].Metadata + ".", ObservationColor1);
-
-                            if (Subjects[1] is Location)
-                            {
-                                AddMessage(Executor.Name + ": Ah yes, in " + ((Location)Subjects[1]).LocationHistoricalEvents[r.Next(((Location)Subjects[1]).LocationHistoricalEvents.Count)], ObservationColor2);
-                            }
-                            else if (Subjects[1] is Architect)
-                            {
-                                AddMessage(Executor.Name + ": I don't know them well enough.", ObservationColor2);
-                            }
-                            else
-                            {
-                                AddMessage(Executor.Name + ": What? Where?", ObservationColor2);
-                            }
-                        }
-                        else if (CommandID == "need_assistance_query")
-                        {
-                            AddMessage(Executor.Name + ": Do you need help with something?", ObservationColor1);
-
-                            if (Subjects[0] is Architect)
-                            {
-                                if (((Architect)Subjects[0]).Task == "fighting")
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Help! Im in combat!", ObservationColor2);
-                                }
-                                else
-                                {
-                                    AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Everything is fine.", ObservationColor2);
-                                }
-                            }
-                        }
-                        else if (CommandID == "recent_events_query")
-                        {
-                            AddMessage(Executor.Name + ": Whats been happening recently?", ObservationColor1);
-
-                            if (Executor.Location.LocationHistoricalEvents.Count > 0)
-                            {
-                                AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Ah yes, in " + Executor.Location + " in " + Executor.Location.LocationHistoricalEvents.Last(), ObservationColor2);
-                            }
-                        }
-                        else if (CommandID == "trade_inquiry")
-                        {
-                            AddMessage(Executor.Name + ": What do you have to trade?", ObservationColor1);
-
-                            if (Executor.Profession == "trader")
-                            {
-                                if (Executor.Structure.Type == "market")
-                                {
-                                    AddMessage(((Architect)Subjects[0]).Name + ": I'm selling all of the lovely items here. You can take some items if you leave greater value, which I will ardently track. Do NOT leave the room with debt.", ObservationColor2);
-                                }
-                                else
-                                {
-                                    AddMessage(((Architect)Subjects[0]).Name + ": Ask me once I get back to the market...", ObservationColor2);
-                                }
-                            }
-                            else
-                            {
-                                AddMessage(((Architect)Subjects[0]).Name + ": Go find a merchant, peddler.", ObservationColor2);
-                            }
-                        }
-                        else
-                        {
-                            string message = "You cannot say that... yet... Though I'll try to implement it sometime. I'll store it in your failedsayings.txt in your Documents folder though.";
-                            string contentPath = Path.Combine(DocumentsFolderPath, "failedsayings.txt");
-                            if (!File.Exists(contentPath))
-                            {
-                                File.WriteAllText(contentPath, CommandID);
-                            }
-                            else
-                            {
-                                File.AppendAllText(contentPath, CommandID);
-                            }
-                            MakeObservation(message, Color.Blue);
-                            return false;
-                        }
-
-                    }
-                }
-                else
-                {
-                    MakeObservation(Subjects[0].ReferredToNames[0] + " can't understand you.", Color.Yellow);
-                }
-
-            }
-            else
-            {
-                string observationMessage = "Could not process. Either the command is unimplemented, you cannot access the subject, or the spelling is wrong.";
-                string contentPath = Path.Combine(ContentRoot, "commands.txt");
-                string failedCommand = "Command";
-                if (!File.Exists(contentPath))
-                {
-                    File.WriteAllText(contentPath, failedCommand + "\n");
-                }
-                else
-                {
-                    File.AppendAllText(contentPath, failedCommand + "\n");
-                }
-                MakeObservation(observationMessage, Color.Blue);
-
-                return false;
-            }
-
-
-            //if we got to this point that means we exited the if statement by running a command successfully, therefore we can return "true"
-            return (true);
-        }
 
         public static string GameState = "mainscreen";
         public static string GameMode = "unknown";
@@ -5111,6 +1864,9 @@ namespace Lightrealm
         {
             // TODO: Add your initialization logic here
             Window.IsBorderless = true;
+            _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+            _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            _graphics.ApplyChanges();
 
             //create save directory if not already
 
@@ -5312,10 +2068,6 @@ namespace Lightrealm
             ColorConverter.Add("black", Color.Black);
             ColorConverter.Add("brown", Color.Brown);
 
-            _graphics.PreferredBackBufferWidth = 2560;
-            _graphics.PreferredBackBufferHeight = 1440;
-            _graphics.ApplyChanges();
-
             ConvertArchitectToGroupType.Add("warrior", "military");
             ConvertArchitectToGroupType.Add("mercenary", "mercenary");
             ConvertArchitectToGroupType.Add("elder", "religious");
@@ -5380,7 +2132,7 @@ namespace Lightrealm
             ConvertProfessionToBuilding.Add("elemental", "none");
             ConvertProfessionToBuilding.Add("hypernexus", "none");
             ConvertProfessionToBuilding.Add("icosidodecahedron", "none");
-            ConvertProfessionToBuilding.Add("shadeheart", "tavern");
+            ConvertProfessionToBuilding.Add("heart", "none");
             ConvertProfessionToBuilding.Add("spatiomancer", "library");
             ConvertProfessionToBuilding.Add("perceptomancer", "library");
             ConvertProfessionToBuilding.Add("conjumancer", "library");
@@ -5571,6 +2323,17 @@ namespace Lightrealm
 
             PortT = Content.Load<Texture2D>("tiles/port");
 
+            PyramidT = Content.Load<Texture2D>("tiles/locationtiles/pyramid");
+            TileAtlas.Add("pyramid", PyramidT);
+            ToroidT = Content.Load<Texture2D>("tiles/locationtiles/toroid");
+            TileAtlas.Add("toroid", ToroidT);
+            TowersT = Content.Load<Texture2D>("tiles/locationtiles/towers");
+            TileAtlas.Add("towers", TowersT);
+            HallwayT = Content.Load<Texture2D>("tiles/locationtiles/hallway");
+            TileAtlas.Add("hallway", HallwayT);
+            ArchwayT = Content.Load<Texture2D>("tiles/locationtiles/archway");
+            TileAtlas.Add("archway", ArchwayT);
+
             DistrictEmptyDesertT = Content.Load<Texture2D>("distmap/emptydesert");
             DistrictEmptyPlainsT = Content.Load<Texture2D>("distmap/emptyplains");
             DistrictEmptySnowT = Content.Load<Texture2D>("distmap/emptysnow");
@@ -5587,6 +2350,27 @@ namespace Lightrealm
             DistrictMarketT = Content.Load<Texture2D>("distmap/market");
             DistrictMarketSurroundedT = Content.Load<Texture2D>("distmap/marketsurrounded");
             DistrictPrismT = Content.Load<Texture2D>("distmap/prism");
+
+            DistrictArchwayT = Content.Load<Texture2D>("distmap/archway");
+            DistrictCommuneT = Content.Load<Texture2D>("distmap/commune");
+            DistrictDockT = Content.Load<Texture2D>("distmap/dock");
+            DistrictShipT = Content.Load<Texture2D>("distmap/ship");
+            DistrictFortressT = Content.Load<Texture2D>("distmap/fortress");
+            DistrictHallwayT = Content.Load<Texture2D>("distmap/hallway");
+            DistrictMoundT = Content.Load<Texture2D>("distmap/mound");
+            DistrictCoreT = Content.Load<Texture2D>("distmap/core");
+            DistrictScaffoldT = Content.Load<Texture2D>("distmap/scaffold");
+            DistrictKeepT = Content.Load<Texture2D>("distmap/keep");
+            DistrictMonasteryT = Content.Load<Texture2D>("distmap/monastery");
+            DistrictMonumentT = Content.Load<Texture2D>("distmap/monument");
+            DistrictOutpostT = Content.Load<Texture2D>("distmap/outpost");
+            DistrictPyramidT = Content.Load<Texture2D>("distmap/pyramid");
+            DistrictHeartT = Content.Load<Texture2D>("distmap/heart");
+            DistrictScumT = Content.Load<Texture2D>("distmap/scum");
+            DistrictStrongholdT = Content.Load<Texture2D>("distmap/stronghold");
+            DistrictToroidT = Content.Load<Texture2D>("distmap/toroid");
+            DistrictTowerT = Content.Load<Texture2D>("distmap/tower");
+            DistrictTowersT = Content.Load<Texture2D>("distmap/towers");
 
             TitleScreen = Content.Load<Texture2D>("title");
             EmptyTileT = Content.Load<Texture2D>("tiles/emptytile");
@@ -5643,6 +2427,16 @@ namespace Lightrealm
             StrongholdT = Content.Load<Texture2D>("tiles/locationtiles/stronghold");
             TileAtlas.Add("stronghold", StrongholdT);
 
+            CoveT = Content.Load<Texture2D>("tiles/locationtiles/cove");
+            TileAtlas.Add("cove", CoveT);
+            CommuneT = Content.Load<Texture2D>("tiles/locationtiles/commune");
+            TileAtlas.Add("commune", CommuneT);
+            HoardT = Content.Load<Texture2D>("tiles/locationtiles/hoard");
+            TileAtlas.Add("hoard", HoardT);
+            PreserveT = Content.Load<Texture2D>("tiles/locationtiles/preserve");
+            TileAtlas.Add("preserve", PreserveT);
+            MonasteryT = Content.Load<Texture2D>("tiles/locationtiles/monastery");
+            TileAtlas.Add("monastery", MonasteryT);
 
             KeepT = Content.Load<Texture2D>("tiles/locationtiles/keep");
             TileAtlas.Add("keep", KeepT);
@@ -5961,7 +2755,7 @@ namespace Lightrealm
                         int InitialStagnantObjectIntegrity = targetObject.Integrity;
                         int InitialThrowingObjectIntegrity = o.Integrity;
 
-                        targetObject.TakeDamageFromObject(o, 0); // Simulating damage application
+                        targetObject.TakeDamageFromObject(o, o.Thrower.GetProficiency("throwing") + 3); // Simulating damage application
 
                         o.Integrity = InitialThrowingObjectIntegrity - InitialStagnantObjectIntegrity;
                         targetObject.Integrity = InitialThrowingObjectIntegrity - InitialStagnantObjectIntegrity;
@@ -6476,7 +3270,7 @@ namespace Lightrealm
                     }
                     else if (GameState == "generatingworld")
                     {
-                        GameWorld = new World(CurrentlySelectedWorldWidth, CurrentlySelectedWorldLength, NumberOfCivilizations - 3, CurrentlySelectedWorldAge, ThreatTypes[CurrentlySelectedGrievanceType], ProsperityMultiplier);
+                        GameWorld = new World(CurrentlySelectedWorldWidth, CurrentlySelectedWorldLength, NumberOfCivilizations - 4, CurrentlySelectedWorldAge, ThreatTypes[CurrentlySelectedGrievanceType], ProsperityMultiplier);
                         GameState = "placecivilizations";
                     }
                     else if (GameState == "placecivilizations")
@@ -7658,7 +4452,7 @@ namespace Lightrealm
                                                     string commandId = FindCommandId(userInput);
 
                                                     // Assuming `RunCommand` is adapted to accept a command ID
-                                                    return RunCommand(executor, commandId, subjects);
+                                                    return CommandProcessor.RunCommand(executor, commandId, subjects, LoadedArchitects, GameWorld, r, GamePlayerParty, Announcements, Observations);
                                                 }
 
                                                 // This would be called in your game loop or command handling part
@@ -7856,8 +4650,6 @@ namespace Lightrealm
                         StoredAttacks = new List<Attack>();
 
                         List<Attack> playerAttacks = new List<Attack>();
-
-                        UpdateNonPlayerWorld();
 
                         // We initialize a loop that continues until we find a party member or trigger a reaction state
                         while (true)
@@ -8782,10 +5574,22 @@ namespace Lightrealm
 
             base.Update(gameTime);
         }
+
+
+
+
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Black);
-            _spriteBatch.Begin();
+
+            // Fake Replacement for Resolution Things
+
+            float scaleX = (float)_graphics.PreferredBackBufferWidth / 2560f;
+            float scaleY = (float)_graphics.PreferredBackBufferHeight / 1440f;
+
+            Matrix scaleMatrix = Matrix.CreateScale(scaleX, scaleY, 1);
+
+            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
 
             void DrawWorld()
             {
@@ -8795,7 +5599,7 @@ namespace Lightrealm
 
                 // Start drawing with additive blend state for region tiles (elevation)
                 _spriteBatch.End();
-                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive);
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive, null, null, null, null, scaleMatrix);
 
                 for (int x = 0; x < GameWorld.Width; x++)
                 {
@@ -8850,7 +5654,7 @@ namespace Lightrealm
                 _spriteBatch.End();
 
                 // Begin second phase for drawing structures, ports without elevation or blight adjustments
-                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
 
                 for (int x = 0; x < GameWorld.Width; x++)
                 {
@@ -8878,19 +5682,33 @@ namespace Lightrealm
                             if (GameWorld.WorldMap[index].MyLocation != null &&
                                 (GameState != "travelmenu" || GameWorld.WorldMap[index].MyLocation.Explored))
                             {
-                                _spriteBatch.Draw(
-                                    TileAtlas[GameWorld.WorldMap[index].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[index].MyLocation.Type],
-                                    tileRect,
-                                    Color.White
-                                );
+                                var location = GameWorld.WorldMap[index].MyLocation;
+
+                                if (GameWorld.ProcgenStructures.Contains(location.Type))
+                                {
+                                    _spriteBatch.Draw(
+                                        TileAtlas[location.Layout],
+                                        tileRect,
+                                        ColorConverter[location.Color]
+                                    );
+                                }
+                                else
+                                {
+                                    _spriteBatch.Draw(
+                                        TileAtlas[location.PrimaryRace.Name + location.Type],
+                                        tileRect,
+                                        Color.White
+                                    );
+                                }
                             }
                         }
                     }
                 }
 
+
                 // End the second phase of drawing
                 _spriteBatch.End();
-                _spriteBatch.Begin();
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
             }
 
             void DrawCharacter(Architect a, int x, int y, double Scale)
@@ -9833,11 +6651,6 @@ namespace Lightrealm
                                 _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX, DrawY + 270), Color.White);
                             }
-
-                            if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null)
-                            {
-                                _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type], new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), Color.White);
-                            }
                         }
                     }
                 }
@@ -10223,8 +7036,82 @@ namespace Lightrealm
                                         case "market":
                                             DecidedTexture = DistrictMarketT;
                                             break;
+
+                                        case "commune":
+                                            DecidedTexture = DistrictCommuneT;
+                                            break;
+                                        case "towers":
+                                            DecidedTexture = DistrictTowersT;
+                                            break;
+                                        case "dock":
+                                            DecidedTexture = DistrictDockT;
+                                            break;
+                                        case "ship":
+                                            DecidedTexture = DistrictShipT;
+                                            break;
+                                        case "fortress":
+                                            DecidedTexture = DistrictFortressT;
+                                            break;
+                                        case "hallway":
+                                            DecidedTexture = DistrictHallwayT;
+                                            break;
+                                        case "mound":
+                                            DecidedTexture = DistrictMoundT;
+                                            break;
+                                        case "core":
+                                            DecidedTexture = DistrictCoreT;
+                                            break;
+                                        case "scaffold":
+                                            DecidedTexture = DistrictScaffoldT;
+                                            break;
+                                        case "keep":
+                                            DecidedTexture = DistrictKeepT;
+                                            break;
+                                        case "monastery":
+                                            DecidedTexture = DistrictMonasteryT;
+                                            break;
+                                        case "monument":
+                                            DecidedTexture = DistrictMonumentT;
+                                            break;
+                                        case "outpost":
+                                            DecidedTexture = DistrictOutpostT;
+                                            break;
+                                        case "sanctum":
+                                            DecidedTexture = DistrictSanctumT;
+                                            break;
+                                        case "heart":
+                                            DecidedTexture = DistrictHeartT;
+                                            break;
+                                        case "scum":
+                                            DecidedTexture = DistrictScumT;
+                                            break;
+                                        case "stronghold":
+                                            DecidedTexture = DistrictStrongholdT;
+                                            break;
+
+
                                         default:
-                                            DecidedTexture = DistrictSpecialBuildingT;
+                                            switch(MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Block.District.Location.Layout)
+                                            {
+                                                case "archway":
+                                                    DecidedTexture = DistrictArchwayT;
+                                                    break;
+                                                case "tower":
+                                                    DecidedTexture = DistrictTowerT;
+                                                    break;
+                                                case "toroid":
+                                                    DecidedTexture = DistrictToroidT;
+                                                    break;
+                                                case "hallway":
+                                                    DecidedTexture = DistrictHallwayT;
+                                                    break;
+                                                case "pyramid":
+                                                    DecidedTexture = DistrictPyramidT;
+                                                    break;
+                                                default:
+                                                    DecidedTexture = DistrictSpecialBuildingT;
+                                                    break;
+                                            }
                                             break;
                                     }
                                 }
@@ -10668,9 +7555,15 @@ namespace Lightrealm
                     _spriteBatch.Draw(ClockT, centerPosition, null, Color.White, 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
                     */
 
+                    var sortedArchitects = GamePlayerParty.Architects.OrderBy(a => a.CooldownCycles).ToList();
 
-                    //character
-                    DrawCharacter(MostRecentPartyTurnArchitect, 750, 1200, 0.2);
+                    // Draw each architect
+                    int currentX = 1400;
+                    foreach (var architect in sortedArchitects)
+                    {
+                        DrawCharacter(architect, currentX, 1200, 0.2);
+                        currentX -= 150; // Move to the left for the next character
+                    }
 
                 }
                 else
@@ -10707,35 +7600,60 @@ namespace Lightrealm
                     DrawList(_spriteBatch, structuredList, new Vector2(2100, 200), BabyShibafont, CurrentObjectPage, ItemsPerPage);
 
                     line = 0;
-                    foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
+                    if (MostRecentPartyTurnArchitect.Clothing.Count == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 500 + 15 * line, BabyShibafont);
-
-                        line++;
+                        DrawCenteredTextAtPosition(_spriteBatch, "No clothing. Please put some on.", 1650, 500, BabyShibafont);
+                    }
+                    else
+                    {
+                        foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
+                        {
+                            DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 500 + 15 * line, BabyShibafont);
+                            line++;
+                        }
                     }
 
                     line = 0;
-
-                    foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
+                    if (MostRecentPartyTurnArchitect.Intrigue.Count == 0)
                     {
-                        line++;
-                        DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 975, 600 + 10 * line, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1650, 1100, BabyShibafont);
                     }
+                    else
+                    {
+                        foreach (string s in MostRecentPartyTurnArchitect.Intrigue)
+                        {
+                            DrawCenteredTextAtPosition(_spriteBatch, s, 1650, 1100 + 15 * line, BabyShibafont);
+                            line++;
+                        }
+                    }
+
+                    line = 0;
+                    if (MostRecentPartyTurnArchitect.CurrentlyActiveImbuements.Count == 0)
+                    {
+                        DrawCenteredTextAtPosition(_spriteBatch, "No active imbuements.", 975, 600, BabyShibafont);
+                    }
+                    else
+                    {
+                        foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
+                        {
+                            DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 975, 600 + 10 * line, BabyShibafont);
+                            line++;
+                        }
+                    }
+
+                    // XPValues processing remains unchanged as you already have a check for no entries.
+
 
                     line = 0;
 
                     foreach ((string, int) p in MostRecentPartyTurnArchitect.XPValues)
                     {
-                        if (p.Item2 != 0)
-                        {
-                            line++;
-
-                            DrawCenteredTextAtPosition(_spriteBatch, p.Item1 + ": " + ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1)), 280, 120 + 10 * line, BabyShibafont);
-                        }
+                        line++; 
+                        DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetProficiency(p.Item1)} XP", 280, 120 + 10 * line, BabyShibafont);
                     }
                     if (line == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No proficiencies. Go learn something.", 280, 120 + 10 * line, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "No proficiencies...?", 280, 120 + 10 * line, BabyShibafont);
                     }
 
                     //level up screen
