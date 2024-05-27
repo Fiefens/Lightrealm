@@ -19,6 +19,10 @@ namespace Lightrealm
         public string Description;
         public int NaturalArmor = 0;
 
+        public List<string> Powers = new List<string>();
+
+
+
         public Race(string name, string size, List<(string, Material)> bodyParts, string color, List<string> necessaryBodyParts, List<string> oppositionTags, int naturalArmor)
         {
             Name = name;
@@ -29,6 +33,13 @@ namespace Lightrealm
             OppositionTags = oppositionTags;
             NaturalArmor = naturalArmor;
 
+            if(Name.EndsWith("guardian"))
+            {
+                List<string> PowerTypes = new List<string>() { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
+                int numberOfPowers = Game1.r.Next(1, 4);
+                Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers).ToList();
+            }
+
             ReferredToNames.Add(Name);
 
             Description = GenerateDescription();
@@ -38,7 +49,7 @@ namespace Lightrealm
         {
             string baseDescription = Name.ToLower() switch
             {
-                "luminarch" => "A white, glowing humanoid with a bright flame for a head bent, typically bent towards peace and stability.",
+                "luminarch" => "A white, glowing humanoid with a bright flame for a head, typically bent towards peace and stability.",
                 "nightfell" => "A dark, shadowy humanoid with a dark flame for a head, typically bent toward individual liberation.",
                 "archaix" => "A gray, swirling humanoid with a smoky flame for a head driven towards an unknown end.",
                 "isofractal" => "A glass icosahedron surrounded by several glass shards, manipulating fractal energy to bring perfection to the universe.",
@@ -53,6 +64,11 @@ namespace Lightrealm
                 "debtshiba" => "A fluffy, four-legged creature with an unrivaled desire for capitalistic righteousness.",
                 _ => "A " + Size + " wilderness creature of some sort."
             };
+
+            if(Name.EndsWith("guardian"))
+            {
+                baseDescription = "A guardian construct, built from pure " + BodyParts[0].Item2.Name + ", dedicated to an unknown purpose.";
+            }
 
             string partsDescription = GenerateBodyPartsDescription();
             return baseDescription + " " + partsDescription;

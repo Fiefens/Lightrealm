@@ -24,6 +24,8 @@ namespace Lightrealm
         public List<Object> ContainedObjects { get; set; } = new List<Object>();
         public bool IfTrueUseInIfFalseUseOn { get; set; }
 
+        public double LatestUpdateCycle = 0;
+
         public List<string> Tags = new List<string>();
 
         public string DyedColor = "none";
@@ -276,6 +278,13 @@ namespace Lightrealm
 
         public void UpdateNames()
         {
+            if(LatestUpdateCycle == Game1.GameWorld.Cycle)
+            {
+                return;
+            }
+
+            LatestUpdateCycle = Game1.GameWorld.Cycle;
+
             ReferredToNames = new List<string>();
 
             if (this is Door)
@@ -1411,8 +1420,8 @@ namespace Lightrealm
                 case "uncommon": Imbuements += 1; break;
                 case "rare": Imbuements += 2; break;
                 case "epic": Imbuements += 3; break;
-                case "mythical": Imbuements += 4; break;
-                case "legendary": Imbuements += 5; break;
+                case "legendary": Imbuements += 4; break;
+                case "mythical": Imbuements += 5; break;
                 case "exalted": Imbuements += 7; break;
                 default: break; // Handle unknown rarity
             }

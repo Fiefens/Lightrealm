@@ -15,6 +15,9 @@ namespace Lightrealm
         public int StartX { get; set; }
         public int StartZ { get; set; }
 
+        public string Type;
+        public string WarType;
+
         public Material CulturalCloth { get; set; }
         public Material CulturalWood { get; set; }
         public Material CulturalStone { get; set; }
@@ -23,14 +26,16 @@ namespace Lightrealm
         public Material CulturalSheet { get; set; }
 
         public int ElectionFrequency = Game1.r.Next(1401520000, 1501520000);
+        public Dictionary<string, int> HatredPoints { get; set; } = new Dictionary<string, int>();
 
         public int CyclesTillElection = 0;
 
         public List<Architect> Citizens = new List<Architect>();
         public Architect Alpha = null;
 
-        public List<Civilization> CivsAtWar = new List<Civilization>();
         public int WakeUpAndChooseViolencePoints = 0;
+
+        public List<Unit> UnitsAtCommand = new List<Unit>();
 
         public string CulturalHeadwear = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count)];
         public string CulturalNeckwear = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count)];
@@ -45,16 +50,18 @@ namespace Lightrealm
 
         public string Color;
 
-        public Civilization(Race race, int Startx, int Startz, World world)
+        public Civilization(Race race, string type, int Startx, int Startz, World world)
         {
             Random r = new Random();
             PrimaryInhabiantRace = race;
             World = world;
-            Name = World.GenerateUniqueName("1W" + Game1.r.Next(2, 4) + "s", this);
+            Name = World.GenerateUniqueName("1s" + Game1.r.Next(2, 6) + "s", this);
             Name = Name.Substring(0,1).ToUpper() + Name.Substring(1);
             StartX = Startx;
             StartZ = Startz;
 
+            Type = type;
+            WarType = (type == "luminarch" || type == "nightfell") ? "civilized" : type;
 
             int Index = r.Next(World.UnusedCivColors.Count);
 

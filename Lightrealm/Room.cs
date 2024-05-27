@@ -246,7 +246,7 @@ namespace Lightrealm
                     // Doors to north, east, south, and west rooms
                     Door northDoor = new Door(this, Structure.Rooms[Position + 1], "north", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Door eastDoor = new Door(this, Structure.Rooms[Position + 2], "east", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door southDoor = new Door(this, Structure.Rooms[Position + 3], "south", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                     Door southDoor = new Door(this, Structure.Rooms[Position + 3], "south", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Door westDoor = new Door(this, Structure.Rooms[Position + 4], "west", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(northDoor);
                     Objects.Add(eastDoor);

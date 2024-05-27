@@ -31,6 +31,8 @@ namespace Lightrealm
             Room = SourceRoom;
 
             ReferredToNames = new List<string>() { "Placeholder" };
+
+            UpdateNames();
         }
 
         public Door()

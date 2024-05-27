@@ -58,10 +58,20 @@ namespace Lightrealm
         {
             //default constructor for serialization
         }
+
         public Rectangle BoundingBox()
         {
-            return new Rectangle((10 + X * Game1.TileXDistance) + ((Z % 2 == 1) ? Game1.TileZDistance / 2 : 0), 10 + Z * Game1.TileZDistance, Game1.TileSize, Game1.TileSize);
+            return new Rectangle(
+                            (Game1.RegionXMod + X * Game1.TileXDistance) + ((Z % 2 == 1) ? Game1.TileXDistance / 2 : 0),
+                            Game1.RegionYMod + Z * Game1.TileZDistance,
+                            Game1.TileSize,
+                            Game1.TileSize
+                        );
         }
+
+
+
+
 
     }
 }

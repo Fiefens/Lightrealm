@@ -15,6 +15,8 @@ namespace Lightrealm
         public List<Architect> Architects { get; set; } = new List<Architect>();
         public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
 
+        public string Biome = "";
+
         public List<Object> Objects { get; set; } = new List<Object>();
 
         public int X { get; set; }
@@ -27,6 +29,8 @@ namespace Lightrealm
             X = x;
             Z = z;
             District = d;
+
+            Biome = d.Location.Region.Biome;
         }
         public Block()
         {

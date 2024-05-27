@@ -20,8 +20,9 @@ namespace Lightrealm
         public string Type { get; set; }
         public List<Object> Artifacts { get; set; }
         public Location BaseLocation { get; set; }
+        public string Dockside { get; set; }
 
-        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization HomeCiv, List<Object> artifacts, Location OriginalLocationYouAreComingFrom)
+        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization HomeCiv, List<Object> artifacts, Location OriginalLocationYouAreComingFrom, string dockside)
         {
             BaseLocation = OriginalLocationYouAreComingFrom;
             Type = locationType;
@@ -33,6 +34,7 @@ namespace Lightrealm
             ColonizationDesire = colonizationDesire;
             HomeCivilization = HomeCiv;
             Artifacts = artifacts;
+            Dockside = dockside;
         }
         public LocationBuilderPacket()
         {

@@ -47,6 +47,8 @@ namespace Lightrealm
             Rooms = rooms;
             Block = block;
 
+            Block.District.Location.AllStructures.Add(this);
+
             if(type == "sanctum" || type == "outpost" || type == "spire")
             {
                 Name = Block.District.Location.Name;
@@ -85,6 +87,13 @@ namespace Lightrealm
             Windows = windows;
 
             ReferredToNames = new List<string>() { Name, Name + ", " + type };
+
+            if (Type == "house" || Type == "bighouse")
+            {
+                int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "bighouse");
+
+                ReferredToNames.Add("house " + (count + 1).ToString());
+            }
 
             //determine smells
         }
@@ -235,13 +244,15 @@ namespace Lightrealm
             else
             {
                 if (Rooms.Count < 3)
-                    sizeDescription = "small";
+                    sizeDescription = "quite small";
                 else if (Rooms.Count < 5)
-                    sizeDescription = "medium-sized";
+                    sizeDescription = "averagely sized";
                 else if (Rooms.Count < 10)
-                    sizeDescription = "large";
+                    sizeDescription = "fairly large";
+                else if (Rooms.Count < 20)
+                    sizeDescription = "very expansive";
                 else
-                    sizeDescription = "monumental";
+                    sizeDescription = "absolutely monumental";
             }
 
             // Describe lighting
@@ -270,11 +281,11 @@ namespace Lightrealm
             bool isLightingFirst = rnd.Next(2) == 0; // 50% chance
             if (isLightingFirst)
             {
-                description += $"{lightingDescription} and is {sizeDescription}. {ageDescription}.";
+                description += Game1.Capitalize($"{lightingDescription} and is {sizeDescription}. {ageDescription}.");
             }
             else
             {
-                description += $"{ageDescription}, {sizeDescription} and {lightingDescription}.";
+                description += Game1.Capitalize($"{ageDescription}, {sizeDescription}, and {lightingDescription}.");
             }
 
             return description.Trim();

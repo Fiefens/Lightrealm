@@ -50,22 +50,85 @@ namespace Lightrealm
 
         public District(bool isPrimary, Location l, int unplacedPopulation)
         {
-            Location = l; 
+            Location = l;
             Name = Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 4) - 1) + "s", this);
             ReferredToNames.Add(Name);
             IsPrimary = isPrimary;
+
+            string dockside = Location.Dockside;
 
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
             {
                 for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                 {
-                    DistrictMap[DistrictX + DistrictZ*7] = new Block(DistrictX, DistrictZ, this);
+                    DistrictMap[DistrictX + DistrictZ * 7] = new Block(DistrictX, DistrictZ, this);
+
+                    if (Location.Type == "preserve")
+                    {
+                        DistrictMap[DistrictX + DistrictZ * 7].Biome = new List<string>() { "water", "taiga", "forest", "plains" }[Game1.r.Next(4)];
+                    }
+                    else if (Location.Type == "cove")
+                    {
+                        if (dockside == "north" && DistrictZ < 2)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                        }
+                        else if (dockside == "north" && DistrictZ < 4)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                        }
+                        else if (dockside == "north")
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                        }
+                        else if (dockside == "south" && DistrictZ >= 5)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                        }
+                        else if (dockside == "south" && DistrictZ >= 3)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                        }
+                        else if (dockside == "south")
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                        }
+                        else if (dockside == "west" && DistrictX < 2)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                        }
+                        else if (dockside == "west" && DistrictX < 4)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                        }
+                        else if (dockside == "west")
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                        }
+                        else if (dockside == "east" && DistrictX >= 5)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                        }
+                        else if (dockside == "east" && DistrictX >= 3)
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                        }
+                        else if (dockside == "east")
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                        }
+                        else
+                        {
+                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                        }
+                    } 
                 }
             }
 
             UnplacedPopulation = unplacedPopulation;
             Industry = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
         }
+
 
         public District()
         {
@@ -359,6 +422,7 @@ namespace Lightrealm
 
             List<Architect> PlacedArchitects = new List<Architect>();
             List<Structure> Structures = new List<Structure>();
+
             for(int x = 0; x < 7; x++)
             {
                 for (int z = 0; z < 7; z++)
@@ -408,7 +472,6 @@ namespace Lightrealm
                                     ExtraRoomCount = Game1.r.Next(10, 20);
                                     break;
                                 case "keep":
-                                case "commune":
                                     ExtraRoomCount = Game1.r.Next(3, 7);
                                     break;
                                 case "core":
@@ -417,6 +480,7 @@ namespace Lightrealm
                                     ExtraRoomCount = Game1.r.Next(20, 30);
                                     break;
                                 case "tower":
+                                case "commune":
                                     ExtraRoomCount = Game1.r.Next(10, 13);
                                     break;
                                 default:
@@ -482,7 +546,6 @@ namespace Lightrealm
                 Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new List<Object>(), Location, this, null, destiny, 1);
                 a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                 Architects.Add(a);
-                Game1.LoadedArchitects.Add(a);
             }
 
             UnplacedPopulation = 0;
@@ -544,6 +607,34 @@ namespace Lightrealm
                     Game1.LoadedArchitects.Add(a);
                 }
             }
+            
+
+            //deploy constructs
+
+
+            if(Location.Districts.Count == 1 && Location.AllStructures.Count == 1)
+            {
+                for(int I = Location.GuardiansInNetwork; I != 0; I--)
+                {
+                    Block b = Location.AllStructures[0].Block;
+
+                    Race raceyay = Location.GuardianType;
+
+                    if(Location.Type == "sanctum")
+                    {
+                        raceyay = Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count)];
+                    }
+
+                    Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], raceyay, 10, "construct", new List<Object>(), Location, this, b, "", 5);
+                    a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(Game1.r.Next(3, 7)));
+                    a.Name = Location.Region.World.GenerateUniqueArchitectName(this);
+
+                    a.Room = Location.AllStructures[0].Rooms[Game1.r.Next(Location.AllStructures[0].Rooms.Count)];
+                    a.Room.Architects.Add(a);
+                }
+            }
+
+
 
             //distribute items
 
@@ -683,7 +774,7 @@ namespace Lightrealm
                                         a.Loaded = false;
                                         TotalArchitects++;
                                     }
-                                    else
+                                    else if (!a.Race.Name.EndsWith("guardian"))
                                     {
                                         Architects.Add(a);
                                         a.Task = "";
@@ -716,6 +807,8 @@ namespace Lightrealm
             }
 
             HasBeenLoadedEver = false;
+
+            Game1.LoadedArchitects.Clear();
         }
 
     }
