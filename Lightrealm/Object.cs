@@ -92,7 +92,7 @@ namespace Lightrealm
 
         public bool IsWritable { get; set; } = false;
         public Composition CompositionContent { get; set; } = null;
-        public string SpellContained { get; set; } = "";
+        public string SpecialKnowledge { get; set; } = "";
 
         public bool IsGeneralGood = false;
         public Entity Owner = null;
@@ -154,7 +154,7 @@ namespace Lightrealm
             }
         }
 
-        public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency)
+        public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
             // Base damage values
             double basePain = 10;
@@ -270,7 +270,61 @@ namespace Lightrealm
 
             ((Architect)Owner).Bleeding += Bleeding;
             ((Architect)Owner).Pain += Pain;
+
             ((Architect)Owner).Energy -= EnergyLoss;
+            if (((Architect)Owner).Energy <= 0)
+            {
+                if (MeleeAttacker != null)
+                {
+                    if (DescriptiveVerb.EndsWith("e"))
+                    {
+                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "d to death by " + MeleeAttacker.Name;
+                    }
+                    else
+                    {
+                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "ed to death by " + MeleeAttacker.Name;
+                    }
+                }
+                else if (o.Thrower != null)
+                {
+                    ((Architect)Owner).DeathCause = "was brought down by a " + o.Type + " thrown by " + o.Thrower.Name;
+                }
+                else if (!string.IsNullOrEmpty(DescriptiveVerb))
+                {
+                    if (DescriptiveVerb.EndsWith("e"))
+                    {
+                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "d to death";
+                    }
+                    else
+                    {
+                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "ed to death";
+                    }
+                }
+                else
+                {
+                    ((Architect)Owner).DeathCause = "died mysteriously";
+                }
+            }
+
+            if (((Architect)Owner).Energy < 1 && MeleeAttacker != null && MeleeAttacker.FinaleReady)
+            {
+                MeleeAttacker.FinaleReady = false;
+                Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green));
+
+                List<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
+                foreach (Architect a in nearbyPeoples)
+                {
+                    if (a.TargetArchitect == MeleeAttacker ||
+    (Game1.GamePlayerParty.Architects.Contains(MeleeAttacker) &&
+     Game1.GamePlayerParty.Architects.Any(architect =>
+         architect.TargetArchitect == a &&
+         (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
+                    {
+                        a.Energy -= 30;
+                        Announcements.Add(new TextStorage(a.ReferredToNames[0] + " looks drained!", Color.Green));
+                    }
+                }
+            }
 
             return Announcements;
         }
@@ -364,9 +418,9 @@ namespace Lightrealm
         {
             //remove bad spells
 
-            if(Game1.GameWorld.DeletedSpells.Contains(SpellContained))
+            if(Game1.GameWorld.DeletedSpells.Contains(SpecialKnowledge))
             {
-                SpellContained = null;
+                SpecialKnowledge = null;
             }
             if (Game1.GameWorld.DeletedCompositions.Contains(CompositionContent))
             {
@@ -559,6 +613,10 @@ namespace Lightrealm
                     WordCount = "~" + Game1.r.Next(5, 500) + "0";
                     Weight = 100; // example weight in grams
                     Description = "A sheet attached to a roller.";
+                    break;
+                case "skill scroll":
+                    Weight = 100; // example weight in grams
+                    Description = "A sheet attached to a roller. It bears wisdom of a past age.";
                     break;
                 case "book":
                     IsWritable = true;

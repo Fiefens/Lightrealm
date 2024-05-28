@@ -134,7 +134,7 @@ namespace Lightrealm
                     Object Artifact = null;
                     foreach (Object o in Structure.Block.District.Location.UnplacedArtifacts)
                     {
-                        if (Game1.AllLegendarySpells.Contains(o.SpellContained))
+                        if (Game1.AllLegendarySpells.Contains(o.SpecialKnowledge))
                         {
                             Structure.Block.District.Location.UnplacedArtifacts.Remove(o);
                             Artifact = o;

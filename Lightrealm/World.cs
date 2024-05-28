@@ -287,8 +287,8 @@ namespace Lightrealm
 
         public void TriggerRupture(int X, int Z, Architect Activator, int radius)
         {
-            int Month = (int)Math.Round((decimal)(Cycle / 24192000)) % 12 + 1;
-            int Year = (int)Math.Round((decimal)(Cycle / 290304000));
+            int Month = ((int)Math.Round((decimal)(Cycle / 24192000)) % 12) + 1;
+            int Year = (int)Math.Round((decimal)(Cycle / 290304000), MidpointRounding.ToZero);
 
             string Date = "(" + Month + "/" + Year + ")";
 
@@ -605,6 +605,16 @@ namespace Lightrealm
                     var clothes = new List<string> { "cape", "hood", "longsleeve shirt", "pants", "shortsleeve shirt", "uppershirt", "straps", "shorts", "kilt", "wraps", "left glove", "right glove", "large hat", "small hat", "right boot", "left boot", "right shoe", "left shoe" };
                     list.Add(new Object(null, clothes[Game1.r.Next(clothes.Count)], new List<Material>() { Cloths[Game1.r.Next(Cloths.Count)] }, null));
                 }
+
+                // Generate a scroll bearing wisdom of a past age
+
+                if (Game1.r.Next(50) == 1)
+                {
+                    Object o = new Object(null, "skill scroll", new List<Material>() { Cloths[Game1.r.Next(Cloths.Count)] }, null);
+                    o.SpecialKnowledge = Game1.AllSkills[Game1.r.Next(Game1.AllSkills.Count)];
+                    list.Add(o);
+                }
+
             }
 
             return list;
@@ -1258,8 +1268,8 @@ namespace Lightrealm
                     }
                 }
 
-                Race r = new Race("", new List<string> { "medium", "average", "large" }[Game1.r.Next(3)], selectedParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string> { "intruders" }, 50);
-                r.Name = GenerateUniqueName(Game1.r.Next(1,6) + "s", r) + " guardian";
+                Race r = new Race("guardian", new List<string> { "medium", "average", "large" }[Game1.r.Next(3)], selectedParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string> { "intruders" }, 50);
+                r.Name = GenerateUniqueName(Game1.r.Next(1, 6) + "s", r) + " guardian";
                 Races.Add(r);
                 ConstructRaces.Add(r);
             }
@@ -1517,12 +1527,12 @@ namespace Lightrealm
             }
         }
 
-        public void ProgressOneMonth()
+        public void ProgressDays(int Days, bool IncreaseCycle)
         {
             Random r = new Random();
 
-            int Month = (int)Math.Round((decimal)(Cycle / 24192000)) % 12 + 1;
-            int Year = (int)Math.Round((decimal)(Cycle / 290304000));
+            int Month = ((int)Math.Round((decimal)(Cycle / 24192000)) % 12) + 1;
+            int Year = (int)Math.Round((decimal)(Cycle / 290304000), MidpointRounding.ToZero);
 
             string Date = "(" + Month + "/" + Year + ")";
 
@@ -1665,7 +1675,7 @@ namespace Lightrealm
                     InteractableEvent e = new InteractableEvent(WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width], 999999, "colossal", null, new List<Architect>() { a });
                     WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width].Events.Add(e);
 
-                    HistoricalEvents.Add(string.Concat(a.Name, ", a colossal ", a.Race.Name, ", began lying in wait in the ", Game1.DeterminePointLocation(Width, Length, a.ColossalMinefieldX, a.ColossalMinefieldZ), "."));
+                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, ", a colossal ", a.Race.Name, ", began lying in wait in the ", Game1.DeterminePointLocation(Width, Length, a.ColossalMinefieldX, a.ColossalMinefieldZ), "."));
 
                 }
 
@@ -1690,6 +1700,7 @@ namespace Lightrealm
                     AbridgedHistoricalEvents.Add(HistoricalEvents[HistoricalEvents.Count - Game1.r.Next(1, 5)]);
                 }
 
+                int MonthToDayConstant = (28 / Days);
 
                 //place civilizations that need to be placed.
 
@@ -1766,21 +1777,21 @@ namespace Lightrealm
                             l.HomeCivilization.Citizens.Add(Hypernexus);
                             l.Government = Hypernexus;
                             l.Districts[0].Architects.Add(Hypernexus);
-                            HistoricalEvents.Add("The nexus of perfection, " + l.Name + ", fell to the earth, controlled by the soverign nexus " + Hypernexus.Name + ".");
+                            HistoricalEvents.Add(Date + "The nexus of perfection, " + l.Name + ", fell to the earth, controlled by the soverign nexus " + Hypernexus.Name + ".");
                         }
                         else if (race.Name == "isofractal")
                         {
                             l.HomeCivilization.Citizens.Add(Icosidodecahedron);
                             l.Government = Icosidodecahedron;
                             l.Districts[0].Architects.Add(Icosidodecahedron);
-                            HistoricalEvents.Add("The prism of expression, " + l.Name + ", was forged as a beacon of reality, manifesting under the control of " + Icosidodecahedron.Name + ".");
+                            HistoricalEvents.Add(Date + "The prism of expression, " + l.Name + ", was forged as a beacon of reality, manifesting under the control of " + Icosidodecahedron.Name + ".");
                         }
                         else if (race.Name == "shade")
                         {
                             l.HomeCivilization.Citizens.Add(Shadeheart);
                             l.Government = Shadeheart;
                             l.Districts[0].Architects.Add(Shadeheart);
-                            HistoricalEvents.Add("The heart of corruption, " + l.Name + ", erupted from the depths of the world, establishing a cluster of ruinous veins in " + Shadeheart.Name + ".");
+                            HistoricalEvents.Add(Date + "The heart of corruption, " + l.Name + ", erupted from the depths of the world, establishing a cluster of ruinous veins in " + Shadeheart.Name + ".");
                         }
 
                     }
@@ -2353,11 +2364,11 @@ namespace Lightrealm
 
                         //do actions
 
-                        if(r.Next(12 - Calamitizer.Level) == 0)
+                        if (r.Next((12 - Calamitizer.Level)* MonthToDayConstant) == 0)
                         {
                             //determine whether you want to move
 
-                            if (r.Next(10) == 1 || (CalamityIdeologicalObsession == "killer" && Calamitizer.InteractionLocation.TruePopulation() == 0))
+                            if (r.Next(10 * MonthToDayConstant) == 1 || (CalamityIdeologicalObsession == "killer" && Calamitizer.InteractionLocation.TruePopulation() == 0))
                             {
                                 //find a spot to move to
                                 int Tries = 0;
@@ -2401,20 +2412,20 @@ namespace Lightrealm
                                 {
                                     if (CalamityIdeologicalObsession == "disease")
                                     {
-                                        if(Calamitizer.InteractionLocation.Region.Blight != Calamity[0].BlightManipulated)
+                                        if (Calamitizer.InteractionLocation.Region.Blight != Calamity[0].BlightManipulated)
                                         {
                                             LogEvent(Calamitizer.Name + " deliberately spread the " + Calamitizer.BlightManipulated.Name + " to " + Calamitizer.InteractionLocation.Name + ".");
 
-                                            if (r.Next(30) == 1)
+                                            if (r.Next(30 * MonthToDayConstant) == 1)
                                             {
                                                 Calamitizer.InteractionLocation.Region.Blight = Calamity[0].BlightManipulated;
                                                 LogEvent(Calamitizer.Name + " fully established a terrible presence of " + Calamity[0].BlightManipulated + " in " + Calamitizer.InteractionLocation.Name + ".");
                                             }
                                         }
 
-                                        foreach(Architect a in ChosenDistrict.Architects)
+                                        foreach (Architect a in ChosenDistrict.Architects)
                                         {
-                                            if(r.Next(GrievanceChance) == 1)
+                                            if (r.Next(GrievanceChance) == 1)
                                             {
                                                 a.Grievances.Add((Calamitizer, " plagued " + a.PossessivePronoun + " town, " + a.Location.Name + "."));
                                                 Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
@@ -2481,60 +2492,61 @@ namespace Lightrealm
                                     }
                                     else if (CalamityIdeologicalObsession == "killer")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3) == 1)
+                                        if (Game1.r.Next(3 * MonthToDayConstant) == 1)
                                         {
-                                            int InitialPop = ChosenDistrict.UnplacedPopulation;
-                                            ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
+                                            if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3) == 1)
+                                            {
+                                                int InitialPop = ChosenDistrict.UnplacedPopulation;
+                                                ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
 
-                                            LogEvent(Calamitizer.Name + " killed " + (InitialPop - ChosenDistrict.UnplacedPopulation).ToString() + " people in " + Calamitizer.InteractionLocation.Name + ".");
+                                                LogEvent(Calamitizer.Name + " killed " + (InitialPop - ChosenDistrict.UnplacedPopulation).ToString() + " people in " + Calamitizer.InteractionLocation.Name + ".");
 
-                                            int DecideAge = r.Next(1, 6);
-                                            if (DecideAge == 1)
-                                            {
-                                                Calamitizer.KilledChildren += (InitialPop - ChosenDistrict.UnplacedPopulation);
-                                            }
-                                            else if (DecideAge < 4)
-                                            {
-                                                Calamitizer.KilledMen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
-                                            }
-                                            else
-                                            {
-                                                Calamitizer.KilledWomen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
-                                            }
-                                        }
-                                        else if (ChosenDistrict.Architects.Count > 0)
-                                        {
-                                            for (int i = r.Next(0, 3); i != 0; i--)
-                                            {
-                                                int Index = r.Next(ChosenDistrict.Architects.Count);
-
-                                                if (Calamity.Contains(ChosenDistrict.Architects[Index]) || !ChosenDistrict.Architects[Index].IsAlive)
+                                                int DecideAge = r.Next(1, 6);
+                                                if (DecideAge == 1)
                                                 {
-                                                    continue;
+                                                    Calamitizer.KilledChildren += (InitialPop - ChosenDistrict.UnplacedPopulation);
                                                 }
-
-                                                ChosenDistrict.ArchitectsToRemove.Add(ChosenDistrict.Architects[Index]);
-
-                                                LogEvent(Calamitizer.Name + " assassinated " + ChosenDistrict.Architects[Index].Name + " in " + Calamitizer.InteractionLocation.Name + ".");
-
-                                                foreach (Architect a in ChosenDistrict.Architects)
+                                                else if (DecideAge < 4)
                                                 {
-                                                    if (r.Next(GrievanceChance) == 1)
+                                                    Calamitizer.KilledMen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
+                                                }
+                                                else
+                                                {
+                                                    Calamitizer.KilledWomen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
+                                                }
+                                            }
+                                            else if (ChosenDistrict.Architects.Count > 0)
+                                            {
+                                                for (int i = r.Next(0, 3); i != 0; i--)
+                                                {
+                                                    int Index = r.Next(ChosenDistrict.Architects.Count);
+
+                                                    if (Calamity.Contains(ChosenDistrict.Architects[Index]) || !ChosenDistrict.Architects[Index].IsAlive)
                                                     {
-                                                        a.Grievances.Add((Calamitizer, " murdered a friend of " + a.Name + ", " + ChosenDistrict.Architects[Index].Name));
-                                                        Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
+                                                        continue;
                                                     }
-                                                }
 
-                                                Calamitizer.KilledPeopleWhoActuallyMatter.Add(ChosenDistrict.Architects[Index]);
+                                                    ChosenDistrict.ArchitectsToRemove.Add(ChosenDistrict.Architects[Index]);
+
+                                                    LogEvent(Calamitizer.Name + " assassinated " + ChosenDistrict.Architects[Index].Name + " in " + Calamitizer.InteractionLocation.Name + ".");
+
+                                                    foreach (Architect a in ChosenDistrict.Architects)
+                                                    {
+                                                        if (r.Next(GrievanceChance) == 1)
+                                                        {
+                                                            a.Grievances.Add((Calamitizer, " murdered a friend of " + a.Name + ", " + ChosenDistrict.Architects[Index].Name));
+                                                            Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
+                                                        }
+                                                    }
+
+                                                    Calamitizer.KilledPeopleWhoActuallyMatter.Add(ChosenDistrict.Architects[Index]);
+                                                }
                                             }
                                         }
-
-
                                     }
                                     else if (CalamityIdeologicalObsession == "kidnapper")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3) == 1)
+                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3 * MonthToDayConstant) == 1)
                                         {
                                             int InitialPop = ChosenDistrict.UnplacedPopulation;
 
@@ -2566,7 +2578,7 @@ namespace Lightrealm
                                         }
                                         else if (ChosenDistrict.Architects.Count > 0)
                                         {
-                                            for (int i = r.Next(1, 3); i != 0; i--)
+                                            for (int i = r.Next(1, 3 * MonthToDayConstant); i != 0; i--)
                                             {
                                                 int Index = r.Next(ChosenDistrict.Architects.Count);
 
@@ -2597,9 +2609,9 @@ namespace Lightrealm
                                             {
                                                 continue;
                                             }
-                                            
+
                                             LogEvent(Calamitizer.Name + " corrupted " + ChosenDistrict.Architects[Index].Name + "'s moral values in " + Calamitizer.InteractionLocation.Name + ".");
-                                            
+
                                             (ChosenDistrict.Architects[Index]).MoralCompass -= r.Next(10, 20);
                                             (ChosenDistrict.Architects[Index]).StabilityCompass -= r.Next(10, 20);
                                             foreach (Architect a in ChosenDistrict.Architects)
@@ -2643,7 +2655,7 @@ namespace Lightrealm
                                             int Index = r.Next(ChosenDistrict.Architects.Count);
                                             LogEvent(Calamitizer.Name + " spread propaganda, attempting to influence " + Calamitizer.InteractionLocation.HomeCivilization.Name + " into a conflict.");
 
-                                            Calamitizer.InteractionLocation.HomeCivilization.WakeUpAndChooseViolencePoints += r.Next(0, 5);
+                                            Calamitizer.InteractionLocation.HomeCivilization.WakeUpAndChooseViolencePoints += r.Next(0, 5 / MonthToDayConstant);
 
                                             if (Calamitizer.InteractionLocation.HomeCivilization.WakeUpAndChooseViolencePoints > 200)
                                             {
@@ -2651,11 +2663,11 @@ namespace Lightrealm
 
                                                 Wars.Add((c, Calamitizer.InteractionLocation.HomeCivilization, 0, 0));
 
-                                                foreach(Architect a in AllArchitects)
+                                                foreach (Architect a in AllArchitects)
                                                 {
-                                                    if(a.HomeLocation != null && (a.HomeLocation.HomeCivilization == c || a.HomeLocation.HomeCivilization == Calamitizer.InteractionLocation.HomeCivilization))
+                                                    if (a.HomeLocation != null && (a.HomeLocation.HomeCivilization == c || a.HomeLocation.HomeCivilization == Calamitizer.InteractionLocation.HomeCivilization))
                                                     {
-                                                        if(r.Next(GrievanceChance/2) == 1)
+                                                        if (r.Next(GrievanceChance / 2) == 1)
                                                         {
                                                             a.Grievances.Add((Calamitizer, " caused a war that ruined the stability of " + a.Name + "'s life"));
                                                             Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
@@ -2672,7 +2684,7 @@ namespace Lightrealm
                                     }
                                     else if (CalamityIdeologicalObsession == "power")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3) == 1)
+                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3 * MonthToDayConstant) == 1)
                                         {
                                             int InitialPop = ChosenDistrict.UnplacedPopulation;
                                             ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
@@ -2735,7 +2747,7 @@ namespace Lightrealm
                                     }
                                     else if (CalamityIdeologicalObsession == "purifier")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 10) == 1)
+                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 10 * MonthToDayConstant) == 1)
                                         {
                                             int InitialPop = ChosenDistrict.UnplacedPopulation;
                                             ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
@@ -2790,7 +2802,7 @@ namespace Lightrealm
                 {
                     if(HumanoidRaces.Contains(c.PrimaryInhabiantRace))
                     {
-                        c.CyclesTillElection -= 24192000;
+                        c.CyclesTillElection -= 864000 * Days;
                         if (c.CyclesTillElection < 0 && c.Citizens.Count > 0)
                         {
                             var highestReputation = c.Citizens.Max(citizen => citizen.Reputation);
@@ -2913,7 +2925,7 @@ namespace Lightrealm
                     {
                         if(WorldMap[x + z * Width].Blight != Purity)
                         {
-                            if(r.Next(1,300) == 1)
+                            if(r.Next(1,300 * MonthToDayConstant) == 1)
                             {
                                 //pick a random number between 1-4 and spread cardinally
                                 int Spread = r.Next(4);
@@ -2960,7 +2972,7 @@ namespace Lightrealm
 
                 foreach (Group g in Groups)
                 {
-                    g.MonthsOld++;
+                    g.DaysOld += Days;
                 }
 
                 for (int x = 0; x < Width; x++)
@@ -3047,7 +3059,7 @@ namespace Lightrealm
                 {
                     //develop squads slowly
 
-                    if(r.Next(1,10000) < (l.TruePopulation() - (l.Units.Count*250)))
+                    if(r.Next(1, 10000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count*250)))
                     {
                         SummonNewUnit(l);
                     }
@@ -3149,7 +3161,7 @@ namespace Lightrealm
                     {
                         if(l.HomeCivilization == War.Item1 || l.HomeCivilization == War.Item2)
                         {
-                            if (r.Next(1, 1000) < (l.TruePopulation() - (l.Units.Count * 250)))
+                            if (r.Next(1, 1000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count * 250)))
                             {
                                 SummonNewUnit(l);
                             }
@@ -3308,7 +3320,7 @@ namespace Lightrealm
                             //create interactable events based on history
 
 
-                            int IEDecider = r.Next(1, 500);
+                            int IEDecider = r.Next(1, 500 * MonthToDayConstant);
 
                             int LX = location.X + r.Next(-5, 6);
                             int LZ = location.Z + r.Next(-5, 6);
@@ -3436,12 +3448,16 @@ namespace Lightrealm
                                         }
 
 
-                                        g.TradedThisMonth = true;
+                                        //test for a new decade
 
-                                        if (Cycle % (int)Math.Round((decimal)(Math.Round((decimal)(Cycle / 2903040000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity) == 0)
+                                        double currentCycle = Cycle;
+                                        double newCycle = Cycle + (Days * 864000);
+                                        double currentYear = (int)Math.Round((decimal)(currentCycle / 290304000));
+                                        double newYear = (int)Math.Round((decimal)(newCycle / 290304000));
+
+                                        if ((newYear / 10) > (currentYear / 10))
                                         {
-                                            //i.e. if its the start of a new decade lmao
-                                            //consider adding new locations to your route
+                                            g.TradedThisMonth = true;
 
                                             if (r.Next(1, 3) == 1 && g.TradeRoute.Count <= g.MaxTradeRouteLength)
                                             {
@@ -3454,7 +3470,6 @@ namespace Lightrealm
                                                             HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " added ", l.Name, " to their list of trading partners."));
                                                             g.TradeRoute.Add(l);
                                                             break;
-
                                                         }
                                                     }
                                                 }
@@ -3488,7 +3503,7 @@ namespace Lightrealm
 
 
                                         // Random chance to build a port
-                                        if (r.Next(500) == 0)
+                                        if (r.Next(500*MonthToDayConstant) == 0)
                                         {
                                             // Assuming the existence of static int ContinentalPortMaximum = X; where X is your desired maximum number of ports on the largest island.
                                             // Initialize lists for islands and port locations
@@ -3521,7 +3536,7 @@ namespace Lightrealm
                                                     {
                                                         var portLocation = availablePorts[random.Next(availablePorts.Count)];
                                                         portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-                                                        HistoricalEvents.Add($"A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
                                                         portBuilt = true;
                                                         portsOnBiggestIsland++; // Update the counter for ports on the biggest island
                                                     }
@@ -3534,7 +3549,7 @@ namespace Lightrealm
                                                     {
                                                         var portLocation = availablePorts[random.Next(availablePorts.Count)];
                                                         portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-                                                        HistoricalEvents.Add($"A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
                                                         portBuilt = true;
                                                     }
                                                 }
@@ -3560,7 +3575,7 @@ namespace Lightrealm
                                 {
                                     if (G != g)
                                     {
-                                        if (Game1.r.Next(1, 5) == 1)
+                                        if (Game1.r.Next(1, 5 * MonthToDayConstant) == 1)
                                         {
                                             if (g.Type == "anarchist" && G.Type == "anarchist")
                                             {
@@ -3865,44 +3880,44 @@ namespace Lightrealm
 
                                         Material Metal = Metals[r.Next(Metals.Count)];
                                         List<string> metalObjects = new List<string>
-{
-    "sword",
-    "knife",
-    "greatsword",
-    "battle axe",
-    "axe",
-    "greataxe",
-    "rapier",
-    "spear",
-    "pike",
-    "pickaxe",
-    "mace",
-    "hammer",
-    "shield",
-    "whip",
-    "scourge",
-    "flail",
-    "chain",
-    "urn",
-    "pot",
-    "helmet",
-    "forge",
-    "jar",
-    "bottle",
-    "mug",
-    "bowl",
-    "cup",
-    "keg",
-    "chest",
-    "barrel",
-    "bin",
-    "door",
-    "small chalice",
-    "big chalice",
-    "altar",
-    "table",
-    "chair"
-};
+                                        {
+                                            "sword",
+                                            "knife",
+                                            "greatsword",
+                                            "battle axe",
+                                            "axe",
+                                            "greataxe",
+                                            "rapier",
+                                            "spear",
+                                            "pike",
+                                            "pickaxe",
+                                            "mace",
+                                            "hammer",
+                                            "shield",
+                                            "whip",
+                                            "scourge",
+                                            "flail",
+                                            "chain",
+                                            "urn",
+                                            "pot",
+                                            "helmet",
+                                            "forge",
+                                            "jar",
+                                            "bottle",
+                                            "mug",
+                                            "bowl",
+                                            "cup",
+                                            "keg",
+                                            "chest",
+                                            "barrel",
+                                            "bin",
+                                            "door",
+                                            "small chalice",
+                                            "big chalice",
+                                            "altar",
+                                            "table",
+                                            "chair"
+                                        };
 
                                         Object o = new Object("", metalObjects[r.Next(metalObjects.Count)], new List<Material>() { Metal }, f.Base);
                                         o.Name = GenerateUniqueName("1W" + r.Next(4, 7) + "s", o);
@@ -4081,7 +4096,7 @@ namespace Lightrealm
                             List<(Entity, int)> EmbezzlToRemove = new List<(Entity, int)>();
                             foreach((Entity, int) e in location.Embezzlements)
                             {
-                                if(r.Next(1,10) == 1)
+                                if(r.Next(1,10 * MonthToDayConstant) == 1)
                                 {
                                     if (e.Item1 is Architect)
                                     {
@@ -4096,7 +4111,7 @@ namespace Lightrealm
                                 }
                                 
 
-                                if(r.Next(1,100) == 0)
+                                if(r.Next(1,100 * MonthToDayConstant) == 0)
                                 {
                                     HistoricalEvents.Add("A loophole in the governmental structure of " + location.Name + " was discovered and fixed, and " + e.Item1.Name + " lost some ability to embezzle funding.");
                                     EmbezzlToRemove.Add(e);
@@ -4127,7 +4142,7 @@ namespace Lightrealm
 
                                         foreach(Structure s in d.DistrictMap[DistrictX + DistrictZ*7].Structures)
                                         {
-                                            s.AgeInYears += (1 / 12);
+                                            s.AgeInYears += (1 / 12 * MonthToDayConstant);
                                         }
                                     }
                                 }
@@ -4143,18 +4158,18 @@ namespace Lightrealm
 
                                         if(d.UnplacedPopulation == 0)
                                         {
-                                            HistoricalEvents.Add($"{location.Name} fell to the {location.Region.Blight.Name}.");
+                                            HistoricalEvents.Add($"{Date} {location.Name} fell to the {location.Region.Blight.Name}.");
                                             location.LocationHistoricalEvents.Add($"{location.Name} fell to the {location.Region.Blight.Name}.");
                                         }
                                     }
                                     foreach (Architect a in d.Architects)
                                     {
-                                        if (r.Next(1, 70) == 1)
+                                        if (r.Next(1, 70 * MonthToDayConstant) == 1)
                                         {
                                             d.ArchitectsToRemove.Add(a);
 
-                                            HistoricalEvents.Add($"{a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
-                                            location.LocationHistoricalEvents.Add($"{a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
+                                            HistoricalEvents.Add($"{Date} {a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
+                                            location.LocationHistoricalEvents.Add($"{Date} {a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
                                         }
                                     }
                                 }
@@ -4168,8 +4183,9 @@ namespace Lightrealm
                                     // Calculate birth probability dynamically based on the original function
                                     double baseProbability = 1.0; // Set a base probability
                                     double populationFactor = 1 + (d.Population() / 100.0); // Adjust based on population (modify the factor as needed)
+                                    double monthToDayConstant = 28.0 / Days; // Adjust probability to account for days instead of a month
 
-                                    double birthProbability = baseProbability / populationFactor;
+                                    double birthProbability = (baseProbability / populationFactor) * monthToDayConstant;
 
                                     int births = 0;
 
@@ -4188,11 +4204,12 @@ namespace Lightrealm
 
 
 
+
                                 //Designate the Construction of a new District
 
-                                if (d.UnplacedPopulation > 150)
+                                if (d.UnplacedPopulation + d.Architects.Count > 150)
                                 {
-                                    int Movers = Game1.r.Next(65, 85);
+                                    int Movers = Game1.r.Next(65, 85);         
 
                                     District NewD = new District(false, location, Movers);
                                     d.UnplacedPopulation = d.UnplacedPopulation - Movers;
@@ -4228,13 +4245,17 @@ namespace Lightrealm
                                     //well
                                     NewD.DistrictMap[r.Next(2, 6) + r.Next(2, 5) * 7].Objects.Add(new Object(null, "well", new List<Material> { location.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
 
+                                    HistoricalEvents.Add($"{Date} {location.Name} segmented off a plot of land to a new district, {NewD.Name}, dedicated to {NewD.Industry}.");
+                                    location.LocationHistoricalEvents.Add($"{Date} {location.Name} segmented off a plot of land to a new district, {NewD.Name}, dedicated to {NewD.Industry}.");
+
                                     location.DistrictsToAdd.Add(NewD);
                                 }
 
 
                                 //Handle elevation of a member of the population to Architect
 
-                                int decider = Game1.r.Next(1, 75);
+                                int decider = Game1.r.Next(1, 75*MonthToDayConstant);
+
                                 if (decider == 1 && d.UnplacedPopulation > 0)
                                 {
                                     bool Ismale = true;
@@ -4306,7 +4327,7 @@ namespace Lightrealm
 
                                 //LEGENDS
 
-                                LegendsManager.ManageLegends(this);
+                                LegendsManager.ManageLegends(this, Days);
 
 
 
@@ -4359,7 +4380,7 @@ namespace Lightrealm
 
                                             if (GroupsAlreadyLikeThis <= Math.Round((decimal)location.TruePopulation() / 500, MidpointRounding.ToNegativeInfinity))
                                             {
-                                                if (Game1.r.Next(1, 1000) == 1 && a.Profession != "prophet")
+                                                if (Game1.r.Next(1, 1000 * MonthToDayConstant) == 1 && a.Profession != "prophet")
                                                 {
                                                     if (Game1.ConvertArchitectToGroupType[a.Profession] != "trade" || location.Market != null)
                                                     {
@@ -4501,7 +4522,7 @@ namespace Lightrealm
                                         }
 
                                         // Decide to write
-                                        if (Game1.r.Next(1, Math.Max(1000 - (a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints), 100)) == 1)
+                                        if (Game1.r.Next(1, (Math.Max(1000 - (a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints), 100)) * MonthToDayConstant) == 1)
                                         {
                                             string writingType = "";
                                             int totalWeight = a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints;
@@ -4547,8 +4568,8 @@ namespace Lightrealm
                                             }
 
                                             // Log historical event
-                                            HistoricalEvents.Add(string.Concat(a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));
-                                            location.LocationHistoricalEvents.Add(string.Concat(a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));
+                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));
+                                            location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));
                                         }
 
                                         //archelevation
@@ -4557,44 +4578,44 @@ namespace Lightrealm
                                             if (a.ScholarType == "mage" && a.MagicStudyPoints > Threshold)
                                             {
                                                 a.ScholarType = "archmage";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archmage in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archmage in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archmage in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archmage in ", location.Name));
                                             }
                                             else if (a.ScholarType == "engineer" && a.ScienceStudyPoints > Threshold)
                                             {
                                                 a.ScholarType = "archengineer";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archengineer in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archengineer in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archengineer in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archengineer in ", location.Name));
                                             }
                                             else if (a.ScholarType == "entertainer" && a.CultureStudyPoints > Threshold)
                                             {
                                                 a.ScholarType = "archentertainer";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archentertainer in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archentertainer in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archentertainer in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archentertainer in ", location.Name));
                                             }
                                             else if (a.ScholarType == "artificer" && a.MagicStudyPoints > Threshold / 2 && a.ScienceStudyPoints > Threshold / 2)
                                             {
                                                 a.ScholarType = "archartificer";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archartificer in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archartificer in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archartificer in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archartificer in ", location.Name));
                                             }
                                             else if (a.ScholarType == "bard" && a.MagicStudyPoints > Threshold / 2 && a.CultureStudyPoints > Threshold / 2)
                                             {
                                                 a.ScholarType = "archbard";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archbard in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archbard in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archbard in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archbard in ", location.Name));
                                             }
                                             else if (a.ScholarType == "sage" && a.CultureStudyPoints > Threshold / 2 && a.ScienceStudyPoints > Threshold / 2)
                                             {
                                                 a.ScholarType = "archsage";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archsage in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archsage in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archsage in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archsage in ", location.Name));
                                             }
                                             else if (a.ScholarType == "luminary" && a.CultureStudyPoints > Threshold / 3 && a.ScienceStudyPoints > Threshold / 3 && a.MagicStudyPoints > Threshold / 3)
                                             {
                                                 a.ScholarType = "archluminary";
-                                                HistoricalEvents.Add(string.Concat(a.Name, " became an archluminary in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(a.Name, " became an archluminary in ", location.Name));
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archluminary in ", location.Name));
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archluminary in ", location.Name));
                                             }
                                         }
 
@@ -4604,8 +4625,8 @@ namespace Lightrealm
                                         {
                                             int SpellID = Game1.r.Next(UndiscoveredSpells.Count);
                                             a.SpellsKnown.Add(UndiscoveredSpells[SpellID]);
-                                            location.LocationHistoricalEvents.Add(string.Concat(a.Name, " discovered the secret of ", UndiscoveredSpells[SpellID], " in ", location.Name));
-                                            HistoricalEvents.Add(string.Concat(a.Name, " discovered the secret of ", UndiscoveredSpells[SpellID], " in ", location.Name));
+                                            location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " discovered the secret of ", UndiscoveredSpells[SpellID], " in ", location.Name));
+                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " discovered the secret of ", UndiscoveredSpells[SpellID], " in ", location.Name));
                                             DiscoveredSpells.Add(UndiscoveredSpells[SpellID]);
                                             UndiscoveredSpells.RemoveAt(SpellID);
                                             a.DiscoveredASpell = true;
@@ -5258,7 +5279,7 @@ namespace Lightrealm
 
                                 foreach (Architect a in Colossals)
                                 {
-                                    if (!a.HasMadeALegendaryArtifact && r.Next(1, 10000) == 1 && UndiscoveredLegendarySpells.Count > 1)
+                                    if (!a.HasMadeALegendaryArtifact && r.Next(1, 10000 * MonthToDayConstant) == 1 && UndiscoveredLegendarySpells.Count > 1)
                                     {
                                         string Spell = UndiscoveredLegendarySpells[r.Next(UndiscoveredLegendarySpells.Count)];
                                         UndiscoveredLegendarySpells.Remove(Spell);
@@ -5266,7 +5287,7 @@ namespace Lightrealm
 
                                         Object o = new Object("", Game1.PossibleMagicalItems[r.Next(Game1.PossibleMagicalItems.Count)], new List<Material> { Metals[r.Next(Metals.Count)] }, false, false, null, a, 5, false, null, null, null, false);
                                         o.Name = GenerateUniqueName("1S" + Game1.r.Next(2, 4) + "s1w", o);
-                                        o.SpellContained = Spell;
+                                        o.SpecialKnowledge = Spell;
                                         o.Owner = a;
 
                                         string MagicPhrase = "";
@@ -5321,7 +5342,7 @@ namespace Lightrealm
                                 //start saving up to settle
 
 
-                                if (Game1.r.Next(1, 50) == 1 && location.TruePopulation() > 120 && location.ColonizationDesire > 0)
+                                if (Game1.r.Next(1, 50 * MonthToDayConstant) == 1 && location.TruePopulation() > 120 && location.ColonizationDesire > 0)
                                 {
                                     location.IsSavingUpToSettle = true;
                                 }
@@ -5423,7 +5444,7 @@ namespace Lightrealm
                             //captiols build special procgen sites
 
 
-                            if (r.Next(1, 1000) == 1 && location.IsCapitol && SettlementTypes.Contains(location.Type))
+                            if (r.Next(1, 1000 * MonthToDayConstant) == 1 && location.IsCapitol && SettlementTypes.Contains(location.Type))
                             {
                                 // Decide what type of structure you're going to make
                                 string SType = new List<string>() { "observatory", "library", "conservatory", "prison", "tomb", "gallery", "armory" }[r.Next(7)];
@@ -5517,7 +5538,7 @@ namespace Lightrealm
                             {
                                 //recruitment
 
-                                if (r.Next(1, 100) == 1)
+                                if (r.Next(1, 100 * MonthToDayConstant) == 1)
                                 {
                                     if (r.Next(2) == 0)
                                     {
@@ -5970,6 +5991,11 @@ namespace Lightrealm
                         }
                     }
 
+
+
+
+                    NewLocation.ReferredToNames = new List<string>() { NewLocation.Name };
+
                 }
 
                 //do all migration
@@ -6035,7 +6061,11 @@ namespace Lightrealm
 
             }
 
-            Cycle = Cycle + 24192000;
+            if(IncreaseCycle)
+            {
+                Cycle += Days * 864000;
+            }
+
             LivingArchitects = CurrentlyCountingArchitects;
             DeadArchitects = TotalArchitects - LivingArchitects;
         }

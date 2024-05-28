@@ -49,9 +49,37 @@ namespace Lightrealm
 
         public bool RuptureMode = false;
 
+        private string _deathCause = "";
+
+        public string DeathCause
+        {
+            get { return _deathCause; }
+            set
+            {
+                if (string.IsNullOrEmpty(_deathCause))
+                {
+                    _deathCause = value;
+                }
+            }
+        }
+
+        public bool BroadcastedDeathMessage = false;
+
         public bool Crafting = false;
 
         public bool TryingToTravel = false;
+
+        public bool DoubleStrikeReady = false;
+        public bool QuickStrikeReady = false;
+        public bool SeveringStrikeReady = false;
+        public bool FinaleReady = false;
+        public bool BodySlamReady = false;
+        public bool LegSweepReady = false;
+        public bool DropKickReady = false;
+        public int CyclesSinceJump = 0;
+        public int ReactionBoostCycles = 0;
+
+        public int ExtraFocusTicks = 0;
 
         public int HalfFocusTicks = 0;
 
@@ -66,7 +94,7 @@ namespace Lightrealm
         public List<Architect> ArchitectsWhoSurrenderedToMe = new List<Architect>();
         public List<Architect> ArchitectsIWillTellTruthTo = new List<Architect>();
 
-        public int AdventureCooldown = 0;
+        public double AdventureCooldown = 0;
 
         Dictionary<string,int> BackupProfessionToLevel = new Dictionary<string, int>
         {
@@ -608,14 +636,23 @@ namespace Lightrealm
         {
             get
             {
+                int baseFocus;
+
                 if (HalfFocusTicks > 0)
                 {
-                    return (int)Math.Round(((double)(_focus / 2)), 0, MidpointRounding.ToNegativeInfinity);
+                    baseFocus = (int)Math.Round(((double)(_focus / 2)), 0, MidpointRounding.ToNegativeInfinity);
                 }
                 else
                 {
-                    return _focus;
+                    baseFocus = _focus;
                 }
+
+                if (ExtraFocusTicks > 0)
+                {
+                    baseFocus += 1;
+                }
+
+                return baseFocus;
             }
             set
             {
@@ -775,18 +812,21 @@ namespace Lightrealm
                               + (this.RightHandObject != null ? CalculateTotalWeight(new[] { this.RightHandObject }) : 0);
 
             float weightImpact = 1.0f - (totalWeight / 1000 * 0.02f); 
-            multiplier *= weightImpact; 
+            multiplier *= weightImpact;
 
             // Ensuring values are clamped between 0 and 100 after final adjustments
+
+            int backflipBonus = ReactionBoostCycles > 0 ? 30 : 0;
+
             return (
                 Math.Max(0, Math.Min(sustainChance, 100)), // Sustain chance isn't affected by proficiency as it's always 0
-                Math.Max(0, Math.Min((int)(parryChance * attackersProficiencyImpact), 100)),
-                Math.Max(0, Math.Min((int)(blockChance * attackersProficiencyImpact), 100)),
-                Math.Max(0, Math.Min((int)(duckChance * attackersProficiencyImpact), 100)),
-                Math.Max(0, Math.Min((int)(jumpChance * attackersProficiencyImpact), 100)),
-                Math.Max(0, Math.Min((int)(rollChance * attackersProficiencyImpact), 100)),
-                Math.Max(0, Math.Min((int)(disarmChance * attackersProficiencyImpact), 100)),
-                Math.Max(0, Math.Min((int)(redirectChance * attackersProficiencyImpact), 100))
+                Math.Max(0, Math.Min((int)(parryChance * attackersProficiencyImpact) + backflipBonus, 100)),
+                Math.Max(0, Math.Min((int)(blockChance * attackersProficiencyImpact) + backflipBonus, 100)),
+                Math.Max(0, Math.Min((int)(duckChance * attackersProficiencyImpact) + backflipBonus, 100)),
+                Math.Max(0, Math.Min((int)(jumpChance * attackersProficiencyImpact) + backflipBonus, 100)),
+                Math.Max(0, Math.Min((int)(rollChance * attackersProficiencyImpact) + backflipBonus, 100)),
+                Math.Max(0, Math.Min((int)(disarmChance * attackersProficiencyImpact) + backflipBonus, 100)),
+                Math.Max(0, Math.Min((int)(redirectChance * attackersProficiencyImpact) + backflipBonus, 100))
             );
         }
 
@@ -861,6 +901,9 @@ namespace Lightrealm
         public int ScienceStudyPoints { get; set; } = 0;
 
         public List<string> SpellsKnown { get; set; } = new List<string>();
+        public List<string> SkillsKnown { get; set; } = new List<string>();
+        public List<string> UsedSkills { get; set; } = new List<string>();
+
         public bool DiscoveredASpell { get; set; } = false;
 
         public int FireCycles { get; set; } = 0;
@@ -1072,6 +1115,41 @@ namespace Lightrealm
             }
             return (0);
         }
+
+        public void UpdateChildrenLocationsOnDeath()
+        {
+            if (this.IsCalamity)
+            {
+                // Iterate through all Architects in the Calamity list
+                foreach (Architect a in Game1.GameWorld.Calamity)
+                {
+                    // Check if the current Architect is a direct subordinate of this
+                    if (a.Master == this)
+                    {
+                        // Update the location of all direct and indirect subordinates
+                        UpdateSubordinatesMigrationLocation(a, this.Master);
+                    }
+                }
+            }
+        }
+
+        // Recursive function to update the migration location for all subordinates
+        private void UpdateSubordinatesMigrationLocation(Architect architect, Architect newMaster)
+        {
+            // Set the migration location to the new master's location
+            architect.NextMigrationLocation = newMaster.Location;
+
+            // Recursively update for all direct subordinates
+            foreach (Architect a in Game1.GameWorld.Calamity)
+            {
+                if (a.Master == architect)
+                {
+                    UpdateSubordinatesMigrationLocation(a, architect);
+                }
+            }
+        }
+
+
 
 
         public void KitOutArchitect(string Type)
@@ -1860,7 +1938,7 @@ namespace Lightrealm
             void AddCulturalClothing(string culturalItems, Material material)
             {
                 // Check if the clothing item is "straps" and the sex is female
-                bool addUpperShirt = culturalItems.Trim().ToLower() == "straps" && this.Sex.ToLower() == "female";
+                bool addUpperShirt = (culturalItems.Trim().ToLower() == "straps" || culturalItems.Trim().ToLower() == "straps/cape") && this.Sex.ToLower() == "female";
 
                 if (culturalItems != "none")
                 {
@@ -2236,7 +2314,24 @@ namespace Lightrealm
             List<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
             List<Attack> Attacks = new List<Attack>();
 
+            if(!BroadcastedDeathMessage && IsAlive == false && DeathCause != "")
+            {
+                int Month = ((int)Math.Round((decimal)(Location.Region.World.Cycle / 24192000)) % 12) + 1;
+                int Year = (int)Math.Round((decimal)(Location.Region.World.Cycle / 290304000), MidpointRounding.ToZero);
+                string Date = "(" + Month + "/" + Year + ")";
 
+                BroadcastedDeathMessage = true;
+
+                if (Location != null)
+                {
+                    Location.LocationHistoricalEvents.Add(Date + " " + Name + " " + DeathCause + " in " + Location.Name + ".");
+                    Location.Region.World.HistoricalEvents.Add(Date + " " + Name + " " + DeathCause + " in " + Location.Name + ".");
+                }
+                else
+                {
+                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Name + " " + DeathCause + ".");
+                }
+            }
 
             //die lmaoooo
 
@@ -2297,6 +2392,8 @@ namespace Lightrealm
                                     a.Intrigue.Add(Name + " said something about " + Master.Name + ".");
                                 }
                             }
+
+                            Master.UpdateChildrenLocationsOnDeath();
                         }
 
                     }
@@ -2333,6 +2430,12 @@ namespace Lightrealm
                 if (Game1.r.Next(20) == 0)
                 {
                     Energy -= Bleeding;
+
+                    if(Energy <= 0)
+                    {
+                        DeathCause = "bled to death";
+                    }
+
                     Bleeding -= 1;
                 }
             }
@@ -2409,6 +2512,11 @@ namespace Lightrealm
             if(Invisible && PathOfShadowLevel < 8)
             {
                 Energy -= 3;
+
+                if (Energy <= 0)
+                {
+                    DeathCause = "was lost to the shadows";
+                }
             }
 
             //test hand items to see if they will burn you
@@ -2466,6 +2574,11 @@ namespace Lightrealm
                         if (isSameRoomOrBlockMatch) 
                         {
                             Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singing their skin!", Color.Orange);
+                        }
+
+                        if (Energy <= 0)
+                        {
+                            DeathCause = "was burned to death by their clothing";
                         }
                     }
                 }
@@ -2792,6 +2905,11 @@ namespace Lightrealm
                 {
                     Energy -= (0.3 * FireCycles);
 
+                    if (Energy <= 0)
+                    {
+                        DeathCause = "burned to death";
+                    }
+
                     FireCycles--;
                 }
             }
@@ -3085,7 +3203,7 @@ namespace Lightrealm
 
                 //send messages of your own
 
-                if (Game1.r.Next(1, 25) < Charisma)
+                if (Game1.r.Next(1, 20) < Charisma)
                 {
                     var ArchList = Room != null ? Room.Architects : Block.Architects;
 
@@ -3170,7 +3288,7 @@ namespace Lightrealm
         .Concat(Game1.GameWorld.AllArchitects)).ToList<Entity>();
                             }
 
-                            CommandProcessor.SendMessage("ask_name", this, ChosenArchitect, new List<Entity> { AllImportantEntities[Game1.r.Next(AllImportantEntities.Count)] }, Game1.GameWorld);
+                            CommandProcessor.SendMessage(MType, this, ChosenArchitect, new List<Entity> { AllImportantEntities[Game1.r.Next(AllImportantEntities.Count)] }, Game1.GameWorld);
                         }
                     }
                 }
@@ -3606,6 +3724,10 @@ namespace Lightrealm
                                     {
                                         AnnounceToParty(ReferredToNames[0] + " siphons energy from " + TargetArchitect.ReferredToNames[0] + " with a translucent beam!", Color.Magenta);
                                         TargetArchitect.Energy -= 5;
+                                        if (Energy <= 0)
+                                        {
+                                            DeathCause = "was siphoned by a construct";
+                                        }
                                         this.Energy += 5;
                                     }
                                 }
@@ -3912,6 +4034,23 @@ namespace Lightrealm
                 CyclesSinceMoved++;
             }
 
+            CyclesSinceJump++;
+
+            if(CyclesSinceJump > 30)
+            {
+                DropKickReady = false;
+            }
+
+            if(ReactionBoostCycles > 0)
+            {
+                ReactionBoostCycles--;
+            }
+            if (ExtraFocusTicks > 0)
+            {
+                ExtraFocusTicks--;
+            }
+
+
             BlockLastCycle = Block;
 
 
@@ -4029,6 +4168,23 @@ namespace Lightrealm
                 Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed));
             }
 
+            if(Game1.AllLegendarySpells.Contains(Spell))
+            {
+                int Month = ((int)Math.Round((decimal)(Location.Region.World.Cycle / 24192000)) % 12) + 1;
+                int Year = (int)Math.Round((decimal)(Location.Region.World.Cycle / 290304000), MidpointRounding.ToZero);
+
+                string Date = "(" + Month + "/" + Year + ")";
+
+                List<string> Names = new List<string>();
+
+                foreach(Entity e in Targets)
+                {
+                    Names.Add(e.Name);
+                }
+
+                Location.Region.World.HistoricalEvents.Add(Date + " " + this.Name + " casted " + Spell + " at " + Game1.FormatList(Names));          
+            }
+
             foreach (Entity CurrentTarget in Targets)
             {
                 if (Spell == "water bolt")
@@ -4093,7 +4249,7 @@ namespace Lightrealm
                         {
                             if (Game1.r.Next(0, 2) == 0)
                             {
-                                o.Integrity = o.Integrity - 25;
+                                o.Integrity = o.Integrity - 10;
                             }
                         }
                     }
@@ -4112,7 +4268,7 @@ namespace Lightrealm
 
                     if (CurrentTarget is Object)
                     {
-                        ((Object)CurrentTarget).FireCycles += Game1.r.Next(20, 50);
+                        ((Object)CurrentTarget).FireCycles += Game1.r.Next(30, 60);
                     }
                     else
                     {
@@ -4126,18 +4282,21 @@ namespace Lightrealm
                     Announcements.Add(new TextStorage($"{casterName} holds out their hands palms down and shoves into the ground...", Color.Purple));
                     Announcements.Add(new TextStorage($"A massive tremor shakes the ground, but {CurrentTarget.ReferredToNames[0]} is unshaken!", Color.Purple));
 
-                    foreach (Object o in Block.Objects)
+                    List<Object> Objects = Room != null ? Room.Objects : Block.Objects;
+                    List<Architect> Architects = Room != null ? Room.Architects : Block.Architects;
+
+                    foreach (Object o in Objects)
                     {
                         if (o != CurrentTarget)
                         {
-                            o.DestabilizedCycles = Game1.r.Next(100, 200);
+                            o.DestabilizedCycles += Game1.r.Next(100, 200);
                         }
                     }
-                    foreach (Architect a in Block.Architects)
+                    foreach (Architect a in Architects)
                     {
                         if (a != CurrentTarget)
                         {
-                            a.DestabilizedCycles = Game1.r.Next(100, 200);
+                            a.DestabilizedCycles += Game1.r.Next(100, 200);
                         }
                     }
                 }
@@ -4208,7 +4367,7 @@ namespace Lightrealm
                         ((Architect)CurrentTarget).HoldCycles = 40 + Focus * 5;
                     }
                 }
-                else if (Spell == "forcethrow")
+                else if (Spell == "force throw")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
                     Announcements.Add(new TextStorage($"{casterName} clenches their fist at " + CurrentTarget.ReferredToNames[0] + ", gathering material. They thrust it at " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple));
@@ -4281,8 +4440,15 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Architect)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple));
-                        ((Architect)CurrentTarget).Fractallize(9999999);
+                        if(((Architect)CurrentTarget).Energy < (((Architect)CurrentTarget).MaxEnergy()/3))
+                        {
+                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple));
+                            ((Architect)CurrentTarget).Fractallize(9999999);
+                        }
+                        else
+                        {
+                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " resists the fractallization!", Color.Purple));
+                        }
                     }
                     else
                     {
@@ -4322,7 +4488,7 @@ namespace Lightrealm
                         Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " rises from the dead!", Color.Purple));
                         ((Architect)CurrentTarget).IsAlive = true;
                         ((Architect)CurrentTarget).IsImmortal = true;
-                        ((Architect)CurrentTarget).Energy = 50;
+                        ((Architect)CurrentTarget).Energy = Math.Min(50, ((Architect)CurrentTarget).MaxEnergy());
                     }
                     else
                     {
@@ -4366,10 +4532,14 @@ namespace Lightrealm
                         ((Architect)CurrentTarget).OppositionTags.Add("alllife");
                         ((Architect)CurrentTarget).Energy = 100;
 
-
                         foreach (Object o in ((Architect)CurrentTarget).BodyParts)
                         {
-                            o.Integrity = 100;
+                            o.Integrity = 50;
+                        }
+
+                        if(Game1.GamePlayerParty.Architects.Contains(this))
+                        {
+                            Game1.GamePlayerParty.Architects.Add(((Architect)CurrentTarget));
                         }
                     }
                     else
@@ -4915,7 +5085,7 @@ namespace Lightrealm
                         Clone.Dissipating = Base.Dissipating;
                         Clone.Integrity = Base.Integrity;
                         Clone.IsWritable = Base.IsWritable;
-                        Clone.SpellContained = Base.SpellContained;
+                        Clone.SpecialKnowledge = Base.SpecialKnowledge;
                         Clone.IsGeneralGood = Base.IsGeneralGood;
 
                         // Handling exceptions (deep cloning)

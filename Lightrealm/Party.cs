@@ -20,6 +20,23 @@ namespace Lightrealm
 
         }
 
+        public void ClearSkillData()
+        {
+            foreach (Architect a in Architects)
+            {
+                a.BodySlamReady = false;
+                a.DoubleStrikeReady = false;
+                a.DropKickReady = false;
+                a.FinaleReady = false;
+                a.LegSweepReady = false;
+                a.QuickStrikeReady = false;
+                a.SeveringStrikeReady = false;
+
+                a.UsedSkills = new List<string>();
+                a.ExtraFocusTicks = 0;
+            }
+        }
+
         public Party(List<Architect> architects, string type, Architect leader, Location Basee) : base(architects, type, leader, Basee)
         {
             foreach(Architect a in architects)

@@ -20,6 +20,13 @@ using Color = Microsoft.Xna.Framework.Color;
 using Point = Microsoft.Xna.Framework.Point;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
+#if WINDOWS
+using System.Drawing;
+using System.Windows.Forms;
+#endif
+
+using System.Drawing;
+
 #pragma warning disable SYSLIB0011
 
 namespace Lightrealm
@@ -30,6 +37,8 @@ namespace Lightrealm
         private SpriteBatch _spriteBatch;
         public static int MapCursorX { get; set; } = 0;
         public static int MapCursorZ { get; set; } = 0;
+
+        public int LatestTraveledDay { get; set; }
 
         public static List<Entity> CollectAllSubjects(Architect executor)
         {
@@ -100,6 +109,10 @@ namespace Lightrealm
             foreach (var spell in Game1.AllSpells)
             {
                 subjects.Add(new Entity(spell.ToLower()));
+            }
+            foreach (var skill in Game1.AllSkills)
+            {
+                subjects.Add(new Entity(skill.ToLower()));
             }
             foreach (var spell in Game1.AllLegendarySpells)
             {
@@ -174,7 +187,7 @@ namespace Lightrealm
             return subjects.ToList();
         }
 
-
+        
         public static List<Entity> AllSubjects = new List<Entity>();
 
         public static Dictionary<string, string> CalamityIdeologicalObsessionMapping = new Dictionary<string, string>()
@@ -723,6 +736,11 @@ namespace Lightrealm
 
             if (triggers.ContainsKey(MessageID))
             {
+                int Month = ((int)Math.Round((decimal)(GameWorld.Cycle / 24192000)) % 12) + 1;
+                int Year = (int)Math.Round((decimal)(GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+
+                string Date = "(" + Month + "/" + Year + ")";
+
                 if (triggers[MessageID].Any(trigger => Response.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)))
                 {
                     switch (MessageID)
@@ -738,6 +756,9 @@ namespace Lightrealm
                                 if (!GamePlayerParty.Architects.Contains(Reciever))
                                 {
                                     GamePlayerParty.Architects.Add(Reciever);
+
+                                    Sender.Location.Region.World.HistoricalEvents.Add(Date + " " + Reciever.Name + " joined " + GamePlayerParty.Name + ".");
+                                    Sender.Location.LocationHistoricalEvents.Add(Date + " " + Reciever.Name + " joined " + GamePlayerParty.Name + ".");
                                 }
                                 Reciever.Group = null;
                             }
@@ -753,6 +774,10 @@ namespace Lightrealm
                                     Reciever.Group.Architects.Remove(Reciever);
                                 }
                                 Reciever.Group = Sender.Group;
+
+                                // Log the historical event for AI joining AI group
+                                Sender.Location.Region.World.HistoricalEvents.Add(Date + " " + Reciever.Name + " joined the group of " + Sender.Name + ".");
+                                Sender.Location.LocationHistoricalEvents.Add(Date + " " + Reciever.Name + " joined the group of " + Sender.Name + ".");
                             }
                             break;
 
@@ -767,6 +792,9 @@ namespace Lightrealm
                                 if (!GamePlayerParty.Architects.Contains(Sender))
                                 {
                                     GamePlayerParty.Architects.Add(Sender);
+
+                                    Sender.Location.Region.World.HistoricalEvents.Add(Date + " " + Sender.Name + " joined " + GamePlayerParty.Name + ".");
+                                    Sender.Location.LocationHistoricalEvents.Add(Date + " " + Sender.Name + " joined " + GamePlayerParty.Name + ".");
                                 }
                                 Sender.Group = null;
                             }
@@ -782,6 +810,10 @@ namespace Lightrealm
                                     Sender.Group.Architects.Remove(Sender);
                                 }
                                 Sender.Group = Reciever.Group;
+
+                                // Log the historical event for AI joining AI group
+                                Sender.Location.Region.World.HistoricalEvents.Add(Date + " " + Sender.Name + " joined the group of " + Reciever.Name + ".");
+                                Sender.Location.LocationHistoricalEvents.Add(Date + " " + Sender.Name + " joined the group of " + Reciever.Name + ".");
                             }
                             break;
 
@@ -800,6 +832,9 @@ namespace Lightrealm
 
                                 Sender.ShieldTokens.Add(Reciever);
                                 Reciever.ShieldTokens.Add(Sender);
+
+                                Sender.Location.Region.World.HistoricalEvents.Add(Date + " " + Sender.Name + " challenged " + Reciever.Name + " in " + Sender.Location.Name + ".");
+                                Sender.Location.LocationHistoricalEvents.Add(Date + " " + Sender.Name + " challenged " + Reciever.Name + " in " + Sender.Location.Name + ".");
                             }
                             break;
 
@@ -903,6 +938,11 @@ namespace Lightrealm
             Object bodyPartInQuestion = null;
             bool actuallyFoundSomething = false;
 
+            int Month = ((int)Math.Round((decimal)(GameWorld.Cycle / 24192000)) % 12) + 1;
+            int Year = (int)Math.Round((decimal)(GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+
+            string Date = "(" + Month + "/" + Year + ")";
+
             attacker.CombatCycles = 50;
 
             int proficiencyModifier;
@@ -966,6 +1006,21 @@ namespace Lightrealm
                     }
                 }
             }
+
+
+            // Define the new event
+            string newEvent = Date + " " + attacker.Name + " attacked " + TargetArchitect.Name + ".";
+
+            // Check if there are at least two events in the HistoricalEvents list
+            if (GameWorld.HistoricalEvents.Count < 2 ||
+                GameWorld.HistoricalEvents[GameWorld.HistoricalEvents.Count - 1] != newEvent ||
+                GameWorld.HistoricalEvents[GameWorld.HistoricalEvents.Count - 2] != newEvent)
+            {
+                // Add the new event if the last two events are not the same
+                GameWorld.HistoricalEvents.Add(newEvent);
+                attacker.Location.LocationHistoricalEvents.Add(newEvent);
+            }
+
 
             if (TargetArchitect != null && !(GamePlayerParty.Architects.Contains(TargetArchitect)))
             {
@@ -1237,6 +1292,8 @@ namespace Lightrealm
                             {
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to jump over the attack, but failed!";
                             }
+
+                            TargetArchitect.CyclesSinceJump = 0;
                             break;
 
                         case "roll":
@@ -1529,6 +1586,20 @@ namespace Lightrealm
                         DamageModifier += 2;  // Slightly increase the damage
                     }
 
+                    if (attacker.DropKickReady && attacker.CyclesSinceJump <= 30 && (weapon.Type.EndsWith("foot") || weapon.Type.EndsWith("leg")))
+                    {
+                        announcements.Add(new TextStorage("The attack is a devastating dropkick!", Color.Red));
+                        DamageModifier *= 3;
+                        attacker.DropKickReady = false;
+                    }
+
+                    if(attacker.SeveringStrikeReady && targetObject.Owner != null && targetObject.Owner is Architect)
+                    {
+                        announcements.Add(new TextStorage("The attack severs many critical veins!", Color.Red));
+                        ((Architect)(targetObject.Owner)).Bleeding += 6;
+                        attacker.SeveringStrikeReady = false;
+                    }
+
                     // Check for Radiant Energy channeling at level 6 or higher
                     if (attacker.PathOfBodyLevel >= 6)
                     {
@@ -1543,11 +1614,28 @@ namespace Lightrealm
                     announcements.AddRange(
                         targetObject.TakeDamageFromObject(
                             weapon,
-                            DamageModifier
+                            DamageModifier,
+                            attacker,
+                            verb
                         )
                     );
-                }
 
+                    if (weapon.Type == "torso" && attacker.BodySlamReady)
+                    {
+                        attacker.BodySlamReady = false;
+                        announcements.Add(new TextStorage("The attack is a destabilizing body slam!", Color.Red));
+                        ((Architect)(targetObject.Owner)).DestabilizedCycles += (int)Math.Round(attacker.Energy / 2);
+                        ((Architect)(targetObject.Owner)).Energy -= Game1.r.Next(5,10);
+
+                    }
+                    else if ((weapon.Type.EndsWith("leg")||weapon.Type.EndsWith("foot")) && attacker.LegSweepReady)
+                    {
+                        attacker.LegSweepReady = false;
+                        announcements.Add(new TextStorage("The attack is a swift leg sweep!", Color.Red));
+                        ((Architect)(targetObject.Owner)).DestabilizedCycles += (int)Math.Round(attacker.Energy / 2);
+                        ((Architect)(targetObject.Owner)).ReactionBoostCycles += 30;
+                    }
+                }
             }
 
 
@@ -1561,19 +1649,28 @@ namespace Lightrealm
             }
             else
             {
-                // Combat cooldown
-                double baseCooldown = 20.0; // Base cooldown in 0.1-second cycles, assuming a default value
-                double weaponWeightPenalty = weapon.Weight / 1000; // Example: penalty increases for every kg of weapon weight
-                double strengthModifier = Math.Max(0, 1 - (0.1 * (attacker.Strength - 1))); // Reduces penalty based on strength, ensures it's not negative
+                if(attacker.QuickStrikeReady)
+                {
+                    Observations.Add(new TextStorage(attacker.Name + " strikes faster than light!", Color.LightCoral));
+                    Announcements.Add(new TextStorage(attacker.Name + " strikes faster than light!", Color.LightCoral));
+                    attacker.QuickStrikeReady = false;
+                }
+                else
+                {
+                    // Combat cooldown
+                    double baseCooldown = 20.0; // Base cooldown in 0.1-second cycles, assuming a default value
+                    double weaponWeightPenalty = weapon.Weight / 1000; // Example: penalty increases for every kg of weapon weight
+                    double strengthModifier = Math.Max(0, 1 - (0.1 * (attacker.Strength - 1))); // Reduces penalty based on strength, ensures it's not negative
 
-                // Calculate the final cooldown adjustment from weapon weight, mitigated by strength
-                double finalCooldownAdjustment = baseCooldown + (weaponWeightPenalty * strengthModifier);
+                    // Calculate the final cooldown adjustment from weapon weight, mitigated by strength
+                    double finalCooldownAdjustment = baseCooldown + (weaponWeightPenalty * strengthModifier);
 
-                // Apply speed factor directly to adjust the cooldown, allowing for increase or decrease
-                double finalCooldown = finalCooldownAdjustment * attacker.Speed();
+                    // Apply speed factor directly to adjust the cooldown, allowing for increase or decrease
+                    double finalCooldown = finalCooldownAdjustment * attacker.Speed();
 
-                // Update the attacker's cooldown cycles, ensuring it doesn't fall below a minimum threshold
-                attacker.CooldownCycles = (int)Math.Round(Math.Max(1, finalCooldown));
+                    // Update the attacker's cooldown cycles, ensuring it doesn't fall below a minimum threshold
+                    attacker.CooldownCycles = (int)Math.Round(Math.Max(1, finalCooldown));
+                }
             }
 
         }
@@ -1703,6 +1800,21 @@ namespace Lightrealm
             // Save the player
             string playerPath = Path.Combine(saveFolder, $"{player.Name}.json");
             SerializeObjectToBinaryFile(playerPath, player);
+
+
+            // Create a list to hold the header and the historical events
+            List<string> fileContent = new List<string>
+                            {
+                                "Historical Events of " + world.Name,
+                                "To find events related to a certain subject, search for it with CTRL+F",
+                                "" // Adding an empty line for better readability
+                            };
+
+            // Add the historical events to the list
+            fileContent.AddRange(world.HistoricalEvents);
+
+            // Write the content to the file
+            File.WriteAllLines(Path.Combine(saveFolder, $"history.txt"), fileContent.ToArray());
         }
 
         public static void LoadGame(string loadingDirectory)
@@ -1750,49 +1862,7 @@ namespace Lightrealm
         {
             get { return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); }
         }
-        static string GetDirectionFromCenterDistrict(int x, int y)
-        {
-            int centerX = 3; // Center x-coordinate of the 7x7 array
-            int centerY = 3; // Center y-coordinate of the 7x7 array
-
-            if (x == centerX && y == centerY)
-            {
-                return "Center";
-            }
-            else if (x == centerX && y < centerY)
-            {
-                return "North";
-            }
-            else if (x == centerX && y > centerY)
-            {
-                return "South";
-            }
-            else if (x < centerX && y == centerY)
-            {
-                return "West";
-            }
-            else if (x > centerX && y == centerY)
-            {
-                return "East";
-            }
-            else if (x < centerX && y < centerY)
-            {
-                return "Northwest";
-            }
-            else if (x < centerX && y > centerY)
-            {
-                return "Southwest";
-            }
-            else if (x > centerX && y < centerY)
-            {
-                return "Northeast";
-            }
-            else // (x > centerX && y > centerY)
-            {
-                return "Southeast";
-            }
-        }
-
+        
 
         private static void SerializeObjectToBinaryFile(string filePath, object obj)
         {
@@ -1909,7 +1979,8 @@ namespace Lightrealm
 
 
         public static List<string> LightingStyles = new List<string> { "nothing", "nothing", "nothing", "nothing", "nothing", "candles", "candles", "candles", "candles", "a lone torch in each room", "several braziers", "an oil lamp", "a candelabra", "an oil lantern", "a blazing fireplace" };
-        public static List<string> AllSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "tremor", /*"immobile illusion", "shadow veil", "mobile illusion", "reactive illusion",*/ "truthfulness", "rise", "hold", "forcethrow", "shatter", "clone", "intercept", "expel", "extract", "emergent growth", "animate", "immortalize", "raise", "resurrect" };
+        public static List<string> AllSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "tremor", /*"immobile illusion", "shadow veil", "mobile illusion", "reactive illusion",*/ "truthfulness", "rise", "hold", "force throw", "shatter", "clone", "intercept", "expel", "extract", "emergent growth", "animate", "immortalize", "raise", "resurrect" };
+        public static List<string> AllSkills = new List<string> { "deflect", "dropkick", "double strike", "quick strike", "severing strike", "backflip", "escape", "finale", "concentration", "body slam", "leg sweep" };
         public static List<string> AllLegendarySpells = new List<string>() { "ethereal rupture", "emergence", "eternal bind", "expunge", "echo" };
 
         public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "bracelet", "left gauntlet", "staff", "amulet", "hourglass", "locket", "orb" };
@@ -1921,8 +1992,7 @@ namespace Lightrealm
         public static List<string> ArchitectProfessions = new List<string>() { "commander", "craftsman", "mercenary", "musician", "elder", "prophet", "trader", "anarchist", "political figure", "scholar" };
         public static List<string> Sexes = new List<string>() { "male", "female" };
 
-        public static List<string> DeathCauses = new List<string>() { " fell to their death ", " drowned ", " died of cancer ", " burned ", " misoperated dangerous equipment ", " died of sickness ", " starved to death ", " dehydrated ", " choked to death ", " was killed by a wild animal " };
-
+        public static List<string> DeathCauses = new List<string>() { " fell to their death ", " drowned ", " died of cancer ", " burned ", " misoperated dangerous equipment ", " died of sickness ", " starved to death ", " dehydrated ", " choked to death ", " was killed by a wild animal ", " bled to death " };
 
         public static List<string> Industries = new List<string>() { "textiles", "spices", "metal", "jewelry", "tools", "military", "tea", "coffee", "wood", "ceramics", "glassmaking", "dye", "waspkeeping", "fuel", "masonry" };
 
@@ -2392,7 +2462,6 @@ namespace Lightrealm
             _graphics.PreferredBackBufferWidth = PreferredBackBufferWidth;
             _graphics.PreferredBackBufferHeight = PreferredBackBufferHeight;
 
-
             _graphics.ApplyChanges();
 
             //determine the best way to draw the map
@@ -2480,10 +2549,11 @@ namespace Lightrealm
     "place ~ in ~", "store ~ in ~", "stash ~ in ~", "put ~ in ~", "place ~ on ~", "place ~ inside ~"
 });
             RecognizedCommands.Add("craft", new List<string>{
-    "craft", "craft ~", "build", "build ~", "construct", "construct ~", "create", "create ~", "forge", "forge ~", "sew", "sew ~",
-    "assemble", "assemble ~", "manufacture", "manufacture ~", "fabricate", "fabricate ~", "design", "design ~", "knit", "knit ~",
-    "weave", "weave ~", "shape", "shape ~", "mold", "mold ~", "sculpt", "sculpt ~", "form", "form ~", "fashion", "fashion ~"
+    "craft", "build", "construct", "create", "forge", "sew",
+    "assemble", "manufacture", "fabricate", "design", "knit",
+    "weave", "shape", "mold", "sculpt", "form", "fashion"
 });
+
             RecognizedCommands.Add("take_item_from", new List<string> {
     "take ~ from ~", "remove ~ from ~", "retrieve ~ from ~", "get ~ from ~", "extract ~ from ~",
     "take ~ off of ~", "remove ~ off of ~", "retrieve ~ off of ~", "get ~ off of ~", "extract ~ off of ~"
@@ -2498,7 +2568,11 @@ namespace Lightrealm
             RecognizedCommands.Add("throw_item_at", new List<string> {
     "throw ~ at ~", "toss ~ at ~", "fling ~ at ~", "throw ~ towards ~", "toss ~ towards ~", "fling ~ towards ~"
 });
-            RecognizedCommands.Add("cast_spell_at", new List<string> { "cast ~ at ~" });
+            RecognizedCommands.Add("cast_spell_at_1", new List<string> { "cast ~ at ~" });
+            RecognizedCommands.Add("cast_spell_at_2", new List<string> { "cast ~ at ~ and ~" });
+            RecognizedCommands.Add("cast_spell_at_3", new List<string> { "cast ~ at ~, ~, and ~", "cast ~ at ~ and ~ and ~" });
+            RecognizedCommands.Add("cast_spell_at_4", new List<string> { "cast ~ at ~, ~, ~, and ~", "cast ~ at ~ and ~ and ~ and ~" });
+            RecognizedCommands.Add("cast_spell_at_5", new List<string> { "cast ~ at ~, ~, ~, ~, and ~", "cast ~ at ~ and ~ and ~ and ~ and ~" });
             RecognizedCommands.Add("cast_spell", new List<string> { "cast ~" });
             RecognizedCommands.Add("recall_information", new List<string> { "remember ~" });
             RecognizedCommands.Add("strip_clothing", new List<string> { "strip" });
@@ -2506,8 +2580,14 @@ namespace Lightrealm
             RecognizedCommands.Add("perform_composition", new List<string> {
     "recite ~", "sing ~", "perform ~"
 });
-            RecognizedCommands.Add("write_composition", new List<string> { "write ~" });
-            RecognizedCommands.Add("write_about_topic", new List<string> { "write ~ about ~" });
+            RecognizedCommands.Add("write_composition", new List<string> { "write ~", "write a ~", "write an ~", "compose ~", "compose a ~", "compose an ~" });
+            RecognizedCommands.Add("write_about_topic", new List<string> {
+    "write ~ about ~", "write a ~ about ~", "write an ~ about ~",
+    "compose ~ about ~", "compose a ~ about ~", "compose an ~ about ~",
+    "write ~ on ~", "write a ~ on ~", "write an ~ on ~",
+    "compose ~ on ~", "compose a ~ on ~", "compose an ~ on ~"
+});
+
             RecognizedCommands.Add("tame_creature", new List<string> { "tame ~", "pacify ~" });
             RecognizedCommands.Add("starstrike", new List<string> { "starstrike ~" });
             RecognizedCommands.Add("flamestrike", new List<string> { "flamestrike ~" });
@@ -2536,7 +2616,7 @@ namespace Lightrealm
             RecognizedCommands.Add("liquify", new List<string> { "liquify ~" });
             RecognizedCommands.Add("split", new List<string> { "split ~" });
             RecognizedCommands.Add("blip", new List<string> { "blip ~" });
-
+            RecognizedCommands.Add("use_skill", new List<string> { "initiate ~", "use skill ~", "use ~ skill", "use ~" });
 
             SuggestibleCommands.AddRange(RecognizedCommands.SelectMany(pair => pair.Value));
 
@@ -2560,32 +2640,83 @@ namespace Lightrealm
             ColorConverter.Add("black", new Color(10, 10, 10));
             ColorConverter.Add("brown", Color.Brown);
 
-            ConvertArchitectToGroupType.Add("warrior", "military");
-            ConvertArchitectToGroupType.Add("mercenary", "mercenary");
-            ConvertArchitectToGroupType.Add("elder", "religious");
-            ConvertArchitectToGroupType.Add("child", "none");
-            ConvertArchitectToGroupType.Add("prophet", "religious");
-            ConvertArchitectToGroupType.Add("commander", "military");
-            ConvertArchitectToGroupType.Add("trader", "trade");
-            ConvertArchitectToGroupType.Add("leader", "political");
-            ConvertArchitectToGroupType.Add("political figure", "political");
-            ConvertArchitectToGroupType.Add("outlaw", "squad");
-            ConvertArchitectToGroupType.Add("anarchist", "squad");
-            ConvertArchitectToGroupType.Add("craftsman", "guild");
-            ConvertArchitectToGroupType.Add("musician", "entertainment");
-            ConvertArchitectToGroupType.Add("scholar", "scholarly");
-            ConvertArchitectToGroupType.Add("sorcerer", "none");
-            ConvertArchitectToGroupType.Add("warlock", "none");
-            ConvertArchitectToGroupType.Add("alpha", "none");
-            ConvertArchitectToGroupType.Add("prestiged", "none");
-            ConvertArchitectToGroupType.Add("no profession", "none");
-            ConvertArchitectToGroupType.Add("hunter", "none");
-            ConvertArchitectToGroupType.Add("adventurer", "none");
-            ConvertArchitectToGroupType.Add("assassin", "none");
-            ConvertArchitectToGroupType.Add("rogue", "none");
-            ConvertArchitectToGroupType.Add("artisan", "none");
-            ConvertArchitectToGroupType.Add("diplomat", "political");
-            ConvertArchitectToGroupType.Add("enchanter", "scholarly");
+            ConvertArchitectToGroupType = new Dictionary<string, string>
+            {
+                { "warrior", "military" },
+                { "mercenary", "mercenary" },
+                { "elder", "religious" },
+                { "child", "none" },
+                { "prophet", "religious" },
+                { "commander", "military" },
+                { "trader", "trade" },
+                { "leader", "political" },
+                { "political figure", "political" },
+                { "outlaw", "squad" },
+                { "anarchist", "squad" },
+                { "craftsman", "guild" },
+                { "musician", "entertainment" },
+                { "scholar", "scholarly" },
+                { "sorcerer", "none" },
+                { "warlock", "none" },
+                { "alpha", "none" },
+                { "prestiged", "none" },
+                { "no profession", "none" },
+                { "hunter", "none" },
+                { "adventurer", "none" },
+                { "assassin", "none" },
+                { "rogue", "none" },
+                { "artisan", "none" },
+                { "diplomat", "political" },
+                { "enchanter", "scholarly" },
+                { "archbard", "entertainment" },
+                { "archluminary", "scholarly" },
+                { "archartificer", "scholarly" },
+                { "archduelist", "military" },
+                { "elemental", "none" },
+                { "hypernexus", "none" },
+                { "icosidodecahedron", "none" },
+                { "heart", "none" },
+                { "spatiomancer", "none" },
+                { "perceptomancer", "none" },
+                { "conjumancer", "none" },
+                { "fractalmancer", "none" },
+                { "embezzler", "none" },
+                { "beast", "none" },
+                { "largebeast", "none" },
+                { "spy", "none" },
+                { "diplomancer", "political" },
+                { "magician", "entertainment" },
+                { "scout", "none" },
+                { "animal", "none" },
+                { "end", "none" },
+                { "soldier", "military" },
+                { "peasant", "none" },
+                { "merchant", "trade" },
+                { "blacksmith", "guild" },
+                { "miller", "none" },
+                { "baker", "none" },
+                { "brewer", "none" },
+                { "tanner", "none" },
+                { "tailor", "guild" },
+                { "bandit", "squad" },
+                { "carpenter", "guild" },
+                { "mason", "guild" },
+                { "scribe", "scholarly" },
+                { "butcher", "none" },
+                { "fisherman", "none" },
+                { "weaver", "guild" },
+                { "potter", "none" },
+                { "miner", "none" },
+                { "construct", "none" },
+                { "vagabond", "none" },
+                { "priest", "religious" },
+                { "shadebeast", "none" },
+                { "knight", "military" },
+                { "thief", "none" },
+                { "archmage", "scholarly" },
+                { "beastmaster", "none" },
+            };
+
 
             ConvertProfessionToCareerDescription = new Dictionary<string, string>
             {
@@ -3308,7 +3439,7 @@ namespace Lightrealm
 
                         Observations.Add(new TextStorage("The " + o.Name + " has collided into " + ArchitectBodyPart.Name + "!", Color.Orange));
 
-                        Announcements.AddRange(ArchitectBodyPart.TakeDamageFromObject(o, 2 * (o.Thrower.Dexterity + o.Thrower.GetProficiency("throwing")))); // Assuming a method exists to handle this
+                        Announcements.AddRange(ArchitectBodyPart.TakeDamageFromObject(o, 2 * (o.Thrower.Dexterity + o.Thrower.GetProficiency("throwing")), null, "")); // Assuming a method exists to handle this
 
                         if (o.Type == "falling star" && ((Architect)(o.Creator)).PathOfStarsLevel > 4)
                         {
@@ -3349,7 +3480,7 @@ namespace Lightrealm
                         int InitialStagnantObjectIntegrity = targetObject.Integrity;
                         int InitialThrowingObjectIntegrity = o.Integrity;
 
-                        targetObject.TakeDamageFromObject(o, o.Thrower.GetProficiency("throwing") + 3); // Simulating damage application
+                        targetObject.TakeDamageFromObject(o, o.Thrower.GetProficiency("throwing") + 3, null, ""); // Simulating damage application
 
                         o.Integrity = InitialThrowingObjectIntegrity - InitialStagnantObjectIntegrity;
                         targetObject.Integrity = InitialThrowingObjectIntegrity - InitialStagnantObjectIntegrity;
@@ -3945,19 +4076,19 @@ namespace Lightrealm
                             {
                                 for (int i = 0; i < 12; i++)
                                 {
-                                    GameWorld.ProgressOneMonth();
+                                    GameWorld.ProgressDays(28, true);
                                 }
                             }
                             else if (GameWorld.Cycle < 24192000000 * 2)
                             {
                                 for (int i = 0; i < 6; i++)
                                 {
-                                    GameWorld.ProgressOneMonth();
+                                    GameWorld.ProgressDays(28, true);
                                 }
                             }
                             else
                             {
-                                GameWorld.ProgressOneMonth();
+                                GameWorld.ProgressDays(28, true);
                             }
                         }
 
@@ -3995,7 +4126,7 @@ namespace Lightrealm
                         if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
                             GameState = "founder";
-                            GameWorld.ProgressOneMonth();
+                            GameWorld.ProgressDays(28, true);
 
                             foreach (Civilization c in GameWorld.Civilizations)
                             {
@@ -4013,7 +4144,7 @@ namespace Lightrealm
                     {
                         if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            GameWorld.ProgressOneMonth();
+                            GameWorld.ProgressDays(28, true);
                         }
                         if (KeysNewlyPressed.Contains(Keys.R) || KeysNewlyPressed.Contains(Keys.T) || KeysNewlyPressed.Contains(Keys.D) || KeysNewlyPressed.Contains(Keys.G) || KeysNewlyPressed.Contains(Keys.C) || KeysNewlyPressed.Contains(Keys.V) || KeysNewlyPressed.Contains(Keys.NumPad7) || KeysNewlyPressed.Contains(Keys.NumPad9) || KeysNewlyPressed.Contains(Keys.NumPad4) || KeysNewlyPressed.Contains(Keys.NumPad6) || KeysNewlyPressed.Contains(Keys.NumPad1) || KeysNewlyPressed.Contains(Keys.NumPad3))
                         {
@@ -4785,9 +4916,12 @@ namespace Lightrealm
                                                                     if (allTryingToTravel)
                                                                     {
                                                                         GameState = "travelmenu";
+                                                                        GamePlayerParty.ClearSkillData();
                                                                         GamePlayerParty.MapCursorDistrict = 0;
                                                                         MapCursorX = LoadedArchitects[ArchitectIndex].Location.X;
                                                                         MapCursorZ = LoadedArchitects[ArchitectIndex].Location.Z;
+
+                                                                        GameWorld.RevealNearbyTiles(MapCursorX, MapCursorZ);
 
                                                                         GamePlayerParty.Architects[0].District.Unload();
 
@@ -5270,7 +5404,22 @@ namespace Lightrealm
 
                                     //but its based on the weakest link in your party.
 
-                                    GameWorld.Cycle += Math.Round(18000 * GamePlayerParty.Architects.Min(architect => architect.Speed()));
+
+
+                                    GameWorld.Cycle += (int)Math.Round(18000 / GamePlayerParty.Architects.Min(architect => architect.Speed()));
+
+                                    int currentDay = (int)Math.Round((double)GameWorld.Cycle / 864000);
+
+                                    if (currentDay > LatestTraveledDay)
+                                    {
+                                        GameWorld.ProgressDays(1, false);
+                                        LatestTraveledDay = currentDay;
+                                    }
+
+
+
+
+
 
                                     if (StoredEvent != null)
                                     {
@@ -5472,6 +5621,7 @@ namespace Lightrealm
                                 GamePlayerParty.CurrentEvent = null;
                                 StoredEvent = null;
                                 GameState = "travelmenu";
+                                GamePlayerParty.ClearSkillData();
                             }
                         }
                         else
@@ -5486,7 +5636,7 @@ namespace Lightrealm
                                 {
                                     SeenTips = true;
                                     Exposition.Clear();
-                                    Exposition.Add(new TextStorage("Use commands to explore. Anything from \"ask where a tavern is\" to \"forcefully throw Diamoi Voklizo at happy debtshiba\" is accepted.", Color.White));
+                                    Exposition.Add(new TextStorage("Use commands to explore. Anything from \"ask where a tavern is\" to \"throw Diamoivoklizo at unknown debtshiba\" is accepted if the conditions are right.", Color.White));
                                     Exposition.Add(new TextStorage("Watch your Energy and Bleeding, dictated by the Heart and its droplets at the top of the screen. Do not let it go dark.", Color.White));
                                     Exposition.Add(new TextStorage("Access player information with commands or use \"open menu\" to see all of it.", Color.White));
                                     Exposition.Add(new TextStorage("Good luck...", Color.White));
@@ -5515,6 +5665,7 @@ namespace Lightrealm
                         {
                             // Transition to the travel menu
                             GameState = "travelmenu";
+                            GamePlayerParty.ClearSkillData();
                         }
 
                         // Mapping of biomes to the tools required for gathering
@@ -7137,7 +7288,7 @@ namespace Lightrealm
                     colorIntensity = Math.Clamp(colorIntensity, 0, 255);
 
                     // Define the rectangle where the energy GUI will be drawn
-                    Rectangle energyGuiRect = new Rectangle(600, 30, 200, 200);
+                    Rectangle energyGuiRect = new Rectangle(620, 80, 200, 200); // Adjusted by 20 right and 65 down (80-15)
 
                     // Use a gradient from red (low energy) to green (high energy) to represent energy level visually
                     // Red component decreases with energy increase, green component increases with energy increase
@@ -7146,11 +7297,10 @@ namespace Lightrealm
                     // Draw the energy GUI with the calculated color
                     _spriteBatch.Draw(HealthGuiT, energyGuiRect, energyColor);
 
-
                     // Drawing droplets for each bleeding stack
                     int dropletSize = 24; // Size of each droplet
-                    int startX = 700; // Center X position of the health GUI (600 + half of its width)
-                    int startY = 230; // Starting Y position (30 + height of the health GUI + some padding)
+                    int startX = 720; // Center X position of the health GUI (620 + half of its width)
+                    int startY = 280; // Starting Y position (95 + height of the health GUI + some padding)
 
                     for (int i = 0; i < MostRecentPartyTurnArchitect.Bleeding; i++)
                     {
@@ -7161,39 +7311,47 @@ namespace Lightrealm
                         _spriteBatch.Draw(BleedT, new Rectangle(startX - (dropletSize / 2), posY, dropletSize, dropletSize), Color.White);
                     }
 
-                    _spriteBatch.DrawString(Shibafont, MostRecentPartyTurnArchitect.Name, new Vector2(50, 70), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "L: " + MostRecentPartyTurnArchitect.Location.Name, new Vector2(50, 90), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "D: " + MostRecentPartyTurnArchitect.District.Name, new Vector2(50, 110), Color.White);
+                    _spriteBatch.DrawString(Shibafont, MostRecentPartyTurnArchitect.Name, new Vector2(70, 120), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "L: " + MostRecentPartyTurnArchitect.Location.Name, new Vector2(70, 150), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "D: " + MostRecentPartyTurnArchitect.District.Name, new Vector2(70, 180), Color.White);
                     if (MostRecentPartyTurnArchitect.Structure != null)
                     {
-                        _spriteBatch.DrawString(Shibafont, "S: " + MostRecentPartyTurnArchitect.Structure.Name + ", R: " + MostRecentPartyTurnArchitect.Structure.Rooms.IndexOf(MostRecentPartyTurnArchitect.Room), new Vector2(50, 130), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "S: " + MostRecentPartyTurnArchitect.Structure.Name + ", R: " + MostRecentPartyTurnArchitect.Structure.Rooms.IndexOf(MostRecentPartyTurnArchitect.Room), new Vector2(70, 210), Color.White);
                     }
 
                     if (MostRecentPartyTurnArchitect.LeftHandObject != null)
                     {
-                        _spriteBatch.DrawString(Shibafont, "LH: " + MostRecentPartyTurnArchitect.LeftHandObject.ReferredToNames[0], new Vector2(50, 150), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "LH: " + MostRecentPartyTurnArchitect.LeftHandObject.ReferredToNames[0], new Vector2(70, 240), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(Shibafont, "LH: (empty)", new Vector2(50, 150), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "LH: (empty)", new Vector2(70, 240), Color.White);
                     }
 
-                    _spriteBatch.DrawString(Shibafont, "Speed: " + MostRecentPartyTurnArchitect.Speed(), new Vector2(400, 90), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "CD: " + MostRecentPartyTurnArchitect.CooldownCycles, new Vector2(400, 100), Color.White);
-
-                    if (MostRecentPartyTurnArchitect.CombatCycles > 0)
-                    {
-                        _spriteBatch.DrawString(Shibafont, "Evade: " + MostRecentPartyTurnArchitect.EscapeChance(), new Vector2(400, 110), Color.White);
-                    }
 
                     if (MostRecentPartyTurnArchitect.RightHandObject != null)
                     {
-                        _spriteBatch.DrawString(Shibafont, "RH: " + MostRecentPartyTurnArchitect.RightHandObject.ReferredToNames[0], new Vector2(50, 170), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "RH: " + MostRecentPartyTurnArchitect.RightHandObject.ReferredToNames[0], new Vector2(70, 270), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(Shibafont, "RH: (empty)", new Vector2(50, 170), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "RH: (empty)", new Vector2(70, 270), Color.White);
                     }
+
+
+
+
+                    _spriteBatch.DrawString(Shibafont, "Speed: " + MostRecentPartyTurnArchitect.Speed(), new Vector2(420, 120), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "CD: " + MostRecentPartyTurnArchitect.CooldownCycles, new Vector2(420, 150), Color.White);
+
+                    if (MostRecentPartyTurnArchitect.CombatCycles > 0)
+                    {
+                        _spriteBatch.DrawString(Shibafont, "Evade: " + MostRecentPartyTurnArchitect.EscapeChance(), new Vector2(420, 230), Color.White);
+                    }
+
+                    _spriteBatch.DrawString(Shibafont, "Press TAB for More.", new Vector2(420, 270), Color.White);
+
+
 
 
                     if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
@@ -7212,41 +7370,63 @@ namespace Lightrealm
 
                     int Line = 0;
 
-
-                    (int matchScore, bool isMatch, bool isPartialMatch) GetMatchScoreAndValidity(string command, string typedText)
+                    List<string> ParseInputIntoParts(string command, string typedText)
                     {
-                        var parts = command.Split(' ');
-                        var typedParts = typedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        int matchScore = 0;
-                        int j = 0; // Index for typedParts
+                        var commandParts = command.Split(' ');
+                        var inputParts = new List<string>();
+                        var typedWords = typedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                        if (typedParts.Length == 0 || !parts[0].StartsWith(typedParts[0], StringComparison.OrdinalIgnoreCase))
+                        int j = 0;
+                        for (int i = 0; i < commandParts.Length; i++)
                         {
-                            return (0, false, false); // Early return if the first word does not match
-                        }
-
-                        for (int i = 0; i < parts.Length; i++)
-                        {
-                            if (parts[i] == "~")
+                            if (commandParts[i] == "~")
                             {
-                                int wildcardLength = 0;
-                                while (j < typedParts.Length && !parts.Skip(i + 1).Any(p => p.StartsWith(typedParts[j], StringComparison.OrdinalIgnoreCase)))
+                                string subject = "";
+                                while (j < typedWords.Length && (i + 1 >= commandParts.Length || !commandParts[i + 1].StartsWith(typedWords[j], StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    wildcardLength++;
+                                    subject += typedWords[j] + " ";
                                     j++;
                                 }
-                                if (wildcardLength > 0)
+                                if (subject.Length > 0)
                                 {
-                                    matchScore++; // Wildcard matches, increase score
+                                    inputParts.Add(subject.Trim());
                                 }
                             }
                             else
                             {
-                                if (j >= typedParts.Length)
+                                if (j < typedWords.Length && commandParts[i].StartsWith(typedWords[j], StringComparison.OrdinalIgnoreCase))
                                 {
-                                    return (matchScore, false, true); // If out of typed parts, return partial match
+                                    inputParts.Add(typedWords[j]);
+                                    j++;
                                 }
-                                if (!parts[i].StartsWith(typedParts[j], StringComparison.OrdinalIgnoreCase))
+                            }
+                        }
+                        return inputParts;
+                    }
+
+                    (int matchScore, bool isMatch, bool isPartialMatch) GetMatchScoreAndValidity(string command, List<string> inputParts)
+                    {
+                        var commandParts = command.Split(' ');
+                        int matchScore = 0;
+                        int j = 0; // Index for inputParts
+
+                        for (int i = 0; i < commandParts.Length; i++)
+                        {
+                            if (commandParts[i] == "~")
+                            {
+                                if (j < inputParts.Count)
+                                {
+                                    matchScore++; // Wildcard matches, increase score
+                                    j++;
+                                }
+                            }
+                            else
+                            {
+                                if (j >= inputParts.Count)
+                                {
+                                    return (matchScore, false, true); // If out of input parts, return partial match
+                                }
+                                if (!commandParts[i].StartsWith(inputParts[j], StringComparison.OrdinalIgnoreCase))
                                 {
                                     return (matchScore, false, false); // If it fails to match, return false
                                 }
@@ -7255,93 +7435,97 @@ namespace Lightrealm
                             }
                         }
 
-                        // Ensure all typed parts were used, implying full command structure was respected
-                        if (j < typedParts.Length) return (0, false, false);
+                        // Ensure all input parts were used, implying full command structure was respected
+                        if (j < inputParts.Count) return (0, false, false);
 
                         return (matchScore, true, false);
                     }
 
-
-                    Color GetPartColor(string part, string inputPart, bool isTopLine, bool isWildcard, bool isSubject)
+                    Color GetPartColor(string part, string inputPart, bool isCommandPart, bool isSubject, bool isFullyTyped)
                     {
                         if (isSubject)
                         {
                             return new Color(0, 255, 0); // Green for subjects
                         }
-                        if (isWildcard)
+                        if (isCommandPart && isFullyTyped)
                         {
-                            return new Color(0, 50, 255); // Light blue for wildcards
+                            return new Color(255, 0, 255); // Pink for fully typed command parts
                         }
-                        else if (part.Equals(inputPart, StringComparison.OrdinalIgnoreCase) && isTopLine)
+                        if (isCommandPart)
                         {
-                            return new Color(255, 0, 255); // Magenta for exact non-wildcard top line matches
+                            return new Color(75, 75, 75); // Gray for incomplete command parts
                         }
-                        return new Color(75, 75, 75); // Grey for others
+                        return new Color(75, 75, 75); // Gray for others
                     }
-                    
-if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
-{
-    string initialText = "Enter a command: \"I ";
-    Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
-    float StartX = 50 + sizeOfInitialText.X;
 
-    var matchingCommands = SuggestibleCommands
-        .Select(cmd => new { Command = cmd, MatchData = GetMatchScoreAndValidity(cmd, MostRecentPartyTurnArchitect.Prompt) })
-        .Where(x => x.MatchData.isMatch || x.MatchData.isPartialMatch)
-        .OrderByDescending(x => x.MatchData.matchScore)
-        .Take(5)
-        .Select(x => x.Command)
-        .ToList();
+                    if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
+                    {
+                        string initialText = "Enter a command: \"I ";
+                        Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
+                        float StartX = 50 + sizeOfInitialText.X;
 
-    int yOffset = 20;
-    bool isTopLine = true; // Flag to check if it's the topmost line being drawn
-    for (int i = 0; i < matchingCommands.Count; i++)
-    {
-        string displayCommand = matchingCommands[i];
-        var commandParts = displayCommand.Split(' ');
-        var inputParts = MostRecentPartyTurnArchitect.Prompt.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        var matchingCommands = SuggestibleCommands
+                            .Select(cmd => new { Command = cmd, MatchData = GetMatchScoreAndValidity(cmd, ParseInputIntoParts(cmd, MostRecentPartyTurnArchitect.Prompt)) })
+                            .Where(x => x.MatchData.isMatch || x.MatchData.isPartialMatch)
+                            .OrderByDescending(x => x.MatchData.matchScore)
+                            .Take(5)
+                            .Select(x => x.Command)
+                            .ToList();
 
-        int l = 0; // Input parts index
-        for (int k = 0; k < commandParts.Length; k++)
-        {
-            string partToDraw = commandParts[k];
-            bool isWildcard = partToDraw == "~";
-            bool isSubject = false;
+                        int yOffset = 20;
+                        bool isTopLine = true; // Flag to check if it's the topmost line being drawn
+                        for (int i = 0; i < matchingCommands.Count; i++)
+                        {
+                            string displayCommand = matchingCommands[i];
+                            var commandParts = displayCommand.Split(' ');
+                            var inputParts = ParseInputIntoParts(displayCommand, MostRecentPartyTurnArchitect.Prompt);
 
-            if (isWildcard && l < inputParts.Length)
-            {
-                var subjectParts = inputParts.Skip(l).TakeWhile(ip => !commandParts.Skip(k + 1).Any(cp => cp.StartsWith(ip, StringComparison.OrdinalIgnoreCase)));
-                partToDraw = string.Join(" ", subjectParts);
-                l += partToDraw.Split(' ').Length; // Adjust index by the number of words matched by wildcard
-                isSubject = true;
-            }
+                            int l = 0; // Input parts index
+                            for (int k = 0; k < commandParts.Length; k++)
+                            {
+                                string partToDraw = commandParts[k];
+                                bool isWildcard = partToDraw == "~";
+                                bool isSubject = false;
+                                bool isCommandPart = !isWildcard;
+                                bool isFullyTyped = l < inputParts.Count && !isWildcard && commandParts[k].Equals(inputParts[l], StringComparison.OrdinalIgnoreCase);
 
-            // Determine the color for each part
-            Color partColor = GetPartColor(commandParts[k], l < inputParts.Length ? inputParts[l] : "", isTopLine, isWildcard, isSubject);
+                                if (isWildcard && l < inputParts.Count)
+                                {
+                                    var subjectParts = inputParts.Skip(l).TakeWhile(ip => !commandParts.Skip(k + 1).Any(cp => cp.StartsWith(ip, StringComparison.OrdinalIgnoreCase))).ToList();
+                                    partToDraw = string.Join(" ", subjectParts);
+                                    l += subjectParts.Count; // Adjust index by the number of words matched by wildcard
+                                    isSubject = true;
+                                    isCommandPart = false;
+                                }
 
-            _spriteBatch.DrawString(Shibafont, partToDraw, new Vector2(StartX, 1225 + (i + 1) * yOffset), partColor);
+                                // Determine the color for each part
+                                Color partColor = GetPartColor(commandParts[k], l < inputParts.Count ? inputParts[l] : "", isCommandPart, isSubject, isFullyTyped);
 
-            // Only increment input index if it's a non-wildcard or matched wildcard
-            if (isWildcard || (l < inputParts.Length && commandParts[k].StartsWith(inputParts[l], StringComparison.OrdinalIgnoreCase)))
-            {
-                l++;
-            }
+                                _spriteBatch.DrawString(Shibafont, partToDraw, new Vector2(StartX, 1225 + (i + 1) * yOffset), partColor);
 
-            // Adjust X coordinate for next part
-            StartX += Shibafont.MeasureString(partToDraw).X + 5; // Added 5 pixels for spacing between words
-        }
+                                // Only increment input index if it's a non-wildcard
+                                if (!isWildcard && l < inputParts.Count && commandParts[k].StartsWith(inputParts[l], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    l++;
+                                }
 
-        // Reset X position for next command and update top line flag
-        StartX = 50 + sizeOfInitialText.X;
-        isTopLine = false; // Only the first line gets magenta
-    }
-}
+                                // Adjust X coordinate for next part
+                                StartX += Shibafont.MeasureString(partToDraw).X + 5; // Added 5 pixels for spacing between words
+                            }
+
+                            // Reset X position for next command and update top line flag
+                            StartX = 50 + sizeOfInitialText.X;
+                            isTopLine = false; // Only the first line gets magenta
+                        }
+                    }
 
                     _spriteBatch.DrawString(Shibafont, "Enter a command: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
 
                     // Draw the background rectangle
                     Rectangle backgroundRect = new Rectangle(118, 1258, 176, 176);
                     _spriteBatch.Draw(FrameT, backgroundRect, Color.White); // Assuming FrameT is your texture for the background
+
+
 
 
                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
@@ -7712,7 +7896,9 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                                 continue;
                             }
                             // Create a description for the architect
-                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)} (C: {architect.CooldownCycles}, E: {(int)Math.Round(architect.Energy)}, B: {architect.Bleeding}, D: {architect.GetDistance(MostRecentPartyTurnArchitect)})";
+
+                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)}, distance {architect.GetDistance(MostRecentPartyTurnArchitect)}";                           
+
                             if (uniqueArchitects.ContainsKey(description))
                             {
                                 uniqueArchitects[description]++;
@@ -7724,6 +7910,7 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                         }
                         return uniqueArchitects;
                     }
+
                     void DrawArchitects(SpriteBatch spriteBatch, Dictionary<string, int> uniqueArchitects, Vector2 startCoords, SpriteFont font, int indentSize)
                     {
                         int line = 0;
@@ -7744,14 +7931,14 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
 
                         // Assuming you have a method to get a dictionary of unique architects
                         var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Room.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), BabyShibafont, 20);
+                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 150), BabyShibafont, 20);
                     }
                     else
                     {
 
                         // Assuming you have a method to get a dictionary of unique architects
                         var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Block.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 100), BabyShibafont, 20);
+                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 150), BabyShibafont, 20);
 
                         Line = 0;
                         foreach (Structure s in MostRecentPartyTurnArchitect.Block.Structures)
@@ -7830,27 +8017,37 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     {
                         _spriteBatch.Draw(MessageGUIT, new Rectangle(0, 0, 2560, 1440), Color.White);
 
+                        string TruncateText(string text, int maxLength)
+                        {
+                            if (text.Length <= maxLength)
+                                return text;
+                            return text.Substring(0, maxLength) + "...";
+                        }
+
                         int y = 600;
                         int d = 30;
                         DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender.ReferredToNames[0] + " says:", y, Shibafont, Color.White);
                         DrawCenteredText(_spriteBatch, "\"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent + "\"", y + d, Shibafont, Color.White);
 
-                        if(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "question")
+
+                        int TruncationLength = 70;
+
+                        if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "question")
                         {
-                            DrawCenteredText(_spriteBatch, "[T] Reply Truthfully: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse + "\"", y + d * 2, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[M] Make Something Up: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse + "\"", y + d * 3, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[I] Claim Ignorance: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse + "\"", y + d * 4, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse + "\"", y + d * 5, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[F] Say Something Flattering: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse + "\"", y + d * 6, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[T] Reply Truthfully: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse, TruncationLength) + "\"", y + d * 2, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[M] Make Something Up: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse, TruncationLength) + "\"", y + d * 3, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[I] Claim Ignorance: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse, TruncationLength) + "\"", y + d * 4, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse, TruncationLength) + "\"", y + d * 5, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[F] Say Something Flattering: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse, TruncationLength) + "\"", y + d * 6, Shibafont, Color.White);
                             DrawCenteredText(_spriteBatch, "[X] Do Not Respond.", y + d * 7, Shibafont, Color.White);
                         }
-                        else if(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "request")
+                        else if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "request")
                         {
-                            DrawCenteredText(_spriteBatch, "[T] Comply: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse + "\"", y + d * 2, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[M] Directly Deny: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse + "\"", y + d * 3, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[I] Act Confused: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse + "\"", y + d * 4, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse + "\"", y + d * 5, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[F] Say something Flattering: \"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse + "\"", y + d * 6, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[T] Comply: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse, TruncationLength) + "\"", y + d * 2, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[M] Directly Deny: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse, TruncationLength) + "\"", y + d * 3, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[I] Act Confused: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse, TruncationLength) + "\"", y + d * 4, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse, TruncationLength) + "\"", y + d * 5, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[F] Say something Flattering: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse, TruncationLength) + "\"", y + d * 6, Shibafont, Color.White);
                             DrawCenteredText(_spriteBatch, "[X] Do not respond.", y + d * 7, Shibafont, Color.White);
                         }
                     }
@@ -8000,18 +8197,18 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     //inventory
                     var sourceObjects = MostRecentPartyTurnArchitect.Inventory;
                     var structuredList = CondenseAndStructureList(sourceObjects);
-                    DrawList(_spriteBatch, structuredList, new Vector2(2100, 200), BabyShibafont, CurrentObjectPage, ItemsPerPage);
+                    DrawList(_spriteBatch, structuredList, new Vector2(2100, 100), BabyShibafont, CurrentObjectPage, ItemsPerPage);
 
                     line = 0;
                     if (MostRecentPartyTurnArchitect.Clothing.Count == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No clothing. Please put some on.", 1650, 500, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "No clothing. Please put some on.", 1625, 425, BabyShibafont);
                     }
                     else
                     {
                         foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
                         {
-                            DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1650, 500 + 15 * line, BabyShibafont);
+                            DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1625, 425 + 20 * line, BabyShibafont);
                             line++;
                         }
                     }
@@ -8019,13 +8216,13 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     line = 0;
                     if (MostRecentPartyTurnArchitect.Intrigue.Count == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1650, 1100, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1625, 1150, BabyShibafont);
                     }
                     else
                     {
                         foreach (string s in MostRecentPartyTurnArchitect.Intrigue)
                         {
-                            DrawCenteredTextAtPosition(_spriteBatch, s, 1650, 1100 + 15 * line, BabyShibafont);
+                            DrawCenteredTextAtPosition(_spriteBatch, s, 1640, 1150 + 15 * line, BabyShibafont);
                             line++;
                         }
                     }
@@ -8033,13 +8230,13 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     line = 0;
                     if (MostRecentPartyTurnArchitect.CurrentlyActiveImbuements.Count == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No active imbuements.", 955, 600, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "No active imbuements.", 950, 425, BabyShibafont);
                     }
                     else
                     {
                         foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
                         {
-                            DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 955, 600 + 10 * line, BabyShibafont);
+                            DrawCenteredTextAtPosition(_spriteBatch, i.GetDescription(), 950, 425 + 10 * line, BabyShibafont);
                             line++;
                         }
                     }
@@ -8052,7 +8249,7 @@ if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     foreach ((string, int) p in MostRecentPartyTurnArchitect.XPValues)
                     {
                         line++; 
-                        DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetProficiency(p.Item1)} XP", 280, 120 + 10 * line, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetProficiency(p.Item1)} XP", 290, 100 + 20 * line, BabyShibafont);
                     }
                     if (line == 0)
                     {
