@@ -431,8 +431,6 @@ namespace Lightrealm
                 }
             }
 
-            int TotalArchitects = 0;
-
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
             {
                 for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
@@ -604,6 +602,7 @@ namespace Lightrealm
                     }
 
                     a.District = this;
+                    a.UpdateNames();
                     Game1.LoadedArchitects.Add(a);
                 }
             }
@@ -659,6 +658,7 @@ namespace Lightrealm
                     var randomRoom = randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
                     randomRoom.Objects.Add(o);
                 }
+                o.UpdateNames();
             }
 
             Game1.LoadedArchitects.AddRange(Game1.GamePlayerParty.Architects);

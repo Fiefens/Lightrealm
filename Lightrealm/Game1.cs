@@ -33,6 +33,8 @@ namespace Lightrealm
 {
     public class Game1 : Game
     {
+        public static string Version = "alpha1";
+
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
         public static int MapCursorX { get; set; } = 0;
@@ -1802,6 +1804,8 @@ namespace Lightrealm
             string playerPath = Path.Combine(saveFolder, $"{player.Name}.json");
             SerializeObjectToBinaryFile(playerPath, player);
 
+            List<string> versionData = new List<string>() { Version, "Modification of the above line may lead to world corruption." };
+            File.WriteAllLines(Path.Combine(saveFolder, $"version.txt"), versionData);
 
             // Create a list to hold the header and the historical events
             List<string> fileContent = new List<string>
@@ -1988,7 +1992,7 @@ namespace Lightrealm
 
         public Dictionary<string, Texture2D> TileAtlas = new Dictionary<string, Texture2D>();
         public static List<string> WeightedRandomArchitectProfessions = new List<string>() { "commander", "craftsman", "craftsman", "craftsman", "mercenary", "mercenary", "mercenary", "musician", "musician", "elder", "prophet", "trader", "trader", "anarchist", "political figure", "scholar", "scholar", "scholar", "scholar" };
-        public static List<string> WeightedRandomNormalProfessions = new List<string>() { "soldier", "peasant", "peasant", "peasant", "blacksmith", "miller", "baker", "merchant", "brewer", "brewer", "tanner", "tailor", "carpenter", "mason", "scribe", "butcher", "fisherman", "weaver", "potter", "miner", "miner", "no profession", "no profession", "no profession", "no profession" };
+        public static List<string> WeightedRandomNormalProfessions = new List<string>() { "soldier", "peasant", "peasant", "peasant", "blacksmith", "miller", "baker", "merchant", "brewer", "brewer", "tanner", "tailor", "carpenter", "mason", "scribe", "butcher", "fisherman", "weaver", "potter", "miner", "miner", "indolent", "indolent", "indolent", "indolent" };
 
         public static List<string> ArchitectProfessions = new List<string>() { "commander", "craftsman", "mercenary", "musician", "elder", "prophet", "trader", "anarchist", "political figure", "scholar" };
         public static List<string> Sexes = new List<string>() { "male", "female" };
@@ -2257,10 +2261,6 @@ namespace Lightrealm
         public Texture2D MessageGUIT;
         public Texture2D BleedT;
 
-        public Texture2D ClockT;
-        public Texture2D SkyT;
-        public Texture2D SunT;
-        public Texture2D MoonT;
         public Texture2D FrameT;
 
         public Texture2D ArchitectHere;
@@ -2432,7 +2432,7 @@ namespace Lightrealm
 
             if (TaskDescription != "")
             {
-                if (a.ReferredToNames.Count > 1)
+                if (a.ReferredToNames.Count > 0)
                 {
                     return (a.ReferredToNames[0] + ", " + TaskDescription);
                 }
@@ -2478,8 +2478,8 @@ namespace Lightrealm
             //these commands may be suggested to the player while typing
 
             RecognizedCommands.Add("ask_name", new List<string> { "ask ~ /p name", "ask ~ for /p name", "ask ~ name" });
-            RecognizedCommands.Add("ask_directions", new List<string> { "ask ~ where ~ is", "ask ~ where I can find ~", "ask ~ where to find ~"});
-            RecognizedCommands.Add("ask_generic_directions", new List<string> { "ask ~ where a ~ is", "ask ~ where I can find a ~", "ask ~ where to find a ~" });
+            RecognizedCommands.Add("ask_directions", new List<string> { "ask ~ where ~ is", "ask ~ where I can find ~", "ask ~ where to find ~"}); 
+            RecognizedCommands.Add("ask_generic_directions", new List<string> { "ask ~ where a ~ is", "ask ~ where I can find a ~", "ask ~ where to find a ~", "ask ~ where the nearest ~ is", "ask ~ where I could find a ~", "ask ~ where an ~ is", "ask ~ where I can find an ~", "ask ~ where to find an ~" });
             RecognizedCommands.Add("ask_about_something", new List<string> { "ask ~ about ~", "ask ~ for information on ~", "ask ~ what they know about ~", "ask ~ what they can tell me about ~" });
             RecognizedCommands.Add("ask_ruler", new List<string> { "ask ~ about the government", "ask ~ who rules", "ask ~ who the government is", "ask ~ who rules here" });
             RecognizedCommands.Add("ask_trade", new List<string> { "ask ~ to trade", "ask ~ trade", "ask ~ to trade with me", "ask ~ what they have for sale", "ask ~ what they sell", "ask ~ what they are selling" });
@@ -2655,7 +2655,7 @@ namespace Lightrealm
                 { "warlock", "none" },
                 { "alpha", "none" },
                 { "prestiged", "none" },
-                { "no profession", "none" },
+                { "indolent", "none" },
                 { "hunter", "none" },
                 { "adventurer", "none" },
                 { "assassin", "none" },
@@ -2774,7 +2774,7 @@ namespace Lightrealm
                 {"potter", "from crafting pottery"},
                 {"miner", "from extracting valuable minerals"},
                 {"construct", "from your programmed tasks"},
-                {"no profession", "from odd jobs here and there"},
+                {"indolent", "from odd jobs here and there"},
                 {"vagabond", "from wandering the lands"},
                 {"priest", "from spiritual guidance and rituals"},
                 {"shadebeast", "from lurking in shadows"},
@@ -2854,7 +2854,7 @@ namespace Lightrealm
                 {"potter", "none"},
                 {"miner", "forge"},
                 {"construct", "none"},
-                {"no profession", "none"},
+                {"indolent", "none"},
                 {"vagabond", "none"},
                 {"priest", "shrine"},
                 {"shadebeast", "heart"},
@@ -2985,10 +2985,6 @@ namespace Lightrealm
             Syllables = File.ReadAllLines(string.Concat(dataPath, "syllables.txt")).ToList();
             NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
 
-            ClockT = Content.Load<Texture2D>("clock");
-            SkyT = Content.Load<Texture2D>("sky");
-            SunT = Content.Load<Texture2D>("sun");
-            MoonT = Content.Load<Texture2D>("moon");
             FrameT = Content.Load<Texture2D>("frame");
 
             Shibafont = Content.Load<SpriteFont>("shibafont");
@@ -3916,6 +3912,18 @@ namespace Lightrealm
                         */
                     }
 
+                    bool IsCurrentVersion(string directory)
+                    {
+                        var versionFilePath = Path.Combine(directory, "version.txt");
+                        if (File.Exists(versionFilePath))
+                        {
+                            string firstLine = File.ReadLines(versionFilePath).FirstOrDefault();
+                            return firstLine == Version;
+                        }
+                        return false;
+                    }
+
+
                     if (GameState == "savinggame")
                     {
                         SaveGame(GamePlayerParty, GameWorld);
@@ -3923,45 +3931,54 @@ namespace Lightrealm
                     }
                     else if (GameState == "loadinggamemenu")
                     {
-                        int SavesCount = Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves").Count();
-
+                        var saveDirectories = Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves").ToList();
+                        int SavesCount = saveDirectories.Count;
 
                         if (SavesCount > 0)
                         {
                             if (KeysNewlyPressed.Contains(Keys.Up))
                             {
-                                LoadGameCursor--;
-                                if (LoadGameCursor < 0)
+                                do
                                 {
-                                    LoadGameCursor = SavesCount - 1;
-                                }
+                                    LoadGameCursor--;
+                                    if (LoadGameCursor < 0)
+                                    {
+                                        LoadGameCursor = SavesCount - 1;
+                                    }
+                                } while (!IsCurrentVersion(saveDirectories[LoadGameCursor]));
                             }
+
                             if (KeysNewlyPressed.Contains(Keys.Down))
                             {
-                                LoadGameCursor++;
-                                if (LoadGameCursor >= SavesCount)
+                                do
                                 {
-                                    LoadGameCursor = 0;
-                                }
+                                    LoadGameCursor++;
+                                    if (LoadGameCursor >= SavesCount)
+                                    {
+                                        LoadGameCursor = 0;
+                                    }
+                                } while (!IsCurrentVersion(saveDirectories[LoadGameCursor]));
                             }
+
                             if (KeysNewlyPressed.Contains(Keys.Enter))
                             {
                                 GameState = "loadinggame";
-                                SelectedDirectory = Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves")[LoadGameCursor];
+                                SelectedDirectory = saveDirectories[LoadGameCursor];
                             }
+
                             if (KeysNewlyPressed.Contains(Keys.Delete))
                             {
                                 GameState = "deletinggame";
-                                SelectedDirectory = Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves")[LoadGameCursor];
+                                SelectedDirectory = saveDirectories[LoadGameCursor];
                             }
                         }
-
 
                         if (KeysNewlyPressed.Contains(Keys.Escape))
                         {
                             GameState = "mainscreen";
                         }
                     }
+
                     else if (GameState == "deletinggame")
                     {
                         if (KeysNewlyPressed.Contains(Keys.Y) && (Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)))
@@ -4344,6 +4361,17 @@ namespace Lightrealm
                             MostRecentPartyTurnArchitect = TheChosenOne;
                             TheChosenOne.District.Architects.Remove(TheChosenOne);
                             TheChosenOne.Group = GamePlayerParty;
+
+                            GameWorld.ProgressToNextMorning();
+
+                            TheChosenOne.Strength = StoredStr;
+                            TheChosenOne.Dexterity = StoredDex;
+                            TheChosenOne.Endurance = StoredEnd;
+                            TheChosenOne.Charisma = StoredCha;
+                            TheChosenOne.Focus = StoredFoc;
+                            TheChosenOne.Agility = StoredAgl;
+                            TheChosenOne.Creativity = StoredCre;
+
                             MapCursorX = TheChosenOne.Location.X;
                             MapCursorZ = TheChosenOne.Location.Z;
                         }
@@ -4440,7 +4468,7 @@ namespace Lightrealm
 
                             Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " has a deep appreciation for " + GamePlayerParty.Architects[0].FavoriteCloth.Name + ", " + GamePlayerParty.Architects[0].FavoriteStone.Name + ", " + GamePlayerParty.Architects[0].FavoriteWood.Name + ", " + GamePlayerParty.Architects[0].FavoriteGemstone.Name + ", and " + GamePlayerParty.Architects[0].FavoriteMetal.Name + ".", Color.Orange));
                             Exposition.Add(new TextStorage(
-                            $"{GamePlayerParty.Architects[0].Pronoun} has " +
+                            Capitalize($"{GamePlayerParty.Architects[0].Pronoun} has ") +
                             $"{GamePlayerParty.Architects[0].GetDescription(GamePlayerParty.Architects[0].Strength)} strength, " +
                             $"{GamePlayerParty.Architects[0].GetDescription(GamePlayerParty.Architects[0].Agility)} agility, " +
                             $"{GamePlayerParty.Architects[0].GetDescription(GamePlayerParty.Architects[0].Dexterity)} dexterity, " +
@@ -4468,7 +4496,7 @@ namespace Lightrealm
 
 
 
-                            Exposition.Add(new TextStorage(GameWorld.Calamity[0].Name + " and their gang of " + CalamityIdeologicalObsessionMapping[GameWorld.CalamityIdeologicalObsession] + " have plagued ", Color.Aquamarine));
+                            Exposition.Add(new TextStorage(GameWorld.Calamity[0].Name + " and " + GameWorld.Calamity[0].PossessivePronoun + " gang of " + CalamityIdeologicalObsessionMapping[GameWorld.CalamityIdeologicalObsession] + " have plagued ", Color.Aquamarine));
                             Exposition.Add(new TextStorage(GameWorld.Name + " for decades, but you cannot stand another second.", Color.Aquamarine));
                             Exposition.Add(new TextStorage("It has been a long time since " + GameWorld.Calamity[0].Name + " " + GrievanceReason + ", but", Color.Aquamarine));
                             Exposition.Add(new TextStorage("the memory continues to burden you. Your revenge will be difficult without proper experience and equipment, though.", Color.Aquamarine));
@@ -4476,7 +4504,6 @@ namespace Lightrealm
                             Exposition.Add(new TextStorage("Perhaps they can assist you in getting some supplies before you embark on your journey. Do not displease them or their debtshibas, and your quest will be glorious and fortunate.", Color.Aquamarine));
 
                             Exposition.Add(new TextStorage("", Color.White));
-                            Exposition.Add(new TextStorage("Or maybe, " + GamePlayerParty.Architects[0].Name + " can move on, and find a different path.", Color.White));
                             Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White));
 
 
@@ -6532,6 +6559,7 @@ namespace Lightrealm
 
                 // Setup sampler state for smooth scaling if using XNA/MonoGame
                 _spriteBatch.GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+
                 // New dimensions for MirrorT
                 int newWidth = (int)(500 * Scale);
                 int newHeight = (int)(1150 * Scale);
@@ -6554,51 +6582,75 @@ namespace Lightrealm
                     return;
                 }
 
-                if (a.Sex == "female")
+                string baseTexture = a.Sex == "female" ? "FemaleT" : "MaleT";
+                string race = a.Race.Name.ToLower();
+
+                switch (race)
                 {
-                    if (a.Race == GameWorld.GetRace("luminarch"))
-                    {
-                        _spriteBatch.Draw(LuminarchFemaleT, ChosenRect, Color.White);
-                    }
-                    else if (a.Race == GameWorld.GetRace("nightfell"))
-                    {
-                        _spriteBatch.Draw(NightfellFemaleT, ChosenRect, Color.White);
-                    }
-                    else
-                    {
-                        _spriteBatch.Draw(ArchaixFemaleT, ChosenRect, Color.White);
-                    }
-                }
-                else
-                {
-                    if (a.Race == GameWorld.GetRace("luminarch"))
-                    {
-                        _spriteBatch.Draw(LuminarchMaleT, ChosenRect, Color.White);
-                    }
-                    else if (a.Race == GameWorld.GetRace("nightfell"))
-                    {
-                        _spriteBatch.Draw(NightfellMaleT, ChosenRect, Color.White);
-                    }
-                    else
-                    {
-                        _spriteBatch.Draw(ArchaixMaleT, ChosenRect, Color.White);
-                    }
+                    case "luminarch":
+                        _spriteBatch.Draw(baseTexture == "FemaleT" ? LuminarchFemaleT : LuminarchMaleT, ChosenRect, Color.White);
+                        break;
+                    case "nightfell":
+                        _spriteBatch.Draw(baseTexture == "FemaleT" ? NightfellFemaleT : NightfellMaleT, ChosenRect, Color.White);
+                        break;
+                    default:
+                        _spriteBatch.Draw(baseTexture == "FemaleT" ? ArchaixFemaleT : ArchaixMaleT, ChosenRect, Color.White);
+                        break;
                 }
 
-                foreach (Object o in a.Clothing.OrderBy(o => !(o.Type.EndsWith("shoe")) && !(o.Type.EndsWith("boot"))))
+                // Define the drawing order
+                var drawOrder = new List<string[]>
                 {
-                    string s = o.Type;
+                    new string[] { "body" },
+                    new string[] { "undergarment", "uppergarment" },
+                    new string[] { "flair" },  // Draw flair before anything that ends with "shirt"
+                    new string[] { "leggings", "pants" },  // Always draw these first within this category
+                    new string[] { "otherClothing" },
+                    new string[] { "armor" },
+                    new string[] { "skirt", "kilt" },
+                    new string[] { "hats" }
+                };
 
-                    if (s.EndsWith("shirt") || s == "robe")
-                    {
-                        s += " " + a.Sex;
-                    }
+                // Define armor and clothing categories
+                var armorItems = new HashSet<string> { "chestplate", "helmet", "left boot", "right boot", "left gauntlet", "right gauntlet", "leggings" };
+                var clothingItems = new HashSet<string> { "undergarment", "uppergarment", "robe", "shirt", "pants", "leggings", "skirt", "kilt", "hat", "flair" };
 
-                    Color drawColor = o.DyedColor != "none" ? ColorConverter[o.DyedColor] : ColorConverter[o.Materials[0].Color];
-                    _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
+                // Group items by their type
+                var groupedItems = new Dictionary<string, List<Object>>();
+                foreach (var o in a.Clothing)
+                {
+                    string category = "otherClothing";
+                    if (armorItems.Contains(o.Type)) category = "armor";
+                    else if (clothingItems.Contains(o.Type)) category = o.Type;
+
+                    if (!groupedItems.ContainsKey(category)) groupedItems[category] = new List<Object>();
+                    groupedItems[category].Add(o);
                 }
 
+                // Draw items in the specified order
+                foreach (var category in drawOrder)
+                {
+                    foreach (var subCategory in category)
+                    {
+                        if (groupedItems.ContainsKey(subCategory))
+                        {
+                            foreach (var o in groupedItems[subCategory])
+                            {
+                                string s = o.Type;
+                                if (s.EndsWith("shirt") || s == "robe")
+                                {
+                                    s += " " + a.Sex;
+                                }
+
+                                Color drawColor = o.DyedColor != "none" ? ColorConverter[o.DyedColor] : ColorConverter[o.Materials[0].Color];
+                                _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
+                            }
+                        }
+                    }
+                }
             }
+
+
 
 
             if (KeysNewlyPressed.Contains(Keys.PageUp) && Keyboard.GetState().IsKeyDown(Keys.LeftAlt))
@@ -6972,7 +7024,8 @@ namespace Lightrealm
             }
             else if (GameState == "loadinggamemenu")
             {
-                int SavesCount = Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves").Count();
+                var saveDirectories = Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves").ToList();
+                int SavesCount = saveDirectories.Count;
 
                 if (SavesCount > 0)
                 {
@@ -6980,15 +7033,38 @@ namespace Lightrealm
 
                     int Number = 0;
 
-                    foreach (string d in Directory.GetDirectories(DocumentsFolderPath + "/LightrealmSaves"))
+                    foreach (string d in saveDirectories)
                     {
-                        if (Number == LoadGameCursor)
+                        var versionFilePath = Path.Combine(d, "version.txt");
+                        string directoryDisplayName = d;
+                        Color textColor = Color.White;
+
+                        if (File.Exists(versionFilePath))
                         {
-                            _spriteBatch.DrawString(Shibafont, "(>) " + d, new Vector2(200, 230 + Number * 30), Color.White);
+                            string firstLine = File.ReadLines(versionFilePath).FirstOrDefault();
+                            if (firstLine == Version)
+                            {
+                                textColor = Color.White; // Matching version
+                            }
+                            else
+                            {
+                                textColor = Color.Gray;
+                                directoryDisplayName += $" (Version Mismatch: Current: {Version}, Required: {firstLine})";
+                            }
                         }
                         else
                         {
-                            _spriteBatch.DrawString(Shibafont, "( ) " + d, new Vector2(200, 230 + Number * 30), Color.White);
+                            textColor = Color.Gray;
+                            directoryDisplayName += " (No Version File)";
+                        }
+
+                        if (Number == LoadGameCursor)
+                        {
+                            _spriteBatch.DrawString(Shibafont, "(>) " + directoryDisplayName, new Vector2(200, 230 + Number * 30), textColor);
+                        }
+                        else
+                        {
+                            _spriteBatch.DrawString(Shibafont, "( ) " + directoryDisplayName, new Vector2(200, 230 + Number * 30), textColor);
                         }
 
                         Number++;
@@ -7002,6 +7078,9 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "Press ESC to return to title.", new Vector2(200, 230), Color.White);
                 }
             }
+
+
+
             else if (GameState == "deletinggame")
             {
                 _spriteBatch.DrawString(Shibafont, "This action cannot be undone. Are you sure?", new Vector2(30, 30), Color.White);
@@ -7027,7 +7106,7 @@ namespace Lightrealm
 
                 foreach (string s in StatOptions)
                 {
-                    _spriteBatch.DrawString(Shibafont, s, new Vector2(100, 100 + Line * 50), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "[" + Line + "] " + s, new Vector2(100, 100 + Line * 50), Color.White);
                     Line++;
                 }
             }
@@ -7080,7 +7159,7 @@ namespace Lightrealm
                 // Updating the drawing of game world name, month/year display, and pause instruction
                 _spriteBatch.DrawString(BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(1750, DrawY), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, Month + "/" + Year, new Vector2(1750, 1160), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Pause Generation with ENTER", new Vector2(1750, 1200), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Pause Generation with ENTER", new Vector2(1900, 1200), Color.White);
 
 
 
@@ -7398,15 +7477,15 @@ namespace Lightrealm
 
                     if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
                     {
-                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
                     }
                     else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
                     {
-                        _spriteBatch.DrawString(Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1150), Color.White);
                     }
                     else
                     {
-                        _spriteBatch.DrawString(Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
                     }
 
 
@@ -7543,7 +7622,7 @@ namespace Lightrealm
                                 // Determine the color for each part
                                 Color partColor = GetPartColor(commandParts[k], l < inputParts.Count ? inputParts[l] : "", isCommandPart, isSubject, isFullyTyped);
 
-                                _spriteBatch.DrawString(Shibafont, partToDraw, new Vector2(StartX, 1225 + (i + 1) * yOffset), partColor);
+                                _spriteBatch.DrawString(Shibafont, partToDraw, new Vector2(StartX, 1200 + (i + 1) * yOffset), partColor);
 
                                 // Only increment input index if it's a non-wildcard
                                 if (!isWildcard && l < inputParts.Count && commandParts[k].StartsWith(inputParts[l], StringComparison.OrdinalIgnoreCase))
@@ -7561,13 +7640,24 @@ namespace Lightrealm
                         }
                     }
 
-                    _spriteBatch.DrawString(Shibafont, "Enter a command: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1225), Color.White);
-
-                    // Draw the background rectangle
-                    Rectangle backgroundRect = new Rectangle(118, 1258, 176, 176);
-                    _spriteBatch.Draw(FrameT, backgroundRect, Color.White); // Assuming FrameT is your texture for the background
+                    _spriteBatch.DrawString(Shibafont, "Enter a command: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
 
 
+
+                    //date/time
+
+                    string dateTimeString = GameWorld.GetFormattedDateTime();
+                    Vector2 dateTimeSize = Shibafont.MeasureString(dateTimeString);
+                    Vector2 dateTimePosition = new Vector2(250, 1250);
+                    _spriteBatch.DrawString(Shibafont, dateTimeString, dateTimePosition, Color.White);
+                    Color oColor = GameWorld.IsNightTime() ? new Color(100, 100, 100) : Color.Goldenrod;
+                    Vector2 oPosition = new Vector2(dateTimePosition.X + dateTimeSize.X + 10, dateTimePosition.Y);
+                    _spriteBatch.DrawString(Shibafont, "O", oPosition, oColor);
+                    Rectangle backgroundRect = new Rectangle(50, 1258, 176, 176);
+
+                    //district map
+
+                    _spriteBatch.Draw(FrameT, backgroundRect, Color.White);
 
 
                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
@@ -7575,7 +7665,7 @@ namespace Lightrealm
                         for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                         {
                             // Define rectangle once for use in all draws
-                            Rectangle drawRect = new Rectangle(150 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16);
+                            Rectangle drawRect = new Rectangle(82 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16);
 
                             if (MostRecentPartyTurnArchitect.Block.X == DistrictX && MostRecentPartyTurnArchitect.Block.Z == DistrictZ)
                             {
@@ -7804,26 +7894,31 @@ namespace Lightrealm
 
                                 if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 0 && FlashTick > 50)
                                 {
-                                    Color HeavinessColor = Color.White;
-                                    if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 10)
+                                    var aliveArchitects = MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Where(architect => architect.IsAlive).ToList();
+                                    if (aliveArchitects.Count > 0)
                                     {
-                                        HeavinessColor = Color.Blue;
-                                    }
-                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 5)
-                                    {
-                                        HeavinessColor = Color.CornflowerBlue;
-                                    }
-                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 2)
-                                    {
-                                        HeavinessColor = Color.LightBlue;
-                                    }
-                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 1)
-                                    {
-                                        HeavinessColor = Color.LightCyan;
-                                    }
+                                        Color HeavinessColor = Color.White;
+                                        if (aliveArchitects.Count > 10)
+                                        {
+                                            HeavinessColor = Color.Blue;
+                                        }
+                                        else if (aliveArchitects.Count > 5)
+                                        {
+                                            HeavinessColor = Color.CornflowerBlue;
+                                        }
+                                        else if (aliveArchitects.Count > 2)
+                                        {
+                                            HeavinessColor = Color.LightBlue;
+                                        }
+                                        else if (aliveArchitects.Count > 1)
+                                        {
+                                            HeavinessColor = Color.LightCyan;
+                                        }
 
-                                    _spriteBatch.Draw(ArchitectHere, drawRect, HeavinessColor);
+                                        _spriteBatch.Draw(ArchitectHere, drawRect, HeavinessColor);
+                                    }
                                 }
+
                             }
                         }
                     }
@@ -8889,10 +8984,17 @@ namespace Lightrealm
             {
                 _spriteBatch.DrawString(BabyShibafont, "Press TAB to zoom out.", new Vector2(DrawX+500, 10), Color.White);
 
-
                 _spriteBatch.Draw(GuideT, new Rectangle(0, 0, 192, 192), Color.White);
 
-                if(Keyboard.GetState().IsKeyDown(Keys.Tab))
+                string dateTimeString = GameWorld.GetFormattedDateTime();
+                Vector2 dateTimeSize = BabyShibafont.MeasureString(dateTimeString);
+                Vector2 dateTimePosition = new Vector2(10, 192 + 10); 
+                _spriteBatch.DrawString(BabyShibafont, dateTimeString, dateTimePosition, Color.White);
+                Color oColor = GameWorld.IsNightTime() ? new Color(100, 100, 100) : Color.Goldenrod;
+                Vector2 oPosition = new Vector2(dateTimePosition.X + dateTimeSize.X + 10, dateTimePosition.Y);
+                _spriteBatch.DrawString(BabyShibafont, "O", oPosition, oColor);
+
+                if (Keyboard.GetState().IsKeyDown(Keys.Tab))
                 {
                     _spriteBatch.DrawString(BabyShibafont, "X: " + MapCursorX.ToString(), new Vector2(DrawX + 500, 40), Color.White);
                     _spriteBatch.DrawString(BabyShibafont, "Z: " + MapCursorZ.ToString(), new Vector2(DrawX + 560, 40), Color.White);

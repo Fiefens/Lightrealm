@@ -329,90 +329,90 @@ namespace Lightrealm
             return Announcements;
         }
 
-
         public void UpdateNames()
         {
-            if(LatestUpdateCycle == Game1.GameWorld.Cycle)
+            if (LatestUpdateCycle == Game1.GameWorld.Cycle)
             {
                 return;
             }
 
             LatestUpdateCycle = Game1.GameWorld.Cycle;
+            ClearReferredToNames();
 
-            ReferredToNames = new List<string>();
-
-            if (this is Door)
+            if (this is Door door)
             {
-                Door door = (Door)this;
-                ReferredToNames.Add(door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
-                ReferredToNames.Add("door " + door.Number);
+                AddReferredToName(door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
+                AddReferredToName("door " + door.Number);
                 return;
             }
             else if (this.IsBodyPart)
             {
-                foreach(string s in Owner.ReferredToNames)
+                foreach (string s in Owner.ReferredToNames)
                 {
-                    ReferredToNames.Add(s + "'s " + Type);
+                    AddReferredToName(s + "'s " + Type);
                 }
                 return;
             }
 
-            if (Name != null)
+            if (!string.IsNullOrEmpty(Name))
             {
-                ReferredToNames.Add(Name + ", " + Game1.FormatMaterialList(Materials) + " " + Type);
-                ReferredToNames.Add(Name);
+                AddReferredToName(Name + ", " + Game1.FormatMaterialList(Materials) + " " + Type);
+                AddReferredToName(Name);
             }
             else
             {
-                ReferredToNames.Add(Game1.FormatMaterialList(Materials) + " " + Type);
-                ReferredToNames.Add("the " + Game1.FormatMaterialList(Materials) + " " + Type);
+                AddReferredToName(Game1.FormatMaterialList(Materials) + " " + Type);
+                AddReferredToName("the " + Game1.FormatMaterialList(Materials) + " " + Type);
             }
 
-            if (Game1.MostRecentPartyTurnArchitect != null)
+            if (Game1.MostRecentPartyTurnArchitect != null &&
+                Game1.GamePlayerParty != null &&
+                (Game1.MostRecentPartyTurnArchitect.LeftHandObject == this ||
+                 Game1.MostRecentPartyTurnArchitect.RightHandObject == this ||
+                 Game1.MostRecentPartyTurnArchitect.Inventory.Contains(this)))
             {
-                if (Game1.GamePlayerParty != null &&
-                    (Game1.MostRecentPartyTurnArchitect.LeftHandObject == this ||
-                     Game1.MostRecentPartyTurnArchitect.RightHandObject == this ||
-                     Game1.MostRecentPartyTurnArchitect.Inventory.Contains(this)))
+                List<string> newItems = new List<string>();
+
+                foreach (string s in ReferredToNames)
                 {
-                    List<string> newItems = new List<string>();
+                    newItems.Add("my " + s);
+                }
 
-                    foreach (string s in ReferredToNames)
-                    {
-                        newItems.Add("my " + s);
-                    }
-
-                    ReferredToNames.AddRange(newItems);
+                foreach (string newItem in newItems)
+                {
+                    AddReferredToName(newItem);
                 }
             }
 
-            if(Type == "shadow storage" && ReferredToNames.Contains("shadow storage"))
+            if (Type == "shadow storage" && ReferredToNames.Contains("shadow storage"))
             {
                 ReferredToNames.Remove("shadow storage");
             }
 
-            if(AirborneTarget != null)
+            if (AirborneTarget != null)
             {
-                List<string> Newnames = new List<string>();
-                foreach(string s in ReferredToNames)
+                List<string> newNames = new List<string>();
+                foreach (string s in ReferredToNames)
                 {
-                    Newnames.Add("airborne " + s);
+                    newNames.Add("airborne " + s);
                 }
-                ReferredToNames.Clear();
-                ReferredToNames.AddRange(Newnames);
+                ClearReferredToNames();
+                foreach (string newName in newNames)
+                {
+                    AddReferredToName(newName);
+                }
             }
 
-
-            //inside items
-
-
-            foreach(Object o in ContainedObjects)
+            foreach (Object o in ContainedObjects)
             {
                 o.UpdateNames();
             }
 
             ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
         }
+
+
+
 
         public void UpdateSelfActionsAndSuch()
         {

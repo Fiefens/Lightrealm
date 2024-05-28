@@ -114,7 +114,7 @@ namespace Lightrealm
             {"miller", 1},
             {"miner", 1},
             {"musician", 1},
-            {"no profession", 1},
+            {"indolent", 1},
             {"peasant", 1},
             {"political figure", 1},
             {"potter", 1},
@@ -1154,9 +1154,27 @@ namespace Lightrealm
 
         public void KitOutArchitect(string Type)
         {
-            // Adjusted for warrior power
-            if (Type == "warriorpower0")
+            //ACTING location
+            Location Location = this.Location != null ? this.Location : Game1.GameWorld.AllLocations
+                                                                    .Where(location => Game1.GameWorld.SettlementTypes.Contains(location.Type) && location.HomeCivilization != null)
+                                                                    .OrderBy(_ => Game1.r.Next())
+                                                                    .FirstOrDefault();
+            if (Location == null)
             {
+                return;
+            }
+
+            // Adjusted for warrior power
+            if (Type.StartsWith("warriorpower"))
+            {
+                // Extract the warrior power level from the Type string
+                int powerLevel = int.Parse(Type.Replace("warriorpower", ""));
+
+                // Calculate the chance to get a piece of armor based on the power level
+                int baseChance = 30;
+                int chancePerPowerLevel = (100 - baseChance) / 10;
+                int chanceToGetArmor = baseChance + (powerLevel * chancePerPowerLevel);
+
                 // Create a weapon
                 Material weaponMaterial = Location.HomeCivilization.CulturalMetal;
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
@@ -1173,7 +1191,7 @@ namespace Lightrealm
                 }
 
                 // List of possible armor types to create
-                List<string> armorTypes = new List<string> { "helmet", "chestplate", "left gauntlet", "right gauntlet", "leggings", "left boot", "right boot" };
+                List<string> armorTypes = new List<string> { "helmet", "chestplate", "gauntlet", "leggings", "boot" };
                 Material armorMaterial = Location.HomeCivilization.CulturalMetal; // Material for the armor
 
                 // Random chance generator
@@ -1181,18 +1199,29 @@ namespace Lightrealm
 
                 foreach (string armorType in armorTypes)
                 {
-                    // 75% chance to create and equip each armor piece
-                    if (r.Next(100) < 75)
-                    {
-                        // Create armor object
-                        Object armor = new Object(null, armorType, new List<Material>() { armorMaterial }, null);
+                    // Determine the number of armor pieces to create
+                    int pieces = (armorType == "gauntlet" || armorType == "boot") ? 2 : 1;
 
-                        // Equip the armor to the architect
-                        // This method needs to be implemented according to your game's logic
-                        Clothing.Add(armor);
+                    // Chance to create and equip each armor piece based on warrior power level
+                    if (r.Next(100) < chanceToGetArmor)
+                    {
+                        for (int i = 0; i < pieces; i++)
+                        {
+                            // Append "left" or "right" to the armor type for gauntlets and boots
+                            string side = (i == 0) ? "left " : "right ";
+                            string fullArmorType = (pieces == 2) ? side + armorType : armorType;
+
+                            // Create armor object
+                            Object armor = new Object(null, fullArmorType, new List<Material>() { armorMaterial }, null);
+
+                            // Equip the armor to the architect
+                            // This method needs to be implemented according to your game's logic
+                            Clothing.Add(armor);
+                        }
                     }
                 }
             }
+
             // Priest outfitting
             else if (Type == "priest")
             {
@@ -1864,58 +1893,6 @@ namespace Lightrealm
 
 
 
-            //dye clothing
-
-            // Assuming HomeLocation is not null and there are Colors to choose from
-            if (HomeLocation != null)
-            {
-                Dictionary<string, string> pairColors = new Dictionary<string, string>();
-
-                foreach (Object o in Clothing)
-                {
-                    string itemName = o.Type; // Assuming 'Type' is a property that indicates the type of clothing, e.g., "left glove"
-                    string matchName = itemName.StartsWith("left ") ? "right " + itemName.Substring(5) : itemName.StartsWith("right ") ? "left " + itemName.Substring(6) : null;
-
-                    int decider = Game1.r.Next(100);
-                    string colorToApply = null;
-
-                    if (decider < 60)
-                    {
-                        // 60% chance to dye with the HomeCivilization color
-                        colorToApply = HomeLocation.HomeCivilization.Color;
-                    }
-                    else if (decider < 80)
-                    {
-                        // 20% chance to dye with a related color
-                        List<string> relatedColors = Game1.GetFamilyColors(HomeLocation.HomeCivilization.Color);
-                        colorToApply = relatedColors[Game1.r.Next(relatedColors.Count)];
-                    }
-                    else
-                    {
-                        // 20% chance to not dye at all
-                        continue;
-                    }
-
-                    // Apply the color to the current item
-                    o.DyedColor = colorToApply;
-
-                    // If this item has a potential match (either left or right), we handle the pairing
-                    if (matchName != null)
-                    {
-                        // Check if the pair item has already been colored
-                        if (pairColors.ContainsKey(matchName))
-                        {
-                            // Dye the current item the same color as its pair
-                            o.DyedColor = pairColors[matchName];
-                        }
-                        else
-                        {
-                            // Store the color used for this item, so its pair can use the same if encountered later
-                            pairColors[itemName] = colorToApply;
-                        }
-                    }
-                }
-            }
 
 
             List<int> SkillValues = new List<int>() { 1, 2, 3, 4, 5, 6, 7 };
@@ -1948,13 +1925,21 @@ namespace Lightrealm
                     // Add each item to the Clothing list
                     foreach (string item in items)
                     {
-                        Clothing.Add(new Object(null, item.Trim(), new List<Material>() { material }, null));
+                        Object newClothing = new Object(null, item.Trim(), new List<Material>() { material }, null);
+                        Clothing.Add(newClothing);
+
+                        // Apply dye to the newly added clothing item
+                        ApplyDye(newClothing);
                     }
 
                     // If addUpperShirt is true, add "uppershirt" to the Clothing list
                     if (addUpperShirt)
                     {
-                        Clothing.Add(new Object(null, "uppershirt", new List<Material>() { material }, null));
+                        Object upperShirt = new Object(null, "uppershirt", new List<Material>() { material }, null);
+                        Clothing.Add(upperShirt);
+
+                        // Apply dye to the upper shirt
+                        ApplyDye(upperShirt);
                     }
                 }
 
@@ -1964,6 +1949,38 @@ namespace Lightrealm
                     o.Imbuements.Clear();
                 }
             }
+
+            // Function to apply dye to a clothing item
+            void ApplyDye(Object clothingItem)
+            {
+                // Assuming HomeLocation is not null and there are Colors to choose from
+                if (HomeLocation != null)
+                {
+                    int decider = Game1.r.Next(100);
+                    string colorToApply = null;
+
+                    if (decider < 60)
+                    {
+                        // 60% chance to dye with the HomeCivilization color
+                        colorToApply = HomeLocation.HomeCivilization.Color;
+                    }
+                    else if (decider < 80)
+                    {
+                        // 20% chance to dye with a related color
+                        List<string> relatedColors = Game1.GetFamilyColors(HomeLocation.HomeCivilization.Color);
+                        colorToApply = relatedColors[Game1.r.Next(relatedColors.Count)];
+                    }
+                    else
+                    {
+                        // 20% chance to not dye at all
+                        return;
+                    }
+
+                    // Apply the color to the clothing item
+                    clothingItem.DyedColor = colorToApply;
+                }
+            }
+
 
 
             if (Sex == "male")
@@ -2001,7 +2018,7 @@ namespace Lightrealm
             }
             else
             {
-                Profession = "no profession";
+                Profession = "indolent";
             }
 
 
@@ -2076,8 +2093,6 @@ namespace Lightrealm
                 }
             }
 
-            ReferredToNames = new List<string>() { "Placeholder" };
-
             AddBodyParts();
 
             foreach (Object o in BodyParts)
@@ -2121,10 +2136,8 @@ namespace Lightrealm
 
         public void UpdateNames()
         {
-            //update referred to names
             bool PlayerKnowsArch = false;
-            ReferredToNames = new List<string>();
-
+            ClearReferredToNames();
 
             string TrueProfession = Profession;
 
@@ -2138,76 +2151,46 @@ namespace Lightrealm
                     }
                 }
 
-
-                // Determine if the player knows the architect or if the architect is part of the party.
-                if (PlayerKnowsArch == true || Game1.GamePlayerParty.Architects.Contains(this))
+                if (PlayerKnowsArch || Game1.GamePlayerParty.Architects.Contains(this))
                 {
-                    ReferredToNames = new List<string>() { Name };
+                    AddReferredToName(Name);
 
-                    // Only add the prefix if Task is not empty.
                     if (!string.IsNullOrEmpty(Task))
                     {
-                        ReferredToNames.Add(Game1.ConvertArchitectToDescription(this));
+                        AddReferredToName(Game1.ConvertArchitectToDescription(this));
                     }
                 }
                 else
                 {
-                    // Handle unknown profession or description scenario
-
-                    ReferredToNames = new List<string>();
-
                     if (!string.IsNullOrEmpty(Profession))
                     {
-                        ReferredToNames.Add("the unknown " + Profession);
-                        ReferredToNames.Add("unknown " + Profession);
-                        ReferredToNames.Add(Profession);
+                        AddReferredToName("the unknown " + Profession);
+                        AddReferredToName("unknown " + Profession);
+                        AddReferredToName(Profession);
                     }
                     else
                     {
-                        ReferredToNames.Add("indolent");
-                        ReferredToNames.Add("unknown indolent");
-                        ReferredToNames.Add("the unknown indolent");
+                        AddReferredToName("indolent");
+                        AddReferredToName("unknown indolent");
+                        AddReferredToName("the unknown indolent");
                     }
 
-                    // Only add if Task is empty
                     if (string.IsNullOrEmpty(Task))
                     {
-                        ReferredToNames.Add(Game1.ConvertArchitectToDescription(this));
+                        AddReferredToName(Game1.ConvertArchitectToDescription(this));
                     }
                 }
 
-                // Add formatted names for each body part
                 foreach (Object o in BodyParts)
                 {
-                    o.ReferredToNames = new List<string>();
+                    o.ClearReferredToNames();
 
                     foreach (string s in ReferredToNames)
                     {
-                        o.ReferredToNames.Add(s + "'s " + o.Type);
-                        o.ReferredToNames.Add(s + "' " + o.Type);
+                        o.AddReferredToName(s + "'s " + o.Type);
+                        o.AddReferredToName(s + "' " + o.Type);
                     }
                 }
-
-
-                //this is breaking a lot of stuff, i think most commands will work though without it.
-
-                /*
-                List<string> modifiedNames = new List<string>();
-
-                foreach (string s in ReferredToNames)
-                {
-                    if (s != "" && s[s.Length - 1] == 's')
-                    {
-                        modifiedNames.Add(s + "'");
-                    }
-                    else
-                    {
-                        modifiedNames.Add(s + "'s");
-                    }
-                }
-
-                ReferredToNames.AddRange(modifiedNames);
-                */
 
                 ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
             }
@@ -2223,12 +2206,12 @@ namespace Lightrealm
 
                 if (PlayerKnowsArch)
                 {
-                    ReferredToNames.Add(Name + ", dead.");
-                    ReferredToNames.Add("dead " + Profession);
+                    AddReferredToName(Name + ", dead.");
+                    AddReferredToName("dead " + Profession);
                 }
                 else
                 {
-                    ReferredToNames.Add("dead " + Profession);
+                    AddReferredToName("dead " + Profession);
                 }
             }
 
@@ -2244,15 +2227,10 @@ namespace Lightrealm
             {
                 o.UpdateNames();
             }
-            if (LeftHandObject != null)
-            {
-                LeftHandObject.UpdateNames();
-            }
-            if (RightHandObject != null)
-            {
-                RightHandObject.UpdateNames();
-            }
+            LeftHandObject?.UpdateNames();
+            RightHandObject?.UpdateNames();
         }
+
 
 
 
@@ -3229,7 +3207,7 @@ namespace Lightrealm
 
                 //send messages of your own
 
-                if (Game1.r.Next(1, 20) < Charisma)
+                if (Game1.r.Next(1, 20) < Charisma && this.Task != "killtarget" && this.Task != "disabletarget")
                 {
                     var ArchList = Room != null ? Room.Architects : Block.Architects;
 

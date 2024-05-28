@@ -10,7 +10,37 @@ namespace Lightrealm
     public class Entity
     {
         public string Name { get; set; }
-        public List<string> ReferredToNames { get; set; } = new List<string>();
+
+        private List<string> _referredToNames = new List<string>();
+
+        public List<string> ReferredToNames
+        {
+            get
+            {
+                if (_referredToNames.Count == 0)
+                {
+                    return new List<string> { Name };
+                }
+                return _referredToNames;
+            }
+            set
+            {
+                _referredToNames = value;
+            }
+        }
+
+        public void AddReferredToName(string name)
+        {
+            _referredToNames.Add(name);
+        }
+
+        public void ClearReferredToNames()
+        {
+            _referredToNames.Clear();
+        }
+
+
+
         public string Metadata;
 
         public Entity()

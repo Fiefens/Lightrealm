@@ -48,6 +48,67 @@ namespace Lightrealm
 
         public List<Object> AllWrittenContent = new List<Object>();
 
+        const int CYCLES_PER_SECOND = 10;
+        const int CYCLES_PER_MINUTE = 600;
+        const int CYCLES_PER_HOUR = 36000;
+        const int CYCLES_PER_DAY = 864000;
+        const int CYCLES_PER_WEEK = 6048000;
+        const int CYCLES_PER_MONTH = 24192000;
+        const int CYCLES_PER_YEAR = 290304000;
+
+        public string GetFormattedDateTime()
+        {
+            long totalCycles = (long)Cycle;
+
+            // Calculate the year
+            int year = (int)(totalCycles / CYCLES_PER_YEAR);
+            totalCycles %= CYCLES_PER_YEAR;
+
+            // Calculate the month
+            int month = (int)(totalCycles / CYCLES_PER_MONTH) + 1;
+            totalCycles %= CYCLES_PER_MONTH;
+
+            // Calculate the day
+            int day = (int)(totalCycles / CYCLES_PER_DAY) + 1;
+            totalCycles %= CYCLES_PER_DAY;
+
+            // Calculate the hour
+            int hour = (int)(totalCycles / CYCLES_PER_HOUR);
+            totalCycles %= CYCLES_PER_HOUR;
+
+            // Calculate the minute
+            int minute = (int)(totalCycles / CYCLES_PER_MINUTE);
+            totalCycles %= CYCLES_PER_MINUTE;
+
+            // Calculate the second
+            int second = (int)(totalCycles / CYCLES_PER_SECOND);
+
+            return $"{month}/{day}/{year} {hour:D2}:{minute:D2}:{second:D2}";
+        }
+
+        public void ProgressToNextMorning()
+        {
+            double cycleDurationInSeconds = 0.1;
+            int totalSeconds = (int)Math.Round(Cycle * cycleDurationInSeconds);
+
+            // Calculate the current hour
+            int currentHour = (totalSeconds / 3600) % 24;
+
+            int hoursUntilNext8AM;
+
+            if (currentHour < 8)
+            {
+                hoursUntilNext8AM = 8 - currentHour;
+            }
+            else
+            {
+                hoursUntilNext8AM = 32 - currentHour; // 24 hours to next day + 8 hours
+            }
+
+            long cyclesToNext8AM = hoursUntilNext8AM * CYCLES_PER_HOUR;
+            Cycle += cyclesToNext8AM;
+        }
+
         public List<string> CalamityStructures = new List<string>() { "tower", "keep", "monument", "fortress" }; 
         public List<string> ProcgenStructures = new List<string>()
 {
@@ -198,26 +259,19 @@ namespace Lightrealm
         public bool IsNightTime()
         {
             double cycleDurationInSeconds = 0.1;
-            int totalSeconds = (int)Math.Round(Cycle * cycleDurationInSeconds);
+            double totalSeconds = Cycle * cycleDurationInSeconds;
 
             // Calculate hours and minutes from total seconds
-            int hours = totalSeconds / 3600;
-            int minutes = (totalSeconds % 3600) / 60;
+            double hours = totalSeconds / 3600.0;
+            double minutes = (totalSeconds % 3600) / 60.0;
 
             // Adjust for 24-hour format
             hours = hours % 24;
 
             // Determine if it's night time (6:00 PM to 6:00 AM)
-            // 6:00 PM is 18:00 in 24-hour format
-            if (hours >= 18 || hours < 6)
-            {
-                return true; // It's night time
-            }
-            else
-            {
-                return false; // It's day time
-            }
+            return hours >= 18 || hours < 6;
         }
+
 
         public Dictionary<string, Entity> SubjectCatalogue = new Dictionary<string, Entity>() { };
 
@@ -1636,7 +1690,7 @@ namespace Lightrealm
 
                     Block b = l.Districts[0].DistrictMap[r.Next(2, 6) + r.Next(2, 5) * 7];
 
-                    b.Objects.Add(new Object(null, "well", new List<Material> { l.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false)); 
+                    b.Objects.Add(new Object(null, "well", new List<Material> { l.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
                     b.Objects.Add(new Object(null, "shadow storage", new List<Material>() { Shadesteel }, DarkDeity));
 
                     WorldMap[c.StartX + c.StartZ * Width].MyLocation = l;
@@ -1696,7 +1750,7 @@ namespace Lightrealm
 
                 //add historical abridged events
 
-                if(AbridgedHistoricalEvents.Count * 10 < Math.Round(Cycle / 290304000, 0, MidpointRounding.ToNegativeInfinity))
+                if (AbridgedHistoricalEvents.Count * 10 < Math.Round(Cycle / 290304000, 0, MidpointRounding.ToNegativeInfinity))
                 {
                     AbridgedHistoricalEvents.Add(HistoricalEvents[HistoricalEvents.Count - Game1.r.Next(1, 5)]);
                 }
@@ -1765,7 +1819,7 @@ namespace Lightrealm
                         {
                             Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
                             Structure s = new Structure("house", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalWood }, new List<string> { c.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
-                            
+
                             chosenBlock.Structures.Add(s);
                         }
 
@@ -1934,12 +1988,12 @@ namespace Lightrealm
 
 
 
-                if (Cycle/290304000 > LostFoundingYear && LostPlaced == false)
+                if (Cycle / 290304000 > LostFoundingYear && LostPlaced == false)
                 {
                     int StartX = 0;
                     int StartZ = 0;
 
-                    while (WorldMap[StartX + StartZ*Width].Biome == "ocean" || WorldMap[StartX + StartZ * Width].Biome == "void" || WorldMap[StartX + StartZ * Width].MyLocation != null)
+                    while (WorldMap[StartX + StartZ * Width].Biome == "ocean" || WorldMap[StartX + StartZ * Width].Biome == "void" || WorldMap[StartX + StartZ * Width].MyLocation != null)
                     {
                         StartX = r.Next(Width);
                         StartZ = r.Next(Length);
@@ -2047,7 +2101,7 @@ namespace Lightrealm
                         {"power", new List<string>() {"supremerule", "transcendmorality", "infinitewisdom"}}
                     };
 
-                    if(LockedInThreat == "non-cataclysmic")
+                    if (LockedInThreat == "non-cataclysmic")
                     {
                         CalamityIdeologicalObsession = new List<string>() { "dominator", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(7)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
                     }
@@ -2160,7 +2214,7 @@ namespace Lightrealm
                     };
 
                     List<string> DeterminedExpositions = new List<string>();
-                    for(int i = r.Next(2,5); i != 0; i--)
+                    for (int i = r.Next(2, 5); i != 0; i--)
                     {
                         int Index = r.Next(expositions.Count);
                         DeterminedExpositions.Add(expositions[Index]);
@@ -2177,12 +2231,12 @@ namespace Lightrealm
                     {
                         int X = Game1.r.Next(Width);
                         int Z = Game1.r.Next(Length);
-                        if (WorldMap[X + Z*Width].Biome != "ocean" && WorldMap[X + Z * Width].Biome != "void")
+                        if (WorldMap[X + Z * Width].Biome != "ocean" && WorldMap[X + Z * Width].Biome != "void")
                         {
                             FoundSpot = true;
                             LocationBuilderPacket l = new LocationBuilderPacket(Calamity[0], X, Z, "stronghold", GetRace(""), 0, 0, Calamity[0].HomeLocation.HomeCivilization, new List<Object>(), null, "none");
                             LocationBuilderPackets.Add(l);
-                            foreach(string s in CalamityLore)
+                            foreach (string s in CalamityLore)
                             {
                                 HistoricalEvents.Add(Date + " " + s);
                             }
@@ -2195,11 +2249,11 @@ namespace Lightrealm
 
                     //set some important vars
 
-                    if(CalamityIdeologicalObsession == "disease")
+                    if (CalamityIdeologicalObsession == "disease")
                     {
                         Calamity[0].BlightManipulated = Blights[r.Next(Blights.Count)];
 
-                        if(Calamity[0].BlightManipulated.FoundingYear > Cycle/ 290304000)
+                        if (Calamity[0].BlightManipulated.FoundingYear > Cycle / 290304000)
                         {
                             Calamity[0].BlightManipulated.FoundingYear = (int)(Math.Round(Cycle / 290304000));
                             Calamity[0].BlightManipulated.Spawned = true;
@@ -2218,22 +2272,22 @@ namespace Lightrealm
 
                 //THE CALAMITY IS UPON YOU. WHAT IS IT DOING?
 
-                if(Calamity != null)
+                if (Calamity != null)
                 {
                     List<Architect> CalamitiesToAdd = new List<Architect>();
 
                     foreach (Architect Calamitizer in Calamity)
-                    {                               
+                    {
                         //age
 
                         Calamitizer.TerminalAge = 999999;
 
-                        Calamitizer.CalamityAge += (1.0/12.0);
+                        Calamitizer.CalamityAge += (1.0 / 12.0);
 
                         //recruit peoples
 
 
-                        if(Calamitizer.CalamityAge >= Calamitizer.CalamitySpawnTime && Calamitizer.Level >= 4)
+                        if (Calamitizer.CalamityAge >= Calamitizer.CalamitySpawnTime && Calamitizer.Level >= 4)
                         {
                             Calamitizer.CalamitySpawnTime = 2140000000; //prevent furutre spawns
 
@@ -2287,7 +2341,7 @@ namespace Lightrealm
                                                     break;
                                                 }
                                             }
-                                            if(Breaking)
+                                            if (Breaking)
                                             {
                                                 break;
                                             }
@@ -2301,7 +2355,7 @@ namespace Lightrealm
                                 else if (CreateYourOwnTypes.Contains(ChosenType))
                                 {
                                     //set A to a new GUY
-                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10,80), ChosenType, new List<Object>(), null, null, null, "", Calamitizer.Level - 2);
+                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10, 80), ChosenType, new List<Object>(), null, null, null, "", Calamitizer.Level - 2);
                                     FoundGuy.Name = GenerateUniqueArchitectName(FoundGuy);
                                 }
                                 else
@@ -2310,7 +2364,7 @@ namespace Lightrealm
                                 }
 
 
-                                if(FoundGuy != null)
+                                if (FoundGuy != null)
                                 {
                                     //should ALWAYS happen, but on the off chance it doesnt, tragic :(
                                     FoundGuy.Level = Calamitizer.Level - 2;
@@ -2319,7 +2373,7 @@ namespace Lightrealm
 
                                     string Type = new Dictionary<int, string> { { 2, "keep" }, { 4, "tower" }, { 6, "fortress" }, { 8, "monument" } }[FoundGuy.Level];
 
-                                    if(Calamitizer.BlightManipulated != null)
+                                    if (Calamitizer.BlightManipulated != null)
                                     {
                                         FoundGuy.BlightManipulated = Calamitizer.BlightManipulated;
                                     }
@@ -2389,7 +2443,7 @@ namespace Lightrealm
 
                         //do actions
 
-                        if (r.Next((12 - Calamitizer.Level)* MonthToDayConstant) == 0)
+                        if (r.Next((12 - Calamitizer.Level) * MonthToDayConstant) == 0)
                         {
                             //determine whether you want to move
 
@@ -2416,7 +2470,7 @@ namespace Lightrealm
                                     Tries++;
                                 }
                             }
-                            else if(!CalamityStructures.Contains(Calamitizer.InteractionLocation.Type))
+                            else if (!CalamityStructures.Contains(Calamitizer.InteractionLocation.Type))
                             {
                                 //inflict pain and suffering
 
@@ -2596,7 +2650,7 @@ namespace Lightrealm
                                             {
                                                 if (r.Next(GrievanceChance) == 1)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, " kidnapped people, causing distress in " + a.PossessivePronoun + " community"));
+                                                    a.Grievances.Add((Calamitizer, " kidnapped people, causing distress in " + a.Name + "'s community"));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
@@ -2825,7 +2879,7 @@ namespace Lightrealm
 
                 foreach (Civilization c in Civilizations)
                 {
-                    if(HumanoidRaces.Contains(c.PrimaryInhabiantRace))
+                    if (HumanoidRaces.Contains(c.PrimaryInhabiantRace))
                     {
                         c.CyclesTillElection -= 864000 * Days;
                         if (c.CyclesTillElection < 0 && c.Citizens.Count > 0)
@@ -2845,7 +2899,7 @@ namespace Lightrealm
 
                             if (OldAlpha != selectedAlpha)
                             {
-                                if(OldAlpha != null)
+                                if (OldAlpha != null)
                                 {
                                     HistoricalEvents.Add(Date + " " + OldAlpha.Name + " ended his service as the alpha of " + c.Name + ".");
                                 }
@@ -2862,7 +2916,7 @@ namespace Lightrealm
 
                 foreach (Blight b in Blights)
                 {
-                    if(!b.Spawned && Cycle > (double)((double)b.FoundingYear * (double)290304000))
+                    if (!b.Spawned && Cycle > (double)((double)b.FoundingYear * (double)290304000))
                     {
                         while (!b.Spawned)
                         {
@@ -2910,7 +2964,7 @@ namespace Lightrealm
                                 {
                                     b.Spawned = true;
                                     WorldMap[SpawnTryX + SpawnTryZ * Width].Blight = b;
-                                    
+
                                     //keep history logic just in case it just so happens to start there.
 
                                     if (WorldMap[SpawnTryX + SpawnTryZ * Width].MyLocation != null)
@@ -2948,34 +3002,34 @@ namespace Lightrealm
                 {
                     for (int z = 0; z < Length; z++)
                     {
-                        if(WorldMap[x + z * Width].Blight != Purity)
+                        if (WorldMap[x + z * Width].Blight != Purity)
                         {
-                            if(r.Next(1,300 * MonthToDayConstant) == 1)
+                            if (r.Next(1, 600 * MonthToDayConstant) == 1)
                             {
                                 //pick a random number between 1-4 and spread cardinally
                                 int Spread = r.Next(4);
-                                if(Spread == 1)
+                                if (Spread == 1)
                                 {
                                     //spread north if available
-                                    if(z > 0)
+                                    if (z > 0)
                                     {
-                                        WorldMap[(x) + (z-1) * Width].Blight = WorldMap[x + z * Width].Blight;
+                                        WorldMap[(x) + (z - 1) * Width].Blight = WorldMap[x + z * Width].Blight;
                                     }
                                 }
                                 else if (Spread == 2)
                                 {
                                     //spread east if available
-                                    if (x < Width-1)
+                                    if (x < Width - 1)
                                     {
-                                        WorldMap[(x+1) + (z) * Width].Blight = WorldMap[x + z * Width].Blight;
+                                        WorldMap[(x + 1) + (z) * Width].Blight = WorldMap[x + z * Width].Blight;
                                     }
                                 }
                                 else if (Spread == 3)
                                 {
                                     //spread south if available
-                                    if (z < Length-1)
+                                    if (z < Length - 1)
                                     {
-                                        WorldMap[(x) + (z+1) * Width].Blight = WorldMap[x + z * Width].Blight;
+                                        WorldMap[(x) + (z + 1) * Width].Blight = WorldMap[x + z * Width].Blight;
                                     }
                                 }
                                 else
@@ -2983,7 +3037,7 @@ namespace Lightrealm
                                     //spread west if available
                                     if (x > 0)
                                     {
-                                        WorldMap[(x-1) + (z) * Width].Blight = WorldMap[x + z * Width].Blight;
+                                        WorldMap[(x - 1) + (z) * Width].Blight = WorldMap[x + z * Width].Blight;
                                     }
                                 }
                             }
@@ -3080,11 +3134,11 @@ namespace Lightrealm
                 //in peace
 
 
-                foreach(Location l in AllLocations)
+                foreach (Location l in AllLocations)
                 {
                     //develop squads slowly
 
-                    if(r.Next(1, 10000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count*250)))
+                    if (r.Next(1, 10000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count * 250)))
                     {
                         SummonNewUnit(l);
                     }
@@ -3100,18 +3154,18 @@ namespace Lightrealm
                 foreach (Civilization c in Civilizations)
                 {
                     Dictionary<string, string> GenericHatredDictionary = new Dictionary<string, string>()
-    {
-        {"civilized", "archaix"},
-        {"archaix", "shade"},
-        {"shade", "druid"},
-        {"druid", "scavenger"},
-        {"scavenger", "photonexus"},
-        {"photonexus", "anarchist"},
-        {"anarchist", "cultist"},
-        {"cultist", "isofractal"},
-        {"isofractal", "pirate"},
-        {"pirate", "civilized"}
-    };
+                    {
+                        {"civilized", "archaix"},
+                        {"archaix", "shade"},
+                        {"shade", "druid"},
+                        {"druid", "scavenger"},
+                        {"scavenger", "photonexus"},
+                        {"photonexus", "anarchist"},
+                        {"anarchist", "cultist"},
+                        {"cultist", "isofractal"},
+                        {"isofractal", "pirate"},
+                        {"pirate", "civilized"}
+                    };
 
                     string PrimaryHaterType = GenericHatredDictionary[c.WarType];
                     Location currentCapitol = GetCapitol(c, AllLocations);
@@ -3175,16 +3229,15 @@ namespace Lightrealm
 
                 //in war
 
-                foreach ((Civilization,Civilization, int, int) War in Wars)
+                foreach ((Civilization, Civilization, int, int) War in Wars)
                 {
-                    //procure new squads
-
-                    List<Location> Civ1LocationsThatHaveMillitary = new List<Location>();
-                    List<Location> Civ2LocationsThatHaveMillitary = new List<Location>();
+                    // procure new squads
+                    List<Location> Civ1LocationsThatHaveMilitary = new List<Location>();
+                    List<Location> Civ2LocationsThatHaveMilitary = new List<Location>();
 
                     foreach (Location l in AllLocations)
                     {
-                        if(l.HomeCivilization == War.Item1 || l.HomeCivilization == War.Item2)
+                        if (l.HomeCivilization == War.Item1 || l.HomeCivilization == War.Item2)
                         {
                             if (r.Next(1, 1000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count * 250)))
                             {
@@ -3192,63 +3245,61 @@ namespace Lightrealm
                             }
                         }
 
-                        if (l.HomeCivilization == War.Item1 && l.Units.Count >= 0)
+                        if (l.HomeCivilization == War.Item1 && l.Units.Count > 0)
                         {
-                            Civ1LocationsThatHaveMillitary.Add(l);
+                            Civ1LocationsThatHaveMilitary.Add(l);
                         }
-                        else if (l.HomeCivilization == War.Item2 && l.Units.Count >= 0)
+                        else if (l.HomeCivilization == War.Item2 && l.Units.Count > 0)
                         {
-                            Civ2LocationsThatHaveMillitary.Add(l);
+                            Civ2LocationsThatHaveMilitary.Add(l);
                         }
                     }
 
-
-
-                    //then FIGHT
-
-                    foreach(Location L1 in Civ1LocationsThatHaveMillitary)
+                    // then FIGHT
+                    foreach (Location L1 in Civ1LocationsThatHaveMilitary)
                     {
-                        if (L1.Units.Count == 0)
-                        {
-                            //this means they l;ost them in another fight
-                            break;
-                        }
-
                         if (r.Next(1, 5) == 1)
                         {
-                            //we are using this one
-                            foreach (Location L2 in Civ2LocationsThatHaveMillitary)
+                            // we are using this one
+                            foreach (Location L2 in Civ2LocationsThatHaveMilitary)
                             {
-                                
-                                if (L2.Units.Count == 0)
+                                if (L1.Units.Count == 0 || L2.Units.Count == 0)
                                 {
-                                    //this means they l;ost them in another fight
+                                    // this means they lost them in another fight and can no longer fight.
                                     break;
                                 }
 
                                 if (r.Next(1, 5) == 1)
                                 {
-                                    //ok so this is a fight
-
-                                    //first, decide units
-
+                                    // ok so this is a fight
+                                    // first, decide units
                                     Unit unit1 = L1.Units[r.Next(L1.Units.Count)];
                                     Unit unit2 = L2.Units[r.Next(L2.Units.Count)];
 
-                                    //find a location
-
+                                    // find a location
                                     Vector2 BattleCenter = new Vector2(
                                         (float)Math.Round((L1.Region.X + L2.Region.X) / 2.0) + 3,
                                         (float)Math.Round((L1.Region.Z + L2.Region.Z) / 2.0) - 3
                                     );
 
-                                    Region BattleRegion = WorldMap[(int)(BattleCenter.X + BattleCenter.Y*Width)];
+                                    Region BattleRegion = WorldMap[(int)(BattleCenter.X + BattleCenter.Y * Width)];
 
                                     List<string> Data = unit1.Fight(unit2, BattleRegion);
 
-                                    foreach(string s in Data)
+                                    foreach (string s in Data)
                                     {
                                         HistoricalEvents.Add(Date + " " + s);
+                                    }
+
+                                    // Check if any units should disband
+                                    if (unit1.Architects.Count == 0 && unit1.OtherSoldiers == 0)
+                                    {
+                                        L1.Units.Remove(unit1);
+                                    }
+
+                                    if (unit2.Architects.Count == 0 && unit2.OtherSoldiers == 0)
+                                    {
+                                        L2.Units.Remove(unit2);
                                     }
                                 }
                             }
@@ -3257,8 +3308,7 @@ namespace Lightrealm
                 }
 
 
-
-                // Loop through the world map and update locations
+            // Loop through the world map and update locations
                 for (int x = 0; x < Width; x++)
                 {
                     for (int z = 0; z < Length; z++)
@@ -5725,10 +5775,25 @@ namespace Lightrealm
 
                 //Place the locations you waited to place
 
+                // Pre-process to ensure unique (X, Z) coordinates for LocationBuilderPackets
+                HashSet<(int, int)> usedCoordinates = new HashSet<(int, int)>();
+
+                foreach (LocationBuilderPacket l in LocationBuilderPackets)
+                {
+                    // Ensure the initial coordinates are unique and valid
+                    while (usedCoordinates.Contains((l.X, l.Z)) || l.X <= 0 || l.X >= Width || l.Z <= 0 || l.Z >= Length || WorldMap[l.X + l.Z * Width].Biome == "void" || WorldMap[l.X + l.Z * Width].MyLocation != null)
+                    {
+                        // Adjust X and Z by small amounts
+                        l.X = Math.Max(1, Math.Min(Width - 1, l.X + Game1.r.Next(-1, 2)));
+                        l.Z = Math.Max(1, Math.Min(Length - 1, l.Z + Game1.r.Next(-1, 2)));
+                    }
+                    usedCoordinates.Add((l.X, l.Z));
+                }
+
+
                 foreach (LocationBuilderPacket l in LocationBuilderPackets)
                 {
                     //build locations
-
                     Location NewLocation = new Location(l.Type, l.PrimaryRace, l.MiscPopulation, Game1.r.Next(1000, 4000), l.ColonizationDesire, l.X, l.Z, l.HomeCivilization, WorldMap[l.X + l.Z * Width], l.Dockside);
 
                     if (l.Type == "camp")
@@ -5754,13 +5819,10 @@ namespace Lightrealm
                     else if (CalamityStructures.Contains(l.Type))
                     {
                         HistoricalEvents.Add(Date + " " + l.Government.Name + " constructed " + NewLocation.Name + " to base his operations.");
-                        ((Architect)(l.Government)).Location = NewLocation;
                         ((Architect)(l.Government)).InteractionLocation = NewLocation;
 
                         ((Architect)(l.Government)).KitOutArchitect(((Architect)(l.Government)).Profession);
                     }
-
-
                     else if (l.Type == "preserve")
                     {
                         if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
@@ -5821,7 +5883,6 @@ namespace Lightrealm
                             NewLocation.IsCapitol = true;
                         }
                     }
-
                     else if (ProcgenStructures.Contains(l.Type))
                     {
                         NewLocation.Layout = new List<string>() { "hallway", "archway", "pyramid", "toroid", "towers" }[r.Next(5)];
@@ -5837,7 +5898,6 @@ namespace Lightrealm
 
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }
-
 
                     AllLocations.Add(NewLocation);
                     NewLocation.UnplacedArtifacts = l.Artifacts;
@@ -5875,7 +5935,6 @@ namespace Lightrealm
                         int SZ = Game1.r.Next(2, 5);
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Objects.Add(new Object(null, "well", new List<Material> { NewLocation.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
 
-
                         //prism
                         Block chosenBlock = NewLocation.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
                         Structure Prism = new Structure("prism", l.Artifacts, new List<Room>(), chosenBlock, new List<Material> { NewLocation.HomeCivilization.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
@@ -5892,7 +5951,6 @@ namespace Lightrealm
                         //material
 
                         Material m;
-
 
                         if (l.Government is Architect)
                         {
@@ -5916,7 +5974,6 @@ namespace Lightrealm
                                 m = Illuminite;
                             }
                         }
-
 
                         Structure s = new Structure("spire", l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { m }, new List<string>(), new List<string> { "crystals" }, 3, 0);
 
@@ -6006,7 +6063,7 @@ namespace Lightrealm
                                 0
                             );
 
-                            if(l.Artifacts.Count > 0)
+                            if (l.Artifacts.Count > 0)
                             {
                                 s.HistoricalObjects.AddRange(l.Artifacts);
                                 l.Artifacts.Clear();
@@ -6016,12 +6073,9 @@ namespace Lightrealm
                         }
                     }
 
-
-
-
                     NewLocation.ReferredToNames = new List<string>() { NewLocation.Name };
-
                 }
+
 
                 //do all migration
                 foreach (Architect a in AllArchitects)
@@ -6035,7 +6089,23 @@ namespace Lightrealm
                         a.District = a.NextMigrationLocation.Districts[Game1.r.Next(a.NextMigrationLocation.Districts.Count)];
                         a.District.ArchitectsToAdd.Add(a);
                         a.Location = a.NextMigrationLocation;
+                        
+                        if (new List<string>() { "commune", "mound", "monastery", "outpost" }.Contains(a.NextMigrationLocation.Type) || CalamityStructures.Contains(a.NextMigrationLocation.Type))
+                        {
+                            a.HomeLocation = a.Location;
+                            if (Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type))
+                            {
+                                a.KitOutArchitect("warriorpower" + a.Level);
+                            }
+
+                            if(!a.OppositionTags.Contains("intruders"))
+                            {
+                                a.OppositionTags.Add("intruders");
+                            }
+                        }
+                        
                         a.NextMigrationLocation = null;
+
                     }
                 }
 
