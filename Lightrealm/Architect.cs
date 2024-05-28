@@ -339,8 +339,8 @@ namespace Lightrealm
 
         public int Wealth = 0;
 
-        public double AdversaryAge = 0;
-        public int AdversarySpawnTime = Game1.r.Next(25, 36);
+        public double CalamityAge = 0;
+        public int CalamitySpawnTime = Game1.r.Next(25, 36);
 
         public bool TriggeredLock = false;
         public int CyclesSinceMoved = 0;
@@ -2394,6 +2394,32 @@ namespace Lightrealm
                             }
 
                             Master.UpdateChildrenLocationsOnDeath();
+                        }
+                        else if (this == Game1.GameWorld.Calamity[0])
+                        {
+                            AnnounceToParty(this.Name + ": So... This is how it ends...", Color.PaleGoldenrod);
+                            AnnounceToParty(this.Name + ": My legacy, ending just like that, to a pitiful fool such as yourself.", Color.PaleGoldenrod);
+                            AnnounceToParty(this.Name + ": My ideology must live on though...", Color.PaleGoldenrod);
+                            AnnounceToParty(this.Name + ": Won't it...?", Color.PaleGoldenrod);
+                            AnnounceToParty("The primeval source of evil throughout the land, " + this.Name + ", has finally fallen. The continent is filled with rest and hope.", Color.Coral);
+
+                            foreach(Architect a in Game1.GameWorld.Calamity)
+                            {
+                                if(a.IsAlive)
+                                {
+                                    a.Master = null;
+                                    a.MasterRelation = "";
+
+                                    int Month = ((int)Math.Round((decimal)(Location.Region.World.Cycle / 24192000)) % 12) + 1;
+                                    int Year = (int)Math.Round((decimal)(Location.Region.World.Cycle / 290304000), MidpointRounding.ToZero);
+
+                                    string Date = "(" + Month + "/" + Year + ")";
+
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + a.Name + " left behind the calamity that " + this.Name + " had caused.");
+                                }
+                            }
+
+                            Game1.GameWorld.Calamity.Clear();
                         }
 
                     }

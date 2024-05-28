@@ -228,7 +228,7 @@ namespace Lightrealm
         public static int MaximumObjectPage = 0;
         public static int ItemsPerPage = 50;
 
-        public static List<string> ThreatTypes = new List<string>() { "random", /*"disease", too murdery for now*/ "dominator", /*"purifier", NO MORE STOP THE MADNESS*/  "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
+        public static List<string> ThreatTypes = new List<string>() { "non-cataclysmic", "random", "dominator", "purifier", "disease", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
 
         public static int CurrentlySelectedWorldAge = 250; //100, 150, 200, 250 (recommended), 300, 350, 400, 450, 500, Until Stopped
         public static int CurrentlySelectedGrievanceType = 0;
@@ -324,6 +324,7 @@ namespace Lightrealm
             "secrets",
             "ruin"
         };
+
         public static Architect MostRecentPartyTurnArchitect = null;
 
         public static string GrievanceReason = "";
@@ -2026,11 +2027,7 @@ namespace Lightrealm
 
         public List<Keys> KeysNewlyPressed = new List<Keys>();
 
-
-
         public List<Material> CoreMaterials = new List<Material>();
-
-
 
         public int FindTicks = 0;
 
@@ -2092,7 +2089,6 @@ namespace Lightrealm
         public static int CurrentlySelectingArchitectProfession;
         public static int CurrentlySelectingSex;
         public static int CurrentlySelectingRace = 1;
-
 
         public SpriteFont Shibafont;
         public SpriteFont BabyShibafont;
@@ -2275,7 +2271,6 @@ namespace Lightrealm
         int SaveTicks = 0;
         int LoadTicks = 0;
         int LoadGameCursor = 0;
-
 
         public static string GameState = "mainscreen";
         public static string GameMode = "unknown";
@@ -6900,7 +6895,7 @@ namespace Lightrealm
             }
             else if (GameState == "worldgenscreen")
             {
-                _spriteBatch.DrawString(Shibafont, "Press ENTER to start playing with the most balanced settings.", new Vector2(200, 200), Color.White);
+                _spriteBatch.DrawString(Shibafont, "Press ENTER to start playing with optimal settings.", new Vector2(200, 200), Color.White);
                 _spriteBatch.DrawString(Shibafont, "If you wish, use denoted keys to change settings.", new Vector2(200, 250), Color.White);
                 _spriteBatch.DrawString(Shibafont, "Custom settings not guarranteed to produce a playable world.", new Vector2(200, 300), Color.OrangeRed);
 
@@ -6912,9 +6907,56 @@ namespace Lightrealm
                 {
                     _spriteBatch.DrawString(Shibafont, "(Q/A) World Age: " + CurrentlySelectedWorldAge, new Vector2(200, 500), Color.Orange);
                 }
-                _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
-                _spriteBatch.DrawString(Shibafont, "(E/D) Number of Civilizations: " + NumberOfCivilizations, new Vector2(200, 600), Color.Red);
-                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + Math.Round(ProsperityMultiplier, 1).ToString("0.0"), new Vector2(200, 650), Color.Cyan);
+
+                if(ThreatTypes[CurrentlySelectedGrievanceType] == "non-cataclysmic")
+                {
+                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (Choose a random threat that is evil, but less destructive. Recommended.)", new Vector2(200, 550), Color.Magenta);
+                }
+                else if (ThreatTypes[CurrentlySelectedGrievanceType] == "random")
+                {
+                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (Choose a completely random threat)", new Vector2(200, 550), Color.Magenta);
+                }
+                else if (ThreatTypes[CurrentlySelectedGrievanceType] == "disease")
+                {
+                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (Warning: This threat will make many places rather desolate.)", new Vector2(200, 550), Color.Magenta);
+                }
+                else if (ThreatTypes[CurrentlySelectedGrievanceType] == "purifier")
+                {
+                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (Warning: This threat will rip apart your continent and history.)", new Vector2(200, 550), Color.Magenta);
+                }
+                else
+                {
+                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Threat: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
+                }
+
+
+                string numberOfCivilizationsText = "(E/D) Number of Civilizations: " + NumberOfCivilizations;
+
+                if (NumberOfCivilizations == 16)
+                {
+                    numberOfCivilizationsText += " (maximum)";
+                }
+                else if (NumberOfCivilizations == 8)
+                {
+                    numberOfCivilizationsText += " (minimum)";
+                }
+
+                _spriteBatch.DrawString(Shibafont, numberOfCivilizationsText, new Vector2(200, 600), Color.Red);
+
+
+                double roundedProsperityMultiplier = Math.Round(ProsperityMultiplier, 1);
+                string prosperityMultiplierText = roundedProsperityMultiplier.ToString("0.0");
+
+                if (roundedProsperityMultiplier == 1.0)
+                {
+                    prosperityMultiplierText += " (recommended)";
+                }
+                else if (roundedProsperityMultiplier > 1.5)
+                {
+                    prosperityMultiplierText += "        Warning: This may make world generation highly unstable.";
+                }
+
+                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + prosperityMultiplierText, new Vector2(200, 650), Color.Cyan);
 
                 /*
                 _spriteBatch.DrawString(Shibafont, "(T/G) [BROKEN] World Width (in region tiles, east/west, max 128): " + CurrentlySelectedWorldWidth, new Vector2(200, 700), Color.LimeGreen);
@@ -7002,7 +7044,7 @@ namespace Lightrealm
                     int CurrentItemListing = (GameWorld.HistoricalEvents.Count - i);
                     if (CurrentItemListing >= 0)
                     {
-                        _spriteBatch.DrawString(BabyShibafont, GameWorld.HistoricalEvents[CurrentItemListing], new Vector2(1800, 400 + ((-1) * (20 * i))), Color.White);
+                        _spriteBatch.DrawString(BabyShibafont, GameWorld.HistoricalEvents[CurrentItemListing], new Vector2(1750, 400 + ((-1) * (20 * i))), Color.White);
                     }
                 }
 
@@ -7011,7 +7053,7 @@ namespace Lightrealm
                     int CurrentItemListing = (GameWorld.AbridgedHistoricalEvents.Count - i);
                     if (CurrentItemListing >= 0)
                     {
-                        _spriteBatch.DrawString(BabyShibafont, GameWorld.AbridgedHistoricalEvents[CurrentItemListing], new Vector2(1800, 800 + ((-1) * (20 * i))), Color.White);
+                        _spriteBatch.DrawString(BabyShibafont, GameWorld.AbridgedHistoricalEvents[CurrentItemListing], new Vector2(1750, 800 + ((-1) * (20 * i))), Color.White);
                     }
                 }
 
@@ -7021,24 +7063,24 @@ namespace Lightrealm
 
 
                 // Updating cycle counts for drawing week, month, and year
-                _spriteBatch.DrawString(BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 6048000)), new Vector2(1900, 1280), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 24192000), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 6048000)), new Vector2(1750, 1280), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 24192000), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1750, 1240), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1750, 1200), Color.White);
 
                 // Keeping other text draws as they are since they're not dependent on cycle conversion
-                _spriteBatch.DrawString(BabyShibafont, "Architects, Total: " + GameWorld.TotalArchitects + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1900, 1320), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + GameWorld.Groups.Count, new Vector2(1900, 1360), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Written Objects: " + GameWorld.TotalWrittenObjects, new Vector2(1900, 1400), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(2100, 1400), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Architects, Total: " + GameWorld.TotalArchitects + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1750, 1320), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + GameWorld.Groups.Count, new Vector2(1750, 1360), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Written Objects: " + GameWorld.TotalWrittenObjects, new Vector2(1750, 1400), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(1750, 1400), Color.White);
 
                 // Updating the calculation for Month and Year using new cycles
                 int Month = (int)Math.Round((decimal)(GameWorld.Cycle / 24192000)) % 12 + 1;
                 int Year = (int)Math.Round((decimal)(GameWorld.Cycle / 290304000));
 
                 // Updating the drawing of game world name, month/year display, and pause instruction
-                _spriteBatch.DrawString(BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, Month + "/" + Year, new Vector2(1900, 1160), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Pause Generation with ENTER", new Vector2(800 + 1300, 1200), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(1750, DrawY), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, Month + "/" + Year, new Vector2(1750, 1160), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Pause Generation with ENTER", new Vector2(1750, 1200), Color.White);
 
 
 

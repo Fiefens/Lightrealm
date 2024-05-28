@@ -158,7 +158,8 @@ namespace Lightrealm
 
         public Blight Purity;
 
-        //a world has ONE adversary. This is the guy, he will mess up everrything. BUT HE DOES RECRUIT FREINDS.
+        //a world has ONE calamity. This is the guy, he will mess up everrything. But his organization will grow stronger over time.
+
         public List<Architect> Calamity = new List<Architect>();
         public string CalamityReasoning = "";
         int CalamityStartingYear = Game1.r.Next(30, 80);
@@ -2046,9 +2047,13 @@ namespace Lightrealm
                         {"power", new List<string>() {"supremerule", "transcendmorality", "infinitewisdom"}}
                     };
 
-                    if(LockedInThreat == "random")
+                    if(LockedInThreat == "non-cataclysmic")
                     {
-                        CalamityIdeologicalObsession = new List<string>() { "disease", "dominator", /*"purifier", NO MORE I CAT TAKE IT ANYMOREEERERE*/ "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(8)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
+                        CalamityIdeologicalObsession = new List<string>() { "dominator", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(7)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
+                    }
+                    else if (LockedInThreat == "random")
+                    {
+                        CalamityIdeologicalObsession = new List<string>() { "disease", "dominator", "purifier", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" }[r.Next(9)]; //MAKE SURE WE CHANGE THIS BACK R.NEXT(0,9)
                     }
                     else
                     {
@@ -2123,6 +2128,18 @@ namespace Lightrealm
                     Calamity[0].HomeLocation = Calamity[0].Location;
                     Calamity[0].InteractionLocation = Calamity[0].Location;
                     CalamityLore.Add(Calamity[0].Name + " was a " + Calamity[0].Race.Name + " from " + Calamity[0].HomeLocation.Name + ".");
+
+
+
+                    Calamity[0].Strength = 12;
+                    Calamity[0].Dexterity = 12;
+                    Calamity[0].Agility = 12;
+                    Calamity[0].Charisma = 12;
+                    Calamity[0].Focus = 12;
+                    Calamity[0].Creativity = 12;
+                    Calamity[0].Endurance = 12;
+
+
 
                     List<string> expositions = new List<string>()
                     {
@@ -2211,14 +2228,14 @@ namespace Lightrealm
 
                         Calamitizer.TerminalAge = 999999;
 
-                        Calamitizer.AdversaryAge += (1.0/12.0);
+                        Calamitizer.CalamityAge += (1.0/12.0);
 
                         //recruit peoples
 
 
-                        if(Calamitizer.AdversaryAge >= Calamitizer.AdversarySpawnTime && Calamitizer.Level >= 4)
+                        if(Calamitizer.CalamityAge >= Calamitizer.CalamitySpawnTime && Calamitizer.Level >= 4)
                         {
-                            Calamitizer.AdversarySpawnTime = 2140000000; //prevent furutre spawns
+                            Calamitizer.CalamitySpawnTime = 2140000000; //prevent furutre spawns
 
                             int Count = 0;
                             List<string> Types = new List<string>();
@@ -2355,6 +2372,14 @@ namespace Lightrealm
 
                                     LocationBuilderPacket l = new LocationBuilderPacket(FoundGuy, X, Z, Type, GetRace(""), 0, 0, Civilizations[r.Next(Civilizations.Count)], LootTableMachine("bosstreasure" + Math.Round((double)(FoundGuy.Level / 2), MidpointRounding.ToPositiveInfinity)), AllLocations[r.Next(AllLocations.Count)], "none");
                                     LocationBuilderPackets.Add(l);
+
+                                    FoundGuy.Strength = Math.Max(FoundGuy.Strength, FoundGuy.Level);
+                                    FoundGuy.Dexterity = Math.Max(FoundGuy.Dexterity, FoundGuy.Level);
+                                    FoundGuy.Agility = Math.Max(FoundGuy.Agility, FoundGuy.Level);
+                                    FoundGuy.Endurance = Math.Max(FoundGuy.Endurance, FoundGuy.Level);
+                                    FoundGuy.Creativity = Math.Max(FoundGuy.Creativity, FoundGuy.Level);
+                                    FoundGuy.Charisma = Math.Max(FoundGuy.Charisma, FoundGuy.Level);
+                                    FoundGuy.Focus = Math.Max(FoundGuy.Focus, FoundGuy.Level);
 
                                     HistoricalEvents.Add(Date + " " + Calamitizer.Name + " recruited " + FoundGuy.Name + " as a " + FoundGuy.MasterRelation + " to serve " + Calamitizer.ObjectivePronoun + " and the almighty " + Calamity[0].Name + ".");
                                     CalamitiesToAdd.Add(FoundGuy);
