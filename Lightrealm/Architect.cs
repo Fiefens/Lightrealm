@@ -94,6 +94,8 @@ namespace Lightrealm
         public List<Architect> ArchitectsWhoSurrenderedToMe = new List<Architect>();
         public List<Architect> ArchitectsIWillTellTruthTo = new List<Architect>();
 
+        public bool Bound;
+
         public double AdventureCooldown = 0;
 
         Dictionary<string,int> BackupProfessionToLevel = new Dictionary<string, int>
@@ -1155,7 +1157,7 @@ namespace Lightrealm
         public void KitOutArchitect(string Type)
         {
             //ACTING location
-            Location Location = this.Location != null ? this.Location : Game1.GameWorld.AllLocations
+            Location Location = this.Location != null && Game1.GameWorld.SettlementTypes.Contains(this.Location.Type) ? this.Location : Game1.GameWorld.AllLocations
                                                                     .Where(location => Game1.GameWorld.SettlementTypes.Contains(location.Type) && location.HomeCivilization != null)
                                                                     .OrderBy(_ => Game1.r.Next())
                                                                     .FirstOrDefault();
@@ -2196,22 +2198,26 @@ namespace Lightrealm
             }
             else
             {
-                foreach ((Architect, int) a in Game1.LoadedArchitects[Game1.ArchitectIndex].KnownArchitectsAndOpinions)
+                if(Game1.LoadedArchitects.Count > 0)
                 {
-                    if (a.Item1 == this)
+                    foreach ((Architect, int) a in Game1.LoadedArchitects[Game1.ArchitectIndex].KnownArchitectsAndOpinions)
                     {
-                        PlayerKnowsArch = true;
+                        if (a.Item1 == this)
+                        {
+                            PlayerKnowsArch = true;
+                        }
                     }
-                }
 
-                if (PlayerKnowsArch)
-                {
-                    AddReferredToName(Name + ", dead.");
-                    AddReferredToName("dead " + Profession);
-                }
-                else
-                {
-                    AddReferredToName("dead " + Profession);
+                    if (PlayerKnowsArch)
+                    {
+                        AddReferredToName(Name + ", dead.");
+                        AddReferredToName("dead " + Profession);
+                    }
+                    else
+                    {
+                        AddReferredToName("dead " + Profession);
+                    }
+
                 }
             }
 
@@ -2506,10 +2512,14 @@ namespace Lightrealm
             {
                 ExtraAttackPower += 10;
             }
+            else if (Race == Game1.GameWorld.GetRace("luminarch"))
+            {
+                ExtraAttackPower -= 10;
+            }
 
             //path of shadow
 
-            if(PathOfShadowLevel >= 2)
+            if (PathOfShadowLevel >= 2)
             {
                 ExtraStealth += 10;
             }
@@ -3288,8 +3298,8 @@ namespace Lightrealm
                             else
                             {
                                 AllImportantEntities = (Game1.GameWorld.AllLocations
-        .SelectMany(location => location.AllStructures.Concat(new List<Entity> { location }))
-        .Concat(Game1.GameWorld.AllArchitects)).ToList<Entity>();
+                                .SelectMany(location => location.AllStructures.Concat(new List<Entity> { location }))
+                                .Concat(Game1.GameWorld.AllArchitects)).ToList<Entity>();
                             }
 
                             CommandProcessor.SendMessage(MType, this, ChosenArchitect, new List<Entity> { AllImportantEntities[Game1.r.Next(AllImportantEntities.Count)] }, Game1.GameWorld);
@@ -3363,7 +3373,7 @@ namespace Lightrealm
                     TargetArchitect = Group.Leader.TargetArchitect;
                     TargetObject = Group.Leader.TargetObject;
                 }
-                else if (Task == "" && BlindCycles == 0 && Profession != "warlock" && Profession != "sorcerer" && Race != Game1.GameWorld.GetRace("debtshiba") /*cant make judgements if ur blind lol, and cant if you already have a basic job.*/)
+                else if (Task == "" && BlindCycles == 0 && Profession != "warlock" && Profession != "sorcerer" && Race != Game1.GameWorld.GetRace("debtshiba") && !Bound /*cant make judgements if ur blind lol, and cant if you already have a basic job.*/)
                 {
                     if (IsLoadedTrader && DaysSinceLiquid < 2 && DaysSinceFood < 2)
                     {

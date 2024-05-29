@@ -159,7 +159,7 @@ namespace Lightrealm
             // Base damage values
             double basePain = 10;
             double baseIntegrityLoss = 10;
-            double baseBleeding = 2;
+            double baseBleeding = 1;
             double baseEnergyLoss = 5;
 
             // Modifiers based on weapon type

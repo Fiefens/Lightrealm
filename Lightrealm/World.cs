@@ -354,7 +354,7 @@ namespace Lightrealm
             for (int x = 0; x < Width; x++)
             {
                 for (int z = 0; z < Length; z++)
-                {if (WorldMap[x + z * Width].Biome == "void" || WorldMap[x + z * Width].Biome == "ocean")
+                {if (WorldMap[x + z * Width].Biome == "void" || (Calamity.Contains(Activator) && WorldMap[x + z * Width].MyLocation != null && CalamityStructures.Contains(WorldMap[x + z * Width].MyLocation.Type)))
                 continue;
                     // Calculate the center position of each hex
                     float offsetX = x * hexWidth + (z % 2) * (hexWidth / 2);
@@ -1015,24 +1015,34 @@ namespace Lightrealm
 
         public void ClaimSwathOfTerritory(Civilization c, int X, int Z, int Radius)
         {
-            List<(int, int)> BannedCoords = new List<(int, int)> { ((-1 * Radius), (-1 * Radius)), (Radius, Radius), ((-1 * Radius), Radius), (Radius, (-1 * Radius)) };
-            for (int x = X - Radius; x < X + (Radius + 1); x++)
+            List<(int, int)> BannedCoords = new List<(int, int)>
+    {
+        ((-1 * Radius), (-1 * Radius)),
+        (Radius, Radius),
+        ((-1 * Radius), Radius),
+        (Radius, (-1 * Radius))
+    };
+
+            for (int x = Math.Max(0, X - Radius); x <= Math.Min(Width - 1, X + Radius); x++)
             {
-                for (int z = Z - Radius; z < Z + (Radius + 1); z++)
+                for (int z = Math.Max(0, Z - Radius); z <= Math.Min(Length - 1, Z + Radius); z++)
                 {
-                    if (!BannedCoords.Contains(((x - X), (z - Z))))
+                    if (!BannedCoords.Contains((x - X, z - Z)))
                     {
-                        if (x + z * Width < Width * Length && x + z * Width >= 0)
+                        int index = x + z * Width;
+                        if (index < Width * Length && index >= 0)
                         {
-                            if (WorldMap[x + z * Width].Biome != "void" && WorldMap[x + z * Width].Owner == null && (WorldMap[x + z * Width].MyLocation == null || WorldMap[x + z * Width].MyLocation.Type != "spire"))
+                            var tile = WorldMap[index];
+                            if (tile.Biome != "void" && tile.Owner == null && (tile.MyLocation == null || tile.MyLocation.Type != "spire"))
                             {
-                                WorldMap[x + z * Width].Owner = c;
+                                tile.Owner = c;
                             }
                         }
                     }
                 }
             }
         }
+
 
 
 
@@ -1602,7 +1612,7 @@ namespace Lightrealm
                 {
                     for (int y = 0; y < length; y++)
                     {
-                        if (!visited[x + y * width] && worldMap[x + y * width].Biome != "ocean" && worldMap[x + y * width].Biome != "void")
+                        if (!visited[x + y * width] && worldMap[x + y * width].Biome != "ocean" && worldMap[x + y * width].Biome != "void" && worldMap[x + y * width].Biome != "ethereal")
                         {
                             List<Region> currentIsland = new List<Region>();
                             DFS(worldMap, x, y, width, visited, currentIsland);
@@ -2834,28 +2844,47 @@ namespace Lightrealm
                                             // Trigger random small-scale ruptures
                                             for (int i = 0; i < (InitialPop - ChosenDistrict.UnplacedPopulation); i++)
                                             {
-                                                int ruptureX = r.Next(Width);
-                                                int ruptureZ = r.Next(Length);
-                                                TriggerRupture(ruptureX, ruptureZ, Calamitizer, r.Next(0, 3)); // small radius between 1 and 3
+                                                // Collect all valid regions with Biome "void" or "ethereal"
+                                                List<(int x, int z)> validRegions = new List<(int, int)>();
 
-                                                // Scan nearby regions within a certain range but outside the immediate rupture radius
-                                                int scanRadius = 8; // Arbitrary scan radius
-                                                for (int x = Math.Max(0, ruptureX - scanRadius); x <= Math.Min(Width - 1, ruptureX + scanRadius); x++)
+                                                for (int x = 0; x < Width; x++)
                                                 {
-                                                    for (int z = Math.Max(0, ruptureZ - scanRadius); z <= Math.Min(Length - 1, ruptureZ + scanRadius); z++)
+                                                    for (int z = 0; z < Length; z++)
                                                     {
-                                                        if (CalculateDistance(ruptureX, ruptureZ, x, z) > 3 && CalculateDistance(ruptureX, ruptureZ, x, z) <= scanRadius)
+                                                        Region region = WorldMap[x + z * Width];
+                                                        if (region.Biome == "void" || region.Biome == "ethereal")
                                                         {
-                                                            Location nearbyLocation = WorldMap[x + z * Width].MyLocation;
-                                                            if (nearbyLocation != null)
+                                                            validRegions.Add((x, z));
+                                                        }
+                                                    }
+                                                }
+
+                                                if (validRegions.Count > 0)
+                                                {
+                                                    // Pick a random region from the valid regions
+                                                    var (ruptureX, ruptureZ) = validRegions[r.Next(validRegions.Count)];
+
+                                                    TriggerRupture(ruptureX, ruptureZ, Calamitizer, r.Next(1, 6)); // small radius between 1 and 3
+
+                                                    // Scan nearby regions within a certain range but outside the immediate rupture radius
+                                                    int scanRadius = 8; // Arbitrary scan radius
+                                                    for (int x = Math.Max(0, ruptureX - scanRadius); x <= Math.Min(Width - 1, ruptureX + scanRadius); x++)
+                                                    {
+                                                        for (int z = Math.Max(0, ruptureZ - scanRadius); z <= Math.Min(Length - 1, ruptureZ + scanRadius); z++)
+                                                        {
+                                                            if (CalculateDistance(ruptureX, ruptureZ, x, z) > 3 && CalculateDistance(ruptureX, ruptureZ, x, z) <= scanRadius)
                                                             {
-                                                                foreach (District district in nearbyLocation.Districts)
+                                                                Location nearbyLocation = WorldMap[x + z * Width].MyLocation;
+                                                                if (nearbyLocation != null)
                                                                 {
-                                                                    foreach (Architect architect in district.Architects)
+                                                                    foreach (District district in nearbyLocation.Districts)
                                                                     {
-                                                                        if (r.Next(GrievanceChance) == 1)
+                                                                        foreach (Architect architect in district.Architects)
                                                                         {
-                                                                            architect.Grievances.Add((Calamitizer, "caused a rupture near " + architect.Name + "'s district."));
+                                                                            if (r.Next(GrievanceChance) == 1)
+                                                                            {
+                                                                                architect.Grievances.Add((Calamitizer, "caused a rupture near " + architect.Name + "'s district."));
+                                                                            }
                                                                         }
                                                                     }
                                                                 }
@@ -2863,9 +2892,27 @@ namespace Lightrealm
                                                         }
                                                     }
                                                 }
+                                                else
+                                                {
+                                                    // No valid region found, skip rupture triggering
+                                                    continue;
+                                                }
                                             }
                                         }
                                     }
+
+
+                                    foreach(Architect a in ChosenDistrict.ArchitectsToRemove)
+                                    {
+                                        ChosenDistrict.Architects.Remove(a);
+
+                                        if(CalamityIdeologicalObsession == "kidnapper")
+                                        {
+                                            Calamitizer.HomeLocation.Districts[0].Architects.Add(a);
+                                            a.Bound = true;
+                                        }
+                                    }
+                                    ChosenDistrict.ArchitectsToRemove = new List<Architect>();
                                 }
                             }
                         }
@@ -3611,7 +3658,16 @@ namespace Lightrealm
                                                     {
                                                         var portLocation = availablePorts[random.Next(availablePorts.Count)];
                                                         portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-                                                        HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
+
+                                                        if(TradingGroups.Count > 0)
+                                                        {
+                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built by {TradingGroups[r.Next(TradingGroups.Count)].Name} to facilitate trade.");
+                                                        }
+                                                        else
+                                                        {
+                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        }
+
                                                         portBuilt = true;
                                                         portsOnBiggestIsland++; // Update the counter for ports on the biggest island
                                                     }
@@ -3623,8 +3679,17 @@ namespace Lightrealm
                                                     if (availablePorts.Any())
                                                     {
                                                         var portLocation = availablePorts[random.Next(availablePorts.Count)];
-                                                        portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-                                                        HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        portLocation.PortName = GenerateUniqueName("1S7s", portLocation); 
+                                                        
+                                                        if (TradingGroups.Count > 0)
+                                                        {
+                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built by {TradingGroups[r.Next(TradingGroups.Count)].Name} to facilitate trade.");
+                                                        }
+                                                        else
+                                                        {
+                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
+                                                        }
+
                                                         portBuilt = true;
                                                     }
                                                 }

@@ -557,6 +557,8 @@ namespace Lightrealm
                     foreach(Architect a in g.Architects)
                     {
                         Location.Market.Rooms[0].Architects.Add(a);
+                        a.Room = Location.Market.Rooms[0];
+                        a.Block = a.Room.Structure.Block;
                     }
                 }
             }
@@ -570,15 +572,23 @@ namespace Lightrealm
                     a.UpdateNames();
 
                     List<Structure> possibleStructures = new List<Structure>();
-                    for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+
+                    if(a.Bound)
                     {
-                        for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                        possibleStructures.Add(this.Location.AllStructures[0]);
+                    }
+                    else
+                    {
+                        for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                         {
-                            foreach (Structure s in DistrictMap[DistrictX + DistrictZ * 7].Structures)
+                            for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                             {
-                                if (s.Type == Game1.ConvertProfessionToBuilding[a.Profession])
+                                foreach (Structure s in DistrictMap[DistrictX + DistrictZ * 7].Structures)
                                 {
-                                    possibleStructures.Add(s);
+                                    if (s.Type == Game1.ConvertProfessionToBuilding[a.Profession])
+                                    {
+                                        possibleStructures.Add(s);
+                                    }
                                 }
                             }
                         }
@@ -629,6 +639,7 @@ namespace Lightrealm
                     a.Name = Location.Region.World.GenerateUniqueArchitectName(this);
 
                     a.Room = Location.AllStructures[0].Rooms[Game1.r.Next(Location.AllStructures[0].Rooms.Count)];
+                    a.Block = a.Room.Structure.Block;
                     a.Room.Architects.Add(a);
                 }
             }

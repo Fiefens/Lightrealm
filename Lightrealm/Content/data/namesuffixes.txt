@@ -39,3 +39,4 @@ ose
 ique
 ium
 osis
+oris
