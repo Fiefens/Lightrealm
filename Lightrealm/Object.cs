@@ -124,34 +124,38 @@ namespace Lightrealm
                 MaterialStrings.Add(m.Type);
             }
 
+            int BasePower = 0;
+
             if (MaterialStrings.Contains("metal"))
             {
-                return 5;
+                BasePower = 5;
             }
             else if (MaterialStrings.Contains("gemstone"))
             {
-                return 4;
+                BasePower = 4;
             }
             else if (MaterialStrings.Contains("stone"))
             {
-                return 3;
+                BasePower = 3;
             }
             else if (MaterialStrings.Contains("glass"))
             {
-                return 3;
+                BasePower = 3;
             }
             else if (MaterialStrings.Contains("wood"))
             {
-                return 2;
+                BasePower = 2;
             }
             else if (MaterialStrings.Contains("cloth"))
             {
-                return 1;
+                BasePower = 1;
             }
             else
             {
-                return 3;
+                BasePower = 3;
             }
+
+            return BasePower + Materials.Max(m => m.Toughness);
         }
 
         public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
@@ -195,16 +199,16 @@ namespace Lightrealm
             }
 
             // Proficiency factor
-            double proficiencyFactor = 1 + (WielderProficiency * 0.05);
+            double efficiencyFactor = 1 + (WielderProficiency * 0.05) + (o.FindObjectGenericStrength() * 0.05);
 
             // Combat intensity factor (example dynamic adjustment)
             double combatIntensityMultiplier = 3; // This value should be dynamically adjusted based on combat conditions
 
             // Calculate damage outcomes
-            int Pain = (int)(basePain * painModifier * proficiencyFactor * combatIntensityMultiplier * (1 - (0.1)*(((Architect)Owner).Focus)));
-            int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * proficiencyFactor * combatIntensityMultiplier);
-            int Bleeding = (int)(baseBleeding * bleedingModifier * proficiencyFactor * combatIntensityMultiplier);
-            int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * proficiencyFactor * combatIntensityMultiplier);
+            int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1)*(((Architect)Owner).Focus)));
+            int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * efficiencyFactor * combatIntensityMultiplier);
+            int Bleeding = (int)(baseBleeding * bleedingModifier * efficiencyFactor * combatIntensityMultiplier);
+            int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * efficiencyFactor * combatIntensityMultiplier);
 
             List<TextStorage> Announcements = new List<TextStorage>();
 
@@ -410,9 +414,6 @@ namespace Lightrealm
 
             ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
         }
-
-
-
 
         public void UpdateSelfActionsAndSuch()
         {
@@ -745,12 +746,12 @@ namespace Lightrealm
                     CoverageValues.Add(("torso", 8));
                     break;
                 case "uppergarment":
-                    Weight = 50;
+                    Weight = 0;
                     IsWearable = true;
                     Description = "An undergarment for the upper body made of /m.";
                     break;
                 case "undergarment":
-                    Weight = 50;
+                    Weight = 0;
                     IsWearable = true;
                     Description = "An undergarment for the lower body made of /m.";
                     break;
@@ -915,30 +916,25 @@ namespace Lightrealm
                     IsGeneralGood = true;
                     Description = "A large cup made of /m.";
                     break;
-                case "wax tablet":
+                case "tablet":
                     Weight = 500;
                     IsGeneralGood = true;
-                    Description = "A small tablet made of wax for writing.";
+                    Description = "A small tablet for writing.";
                     break;
                 case "candle":
                     Weight = 500;
                     IsGeneralGood = true;
                     Description = "A wax candle for lighting.";
                     break;
-                case "wax cube":
-                    Weight = 500;
-                    IsGeneralGood = true;
-                    Description = "A cube of wax.";
-                    break;
                 case "brick":
                     Weight = 500;
                     IsGeneralGood = true;
                     Description = "A solid block made of /m.";
                     break;
-                case "honey":
+                case "portion":
                     Weight = 300;
                     IsGeneralGood = true;
-                    Description = "A portion of honey.";
+                    Description = "A portion of /m.";
                     break;
                 case "spice":
                     Weight = 5;

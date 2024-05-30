@@ -386,15 +386,15 @@ namespace Lightrealm
                     if (Game1.r.Next(0, 3) == 0)
                     {
                         Object honeyJar = new Object(null, "jar", new List<Material>() { Game1.GameWorld.Glass }, null);
-                        honeyJar.ContainedObjects.Add(new Object(null, "honey", new List<Material>() { Game1.GameWorld.Honey }, null));
+                        honeyJar.ContainedObjects.Add(new Object(null, "portion", new List<Material>() { Game1.GameWorld.Honey }, null));
                         Objects.Add(honeyJar);
                     }
                     if (Game1.r.Next(0, 10) == 0)
-                        Objects.Add(new Object(null, "wax tablet", new List<Material>() { Game1.GameWorld.Waspwax }, null));
+                        Objects.Add(new Object(null, "tablet", new List<Material>() { Game1.GameWorld.Waspwax }, null));
                     if (Game1.r.Next(0, 5) == 0)
                         Objects.Add(new Object(null, "candle", new List<Material>() { Game1.GameWorld.Waspwax }, null));
                     if (Game1.r.Next(0, 2) == 0)
-                        Objects.Add(new Object(null, "wax cube", new List<Material>() { Game1.GameWorld.Waspwax }, null));
+                        Objects.Add(new Object(null, "cube", new List<Material>() { Game1.GameWorld.Waspwax }, null));
                     break;
 
                 case "fuel":
@@ -445,11 +445,6 @@ namespace Lightrealm
                             int ExtraRoomCount;
                             switch (s.Type)
                             {
-                                case "scaffold":
-                                case "scum":
-                                case "dock":
-                                    ExtraRoomCount = 0;
-                                    break;
                                 case "house":
                                 case "ship":
                                 case "cove":
@@ -482,7 +477,7 @@ namespace Lightrealm
                                     ExtraRoomCount = Game1.r.Next(10, 13);
                                     break;
                                 default:
-                                    ExtraRoomCount = Game1.r.Next(2, 2); // This range always results in 2. Consider adjusting if that's not the intended outcome.
+                                    ExtraRoomCount = 0; // This range always results in 2. Consider adjusting if that's not the intended outcome.
                                     break;
                             }
 
@@ -765,6 +760,17 @@ namespace Lightrealm
                                 GeneralItemsWeHave.Add(o);
                             }
                         }
+                        else
+                        {
+                            if (Location.Prism != null)
+                            {
+                                Location.Prism.HistoricalObjects.Add(o);
+                            }
+                            else
+                            {
+                                Location.AllStructures[0].HistoricalObjects.Add(o);
+                            }
+                        }
                     }
                     DistrictMap[DistrictX + DistrictZ * 7].Objects.Clear();
 
@@ -809,6 +815,10 @@ namespace Lightrealm
                                     {
                                         GeneralItemsWeHave.Add(o);
                                     }
+                                }
+                                else
+                                {
+                                    r.Structure.HistoricalObjects.Add(o);
                                 }
                             }
                             r.Objects.Clear();

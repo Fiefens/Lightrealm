@@ -886,6 +886,8 @@ namespace Lightrealm
 
         public string CurrentlyMovingPlace = "none";
 
+        public int MessageCooldown = 0;
+
         public List<(Architect, int)> KnownArchitectsAndOpinions { get; set; } = new List<(Architect, int)>();
 
         public bool IsStudying { get; set; }
@@ -2294,6 +2296,14 @@ namespace Lightrealm
                 //idk whats happening but I actually want to play my game;
                 return new List<Attack>();
             }
+            if (Room != null && Structure == null)
+            {
+                Structure = Room.Structure;
+            }
+            if (Block == null && Structure != null)
+            {
+                Block = Structure.Block;
+            }
 
             List<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
             List<Attack> Attacks = new List<Attack>();
@@ -2491,7 +2501,6 @@ namespace Lightrealm
                 Distances[a] = distance;
             }
 
-
             //reset imbuements
 
             ExtraShieldEffectiveness = 0;
@@ -2622,7 +2631,7 @@ namespace Lightrealm
                     default:
                         break;
                 }
-                return baseMultiplier * (1 + (0.1 * material.Toughness)); // Example formula
+                return baseMultiplier * (1 + (0.2 * material.Toughness)); // Example formula
             }
 
             // Assuming each BodyPart object has a CoverageName property to store the name of the clothing item providing the most coverage
@@ -3217,9 +3226,11 @@ namespace Lightrealm
 
                 //send messages of your own
 
-                if (Game1.r.Next(1, 20) < Charisma && this.Task != "killtarget" && this.Task != "disabletarget")
+                if (Game1.r.Next(1, 15) < Charisma && this.Task != "killtarget" && this.Task != "disabletarget" && MessageCooldown == 0)
                 {
                     var ArchList = Room != null ? Room.Architects : Block.Architects;
+
+                    MessageCooldown += Game1.r.Next(50, 100);
 
                     // Filter out the current Architect instance from ArchList
                     var OtherArchitects = ArchList.Where(arch => arch != this).ToList();
@@ -3306,7 +3317,10 @@ namespace Lightrealm
                         }
                     }
                 }
-
+                else if (MessageCooldown > 0)
+                {
+                    MessageCooldown--;
+                }
 
 
 

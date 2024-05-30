@@ -19,6 +19,11 @@ using System.Text.RegularExpressions;
 using Color = Microsoft.Xna.Framework.Color;
 using Point = Microsoft.Xna.Framework.Point;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
+using NAudio.Wave;
+using Vosk;
+using Newtonsoft.Json.Linq;
+using Model = Vosk.Model;
+
 
 #if WINDOWS
 using System.Drawing;
@@ -34,6 +39,13 @@ namespace Lightrealm
     public class Game1 : Game
     {
         public static string Version = "alpha1";
+
+        private VoskRecognizer _recognizer;
+        private WaveInEvent _waveIn;
+        private bool _isRecording = false;
+        private Keys _recordKey = Keys.RightAlt;
+
+        public bool SpeechToText = false;
 
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -108,15 +120,15 @@ namespace Lightrealm
             }
 
             // Spells known to the architect
-            foreach (var spell in Game1.AllSpells)
+            foreach (var spell in AllSpells)
             {
                 subjects.Add(new Entity(spell.ToLower()));
             }
-            foreach (var skill in Game1.AllSkills)
+            foreach (var skill in AllSkills)
             {
                 subjects.Add(new Entity(skill.ToLower()));
             }
-            foreach (var spell in Game1.AllLegendarySpells)
+            foreach (var spell in AllLegendarySpells)
             {
                 subjects.Add(new Entity(spell.ToLower()));
             }
@@ -144,7 +156,8 @@ namespace Lightrealm
                 "archery", "swordsmanship", "armor crafting", "thievery",
                 "mountaineering", "cartography", "astronomy", "necromancy", "spatiomancy", "conjuromancy", "fractalmancy", "perceptomancy",
                 "beasts", "divination", "divinity", "illusion", "mechanics", "engineering",
-                "book", "poem", "song"
+                "book", "poem", "song",
+                "spells"
             };
 
             entitiesToAdd = entitiesToAdd.Except(Domains).ToList();
@@ -991,7 +1004,7 @@ namespace Lightrealm
             {
                 if (a.ReferredToNames.Contains(target) || a.ReferredToNames.Contains(target + "'"))
                 {
-                    bodyPartInQuestion = a.BodyParts[Game1.r.Next(a.BodyParts.Count)];
+                    bodyPartInQuestion = a.BodyParts[r.Next(a.BodyParts.Count)];
                     a.Focused = true;
                     a.CombatCycles = 2;
                     TargetArchitect = a;
@@ -1705,6 +1718,36 @@ namespace Lightrealm
         };
 
 
+        public static Dictionary<string, string> SkillSpellDescriptions = new Dictionary<string, string>()
+                        {
+                            { "deflect", "Reverse the thrower and target of the nearest projectile that targets you. (Initiate with \"initiate deflect\")" },
+                            { "dropkick", "Use within 3 seconds after jumping. The first foot attack within those 3 seconds has triple attack power. (Initiate with \"initiate dropkick\")" },
+                            { "double strike", "The next attack you make is made twice. (Initiate with \"initiate double strike\")" },
+                            { "quick strike", "The next attack you make is instantaneous. (Initiate with \"initiate quick strike\")" },
+                            { "severing strike", "The next attack you make inflicts +6 Bleeding. (Initiate with \"initiate severing strike\")" },
+                            { "backflip", "Increase reaction success chances by 30% for 6 seconds. (Initiate with \"initiate backflip\")" },
+                            { "escape", "Immediately travel through a random adjacent door. (Initiate with \"initiate escape\")" },
+                            { "finale", "If your next attack is fatal, severely damage all nearby hostiles. (Initiate with \"initiate finale\")" },
+                            { "concentration", "Increase focus by 1 for 30 seconds. (Initiate with \"initiate concentration\")" },
+                            { "body slam", "Your next torso bash attack does extra damage and destabilizes proportional to your energy. (Initiate with \"initiate body slam\")" },
+                            { "leg sweep", "Your next leg or foot attack destabilizes a target and gives you 30% more reaction success chance for 3 seconds. (Initiate with \"initiate leg sweep\")" },
+                            { "water bolt", "Fire a bolt of water at the target, damaging and extinguishing them. (Cast with \"cast water bolt at ~\")" },
+                            { "chaos flare", "Fire a bolt of light and darkness at the target, causing destabilization, burning, and damage. (Cast with \"cast chaos flare at ~\")" },
+                            { "concentrated ignition", "Ignites the target. (Cast with \"cast concentrated ignition at ~\")" },
+                            { "tremor", "Destabilizes all architects and objects in the area except for the TARGET. (Cast with \"cast tremor at ~\")" },
+                            { "truthfulness", "Permanently forces someone to always tell the truth to the caster. (Cast with \"cast truthfulness at ~\")" },
+                            { "rise", "Send the target into the air. (Cast with \"cast rise at ~\")" },
+                            { "hold", "Cause an architect to freeze in place, or an airborne object to fall out of the sky. (Cast with \"cast hold at ~\")" },
+                            { "force throw", "Throw all subsequent targets of this spell at the first target. (Maximum Spell Targets is 5, Cast with \"cast force throw at ~\")" },
+                            { "shatter", "Destabilize an architect significantly, or break an object into millions of pieces. (Cast with \"cast shatter at ~\")" },
+                            { "intercept", "Quickly fractallize an airborne projectile. (Cast with \"cast intercept at ~\")" },
+                            { "expel", "Banish an object or a weakened creature to the fractal plane. (Cast with \"cast expel at ~\")" },
+                            { "extract", "Return a creature or object from the fractal plane, exactly where it left. (Cast with \"cast extract at ~\")" },
+                            { "raise", "Bring a creature back from the dead and grant them immortality. (Cast with \"cast raise at ~\")" },
+                            { "resurrect", "Bring a creature back from the dead and grant them immortality. Restore all their body parts to full integrity. (Cast with \"cast resurrect at ~\")" },
+                            { "animate", "Raise a corpse as a shade. It joins your party. (Cast with \"cast animate at ~\")" }
+                        };
+
 
         public static List<string> Headwear = new List<string>() { "none", "none", "none", "none", "none", "none", "none", "small hat", "hood", "hood", "hood" };
         public static List<string> Neckwear = new List<string>() { "none", "none", "none", "amulet", "amulet/amulet/amulet", "flair" };
@@ -2083,6 +2126,7 @@ namespace Lightrealm
 
         Texture2D whiteRect;
         Texture2D GUI;
+        Texture2D HelpGUI;
         Texture2D InventoryGUI;
 
         public Dictionary<Keys, string> KeyAtlas = new Dictionary<Keys, string>();
@@ -2363,12 +2407,99 @@ namespace Lightrealm
             return null; // Return null if no command matches
         }
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool AllocConsole();
 
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
+
+
+            AllocConsole();
+            Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+            Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+
+            Console.WriteLine("Welcome to Lightrealm.");
+            Console.WriteLine("");
+            Console.WriteLine("");
+            Console.WriteLine("Load Speech to Text Model? (press Y or N)");
+
+            string s = Console.ReadKey().KeyChar.ToString();
+
+            if (s.ToLower() == "y")
+            {
+                Console.WriteLine("");
+                Console.WriteLine("Loading STT Model, this may take up to 30 seconds...");
+
+                SpeechToText = true;
+
+                // Set Vosk log level to debug to capture all logs
+                Vosk.Vosk.SetLogLevel(0);
+
+                string modelPath = Path.Combine(Content.RootDirectory, "vosk-model-en-us-0.22");
+                if (!Directory.Exists(modelPath))
+                {
+                    throw new DirectoryNotFoundException($"Model directory not found: {modelPath}");
+                }
+
+                Model model = new Model(modelPath);
+                _recognizer = new VoskRecognizer(model, 16000.0f);
+                _recognizer.SetMaxAlternatives(0);
+                _recognizer.SetWords(true);
+
+                Console.WriteLine("Available Input Devices:");
+                for (int i = 0; i < WaveInEvent.DeviceCount; i++)
+                {
+                    var deviceInfo = WaveInEvent.GetCapabilities(i);
+                    Console.WriteLine($"{i}: {deviceInfo.ProductName}");
+                }
+
+                Console.WriteLine("Please enter the number of the input device you want to use:");
+                int deviceNumber;
+                while (!int.TryParse(Console.ReadLine(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
+                {
+                    Console.WriteLine("Invalid input. Please enter a valid device number:");
+                }
+
+                _waveIn = new WaveInEvent
+                {
+                    DeviceNumber = deviceNumber,
+                    WaveFormat = new WaveFormat(16000, 1)
+                };
+                _waveIn.DataAvailable += OnDataAvailable;
+            }
+            else
+            {
+                Console.WriteLine("Skipping STT Model...");
+            }
+        }
+
+        private void OnDataAvailable(object sender, WaveInEventArgs args)
+        {
+            if (_recognizer.AcceptWaveform(args.Buffer, args.BytesRecorded))
+            {
+                var result = _recognizer.Result();
+                AppendToPrompt(result);
+            }
+            else
+            {
+                var partialResult = _recognizer.PartialResult();
+                AppendToPrompt(partialResult);
+            }
+        }
+
+        private void AppendToPrompt(string jsonResult)
+        {
+            var resultObj = JObject.Parse(jsonResult);
+            var text = resultObj["text"]?.ToString();
+            if (!string.IsNullOrEmpty(text))
+            {
+                MostRecentPartyTurnArchitect.Prompt += text + " ";
+                Console.WriteLine(text);
+            }
         }
 
         public static string ConvertArchitectToDescription(Architect a)
@@ -2457,11 +2588,15 @@ namespace Lightrealm
 
             PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
-            
+
             _graphics.PreferredBackBufferWidth = PreferredBackBufferWidth;
             _graphics.PreferredBackBufferHeight = PreferredBackBufferHeight;
 
             _graphics.ApplyChanges();
+
+            _waveIn = new WaveInEvent();
+            _waveIn.WaveFormat = new WaveFormat(16000, 1);
+            _waveIn.DataAvailable += OnDataAvailable;
 
             //determine the best way to draw the map
 
@@ -2480,6 +2615,8 @@ namespace Lightrealm
             }
 
             //these commands may be suggested to the player while typing
+
+            Console.WriteLine("Initializing Databases...");
 
             RecognizedCommands.Add("ask_name", new List<string> { "ask ~ /p name", "ask ~ for /p name", "ask ~ name" });
             RecognizedCommands.Add("ask_directions", new List<string> { "ask ~ where ~ is", "ask ~ where I can find ~", "ask ~ where to find ~"}); 
@@ -2573,7 +2710,7 @@ namespace Lightrealm
             RecognizedCommands.Add("cast_spell_at_4", new List<string> { "cast ~ at ~, ~, ~, and ~", "cast ~ at ~ and ~ and ~ and ~" });
             RecognizedCommands.Add("cast_spell_at_5", new List<string> { "cast ~ at ~, ~, ~, ~, and ~", "cast ~ at ~ and ~ and ~ and ~ and ~" });
             RecognizedCommands.Add("cast_spell", new List<string> { "cast ~" });
-            RecognizedCommands.Add("recall_information", new List<string> { "remember ~" });
+            RecognizedCommands.Add("recall_information", new List<string> { "remember ~", "list ~", "list all ~" });
             RecognizedCommands.Add("strip_clothing", new List<string> { "strip" });
             RecognizedCommands.Add("read_object", new List<string> { "read ~" });
             RecognizedCommands.Add("perform_composition", new List<string> {
@@ -2974,6 +3111,8 @@ namespace Lightrealm
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             ContentRoot = Content.RootDirectory;
 
+            Console.WriteLine("Loading Game Data...");
+
             // Load your icon texture
             myIconTexture = Content.Load<Texture2D>("Icon");
 
@@ -2988,6 +3127,8 @@ namespace Lightrealm
             Words = File.ReadAllLines(string.Concat(dataPath, "words.txt")).ToList();
             Syllables = File.ReadAllLines(string.Concat(dataPath, "syllables.txt")).ToList();
             NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
+
+            Console.WriteLine("Loading Game Assets...");
 
             FrameT = Content.Load<Texture2D>("frame");
 
@@ -3071,6 +3212,7 @@ namespace Lightrealm
             TitleScreen = Content.Load<Texture2D>("title");
             EmptyTileT = Content.Load<Texture2D>("tiles/emptytile");
             GUI = Content.Load<Texture2D>("gui");
+            HelpGUI = Content.Load<Texture2D>("helpgui");
             InventoryGUI = Content.Load<Texture2D>("inventory gui");
 
             nightfellCampT = Content.Load<Texture2D>("tiles/locationtiles/nightfellcamp");
@@ -3162,7 +3304,7 @@ namespace Lightrealm
             MessageGUIT = Content.Load<Texture2D>("messageGUI");
             LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
 
-
+            Console.WriteLine("Building Characters...");
 
             CharacterAtlas["amulet"] = AmuletT = Content.Load<Texture2D>("character art/amulet");
             CharacterAtlas["archaixfemale"] = ArchaixFemaleT = Content.Load<Texture2D>("character art/archaixfemale");
@@ -3209,6 +3351,8 @@ namespace Lightrealm
             MirrorT = Content.Load<Texture2D>("character art/mirror");
 
 
+            Console.WriteLine("Importing Recipes...");
+
             // Define the file path for 'recipes.txt'
             string filePath = Path.Combine(dataPath, "recipes.txt");
 
@@ -3250,6 +3394,8 @@ namespace Lightrealm
                 Console.WriteLine("Recipes file not found.");
             }
 
+
+            Console.WriteLine("Content Load Complete.");
         }
 
         protected override void Update(GameTime gameTime)
@@ -3283,6 +3429,27 @@ namespace Lightrealm
             {
                 EscapeTicks = 0;
             }
+
+
+            if (Keyboard.GetState().IsKeyDown(_recordKey) && SpeechToText)
+            {
+                if (!_isRecording)
+                {
+                    _isRecording = true;
+                    _waveIn.StartRecording();
+                }
+            }
+            else
+            {
+                if (_isRecording)
+                {
+                    _isRecording = false;
+                    _waveIn.StopRecording();
+                    var finalResult = _recognizer.FinalResult();
+                    AppendToPrompt(finalResult);
+                }
+            }
+
 
 
             //BEFORE WE DO ANYTHING, FIX THE LOADED ARCHITECT THINGY
@@ -4517,10 +4684,36 @@ namespace Lightrealm
                     }
                     else if (GameState == "partyturn")
                     {
+                        try
+                        {
+                            if (Keyboard.GetState().IsKeyDown(Keys.RightAlt) && SpeechToText)
+                            {
+                                if (!_isRecording)
+                                {
+                                    _isRecording = true;
+                                    _waveIn.StartRecording();
+                                }
+                            }
+                            else
+                            {
+                                if (_isRecording)
+                                {
+                                    _isRecording = false;
+                                    _waveIn.StopRecording();
+                                    var finalResult = _recognizer.FinalResult();
+                                    AppendToPrompt(finalResult);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error during recording process: {ex.Message}");
+                        }
+
 
                         //yehe les dub chek
 
-                        if(ArchitectIndex > LoadedArchitects.Count - 1)
+                        if (ArchitectIndex > LoadedArchitects.Count - 1)
                         {
                             ArchitectIndex = 0;
                         }
@@ -4799,7 +4992,8 @@ namespace Lightrealm
                                             }
                                         }
 
-                                        if (KeysNewlyPressed.Contains(Keys.LeftAlt) || KeysNewlyPressed.Contains(Keys.RightAlt))
+                                        /*
+                                        if (KeysNewlyPressed.Contains(Keys.LeftAlt))
                                         {
                                             if (ObservationsAndMessages == "both")
                                             {
@@ -4814,6 +5008,9 @@ namespace Lightrealm
                                                 ObservationsAndMessages = "both";
                                             }
                                         }
+                                        */
+
+                                        
 
                                         if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)) && Keyboard.GetState().IsKeyDown(Keys.S))
                                         {
@@ -4832,8 +5029,6 @@ namespace Lightrealm
                                         {
                                             InInventory = false;
                                         }
-
-                                        
 
                                         if (KeysNewlyPressed.Contains(Keys.Enter))
                                         {
@@ -5054,6 +5249,9 @@ namespace Lightrealm
                             Observations = new List<TextStorage>();
                             Messages = new List<TextStorage>();
                             GameState = "mainscreen";
+
+                            MediaPlayer.Stop();
+                            MediaPlayer.Play(LightrealmMainTheme);
                         }
                     }
                     else if (GameState == "otherturn")
@@ -5616,7 +5814,7 @@ namespace Lightrealm
                             Exposition = new List<TextStorage>
                             {
                                 new TextStorage(GamePlayerParty.CurrentEvent.Info, Color.White),
-                                new TextStorage("Do you approach? (Y/N)", Color.Yellow)
+                                new TextStorage("Do you approach? (press Y or N)", Color.Yellow)
                             };
 
                             if (KeysNewlyPressed.Contains(Keys.Y))
@@ -6352,7 +6550,7 @@ namespace Lightrealm
                         }
 
                         // Define constants
-                        float minimumDarkness = 0.3f;
+                        float minimumDarkness = 0.6f;
                         int sunriseStartHour = 6;
                         int sunriseEndHour = 8;
                         int sunsetStartHour = 16;
@@ -6699,8 +6897,6 @@ namespace Lightrealm
             }
 
 
-
-
             if (KeysNewlyPressed.Contains(Keys.PageUp) && Keyboard.GetState().IsKeyDown(Keys.LeftAlt))
             {
                 int X = Mouse.GetState().X;
@@ -6725,9 +6921,20 @@ namespace Lightrealm
 
                 return key;
             }
-            List<(string Description, int Count, int IndentationLevel)> CondenseAndStructureList(IEnumerable<Object> objects, int indentationLevel = 0, bool isShadowStorage = false)
+
+            Color AdjustColorBrightness(Color color)
             {
-                var result = new List<(string Description, int Count, int IndentationLevel)>();
+                // Adjust the R, G, B values to ensure brightness
+                int r = color.R + (255 - color.R) / 5;
+                int g = color.G + (255 - color.G) / 5;
+                int b = color.B + (255 - color.B) / 5;
+
+                return new Color(r, g, b);
+            }
+
+            List<(string Description, int Count, int IndentationLevel, Color TextColor)> CondenseAndStructureList(IEnumerable<Object> objects, int indentationLevel = 0, bool isShadowStorage = false)
+            {
+                var result = new List<(string Description, int Count, int IndentationLevel, Color TextColor)>();
 
                 foreach (var obj in objects)
                 {
@@ -6735,7 +6942,8 @@ namespace Lightrealm
                     if (obj.Type == "shadow storage" && !isShadowStorage)
                     {
                         string shadowName = obj.ReferredToNames?.FirstOrDefault() ?? obj.Type;
-                        result.Add((shadowName, 1, indentationLevel));
+                        Color shadowColor = AdjustColorBrightness(ColorConverter[obj.DyedColor != "none" ? obj.DyedColor : obj.Materials[0].Color]);
+                        result.Add((shadowName, 1, indentationLevel, shadowColor));
 
                         // Retrieve contents from the shadow storage, marking the recursive call with isShadowStorage = true
                         var shadowContents = LoadedArchitects[ArchitectIndex].ShadowStorage;
@@ -6745,9 +6953,10 @@ namespace Lightrealm
                     }
 
                     string description = obj.ReferredToNames?.FirstOrDefault() ?? obj.Type;
+                    Color textColor = AdjustColorBrightness(ColorConverter[obj.DyedColor != "none" ? obj.DyedColor : obj.Materials[0].Color]);
                     int count = objects.Count(o => GenerateUniqueKeyForObject(o) == GenerateUniqueKeyForObject(obj));
 
-                    result.Add((description, count, indentationLevel));
+                    result.Add((description, count, indentationLevel, textColor));
 
                     if (obj.ContainedObjects.Any())
                     {
@@ -6767,8 +6976,7 @@ namespace Lightrealm
 
             // GetCurrentPageList as you've defined
 
-            // DrawList as you've defined
-            void DrawList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel)> list, Vector2 startCoords, SpriteFont font, int CurrentItemListPage, int itemsPerPage)
+            void DrawList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel, Color TextColor)> list, Vector2 startCoords, SpriteFont font, int CurrentItemListPage, int itemsPerPage)
             {
                 int line = 0;
                 int startIndex = CurrentItemListPage * itemsPerPage;
@@ -6776,15 +6984,14 @@ namespace Lightrealm
 
                 for (int i = startIndex; i < endIndex; i++)
                 {
-                    var (Description, Count, IndentationLevel) = list[i];
+                    var (Description, Count, IndentationLevel, TextColor) = list[i];
                     string textToDraw = $"{new string(' ', 4 * IndentationLevel)}{Description} x{Count}";
-                    spriteBatch.DrawString(font, textToDraw, new Vector2(startCoords.X, startCoords.Y + line * 20), Color.White);
+                    spriteBatch.DrawString(font, textToDraw, new Vector2(startCoords.X, startCoords.Y + line * 20), TextColor);
                     line++;
                 }
 
                 MaximumObjectPage = (int)Math.Round((decimal)(list.Count / ItemsPerPage), 0, MidpointRounding.ToPositiveInfinity);
             }
-
 
             // Assuming you have a method to handle user input to navigate pages, you would update CurrentObjectPage accordingly
             // And call PaginateAndDrawList again to redraw the list for the new page
@@ -7172,8 +7379,6 @@ namespace Lightrealm
             }
             else if (GameState == "generatehistory")
             {
-                
-
                 for (int i = 20; i != 0; i--)
                 {
                     int CurrentItemListing = (GameWorld.HistoricalEvents.Count - i);
@@ -7219,7 +7424,9 @@ namespace Lightrealm
 
 
 
-                
+
+                _spriteBatch.DrawString(Shibafont, "Generating " + GameWorld.Name + ", (" + Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity) + "/" + GameWorld.MaxAge + ")", new Vector2(10, 10), Color.White);
+
 
 
             }
@@ -7452,8 +7659,11 @@ namespace Lightrealm
             }
             else if (GameState == "partyturn" || GameState == "reaction" || GameState == "otherturn" || GameState == "messagereply")
             {
-
-                if (!InInventory && !Keyboard.GetState().IsKeyDown(Keys.Tab))
+                if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
+                {
+                    _spriteBatch.Draw(HelpGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
+                }
+                else if (!InInventory && !Keyboard.GetState().IsKeyDown(Keys.Tab))
                 {
                     _spriteBatch.Draw(GUI, new Rectangle(0, 0, 2560, 1440), Color.White);
 
@@ -7715,8 +7925,11 @@ namespace Lightrealm
 
                     //district map
 
+                    /*
+
                     _spriteBatch.Draw(FrameT, backgroundRect, Color.White);
 
+                    _spriteBatch.DrawString(Shibafont, "Press CTRL+? for Help", new Vector2(600, 1350), Color.White);
 
                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                     {
@@ -7829,7 +8042,7 @@ namespace Lightrealm
 
 
                                         default:
-                                            switch(MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Block.District.Location.Layout)
+                                            switch (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Block.District.Location.Layout)
                                             {
                                                 case "archway":
                                                     DecidedTexture = DistrictArchwayT;
@@ -7980,6 +8193,7 @@ namespace Lightrealm
                             }
                         }
                     }
+                    */
 
                     //debt
 
@@ -7995,7 +8209,7 @@ namespace Lightrealm
                             c = Color.White;
                         }
 
-                        _spriteBatch.DrawString(Shibafont, "Owes you: " + MostRecentPartyTurnArchitect.Structure.MarketDebt, new Vector2(220, 1350), c);
+                        _spriteBatch.DrawString(Shibafont, "Owes you: " + MostRecentPartyTurnArchitect.Structure.MarketDebt, new Vector2(220, 1400), c);
                     }
 
                     Line = 0;
@@ -8009,6 +8223,7 @@ namespace Lightrealm
 
                     int totalLinesDisplayed = 0;  // Track the total number of lines displayed
 
+                    // Convert the reversed announcements to a list
                     List<TextStorage> reversedAnnouncements = new List<TextStorage>(Announcements);
                     reversedAnnouncements.Reverse();
 
@@ -8070,6 +8285,7 @@ namespace Lightrealm
                     }
 
 
+
                     // Determine the source collection of objects based on the condition
                     var sourceObjects = MostRecentPartyTurnArchitect.Structure != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects;
 
@@ -8092,7 +8308,7 @@ namespace Lightrealm
                             }
                             // Create a description for the architect
 
-                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)}, distance {architect.GetDistance(MostRecentPartyTurnArchitect)}";                           
+                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)}, distance {architect.GetDistance(MostRecentPartyTurnArchitect)}";
 
                             if (uniqueArchitects.ContainsKey(description))
                             {
@@ -8162,7 +8378,7 @@ namespace Lightrealm
 
                     if (IsInGui)
                     {
-                        _spriteBatch.Draw(MessageGUIT, new Rectangle(480, 270, 1040, 585), Color.White);
+                        _spriteBatch.Draw(MessageGUIT, new Rectangle(1030, 585, 1510, 855), Color.White);
                         int Linee = 0;
                         foreach (string s in ItemPickupGuiLines)
                         {
@@ -8459,7 +8675,7 @@ namespace Lightrealm
 
                     foreach ((string, int) p in MostRecentPartyTurnArchitect.XPValues)
                     {
-                        line++; 
+                        line++;
                         DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetProficiency(p.Item1)} XP", 290, 100 + 20 * line, BabyShibafont);
                     }
                     if (line == 0)
@@ -9533,8 +9749,15 @@ namespace Lightrealm
 
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
             {
-                _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
-                _spriteBatch.DrawString(Shibafont, "Press CTRL-S to save your game.", new Vector2(10, 60), Color.White);
+                if(GameState == "generatehistory")
+                {
+                    _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 40), Color.White);
+                }
+                else
+                {
+                    _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Press CTRL-S to save your game.", new Vector2(10, 60), Color.White);
+                }
             }
 
 

@@ -34,6 +34,25 @@ namespace Lightrealm
     {
         public List<string> ItemTypesInCirculation = new List<string>();
 
+
+        public int ConvertLevelToToughness(int level)
+        {
+            if (level < 1 || level > 10)
+            {
+                throw new ArgumentOutOfRangeException(nameof(level), "Level must be between 1 and 10 inclusive.");
+            }
+
+            // Convert level (1-10) to toughness (2-16)
+            int minLevel = 1;
+            int maxLevel = 10;
+            int minToughness = 2;
+            int maxToughness = 16;
+
+            int toughness = minToughness + (level - minLevel) * (maxToughness - minToughness) / (maxLevel - minLevel);
+            return toughness;
+        }
+
+
         public bool LostPlaced = false;
         public bool FirstNewCivPlaced = false;
         public bool SecondNewCivPlaced = false;
@@ -293,46 +312,46 @@ namespace Lightrealm
             switch (TableName)
             {
                 case "general": //found VERY commonly in any building really, as pilferable loot
-                    Loot.AddRange(MisplacedLoot(2));
+                    Loot.AddRange(MisplacedLoot(2, 2));
                     break;
                 case "bosstreasure1": //found for <=lvl2 bosses, contains one super loot
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 2));
                     Loot.Add(SuperLoot(2));
                     break;
                 case "bosstreasure2": //found for <=lvl4 bosses , contains one super loot
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 4));
                     Loot.Add(SuperLoot(4));
                     break;
                 case "bosstreasure3": //found for <=lvl6 bosses , contains one super loot
-                    Loot.AddRange(MisplacedLoot(2));
+                    Loot.AddRange(MisplacedLoot(2, 6));
                     Loot.Add(SuperLoot(6));
                     break;
                 case "bosstreasure4": //found for <=lvl8 bosses, contains one super loot
-                    Loot.AddRange(MisplacedLoot(3));
+                    Loot.AddRange(MisplacedLoot(3, 8));
                     Loot.Add(SuperLoot(8));
                     break;
                 case "bosstreasure5": //found for <=lvl10 bosses, contains one super loot
-                    Loot.AddRange(MisplacedLoot(5));
+                    Loot.AddRange(MisplacedLoot(5, 10));
                     Loot.Add(SuperLoot(10));
                     break;
                 case "magictreasure12": //found uncommonly as a powerful reward, contains magical items this level
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 2));
                     Loot.Add(MagicalSuperLoot(2));
                     break;
                 case "magictreasure34": //found uncommonly as a powerful reward, contains magical items this level
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 4));
                     Loot.Add(MagicalSuperLoot(4));
                     break;
                 case "magictreasure56": //found uncommonly as a powerful reward, contains magical items this level
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 6));
                     Loot.Add(MagicalSuperLoot(6));
                     break;
                 case "magictreasure78": //found uncommonly as a powerful reward, contains magical items this level
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 8));
                     Loot.Add(MagicalSuperLoot(8));
                     break;
                 case "magictreasure910": //found uncommonly as a powerful reward, contains magical items for this level
-                    Loot.AddRange(MisplacedLoot(1));
+                    Loot.AddRange(MisplacedLoot(1, 10));
                     Loot.Add(MagicalSuperLoot(10));
                     break;
             }
@@ -504,18 +523,13 @@ namespace Lightrealm
 
             string ChosenItem = usefulstuff[Game1.r.Next(usefulstuff.Count)];
 
-            List<Material> Materials = new List<Material>();
-
-            if(Game1.AllWeapons.Contains(ChosenItem))
+            List<Material> Materials = new List<Material>
             {
-                Materials.Add(Metals[Game1.r.Next(Metals.Count)]);
-            }
-            else
-            {
-                Materials.Add(Cloths[Game1.r.Next(Cloths.Count)]);
-            }
+                Cloths[Game1.r.Next(Cloths.Count)],
+                Metals[Game1.r.Next(Metals.Count)]
+            };
 
-            while(true)
+            while (true)
             {
                 if(Game1.r.Next(0,2) == 0)
                 {
@@ -570,9 +584,10 @@ namespace Lightrealm
 
             string ChosenItem = potentialMagicalItems[Game1.r.Next(potentialMagicalItems.Count)];
 
-            List<Material> Materials = new List<Material>();
-
-            Materials.Add(Metals[Game1.r.Next(Metals.Count)]);
+            List<Material> Materials = new List<Material>
+            {
+                Metals[Game1.r.Next(Metals.Count)]
+            };
 
             while (true)
             {
@@ -603,7 +618,7 @@ namespace Lightrealm
             return (o);
         }
 
-        public List<Object> MisplacedLoot(int Quality)
+        public List<Object> MisplacedLoot(int Quality, int Level)
         {
             List<Object> list = new List<Object>();
 
@@ -620,12 +635,12 @@ namespace Lightrealm
                 if (Game1.r.Next(1, 100) <= 10) // 10% chance
                 {
                     var weapons = new List<string> { "sword", "knife", "greatsword", "battle axe", "axe", "greataxe", "rapier", "spear", "pike", "mace", "hammer", "shield", "whip", "scourge", "flail", "chain" };
-                    list.Add(new Object(null, weapons[Game1.r.Next(weapons.Count)], new List<Material>() { Metals[Game1.r.Next(Metals.Count)] }, null));
+                    list.Add(new Object(null, weapons[Game1.r.Next(weapons.Count)], new List<Material>() { GetRandomMaterialByStrength(Metals, ConvertLevelToToughness(Level)) }, null));
                 }
 
                 if(Game1.r.Next(1,100) <= 4) //4 percent chance
                 {
-                    List<Material> m = new List<Material>() { Metals[Game1.r.Next(Metals.Count)] };
+                    List<Material> m = new List<Material>() { GetRandomMaterialByStrength(Metals, ConvertLevelToToughness(Level)) };
 
                     for (int i = Game1.r.Next(10, 30); i != 0; i--)
                     {
@@ -634,11 +649,19 @@ namespace Lightrealm
                 }
 
                 // Generate a piece of armor with random material
-                if (Game1.r.Next(1, 100) <= 5) // 5% chance
+                if (Game1.r.Next(1, 100) <= 5) // 5% chance for armor
                 {
-                    var armors = new List<string> { "helmet", "chestplate", "left gauntlet", "right gauntlet", "pants", "large hat", "small hat", "hood", "cape", "left glove", "right glove", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shorts", "kilt", "wraps", "left boot", "right boot", "left shoe", "right shoe" };
-                    list.Add(new Object(null, armors[Game1.r.Next(armors.Count)], new List<Material>() { Cloths[Game1.r.Next(Cloths.Count)] }, null));
+                    var armors = new List<string> { "helmet", "chestplate", "left gauntlet", "right gauntlet", "pants", "cape", "left glove", "right glove", "left boot", "right boot" };
+                    list.Add(new Object(null, armors[Game1.r.Next(armors.Count)], new List<Material>() { GetRandomMaterialByStrength(Metals, ConvertLevelToToughness(Level)) }, null));
                 }
+
+                // Generate a piece of clothing with random material
+                if (Game1.r.Next(1, 100) <= 5) // 5% chance for clothing
+                {
+                    var clothings = new List<string> { "large hat", "small hat", "hood", "shortsleeve shirt", "longsleeve shirt", "uppershirt", "straps", "shorts", "kilt", "wraps", "left shoe", "right shoe" };
+                    list.Add(new Object(null, clothings[Game1.r.Next(clothings.Count)], new List<Material>() { Cloths[Game1.r.Next(Cloths.Count)] }, null));
+                }
+
 
                 // Generate a piece of jewelry with random material
                 if (Game1.r.Next(1, 100) <= 15) // 15% chance
@@ -953,6 +976,24 @@ namespace Lightrealm
         public List<Material> Ices { get; set; } = new List<Material>();
         public List<Material> Fibers { get; set; } = new List<Material>();
 
+        public Material GetRandomMaterialByStrength(List<Material> materials, int targetStrength)
+        {
+            // Filter the materials to those within the strength range
+            List<Material> filteredMaterials = materials.Where(m => m.Toughness >= targetStrength - 2 && m.Toughness <= targetStrength + 2).ToList();
+
+            // If no materials match the criteria, return null or handle appropriately
+            if (filteredMaterials.Count == 0)
+            {
+                return null;
+            }
+
+            // Select a random material from the filtered list
+            Random random = new Random();
+            int index = random.Next(filteredMaterials.Count);
+
+            return filteredMaterials[index];
+        }
+
         public Material Enchromalite { get; set; } = new Material("enchromalite", "metal", 3, 4, "black");
         public Material Illuminite { get; set; } = new Material("illuminite", "stone", 3, 4, "white");
         public Material Darkstone { get; set; } = new Material("darkstone", "stone", 3, 4, "black");
@@ -963,7 +1004,6 @@ namespace Lightrealm
         public Material Biocrystal { get; set; } = new Material("biocrystal", "stone", 3, 0, "white");
         public Material Glass { get; set; } = new Material("glass", "stone", 1, 1, "white");
         public Material Clay { get; set; } = new Material("clay", "stone", 1, 1, "brown"); 
-        public Material Steel { get; set; } = new Material("steel", "metal", 3, 4, "gray");
         public Material ShadeSludge { get; set; } = new Material("shadesludge", "sludge", 5, 2, "black");
         public Material Coffee { get; set; } = new Material("coffee", "plant", 1, 1, "brown");
         public Material Tea { get; set; } = new Material("coffee", "plant", 1, 1, "green");
@@ -980,7 +1020,7 @@ namespace Lightrealm
             List<Material> Mats = new List<Material>()
             {
                 Enchromalite, Illuminite, Darkstone, Prismite, Shadesteel, Archaeon,
-                Membrane, Biocrystal, Glass, Steel, ShadeSludge, Coffee, Tea, Vitalium,
+                Membrane, Biocrystal, Glass, ShadeSludge, Coffee, Tea, Vitalium,
                 Spectre, Energy, Flame
             };
 
@@ -1095,14 +1135,23 @@ namespace Lightrealm
                 Stones.Add(new Material("diorite", "stone", 3, 0, "white"));
                 Stones.Add(new Material("mudstone", "stone", 3, 0, "brown"));
 
-                Metals.Add(new Material("iron", "metal", 3, 2, "gray"));
-                Metals.Add(new Material("copper", "metal", 1, 1, "brown"));
-                Metals.Add(new Material("silver", "metal", 2, 3, "gray"));
-                Metals.Add(new Material("gold", "metal", 2, 3, "yellow"));
-                Metals.Add(new Material("titanium", "metal", 4, 4, "gray"));
-                Metals.Add(new Material("platinum", "metal", 2, 4, "white"));
-                Metals.Add(new Material("iridium", "metal", 4, 5, "gray"));
-                Metals.Add(new Material("steel", "metal", 5, 5, "gray"));
+                Metals.Add(new Material("lead", "metal", 2, 1, "black"));
+                Metals.Add(new Material("zinc", "metal", 2, 1, "white"));
+                Metals.Add(new Material("tin", "metal", 4, 2, "gray"));
+                Metals.Add(new Material("aluminum", "metal", 4, 2, "gray"));
+                Metals.Add(new Material("silver", "metal", 6, 3, "white"));
+                Metals.Add(new Material("gold", "metal", 6, 4, "yellow"));
+                Metals.Add(new Material("copper", "metal", 8, 2, "brown"));
+                Metals.Add(new Material("brass", "metal", 8, 2, "yellow"));
+                Metals.Add(new Material("nickel", "metal", 10, 3, "gray"));
+                Metals.Add(new Material("bronze", "metal", 10, 3, "orange"));
+                Metals.Add(new Material("platinum", "metal", 12, 4, "gray"));
+                Metals.Add(new Material("palladium", "metal", 12, 4, "gray"));
+                Metals.Add(new Material("chromium", "metal", 14, 5, "gray"));
+                Metals.Add(new Material("tungsten", "metal", 14, 5, "gray"));
+                Metals.Add(new Material("titanium", "metal", 16, 5, "white"));
+                Metals.Add(new Material("steel", "metal", 16, 4, "gray"));
+
 
                 Cloths.Add(new Material("fleece", "cloth", 3, 4, "white"));
                 Cloths.Add(new Material("silk", "cloth", 3, 4, "white"));
@@ -1144,6 +1193,7 @@ namespace Lightrealm
                 Ices.Add(new Material("clear ice", "ice", 3, 4, "white"));
             }
 
+            
 
             Length = length;
             Width = width;
@@ -1200,7 +1250,7 @@ namespace Lightrealm
             };
             List<(string, Material)> PhotonexusBodyParts = new List<(string, Material)>
             {
-                ("core", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel)
+                ("core", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15])
             };
             List<(string, Material)> ShadeBodyParts = new List<(string, Material)>
             {
@@ -1225,7 +1275,7 @@ namespace Lightrealm
 
             List<(string, Material)> CassartraeBodyParts = new List<(string, Material)>
             {
-                ("core", Steel)
+                ("core", Metals[15])
             };
 
             Races.Add(new Race("", "average", new List<(string, Material)>(), "white", new List<string>() { }, new List<string>() { }, 0));
@@ -1253,7 +1303,7 @@ namespace Lightrealm
             };
             List<(string, Material)> HypernexusBodyParts = new List<(string, Material)>
             {
-                ("core", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel), ("sphere", Steel)
+                ("core", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15]), ("sphere", Metals[15])
             };
             List<(string, Material)> ShadeheartBodyParts = new List<(string, Material)>
             {
@@ -1685,7 +1735,7 @@ namespace Lightrealm
                     ClaimSwathOfTerritory(c, l.X, l.Z, 2);
 
                     Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                    Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+                    Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0,4));
 
                     chosenBlock.Structures.Add(Prism);
                     l.Prism = Prism;
@@ -4018,7 +4068,10 @@ namespace Lightrealm
                                     {
                                         //craftsmanship
 
-                                        Material Metal = Metals[r.Next(Metals.Count)];
+                                        int totalMetals = Metals.Count;
+                                        int midpoint = totalMetals / 2; // This will give the midpoint of the list
+                                        Material Metal = Metals[r.Next(midpoint)]; //only use the first half of the materials
+
                                         List<string> metalObjects = new List<string>
                                         {
                                             "sword",
