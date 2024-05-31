@@ -23,6 +23,7 @@ using NAudio.Wave;
 using Vosk;
 using Newtonsoft.Json.Linq;
 using Model = Vosk.Model;
+using System.Reflection;
 
 
 #if WINDOWS
@@ -40,10 +41,15 @@ namespace Lightrealm
     {
         public static string Version = "alpha1";
 
-        private VoskRecognizer _recognizer;
-        private WaveInEvent _waveIn;
-        private bool _isRecording = false;
-        private Keys _recordKey = Keys.RightAlt;
+        private static bool _isRecording = false;
+        private static WaveInEvent _waveIn;
+        private static VoskRecognizer _recognizer;
+        public static int DeviceNumber;
+
+        public Model VoskModel;
+
+        [DllImport("kernel32.dll")]
+        private static extern bool FreeConsole();
 
         public bool SpeechToText = false;
 
@@ -1924,6 +1930,8 @@ namespace Lightrealm
             }
         }
 
+
+
         private static T DeserializeObjectFromBinaryFile<T>(string filePath)
         {
             using (FileStream fileStream = new FileStream(filePath, FileMode.Open))
@@ -1989,7 +1997,6 @@ namespace Lightrealm
 };
 
         public static List<TextStorage> Exposition = new List<TextStorage>();
-
 
         public static Dictionary<string, string> InvertDoorDirection = new Dictionary<string, string>();
 
@@ -2309,6 +2316,7 @@ namespace Lightrealm
         public Texture2D BleedT;
 
         public Texture2D FrameT;
+        public Texture2D SpeakingT;
 
         public Texture2D ArchitectHere;
         public Texture2D HealthGuiT;
@@ -2417,78 +2425,15 @@ namespace Lightrealm
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
 
-
             AllocConsole();
             Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
             Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
-
-            Console.WriteLine("Welcome to Lightrealm.");
-            Console.WriteLine("");
-            Console.WriteLine("");
-            Console.WriteLine("Load Speech to Text Model? (press Y or N)");
-
-            string s = Console.ReadKey().KeyChar.ToString();
-
-            if (s.ToLower() == "y")
-            {
-                Console.WriteLine("");
-                Console.WriteLine("Loading STT Model, this may take up to 30 seconds...");
-
-                SpeechToText = true;
-
-                // Set Vosk log level to debug to capture all logs
-                Vosk.Vosk.SetLogLevel(0);
-
-                string modelPath = Path.Combine(Content.RootDirectory, "vosk-model-en-us-0.22");
-                if (!Directory.Exists(modelPath))
-                {
-                    throw new DirectoryNotFoundException($"Model directory not found: {modelPath}");
-                }
-
-                Model model = new Model(modelPath);
-                _recognizer = new VoskRecognizer(model, 16000.0f);
-                _recognizer.SetMaxAlternatives(0);
-                _recognizer.SetWords(true);
-
-                Console.WriteLine("Available Input Devices:");
-                for (int i = 0; i < WaveInEvent.DeviceCount; i++)
-                {
-                    var deviceInfo = WaveInEvent.GetCapabilities(i);
-                    Console.WriteLine($"{i}: {deviceInfo.ProductName}");
-                }
-
-                Console.WriteLine("Please enter the number of the input device you want to use:");
-                int deviceNumber;
-                while (!int.TryParse(Console.ReadLine(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
-                {
-                    Console.WriteLine("Invalid input. Please enter a valid device number:");
-                }
-
-                _waveIn = new WaveInEvent
-                {
-                    DeviceNumber = deviceNumber,
-                    WaveFormat = new WaveFormat(16000, 1)
-                };
-                _waveIn.DataAvailable += OnDataAvailable;
-            }
-            else
-            {
-                Console.WriteLine("Skipping STT Model...");
-            }
-        }
-
-        private void OnDataAvailable(object sender, WaveInEventArgs args)
-        {
-            if (_recognizer.AcceptWaveform(args.Buffer, args.BytesRecorded))
-            {
-                var result = _recognizer.Result();
-                AppendToPrompt(result);
-            }
-            else
-            {
-                var partialResult = _recognizer.PartialResult();
-                AppendToPrompt(partialResult);
-            }
+            Console.WriteLine(" __       __    _______  __    __  .___________..______       _______     ___       __      .___  ___. ");
+            Console.WriteLine("|  |     |  |  /  _____||  |  |  | |           ||   _  \\     |   ____|   /   \\     |  |     |   \\/   | ");
+            Console.WriteLine("|  |     |  | |  |  __  |  |__|  | `---|  |----`|  |_)  |    |  |__     /  ^  \\    |  |     |  \\  /  | ");
+            Console.WriteLine("|  |     |  | |  | |_ | |   __   |     |  |     |      /     |   __|   /  /_\\  \\   |  |     |  |\\/|  | ");
+            Console.WriteLine("|  `----.|  | |  |__| | |  |  |  |     |  |     |  |\\  \\----.|  |____ /  _____  \\  |  `----.|  |  |  | ");
+            Console.WriteLine("|_______||__|  \\______| |__|  |__|     |__|     | _| `._____||_______/__/     \\__\\ |_______||__|  |__| ");
         }
 
         private void AppendToPrompt(string jsonResult)
@@ -2582,8 +2527,7 @@ namespace Lightrealm
         }
 
         protected override void Initialize()
-        {
-            // TODO: Add your initialization logic here
+        {// TODO: Add your initialization logic here
             Window.IsBorderless = true;
 
             PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
@@ -2593,10 +2537,6 @@ namespace Lightrealm
             _graphics.PreferredBackBufferHeight = PreferredBackBufferHeight;
 
             _graphics.ApplyChanges();
-
-            _waveIn = new WaveInEvent();
-            _waveIn.WaveFormat = new WaveFormat(16000, 1);
-            _waveIn.DataAvailable += OnDataAvailable;
 
             //determine the best way to draw the map
 
@@ -2616,10 +2556,50 @@ namespace Lightrealm
 
             //these commands may be suggested to the player while typing
 
-            Console.WriteLine("Initializing Databases...");
+
+            Console.WriteLine("\nEnable Speech To Text? This may take a minute to load. (Y/N)");
+
+            string ANS = Console.ReadKey().KeyChar.ToString();
+
+            if (ANS.ToLower() == "y")
+            {
+                SpeechToText = true;
+                Console.WriteLine("\nInitializing Databases... One Moment...");
+
+                // Initialize Vosk
+                Vosk.Vosk.SetLogLevel(0);
+                string modelPath = "C:\\Users\\maxpi\\OneDrive\\Desktop\\STT Test Mozilla Thing\\STT Test Mozilla Thing\\vosk-model-en-us-0.22\\";
+                VoskModel = new Model(modelPath);
+                _recognizer = new VoskRecognizer(VoskModel, 16000.0f);
+                _recognizer.SetMaxAlternatives(0);
+                _recognizer.SetWords(true);
+
+                // List available audio devices
+                Console.WriteLine("Available Input Devices:");
+                for (int i = 0; i < WaveInEvent.DeviceCount; i++)
+                {
+                    var deviceInfo = WaveInEvent.GetCapabilities(i);
+                    Console.WriteLine($"{i}: {deviceInfo.ProductName}");
+                }
+
+                // Select audio device
+                Console.WriteLine("Please enter the number of the input device you want to use:");
+                int deviceNumber;
+                while (!int.TryParse(Console.ReadLine(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
+                {
+                    Console.WriteLine("Invalid input. Please enter a valid device number:");
+                }
+
+                DeviceNumber = deviceNumber;
+            }
+            else
+            {
+                Console.WriteLine("\nInitializing Databases...");
+            }
+
 
             RecognizedCommands.Add("ask_name", new List<string> { "ask ~ /p name", "ask ~ for /p name", "ask ~ name" });
-            RecognizedCommands.Add("ask_directions", new List<string> { "ask ~ where ~ is", "ask ~ where I can find ~", "ask ~ where to find ~"}); 
+            RecognizedCommands.Add("ask_directions", new List<string> { "ask ~ where ~ is", "ask ~ where I can find ~", "ask ~ where to find ~" });
             RecognizedCommands.Add("ask_generic_directions", new List<string> { "ask ~ where a ~ is", "ask ~ where I can find a ~", "ask ~ where to find a ~", "ask ~ where the nearest ~ is", "ask ~ where I could find a ~", "ask ~ where an ~ is", "ask ~ where I can find an ~", "ask ~ where to find an ~" });
             RecognizedCommands.Add("ask_about_something", new List<string> { "ask ~ about ~", "ask ~ for information on ~", "ask ~ what they know about ~", "ask ~ what they can tell me about ~" });
             RecognizedCommands.Add("ask_ruler", new List<string> { "ask ~ about the government", "ask ~ who rules", "ask ~ who the government is", "ask ~ who rules here" });
@@ -2640,15 +2620,15 @@ namespace Lightrealm
             RecognizedCommands.Add("ask_interests", new List<string> { "ask ~ what interests /p", "ask ~ about /p interests", "ask ~ about /p hobbies", "ask ~ what hobbies /p have" });
             RecognizedCommands.Add("ask_family", new List<string> { "ask ~ about /p family", "ask ~ if /p has family", "ask ~ if /p has relatives", "ask ~ about /p relatives" });
             RecognizedCommands.Add("challenge", new List<string> { "challenge ~", "challenge ~ to a fight", "challenge ~ to a duel" });
-            RecognizedCommands.Add("provide_assistance", new List<string> { "ask ~ if they need help", "ask ~ if I can help"});
-            RecognizedCommands.Add("ask_advice", new List<string> { "ask ~ for advice on ~", "ask ~ advice on ~"});
-            RecognizedCommands.Add("inform_quest", new List<string> { "tell ~ about my quest", "tell ~ about my goal", "tell ~ about my mission", "tell ~ my goal", "tell ~ my mission", "tell ~ my quest"});
-            RecognizedCommands.Add("tell_story_about", new List<string> { "tell ~ about ~", "tell ~ the story of ~", "tell ~ a story about ~"});
+            RecognizedCommands.Add("provide_assistance", new List<string> { "ask ~ if they need help", "ask ~ if I can help" });
+            RecognizedCommands.Add("ask_advice", new List<string> { "ask ~ for advice on ~", "ask ~ advice on ~" });
+            RecognizedCommands.Add("inform_quest", new List<string> { "tell ~ about my quest", "tell ~ about my goal", "tell ~ about my mission", "tell ~ my goal", "tell ~ my mission", "tell ~ my quest" });
+            RecognizedCommands.Add("tell_story_about", new List<string> { "tell ~ about ~", "tell ~ the story of ~", "tell ~ a story about ~" });
             RecognizedCommands.Add("compliment", new List<string> { "compliment ~", "say something nice about ~", "be nice to ~" });
             RecognizedCommands.Add("insult", new List<string> { "insult ~", "defame ~" });
             RecognizedCommands.Add("surrender", new List<string> { "surrender to ~", "yield to ~", "give up to ~", "concede to ~" });
             RecognizedCommands.Add("demand_surrender", new List<string> { "demand ~ surrender", "demand ~ to surrender", "request ~ surrender", "ask ~ to surrender" });
-            RecognizedCommands.Add("demand_item", new List<string> { "demand from ~ ~ ", "demand from ~ a ~"});
+            RecognizedCommands.Add("demand_item", new List<string> { "demand from ~ ~ ", "demand from ~ a ~" });
 
             //add all the above ones to RecognizedMessages
 
@@ -3101,17 +3081,52 @@ namespace Lightrealm
             InvertDoorDirection.Add("up", "down");
             InvertDoorDirection.Add("down", "up");
 
+            Console.WriteLine("Initialization complete. Exiting application...");
+
+            FreeConsole();
             FrameCounter = new FrameCounter();
             GameInput = new GameInput();
             base.Initialize();
         }
 
+
+        private void OnDataAvailable(object sender, WaveInEventArgs e)
+        {
+            if (_recognizer.AcceptWaveform(e.Buffer, e.BytesRecorded))
+            {
+                var result = _recognizer.Result();
+                DisplayResult(result);
+            }
+            else
+            {
+                var partialResult = _recognizer.PartialResult();
+                DisplayResult(partialResult);
+            }
+        }
+
+        private void OnRecordingStopped(object sender, StoppedEventArgs e)
+        {
+            if (e.Exception != null)
+            {
+                // Handle exceptions here
+                Console.WriteLine($"Exception: {e.Exception.Message}");
+            }
+        }
+
+        private void DisplayResult(string result)
+        {
+            var jsonResult = JObject.Parse(result);
+            var text = jsonResult["text"]?.ToString() ?? string.Empty;
+
+            // Append text to your prompt or handle it accordingly
+            MostRecentPartyTurnArchitect.Prompt += text;
+        }
+
+
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             ContentRoot = Content.RootDirectory;
-
-            Console.WriteLine("Loading Game Data...");
 
             // Load your icon texture
             myIconTexture = Content.Load<Texture2D>("Icon");
@@ -3128,9 +3143,8 @@ namespace Lightrealm
             Syllables = File.ReadAllLines(string.Concat(dataPath, "syllables.txt")).ToList();
             NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
 
-            Console.WriteLine("Loading Game Assets...");
-
             FrameT = Content.Load<Texture2D>("frame");
+            SpeakingT = Content.Load<Texture2D>("speaking");
 
             Shibafont = Content.Load<SpriteFont>("shibafont");
             BabyShibafont = Content.Load<SpriteFont>("babyshibafont");
@@ -3304,8 +3318,6 @@ namespace Lightrealm
             MessageGUIT = Content.Load<Texture2D>("messageGUI");
             LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
 
-            Console.WriteLine("Building Characters...");
-
             CharacterAtlas["amulet"] = AmuletT = Content.Load<Texture2D>("character art/amulet");
             CharacterAtlas["archaixfemale"] = ArchaixFemaleT = Content.Load<Texture2D>("character art/archaixfemale");
             CharacterAtlas["archaixmale"] = ArchaixMaleT = Content.Load<Texture2D>("character art/archaixmale");
@@ -3350,9 +3362,6 @@ namespace Lightrealm
 
             MirrorT = Content.Load<Texture2D>("character art/mirror");
 
-
-            Console.WriteLine("Importing Recipes...");
-
             // Define the file path for 'recipes.txt'
             string filePath = Path.Combine(dataPath, "recipes.txt");
 
@@ -3393,12 +3402,9 @@ namespace Lightrealm
                 // Handle the case where the file does not exist
                 Console.WriteLine("Recipes file not found.");
             }
-
-
-            Console.WriteLine("Content Load Complete.");
         }
 
-        protected override void Update(GameTime gameTime)
+        protected override async void Update(GameTime gameTime)
         {
             GameInput.Update();
 
@@ -3429,28 +3435,7 @@ namespace Lightrealm
             {
                 EscapeTicks = 0;
             }
-
-
-            if (Keyboard.GetState().IsKeyDown(_recordKey) && SpeechToText)
-            {
-                if (!_isRecording)
-                {
-                    _isRecording = true;
-                    _waveIn.StartRecording();
-                }
-            }
-            else
-            {
-                if (_isRecording)
-                {
-                    _isRecording = false;
-                    _waveIn.StopRecording();
-                    var finalResult = _recognizer.FinalResult();
-                    AppendToPrompt(finalResult);
-                }
-            }
-
-
+            
 
             //BEFORE WE DO ANYTHING, FIX THE LOADED ARCHITECT THINGY
 
@@ -4684,32 +4669,45 @@ namespace Lightrealm
                     }
                     else if (GameState == "partyturn")
                     {
-                        try
+                        if (SpeechToText)
                         {
-                            if (Keyboard.GetState().IsKeyDown(Keys.RightAlt) && SpeechToText)
+                            if (KeysNewlyPressed.Contains(Keys.RightAlt))
                             {
-                                if (!_isRecording)
+                                if(!_isRecording)
                                 {
-                                    _isRecording = true;
-                                    _waveIn.StartRecording();
-                                }
-                            }
-                            else
-                            {
-                                if (_isRecording)
-                                {
-                                    _isRecording = false;
-                                    _waveIn.StopRecording();
-                                    var finalResult = _recognizer.FinalResult();
-                                    AppendToPrompt(finalResult);
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error during recording process: {ex.Message}");
-                        }
+                                    //START recording
+                                    _recognizer = new VoskRecognizer(VoskModel, 16000.0f);
+                                    _recognizer.SetMaxAlternatives(0);
+                                    _recognizer.SetWords(true);
 
+                                    _waveIn = new WaveInEvent();
+                                    _waveIn.DeviceNumber = DeviceNumber;
+                                    _waveIn.WaveFormat = new WaveFormat(16000, 1);
+
+                                    _waveIn.DataAvailable += (sender, args) =>
+                                    {
+                                        if (_recognizer.AcceptWaveform(args.Buffer, args.BytesRecorded))
+                                        {
+                                            var result = _recognizer.Result();
+                                            DisplayResult(result);
+                                        }
+                                        else
+                                        {
+                                            var partialResult = _recognizer.PartialResult();
+                                            DisplayResult(partialResult);
+                                        }
+                                    };
+
+                                    _waveIn.StartRecording();
+                                    _isRecording = true;
+                                }
+                                else if (_isRecording)
+                                {
+                                    _waveIn.StopRecording();
+                                    _isRecording = false;
+                                }
+                            }
+                        }
 
                         //yehe les dub chek
 
@@ -6894,6 +6892,20 @@ namespace Lightrealm
                         }
                     }
                 }
+
+
+                if(_isRecording)
+                {
+                    int rectaWidth = (int)(100 * Scale);  // Width of the recta rectangle
+                    int rectaHeight = (int)(100 * Scale); // Height of the recta rectangle
+
+                    int rectaX = x + scaledWidth;  // Position to the right of the character's rectangle
+                    int rectaY = y;  // Close to the top of the character's rectangle
+
+                    Rectangle recta = new Rectangle(rectaX, rectaY, rectaWidth, rectaHeight);
+
+                    _spriteBatch.Draw(SpeakingT, recta, Color.White);
+                }
             }
 
 
@@ -7925,8 +7937,6 @@ namespace Lightrealm
 
                     //district map
 
-                    /*
-
                     _spriteBatch.Draw(FrameT, backgroundRect, Color.White);
 
                     _spriteBatch.DrawString(Shibafont, "Press CTRL+? for Help", new Vector2(600, 1350), Color.White);
@@ -8193,7 +8203,6 @@ namespace Lightrealm
                             }
                         }
                     }
-                    */
 
                     //debt
 
