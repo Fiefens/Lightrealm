@@ -58,6 +58,9 @@ namespace Lightrealm
         public static int MapCursorX { get; set; } = 0;
         public static int MapCursorZ { get; set; } = 0;
 
+        public static bool EnableTTS;
+        public static bool SimplifiedFont;
+
         public int LatestTraveledDay { get; set; }
 
         public static List<Entity> CollectAllSubjects(Architect executor)
@@ -2427,13 +2430,15 @@ namespace Lightrealm
 
             AllocConsole();
             Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
-            Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
-            Console.WriteLine(" __       __    _______  __    __  .___________..______       _______     ___       __      .___  ___. ");
-            Console.WriteLine("|  |     |  |  /  _____||  |  |  | |           ||   _  \\     |   ____|   /   \\     |  |     |   \\/   | ");
-            Console.WriteLine("|  |     |  | |  |  __  |  |__|  | `---|  |----`|  |_)  |    |  |__     /  ^  \\    |  |     |  \\  /  | ");
-            Console.WriteLine("|  |     |  | |  | |_ | |   __   |     |  |     |      /     |   __|   /  /_\\  \\   |  |     |  |\\/|  | ");
-            Console.WriteLine("|  `----.|  | |  |__| | |  |  |  |     |  |     |  |\\  \\----.|  |____ /  _____  \\  |  `----.|  |  |  | ");
-            Console.WriteLine("|_______||__|  \\______| |__|  |__|     |__|     | _| `._____||_______/__/     \\__\\ |_______||__|  |__| ");
+            Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true }); 
+            Console.WriteLine("  _     _       _     _                  _           ");
+            Console.WriteLine(" | |   (_) __ _| |__ | |_ _ __ ___  __ _| |_ __ ___  ");
+            Console.WriteLine(" | |   | |/ _` | '_ \\| __| '__/ _ \\/ _` | | '_ ` _ \\ ");
+            Console.WriteLine(" | |___| | (_| | | | | |_| | |  __/ (_| | | | | | | |");
+            Console.WriteLine(" |_____|_|\\__, |_| |_|\\__|_|  \\___|\\__,_|_|_| |_| |_|");
+            Console.WriteLine("          |___/                                      ");
+            Console.WriteLine("                                              Launcher");
+
         }
 
         private void AppendToPrompt(string jsonResult)
@@ -2554,14 +2559,98 @@ namespace Lightrealm
                 Directory.CreateDirectory(DocumentsFolderPath + "/LightrealmSaves");
             }
 
-            //these commands may be suggested to the player while typing
+            static void EnsureSettingsFile(string path, ref bool enableTTS, ref bool simplifiedFont)
+            {
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                if (!File.Exists(path))
+                {
+                    File.WriteAllLines(path, new[] { "T:0", "S:0" });
+                }
+
+                string[] settingsLines = File.ReadAllLines(path);
+                foreach (string line in settingsLines)
+                {
+                    string[] setting = line.Split(':');
+                    if (setting.Length != 2) continue;
+
+                    switch (setting[0])
+                    {
+                        case "T":
+                            enableTTS = setting[1] == "1";
+                            break;
+                        case "S":
+                            simplifiedFont = setting[1] == "1";
+                            break;
+                    }
+                }
+            }
+
+            static void SaveSettings(string path, bool enableTTS, bool simplifiedFont)
+            {
+                string[] settingsLines =
+                {
+            $"T:{(enableTTS ? 1 : 0)}",
+            $"S:{(simplifiedFont ? 1 : 0)}"
+        };
+
+                File.WriteAllLines(path, settingsLines);
+            }
 
 
-            Console.WriteLine("\nEnable Speech To Text? This may take a minute to load. (Y/N)");
 
-            string ANS = Console.ReadKey().KeyChar.ToString();
+            string settingsPath = Path.Combine(DocumentsFolderPath, "LightrealmSaves", "settings.txt");
 
-            if (ANS.ToLower() == "y")
+            // Ensure the settings file exists and load settings
+            EnableTTS = false;
+            SimplifiedFont = false;
+            EnsureSettingsFile(settingsPath, ref EnableTTS, ref SimplifiedFont);
+
+            bool Break = false;
+
+            while (!Break)
+            {
+                Console.WriteLine("Current Settings:");
+                Console.WriteLine($"Text To Speech (Press T): {(EnableTTS ? "Enabled" : "Disabled")}");
+                Console.WriteLine($"Simplified Font (Press F): {(SimplifiedFont ? "Enabled" : "Disabled")}");
+                Console.WriteLine($"Press S to begin.");
+
+                string key = Console.ReadKey().KeyChar.ToString().ToUpper();
+
+                //CLEAR LAST 4 LINES
+                int currentLineCursor = Console.CursorTop;
+                for (int i = 0; i < 5; i++)
+                {
+                    Console.SetCursorPosition(0, currentLineCursor - i);
+                    Console.Write(new string(' ', Console.WindowWidth));
+                }
+                Console.SetCursorPosition(0, currentLineCursor - 4);
+
+                if (key == "T")
+                {
+                    EnableTTS = !EnableTTS;
+                }
+                else if (key == "F")
+                {
+                    SimplifiedFont = !SimplifiedFont;
+                }
+                else if (key == "S")
+                {
+                    Break = true;
+                }
+            }
+
+            // Save settings to file
+            SaveSettings(settingsPath, EnableTTS, SimplifiedFont);
+
+
+
+
+            if (EnableTTS)
             {
                 SpeechToText = true;
                 Console.WriteLine("\nInitializing Databases... One Moment...");
@@ -3129,10 +3218,10 @@ namespace Lightrealm
             ContentRoot = Content.RootDirectory;
 
             // Load your icon texture
-            myIconTexture = Content.Load<Texture2D>("Icon");
+            myIconTexture = Content.Load<Texture2D>("icons/Icon");
 
             // Assuming your icon is a Texture2D loaded from the Content Pipeline
-            Texture2D iconTexture = Content.Load<Texture2D>("Icon");
+            Texture2D iconTexture = Content.Load<Texture2D>("icons/Icon");
 
             ContentPath = Path.GetFullPath("Content");
             string dataPath = string.Concat(ContentPath, "\\data\\");
@@ -3143,11 +3232,19 @@ namespace Lightrealm
             Syllables = File.ReadAllLines(string.Concat(dataPath, "syllables.txt")).ToList();
             NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
 
-            FrameT = Content.Load<Texture2D>("frame");
-            SpeakingT = Content.Load<Texture2D>("speaking");
+            FrameT = Content.Load<Texture2D>("gui/frame");
+            SpeakingT = Content.Load<Texture2D>("icons/speaking");
 
-            Shibafont = Content.Load<SpriteFont>("shibafont");
-            BabyShibafont = Content.Load<SpriteFont>("babyshibafont");
+            if(SimplifiedFont)
+            {
+                Shibafont = Content.Load<SpriteFont>("spritefonts/shibafont2");
+                BabyShibafont = Content.Load<SpriteFont>("spritefonts/babyshibafont2");
+            }
+            else
+            {
+                Shibafont = Content.Load<SpriteFont>("spritefonts/shibafont");
+                BabyShibafont = Content.Load<SpriteFont>("spritefonts/babyshibafont");
+            }
 
             DesertT = Content.Load<Texture2D>("tiles/desert");
             TileAtlas.Add("desert", DesertT);
@@ -3174,15 +3271,15 @@ namespace Lightrealm
 
             PortT = Content.Load<Texture2D>("tiles/port");
 
-            PyramidT = Content.Load<Texture2D>("tiles/locationtiles/pyramid");
+            PyramidT = Content.Load<Texture2D>("locationtiles/pyramid");
             TileAtlas.Add("pyramid", PyramidT);
-            ToroidT = Content.Load<Texture2D>("tiles/locationtiles/toroid");
+            ToroidT = Content.Load<Texture2D>("locationtiles/toroid");
             TileAtlas.Add("toroid", ToroidT);
-            TowersT = Content.Load<Texture2D>("tiles/locationtiles/towers");
+            TowersT = Content.Load<Texture2D>("locationtiles/towers");
             TileAtlas.Add("towers", TowersT);
-            HallwayT = Content.Load<Texture2D>("tiles/locationtiles/hallway");
+            HallwayT = Content.Load<Texture2D>("locationtiles/hallway");
             TileAtlas.Add("hallway", HallwayT);
-            ArchwayT = Content.Load<Texture2D>("tiles/locationtiles/archway");
+            ArchwayT = Content.Load<Texture2D>("locationtiles/archway");
             TileAtlas.Add("archway", ArchwayT);
 
             DistrictEmptyDesertT = Content.Load<Texture2D>("distmap/emptydesert");
@@ -3223,99 +3320,98 @@ namespace Lightrealm
             DistrictTowerT = Content.Load<Texture2D>("distmap/tower");
             DistrictTowersT = Content.Load<Texture2D>("distmap/towers");
 
-            TitleScreen = Content.Load<Texture2D>("title");
+            TitleScreen = Content.Load<Texture2D>("other/title");
             EmptyTileT = Content.Load<Texture2D>("tiles/emptytile");
-            GUI = Content.Load<Texture2D>("gui");
-            HelpGUI = Content.Load<Texture2D>("helpgui");
-            InventoryGUI = Content.Load<Texture2D>("inventory gui");
+            GUI = Content.Load<Texture2D>("gui/gui");
+            HelpGUI = Content.Load<Texture2D>("gui/helpgui");
+            InventoryGUI = Content.Load<Texture2D>("gui/inventory gui");
 
-            nightfellCampT = Content.Load<Texture2D>("tiles/locationtiles/nightfellcamp");
+            nightfellCampT = Content.Load<Texture2D>("locationtiles/nightfellcamp");
             TileAtlas.Add("nightfellcamp", nightfellCampT);
-            nightfellVillageT = Content.Load<Texture2D>("tiles/locationtiles/nightfellvillage");
+            nightfellVillageT = Content.Load<Texture2D>("locationtiles/nightfellvillage");
             TileAtlas.Add("nightfellvillage", nightfellVillageT);
-            nightfellTownT = Content.Load<Texture2D>("tiles/locationtiles/nightfelltown");
+            nightfellTownT = Content.Load<Texture2D>("locationtiles/nightfelltown");
             TileAtlas.Add("nightfelltown", nightfellTownT);
-            nightfellCityT = Content.Load<Texture2D>("tiles/locationtiles/nightfellcity");
+            nightfellCityT = Content.Load<Texture2D>("locationtiles/nightfellcity");
             TileAtlas.Add("nightfellcity", nightfellCityT);
 
-            LuminarchCampT = Content.Load<Texture2D>("tiles/locationtiles/luminarchcamp");
+            LuminarchCampT = Content.Load<Texture2D>("locationtiles/luminarchcamp");
             TileAtlas.Add("luminarchcamp", LuminarchCampT);
-            LuminarchVillageT = Content.Load<Texture2D>("tiles/locationtiles/luminarchvillage");
+            LuminarchVillageT = Content.Load<Texture2D>("locationtiles/luminarchvillage");
             TileAtlas.Add("luminarchvillage", LuminarchVillageT);
-            LuminarchTownT = Content.Load<Texture2D>("tiles/locationtiles/luminarchtown");
+            LuminarchTownT = Content.Load<Texture2D>("locationtiles/luminarchtown");
             TileAtlas.Add("luminarchtown", LuminarchTownT);
-            LuminarchCityT = Content.Load<Texture2D>("tiles/locationtiles/luminarchcity");
+            LuminarchCityT = Content.Load<Texture2D>("locationtiles/luminarchcity");
             TileAtlas.Add("luminarchcity", LuminarchCityT);
 
-            LostCampT = Content.Load<Texture2D>("tiles/locationtiles/lostcamp");
+            LostCampT = Content.Load<Texture2D>("locationtiles/lostcamp");
             TileAtlas.Add("archaixcamp", LostCampT);
-            LostVillageT = Content.Load<Texture2D>("tiles/locationtiles/lostvillage");
+            LostVillageT = Content.Load<Texture2D>("locationtiles/lostvillage");
             TileAtlas.Add("archaixvillage", LostVillageT);
-            LostTownT = Content.Load<Texture2D>("tiles/locationtiles/losttown");
+            LostTownT = Content.Load<Texture2D>("locationtiles/losttown");
             TileAtlas.Add("archaixtown", LostTownT);
-            LostCityT = Content.Load<Texture2D>("tiles/locationtiles/lostcity");
+            LostCityT = Content.Load<Texture2D>("locationtiles/lostcity");
             TileAtlas.Add("archaixcity", LostCityT);
 
-            PhotonexusOutpostT = Content.Load<Texture2D>("tiles/locationtiles/photonexusoutpost");
+            PhotonexusOutpostT = Content.Load<Texture2D>("locationtiles/photonexusoutpost");
             TileAtlas.Add("photonexusgarrison", PhotonexusOutpostT);
-            PhotonexusCoreT = Content.Load<Texture2D>("tiles/locationtiles/photonexuscore");
+            PhotonexusCoreT = Content.Load<Texture2D>("locationtiles/photonexuscore");
             TileAtlas.Add("photonexuscore", PhotonexusCoreT);
-            IsofractalOutpostT = Content.Load<Texture2D>("tiles/locationtiles/isofractaloutpost");
+            IsofractalOutpostT = Content.Load<Texture2D>("locationtiles/isofractaloutpost");
             TileAtlas.Add("isofractalgarrison", IsofractalOutpostT);
-            IsofractalCoreT = Content.Load<Texture2D>("tiles/locationtiles/isofractalcore");
+            IsofractalCoreT = Content.Load<Texture2D>("locationtiles/isofractalcore");
             TileAtlas.Add("isofractalcore", IsofractalCoreT);
-            ShadeOutpostT = Content.Load<Texture2D>("tiles/locationtiles/shadeoutpost");
+            ShadeOutpostT = Content.Load<Texture2D>("locationtiles/shadeoutpost");
             TileAtlas.Add("shadegarrison", ShadeOutpostT);
-            ShadeCoreT = Content.Load<Texture2D>("tiles/locationtiles/shadecore");
+            ShadeCoreT = Content.Load<Texture2D>("locationtiles/shadecore");
             TileAtlas.Add("shadecore", ShadeCoreT);
 
             OutlineT = Content.Load<Texture2D>("tiles/outline");
 
-            SpireT = Content.Load<Texture2D>("tiles/locationtiles/spire");
+            SpireT = Content.Load<Texture2D>("locationtiles/spire");
             TileAtlas.Add("spire", SpireT);
-            OutpostT = Content.Load<Texture2D>("tiles/locationtiles/outpost");
+            OutpostT = Content.Load<Texture2D>("locationtiles/outpost");
             TileAtlas.Add("outpost", OutpostT);
 
-            StrongholdT = Content.Load<Texture2D>("tiles/locationtiles/stronghold");
+            StrongholdT = Content.Load<Texture2D>("locationtiles/stronghold");
             TileAtlas.Add("stronghold", StrongholdT);
 
-            CoveT = Content.Load<Texture2D>("tiles/locationtiles/cove");
+            CoveT = Content.Load<Texture2D>("locationtiles/cove");
             TileAtlas.Add("cove", CoveT);
-            CommuneT = Content.Load<Texture2D>("tiles/locationtiles/commune");
+            CommuneT = Content.Load<Texture2D>("locationtiles/commune");
             TileAtlas.Add("commune", CommuneT);
-            HoardT = Content.Load<Texture2D>("tiles/locationtiles/hoard");
+            HoardT = Content.Load<Texture2D>("locationtiles/hoard");
             TileAtlas.Add("hoard", HoardT);
-            PreserveT = Content.Load<Texture2D>("tiles/locationtiles/preserve");
+            PreserveT = Content.Load<Texture2D>("locationtiles/preserve");
             TileAtlas.Add("preserve", PreserveT);
-            MonasteryT = Content.Load<Texture2D>("tiles/locationtiles/monastery");
+            MonasteryT = Content.Load<Texture2D>("locationtiles/monastery");
             TileAtlas.Add("monastery", MonasteryT);
 
-            KeepT = Content.Load<Texture2D>("tiles/locationtiles/keep");
+            KeepT = Content.Load<Texture2D>("locationtiles/keep");
             TileAtlas.Add("keep", KeepT);
-            TowerT = Content.Load<Texture2D>("tiles/locationtiles/tower");
+            TowerT = Content.Load<Texture2D>("locationtiles/tower");
             TileAtlas.Add("tower", TowerT);
-            FortressT = Content.Load<Texture2D>("tiles/locationtiles/fortress");
+            FortressT = Content.Load<Texture2D>("locationtiles/fortress");
             TileAtlas.Add("fortress", FortressT);
-            MonumentT = Content.Load<Texture2D>("tiles/locationtiles/monument");
+            MonumentT = Content.Load<Texture2D>("locationtiles/monument");
             TileAtlas.Add("monument", MonumentT);
 
-            Astrionalis = Content.Load<Texture2D>("astrionalis");
-            Celestrioris = Content.Load<Texture2D>("celestrioris");
-
-            Gradient = Content.Load<Texture2D>("gradient");
+            Astrionalis = Content.Load<Texture2D>("other/astrionalis");
+            Celestrioris = Content.Load<Texture2D>("other/celestrioris");
+            
             CursorT = Content.Load<Texture2D>("tiles/cursor");
-            GuideT = Content.Load<Texture2D>("moveguide");
-            HealthGuiT = Content.Load<Texture2D>("healthgui");
+            GuideT = Content.Load<Texture2D>("icons/moveguide");
+            HealthGuiT = Content.Load<Texture2D>("icons/healthgui");
 
-            SanctumT = Content.Load<Texture2D>("tiles/locationtiles/sanctum");
+            SanctumT = Content.Load<Texture2D>("locationtiles/sanctum");
             TileAtlas.Add("sanctum", SanctumT);
 
             ArchitectHere = Content.Load<Texture2D>("distmap/architecthere");
-            BleedT = Content.Load<Texture2D>("droplet");
+            BleedT = Content.Load<Texture2D>("icons/droplet");
 
-            whiteRect = Content.Load<Texture2D>("pixel");
-            ReactionGUIT = Content.Load<Texture2D>("reaction gui");
-            MessageGUIT = Content.Load<Texture2D>("messageGUI");
+            whiteRect = Content.Load<Texture2D>("other/pixel");
+            ReactionGUIT = Content.Load<Texture2D>("gui/reaction gui");
+            MessageGUIT = Content.Load<Texture2D>("gui/messageGUI");
             LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
 
             CharacterAtlas["amulet"] = AmuletT = Content.Load<Texture2D>("character art/amulet");
