@@ -34,6 +34,7 @@ namespace Lightrealm
     {
         public List<string> ItemTypesInCirculation = new List<string>();
 
+        public int NextUniqueID = 0;
 
         public int ConvertLevelToToughness(int level)
         {
@@ -51,6 +52,28 @@ namespace Lightrealm
             int toughness = minToughness + (level - minLevel) * (maxToughness - minToughness) / (maxLevel - minLevel);
             return toughness;
         }
+
+        public Dictionary<string, List<Material>> MaterialsFromColors = new Dictionary<string, List<Material>>
+        {
+            { "maroon", new List<Material>{ new Material("mahogany", "wood", 1, 1, "maroon"), new Material("beetle", "insect", 1, 1, "maroon"), new Material("rust", "metal", 1, 1, "maroon") } },
+            { "red", new List<Material>{ new Material("rose", "plant", 1, 1, "red"), new Material("tulip", "plant", 1, 1, "red"), new Material("clay", "sediment", 1, 1, "red") } },
+            { "orange", new List<Material>{ new Material("citrus", "plant", 1, 1, "orange"), new Material("amber", "plant", 1, 1, "orange"), new Material("copper", "metal", 1, 1, "orange") } },
+            { "yellow", new List<Material>{ new Material("emberflare", "plant", 1, 1, "yellow"), new Material("honey", "plant", 1, 1, "yellow"), new Material("lemon", "plant", 1, 1, "yellow") } },
+            { "limegreen", new List<Material>{ new Material("lime", "plant", 1, 1, "limegreen"), new Material("emerald grass", "plant", 1, 1, "limegreen"), new Material("verdant wing feather", "feather", 1, 1, "limegreen") } },
+            { "green", new List<Material>{ new Material("lichen", "plant", 1, 1, "green"), new Material("cactus", "plant", 1, 1, "green"), new Material("moss", "plant", 1, 1, "green") } },
+            { "lightblue", new List<Material>{ new Material("feather", "feather", 1, 1, "lightblue"), new Material("slush", "stone", 1, 1, "lightblue"), new Material("aquamarine", "gemstone", 1, 1, "lightblue") } },
+            { "cyan", new List<Material>{ new Material("algae", "plant", 1, 1, "cyan"), new Material("turquoise", "gemstone", 1, 1, "cyan"), new Material("electric eel skin", "leather", 1, 1, "cyan") } },
+            { "blue", new List<Material>{ new Material("blueberry juice", "fruit", 1, 1, "blue"), new Material("sapphire gem", "gem", 1, 1, "blue"), new Material("deep ocean silt", "sediment", 1, 1, "blue") } },
+            { "purple", new List<Material>{ new Material("royal grapes", "fruit", 1, 1, "purple"), new Material("amethyst crystal", "gem", 1, 1, "purple"), new Material("mystic flower", "plant", 1, 1, "purple") } },
+            { "magenta", new List<Material>{ new Material("wild berry blend", "fruit", 1, 1, "magenta"), new Material("pink petals", "plant", 1, 1, "magenta"), new Material("rose quartz", "gem", 1, 1, "magenta") } },
+            { "coral", new List<Material>{ new Material("coral branch", "coral", 1, 1, "coral"), new Material("sea anemone", "animal", 1, 1, "coral"), new Material("tropical shell", "shell", 1, 1, "coral") } },
+            { "white", new List<Material>{ new Material("pure snowflake", "ice", 1, 1, "white"), new Material("moonstone", "gem", 1, 1, "white"), new Material("cloud feathers", "feather", 1, 1, "white") } },
+            { "gray", new List<Material>{ new Material("ashen soil", "sediment", 1, 1, "gray"), new Material("smoky quartz", "gem", 1, 1, "gray"), new Material("stormy cloud", "cloud", 1, 1, "gray") } },
+            { "black", new List<Material>{ new Material("obsidian rock", "rock", 1, 1, "black"), new Material("midnight rose", "plant", 1, 1, "black"), new Material("shadowy silk", "fabric", 1, 1, "black") } },
+            { "brown", new List<Material>{ new Material("earthy bark", "wood", 1, 1, "brown"), new Material("cocoa beans", "plant", 1, 1, "brown"), new Material("hazel nuts", "nut", 1, 1, "brown") } }
+
+            //fix this later but I don't want to right now
+        };
 
 
         public bool LostPlaced = false;
@@ -216,7 +239,7 @@ namespace Lightrealm
                         var location = WorldMap[x + z * Width].MyLocation;
                         if (location != null)
                         {
-                            if ((location.Type == "outpost" || ProcgenStructures.Contains(location.Type)) && distance <= 1)
+                            if ((location.Type == "outpost" || location.Type == "keep" || ProcgenStructures.Contains(location.Type)) && distance <= 1)
                             {
                                 // Reveal Outposts and procgen structures within 1 tile radius
                                 location.Explored = true;
@@ -2291,7 +2314,7 @@ namespace Lightrealm
                     {
                         int X = Game1.r.Next(Width);
                         int Z = Game1.r.Next(Length);
-                        if (WorldMap[X + Z * Width].Biome != "ocean" && WorldMap[X + Z * Width].Biome != "void")
+                        if (WorldMap[X + Z * Width].Biome != "ocean" && WorldMap[X + Z * Width].Biome != "void" && WorldMap[X + Z * Width].MyLocation == null)
                         {
                             FoundSpot = true;
                             LocationBuilderPacket l = new LocationBuilderPacket(Calamity[0], X, Z, "stronghold", GetRace(""), 0, 0, Calamity[0].HomeLocation.HomeCivilization, new List<Object>(), null, "none");
@@ -2455,6 +2478,10 @@ namespace Lightrealm
                                     }
 
                                     FoundGuy.Inventory.AddRange(LootTableMachine("bosstreasure" + Math.Round((double)(FoundGuy.Level / 2), MidpointRounding.ToPositiveInfinity)));
+
+                                    //spells
+
+                                    FoundGuy.AssignSpells();
 
                                     FoundGuy.Master = Calamitizer;
                                     List<string> Relations = new List<string>
@@ -4832,25 +4859,7 @@ namespace Lightrealm
 
                                     if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock") /*for some reason this is running for everyone and infusing everyone lmaoooo*/)
                                     {
-                                        foreach (string s in Game1.AllSpells)
-                                        {
-                                            if (!a.SpellsKnown.Contains(s))
-                                            {
-                                                PossibleInfusionSpells.Add(s);
-                                            }
-                                        }
-
-                                        int SpellCount = Game1.r.Next(3, 8);
-
-                                        for (int i = 0; i < SpellCount; i++)
-                                        {
-                                            if (PossibleInfusionSpells.Count > 0)
-                                            {
-                                                int SpellInt = Game1.r.Next(PossibleInfusionSpells.Count);
-                                                a.SpellsKnown.Add(PossibleInfusionSpells[SpellInt]);
-                                                PossibleInfusionSpells.RemoveAt(SpellInt);
-                                            }
-                                        }
+                                        a.AssignSpells();
 
                                         if (a.Destiny == "warlock")
                                         {

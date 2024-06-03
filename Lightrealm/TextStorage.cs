@@ -12,12 +12,16 @@ namespace Lightrealm
     {
         public string Data { get; set; }
         public Color Color { get; set; }
+        public List<Entity> Entities { get; set; }
 
-        public TextStorage(string data, Color color)
+        public TextStorage(string data, Color color, List<Entity> Entities)
         {
             this.Data = data;
             this.Color = color;
+            this.Entities = Entities;
         }
+
+
         public TextStorage()
         {
 

@@ -216,18 +216,18 @@ namespace Lightrealm
             double coverageMissChance = (Coverage / 22.5) * 75;
             if (Game1.r.Next(100) < coverageMissChance)
             {
-                Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green));
+                Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green, new List<Entity>()));
                 return Announcements;
             }
 
             if (Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
             {
-                Announcements.Add(new TextStorage("The attack breaks through and damages " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green));
+                Announcements.Add(new TextStorage("The attack breaks through and damages " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
                 ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
             }
             else if (((Architect)Owner).NaturalArmor > 0)
             {
-                Announcements.Add(new TextStorage("The attack damages, but does not pierce " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green));
+                Announcements.Add(new TextStorage("The attack damages, but does not pierce " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
                 ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
                 return Announcements;
             }
@@ -239,37 +239,37 @@ namespace Lightrealm
 
             if (IntegrityDamage > 0)
             {
-                Announcements.Add(new TextStorage("The attack damages " + ReferredToNames[0] + "!", Color.Orange));
+                Announcements.Add(new TextStorage("The attack damages " + ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { this }));
             }
             else
             {
-                Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red));
+                Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red, new List<Entity>() { this }));
             }
 
             if (Bleeding > 5)
             {
-                Announcements.Add(new TextStorage("The attack pierces multiple membranes, causing heavy bleeding!", Color.Green));
+                Announcements.Add(new TextStorage("The attack pierces multiple membranes, causing heavy bleeding!", Color.Green, new List<Entity>()));
             }
             else if (Bleeding > 3)
             {
-                Announcements.Add(new TextStorage("The attack pierces a membrane, causing bleeding!", Color.Green));
+                Announcements.Add(new TextStorage("The attack pierces a membrane, causing bleeding!", Color.Green, new List<Entity>()));
             }
             else if (Bleeding > 1)
             {
-                Announcements.Add(new TextStorage("The attack draws a small amount of blood!", Color.Green));
+                Announcements.Add(new TextStorage("The attack draws a small amount of blood!", Color.Green, new List<Entity>()));
             }
 
             if (Pain > 10)
             {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green));
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator)}));
             }
             else if (Pain > 7)
             {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green));
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
             }
             else if (Pain > 5)
             {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green));
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new List<Entity>() { ((Architect)Creator) }));
             }
 
             ((Architect)Owner).Bleeding += Bleeding;
@@ -313,7 +313,7 @@ namespace Lightrealm
             if (((Architect)Owner).Energy < 1 && MeleeAttacker != null && MeleeAttacker.FinaleReady)
             {
                 MeleeAttacker.FinaleReady = false;
-                Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green));
+                Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
 
                 List<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
                 foreach (Architect a in nearbyPeoples)
@@ -325,7 +325,7 @@ namespace Lightrealm
          (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
                     {
                         a.Energy -= 30;
-                        Announcements.Add(new TextStorage(a.ReferredToNames[0] + " looks drained!", Color.Green));
+                        Announcements.Add(new TextStorage(a.ReferredToNames[0] + " looks drained!", Color.Green, new List<Entity>() { a }));
                     }
                 }
             }
@@ -413,6 +413,18 @@ namespace Lightrealm
             }
 
             ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
+
+            if (Game1.SplitMode)
+            {
+                if (ReferredToNames.Count > 0)
+                {
+                    string firstName = ReferredToNames[0]; 
+                    ClearReferredToNames();
+                    ReferredToNames.Add($"{firstName} ({ID})");
+                    ReferredToNames.Add(firstName);
+                    ReferredToNames.Add(ID.ToString());
+                }
+            }
         }
 
         public void UpdateSelfActionsAndSuch()
@@ -467,11 +479,11 @@ namespace Lightrealm
                     {
                         if (Integrity > 0)
                         {
-                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange);
+                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange, new List<Entity>() { this });
                         }
                         else
                         {
-                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange);
+                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange, new List<Entity>() { this });
                         }
                     }
                 }
@@ -978,7 +990,6 @@ namespace Lightrealm
                     break;
                 case "greatsword":
                     Weight = 2000;
-                    WeaponMaximumRange = 1;
                     IsWeapon = true;
                     DamageType = "slashing";
                     Description = "A large sword excelling in causing significant bleeding and damage.";

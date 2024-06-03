@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
+using NAudio.Midi;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,8 +12,9 @@ namespace Lightrealm
     public class Entity
     {
         public string Name { get; set; }
-
+        public int ID;
         private List<string> _referredToNames = new List<string>();
+        public Rectangle Hitbox = new Rectangle();
 
         public List<string> ReferredToNames
         {
@@ -45,7 +48,16 @@ namespace Lightrealm
 
         public Entity()
         {
-
+            if(Game1.GameWorld != null)
+            {
+                ID = Game1.GameWorld.NextUniqueID;
+                Game1.GameWorld.NextUniqueID++;
+            }
+            else
+            {
+                ID = Game1.TemporaryNextUniqueID;
+                Game1.TemporaryNextUniqueID++;
+            }
         }
 
         public Entity(string metadata)

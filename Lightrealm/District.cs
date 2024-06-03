@@ -377,7 +377,7 @@ namespace Lightrealm
                     {
                         string DyeColor = Game1.GetFamilyColors(Location.HomeCivilization.Color)[Game1.r.Next(3)];
                         Object dyeBottle = new Object(null, "bottle", new List<Material>() { Game1.GameWorld.Glass }, null);
-                        dyeBottle.ContainedObjects.Add(new Object(null, "dye", new List<Material>() { Game1.MaterialsFromColors[DyeColor][Game1.r.Next(3)] }, null));
+                        dyeBottle.ContainedObjects.Add(new Object(null, "dye", new List<Material>() { Game1.GameWorld.MaterialsFromColors[DyeColor][Game1.r.Next(3)] }, null));
                         Objects.Add(dyeBottle);
                     }
                     break;
@@ -551,9 +551,12 @@ namespace Lightrealm
                 {
                     foreach(Architect a in g.Architects)
                     {
-                        Location.Market.Rooms[0].Architects.Add(a);
-                        a.Room = Location.Market.Rooms[0];
-                        a.Block = a.Room.Structure.Block;
+                        if (!Game1.GamePlayerParty.Architects.Contains(a))
+                        {
+                            Location.Market.Rooms[0].Architects.Add(a);
+                            a.Room = Location.Market.Rooms[0];
+                            a.Block = a.Room.Structure.Block;
+                        }
                     }
                 }
             }
