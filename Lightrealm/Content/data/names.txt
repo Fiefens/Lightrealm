@@ -33,7 +33,6 @@ Nocturne
 Crimson
 Nexus
 Quasar
-Vanguard
 Eon
 Solaris
 Havoc

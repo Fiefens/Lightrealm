@@ -22,7 +22,14 @@ namespace Lightrealm
             {
                 if (_referredToNames.Count == 0)
                 {
-                    return new List<string> { Name };
+                    if (this is Object && Name == null)
+                    {
+                        return new List<string> { Game1.FormatMaterialList(((Object)this).Materials) + " " + ((Object)this).Type };
+                    }
+                    else
+                    {
+                        return new List<string> { Name };
+                    }
                 }
                 return _referredToNames;
             }

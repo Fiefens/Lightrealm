@@ -62,7 +62,7 @@ namespace Lightrealm
 
         public bool SpeechToText = false;
 
-        public List<Entity> ThisList = new List<Entity>();
+        public static List<Entity> ThisList = new List<Entity>();
 
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -2154,6 +2154,14 @@ namespace Lightrealm
         Texture2D InventoryGUI;
         Texture2D ThisListT;
 
+        Texture2D SkillPullUpT;
+        Texture2D SpellPullUpT;
+        Texture2D BodyPartPullUpT;
+        public static bool IsShowingSkills = false;
+        public static bool IsShowingSpells = false;
+        public static bool IsShowingBodyParts = false;
+
+
         public Dictionary<Keys, string> KeyAtlas = new Dictionary<Keys, string>();
         public Dictionary<Keys, string> UpperKeyAtlas = new Dictionary<Keys, string>();
 
@@ -2331,6 +2339,7 @@ namespace Lightrealm
         public Texture2D GuideT;
         public Texture2D ReactionGUIT;
         public Texture2D MessageGUIT;
+        public Texture2D CmdHelpT;
         public Texture2D BleedT;
 
         public Texture2D FrameT;
@@ -3130,6 +3139,7 @@ namespace Lightrealm
                 {"scholar", "library"},
                 {"sorcerer", "spire"},
                 {"warlock", "spire"},
+                {"duelist", "tower"},
                 {"alpha", "prism"},
                 {"child", "house"},
                 {"prestiged", "house"},
@@ -3446,6 +3456,9 @@ namespace Lightrealm
             HelpGUI = Content.Load<Texture2D>("gui/helpgui");
             InventoryGUI = Content.Load<Texture2D>("gui/inventory gui");
             ThisListT = Content.Load<Texture2D>("gui/thislist");
+            SkillPullUpT = Content.Load<Texture2D>("gui/skillpullup");
+            SpellPullUpT = Content.Load<Texture2D>("gui/spellpullup");
+            BodyPartPullUpT = Content.Load<Texture2D>("gui/bodypartpullup");
 
             nightfellCampT = Content.Load<Texture2D>("locationtiles/nightfellcamp");
             TileAtlas.Add("nightfellcamp", nightfellCampT);
@@ -3533,6 +3546,7 @@ namespace Lightrealm
             whiteRect = Content.Load<Texture2D>("other/pixel");
             ReactionGUIT = Content.Load<Texture2D>("gui/reaction gui");
             MessageGUIT = Content.Load<Texture2D>("gui/messageGUI");
+            CmdHelpT = Content.Load<Texture2D>("gui/cmdhelp");
             LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
 
             CharacterAtlas["amulet"] = AmuletT = Content.Load<Texture2D>("character art/amulet");
@@ -5259,6 +5273,7 @@ namespace Lightrealm
                                 if (CommandBuilderStage == "execution")
                                 {
                                     CommandProcessor.RunCommand(MostRecentPartyTurnArchitect, SelectedCommand, SelectedEntities, LoadedArchitects, GameWorld, r, GamePlayerParty);
+                                    ThisList.Clear();
                                     ResetCommandBuilder();
                                 }
                             }
@@ -5705,6 +5720,7 @@ namespace Lightrealm
                                                     }
 
                                                     // Assuming `RunCommand` is adapted to accept a command ID
+                                                    ThisList.Clear();
                                                     return CommandProcessor.RunCommand(executor, commandId, subjects, LoadedArchitects, GameWorld, r, GamePlayerParty);
                                                 }
 
@@ -7445,9 +7461,21 @@ namespace Lightrealm
                 _spriteBatch.Draw(MirrorT, newRect, Color.White);
 
                 // Add hitbox for the character frame
-                EntityHitboxes.Add((newRect, a));
+                if (!IsShowingSkills)
+                {
+                    if (SplitMode && GamePlayerParty.Architects.Contains(a))
+                    {
+                        // Add a hitbox that only encompasses the top half of the original rectangle
+                        Rectangle halfRect = new Rectangle(newRect.X, newRect.Y, newRect.Width, newRect.Height / 2);
+                        EntityHitboxes.Add((halfRect, a));
+                    }
+                    else
+                    {
+                        EntityHitboxes.Add((newRect, a));
+                    }
+                }
 
-
+                // Draw character based on their race and sex
                 if (!GameWorld.HumanoidRaces.Contains(a.Race))
                 {
                     _spriteBatch.Draw(FlairT, ChosenRect, Color.White);
@@ -7521,8 +7549,7 @@ namespace Lightrealm
                     }
                 }
 
-
-                if(_isRecording)
+                if (_isRecording)
                 {
                     int rectaWidth = (int)(100 * Scale);  // Width of the recta rectangle
                     int rectaHeight = (int)(100 * Scale); // Height of the recta rectangle
@@ -7535,6 +7562,7 @@ namespace Lightrealm
                     _spriteBatch.Draw(SpeakingT, recta, Color.White);
                 }
             }
+
 
 
             if (KeysNewlyPressed.Contains(Keys.PageUp) && Keyboard.GetState().IsKeyDown(Keys.LeftAlt))
@@ -7674,14 +7702,14 @@ namespace Lightrealm
                 // Adjust the x position to center the text on the specified centerX
                 float xPosition = centerX - (textSize.X / 2);
 
-            // Adjust the y position to center the text on the specified centerY
-            float yPosition = centerY - (textSize.Y / 2);
+                // Adjust the y position to center the text on the specified centerY
+                float yPosition = centerY - (textSize.Y / 2);
 
-            // Create a Vector2 for the adjusted position
-            Vector2 position = new Vector2(xPosition, yPosition);
+                // Create a Vector2 for the adjusted position
+                Vector2 position = new Vector2(xPosition, yPosition);
 
-            // Draw the text at the calculated position with the specified font and color
-            spriteBatch.DrawString(font, text, position, Color.White);
+                // Draw the text at the calculated position with the specified font and color
+                spriteBatch.DrawString(font, text, position, Color.White);
             }
 
             int DrawX = 1400;
@@ -8313,7 +8341,6 @@ namespace Lightrealm
             }
             else if (GameState == "partyturn" || GameState == "reaction" || GameState == "otherturn" || GameState == "messagereply")
             {
-
                 if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
                 {
                     _spriteBatch.Draw(HelpGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
@@ -8417,22 +8444,6 @@ namespace Lightrealm
                     }
 
                     _spriteBatch.DrawString(Shibafont, "Press TAB for More.", new Vector2(420, 270), Color.White);
-
-
-
-
-                    if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
-                    {
-                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
-                    }
-                    else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
-                    {
-                        _spriteBatch.DrawString(Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1150), Color.White);
-                    }
-                    else
-                    {
-                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
-                    }
 
 
                     int Line = 0;
@@ -9086,79 +9097,84 @@ namespace Lightrealm
                             // Eventually, this will break out so you can modify the command you are currently working on by yourself.
                         }
 
+                        startY = 400; // Consistent starting Y position
+
                         // Draw categories
                         if (CommandBuilderStage == "categories")
                         {
                             var categories = new Dictionary<int, string>
-        {
-            { 1, "General" },
-            { 2, "Questions" },
-            { 3, "Requests" },
-            { 4, "Movement" },
-            { 5, "Offensive" },
-            { 6, "Defensive" },
-            { 7, "Items" },
-            { 8, "Creativity" },
-            { 9, "Movement" }
-        };
-
-                            int yPosition = 400; // Starting Y position
-                            foreach (var category in categories)
                             {
-                                _spriteBatch.DrawString(BabyShibafont, $"[{category.Key}] {category.Value}", new Vector2(850, yPosition), Color.White);
-                                yPosition += 40; // Adjust spacing as needed
-                            }
+                                { 1, "General" },
+                                { 2, "Questions" },
+                                { 3, "Requests" },
+                                { 4, "Movement" },
+                                { 5, "Offensive" },
+                                { 6, "Defensive" },
+                                { 7, "Items" },
+                                { 8, "Creativity" },
+                                { 9, "Movement" }
+                            };
+
+                            DrawListInColumns(categories.Select(c => $"[{c.Key}] {c.Value}").ToList(), 830, startY, 40, 50, BabyShibafont);
                         }
                         // Draw commands
                         else if (CommandBuilderStage == "commands")
                         {
                             var commands = GetCommandsForCategory(SelectedCategory);
-                            int yPosition = 600; // Starting Y position
                             var keys = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" };
 
-                            for (int i = 0; i < commands.Count && i < keys.Count; i++)
-                            {
-                                _spriteBatch.DrawString(BabyShibafont, $"[{keys[i]}] {commands[i]}", new Vector2(1050, yPosition), Color.White);
-                                yPosition += 40; // Adjust spacing as needed
-                            }
+                            var commandList = commands.Take(keys.Count).Select((cmd, index) => $"[{keys[index]}] {cmd}").ToList();
+                            DrawListInColumns(commandList, 830, startY, 40, 50, BabyShibafont);
                         }
                         // Draw pickingsubjects
                         else if (CommandBuilderStage == "pickingsubjects")
                         {
-                            int yPositionLeft = 600; // Starting Y position for the left column
-                            int yPositionRight = 600; // Starting Y position for the right column
+                            int yPositionLeft = startY; // Starting Y position for the left column
+                            int yPositionRight = startY; // Starting Y position for the right column
                             int entitiesPerColumn = 10; // 10 entities per column
                             int startIndex = CurrentCommandBuilderPage * 20; // Calculate start index based on the current page
 
                             // Draw subjects
                             if (RelevantEntities.Count == 0)
                             {
-                                _spriteBatch.DrawString(BabyShibafont, "No Applicable Subjects", new Vector2(1050, yPositionLeft), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "No Applicable Subjects", new Vector2(830, yPositionLeft), Color.White);
                             }
                             else
                             {
+                                var subjectList = new List<string>();
                                 for (int i = 0; i < 20 && (startIndex + i) < RelevantEntities.Count; i++)
                                 {
                                     var entity = RelevantEntities[startIndex + i];
-                                    string displayText = entity.ReferredToNames[0]; // Or any other relevant property of the entity
-
-                                    if (i < entitiesPerColumn)
-                                    {
-                                        // Left column
-                                        _spriteBatch.DrawString(BabyShibafont, $"[{i + 1}] {displayText}", new Vector2(1050, yPositionLeft), Color.White);
-                                        yPositionLeft += 40; // Adjust spacing as needed
-                                    }
-                                    else
-                                    {
-                                        // Right column
-                                        _spriteBatch.DrawString(BabyShibafont, $"[{(char)('Q' + (i - entitiesPerColumn))}] {displayText}", new Vector2(1550, yPositionRight), Color.White);
-                                        yPositionRight += 40; // Adjust spacing as needed
-                                    }
+                                    subjectList.Add($"[{i + 1}] {entity.ReferredToNames[0]}");
                                 }
+                                DrawListInColumns(subjectList, 830, startY, 40, 50, BabyShibafont);
                             }
 
                             // Draw guides at the bottom
-                            _spriteBatch.DrawString(BabyShibafont, "[X] Go Back    [Z] Finish Manually", new Vector2(1050, 1050), Color.White);
+                            _spriteBatch.DrawString(BabyShibafont, "[X] Go Back", new Vector2(830, 1050), Color.White);
+                        }
+                    }
+
+
+                    void DrawListInColumns(List<string> items, int startX, int startY, int lineSpacing, int boundaryPadding, SpriteFont font)
+                    {
+                        int xPosition = startX;
+                        int yPosition = startY;
+                        int columnWidth = 960; // Half of the MessageGUIT width
+
+                        foreach (var item in items)
+                        {
+                            // Check if item would get too close to the right boundary of the MessageGUIT
+                            if (yPosition + lineSpacing > 1080 - boundaryPadding)
+                            {
+                                xPosition += columnWidth;
+                                yPosition = startY;
+                            }
+
+                            // Draw the item
+                            _spriteBatch.DrawString(font, item, new Vector2(xPosition, yPosition), Color.White);
+
+                            yPosition += lineSpacing;
                         }
                     }
 
@@ -9182,44 +9198,39 @@ namespace Lightrealm
                 else
                 {
                     _spriteBatch.Draw(InventoryGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
-                    if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
-                    {
-                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1175), Color.White);
-                    }
-                    else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
-                    {
-                        _spriteBatch.DrawString(Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1175), Color.White);
-                    }
-                    else
-                    {
-                        _spriteBatch.DrawString(Shibafont, "w h a t", new Vector2(50, 1175), Color.White);
-                    }
-
-
-
-
 
                     int line = 0;
-
-                    void DrawTextAtPosition(SpriteBatch spriteBatch, string text, Vector2 position, SpriteFont font)
-                    {
-                        spriteBatch.DrawString(font, text, position, Color.White);
-                    }
 
                     var sourceObjects = MostRecentPartyTurnArchitect.Inventory;
                     var structuredList = CondenseAndStructureList(sourceObjects, SplitMode);
                     DrawList(_spriteBatch, structuredList, new Vector2(2100, 100), BabyShibafont, CurrentObjectPage, ItemsPerPage);
-                    
+
                     line = 0;
                     if (MostRecentPartyTurnArchitect.Clothing.Count == 0)
                     {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No clothing. Please put some on.", 1625, 425, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, "You have no clothing. Please put some on.", 1625, 425, BabyShibafont);
                     }
                     else
                     {
                         foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
                         {
-                            DrawCenteredTextAtPosition(_spriteBatch, o.ReferredToNames[0], 1625, 425 + 20 * line, BabyShibafont);
+                            float centerY = 425 + 20 * line;
+                            string text = o.ReferredToNames[0];
+
+                            // Draw the text
+                            DrawCenteredTextAtPosition(_spriteBatch, text, 1625, centerY, BabyShibafont);
+
+                            // Measure the size of the text
+                            Vector2 textSize = BabyShibafont.MeasureString(text);
+
+                            // Calculate the position to start drawing the text so that it is centered on (1625, centerY)
+                            float xPosition = 1625 - (textSize.X / 2);
+                            float yPosition = centerY - (textSize.Y / 2);
+
+                            // Create a Rectangle for the hitbox
+                            Rectangle hitbox = new Rectangle((int)xPosition, (int)yPosition, (int)textSize.X, (int)textSize.Y);
+                            EntityHitboxes.Add((hitbox, o));
+
                             line++;
                         }
                     }
@@ -10142,7 +10153,7 @@ namespace Lightrealm
 
                     if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                     {
-                        string initialText = "Enter a command or press ~: \"I ";
+                        string initialText = "Enter a command. Press F5 For Help: \"I ";
                         Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
                         float StartX = 50 + sizeOfInitialText.X;
 
@@ -10201,11 +10212,29 @@ namespace Lightrealm
                         }
                     }
 
-                    _spriteBatch.DrawString(Shibafont, "Enter a command or press ~: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Enter a command. Press F5 For Help: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
 
+
+                    if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
+                    {
+                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
+                    }
+                    else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
+                    {
+                        _spriteBatch.DrawString(Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1150), Color.White);
+                    }
+                    else
+                    {
+                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
+                    }
                 }
 
+                //cmd help
 
+                if(Keyboard.GetState().IsKeyDown(Keys.F5))
+                {
+                    _spriteBatch.Draw(CmdHelpT, new Rectangle(0, 0, 2560, 1440), Color.White);
+                }
 
             }
             else if (GameState == "dead")
@@ -10575,6 +10604,153 @@ namespace Lightrealm
                         }
                     }
                 }
+                //handle pull up menus and ThisList
+
+                int screenWidth = _graphics.PreferredBackBufferWidth;
+                int screenHeight = _graphics.PreferredBackBufferHeight;
+                int textureWidth = 420;
+                int textureHeight = 560;
+                int visibleHeight = 90;
+                int offsetY = screenHeight - visibleHeight;
+
+                // Determine positions (on the right side of the screen)
+                Vector2 skillPosition = new Vector2(screenWidth - 10 - textureWidth * 3 - 20, offsetY);
+                Vector2 spellPosition = new Vector2(screenWidth - 10 - textureWidth * 2 - 10, offsetY);
+                Vector2 bodyPartPosition = new Vector2(screenWidth - 10 - textureWidth, offsetY);
+
+                // Handle mouse hover and show menus
+                MouseState mouseState = Mouse.GetState();
+                Vector2 mousePosition = new Vector2(mouseState.X, mouseState.Y);
+
+                // Check for hover over small textures
+                Rectangle skillRect = new Rectangle(skillPosition.ToPoint(), new Point(textureWidth, visibleHeight));
+                Rectangle spellRect = new Rectangle(spellPosition.ToPoint(), new Point(textureWidth, visibleHeight));
+                Rectangle bodyPartRect = new Rectangle(bodyPartPosition.ToPoint(), new Point(textureWidth, visibleHeight));
+
+                // Adjust positions if showing
+                if (IsShowingSkills)
+                {
+                    skillPosition.Y = screenHeight - textureHeight;
+                    skillRect = new Rectangle(skillPosition.ToPoint(), new Point(textureWidth, textureHeight));
+                }
+                if (IsShowingSpells)
+                {
+                    spellPosition.Y = screenHeight - textureHeight;
+                    spellRect = new Rectangle(spellPosition.ToPoint(), new Point(textureWidth, textureHeight));
+                }
+                if (IsShowingBodyParts)
+                {
+                    bodyPartPosition.Y = screenHeight - textureHeight;
+                    bodyPartRect = new Rectangle(bodyPartPosition.ToPoint(), new Point(textureWidth, textureHeight));
+                }
+
+                // Update showing states and adjust positions
+                if (skillRect.Contains(mousePosition))
+                {
+                    IsShowingSkills = true;
+                }
+                else if (!skillRect.Contains(mousePosition))
+                {
+                    IsShowingSkills = false;
+                    skillPosition.Y = offsetY;
+                }
+
+                if (spellRect.Contains(mousePosition))
+                {
+                    IsShowingSpells = true;
+                }
+                else if (!spellRect.Contains(mousePosition))
+                {
+                    IsShowingSpells = false;
+                    spellPosition.Y = offsetY;
+                }
+
+                if (bodyPartRect.Contains(mousePosition))
+                {
+                    IsShowingBodyParts = true;
+                }
+                else if (!bodyPartRect.Contains(mousePosition))
+                {
+                    IsShowingBodyParts = false;
+                    bodyPartPosition.Y = offsetY;
+                }
+
+                // Draw the textures
+                _spriteBatch.Draw(SkillPullUpT, skillPosition, IsShowingSkills ? Color.White : Color.Gray);
+                _spriteBatch.Draw(SpellPullUpT, spellPosition, IsShowingSpells ? Color.White : Color.Gray);
+                _spriteBatch.Draw(BodyPartPullUpT, bodyPartPosition, IsShowingBodyParts ? Color.White : Color.Gray);
+
+                // Draw text and hitboxes for each menu when fully shown
+                if (IsShowingSkills)
+                {
+                    DrawTextInMenu(skillPosition, MostRecentPartyTurnArchitect.SkillsKnown, "Skills");
+                }
+                if (IsShowingSpells)
+                {
+                    DrawTextInMenu(spellPosition, MostRecentPartyTurnArchitect.SpellsKnown, "Spells");
+                }
+                if (IsShowingBodyParts)
+                {
+                    var bodyParts = GetUniqueBodyParts(MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Architects : MostRecentPartyTurnArchitect.Block.Architects);
+                    DrawTextInMenu(bodyPartPosition, bodyParts, "Body Parts");
+                }
+
+
+                void DrawTextInMenu(Vector2 position, List<string> items, string itemType)
+                {
+                    float startY = position.Y + 100;
+                    float offsetX = position.X + 50;
+                    float centerX = position.X + textureWidth / 2;
+
+                    if (items.Count == 0)
+                    {
+                        _spriteBatch.DrawString(BabyShibafont, $"No Relevant {itemType}.", new Vector2(offsetX, startY), Color.White);
+                        return;
+                    }
+
+                    int line = 0;
+                    foreach (var item in items)
+                    {
+                        string text = item;
+                        float textY = startY + line * BabyShibafont.LineSpacing;
+
+                        // Draw the text aligned to the left side of the hitbox
+                        _spriteBatch.DrawString(BabyShibafont, text, new Vector2(offsetX, textY), Color.White);
+
+                        // Create a Rectangle for the hitbox
+                        Vector2 textSize = BabyShibafont.MeasureString(text);
+                        Rectangle hitbox = new Rectangle((int)offsetX, (int)textY, (int)textSize.X, (int)textSize.Y);
+                        EntityHitboxes.Add((hitbox, new Entity(text)));
+
+                        // Move to the second row if the text would draw offscreen
+                        if (textY + textSize.Y > position.Y + textureHeight - 100)
+                        {
+                            offsetX = centerX;
+                            line = 0;
+                            startY = position.Y + 100;
+                        }
+                        else
+                        {
+                            line++;
+                        }
+                    }
+                }
+
+                List<string> GetUniqueBodyParts(IEnumerable<Architect> architects)
+                {
+                    var bodyPartTypes = new HashSet<string>();
+                    foreach (var architect in architects)
+                    {
+                        foreach (var bodyPart in architect.BodyParts)
+                        {
+                            bodyPartTypes.Add(bodyPart.Type);
+                        }
+                    }
+                    return bodyPartTypes.ToList();
+                }
+
+
+
 
                 // Draw the hitbox borders
                 foreach ((Rectangle rect, Entity entity) in EntityHitboxes)
@@ -10596,13 +10772,9 @@ namespace Lightrealm
                     _spriteBatch.Draw(whiteRect, new Rectangle(rect.X + rect.Width - scaledBorderSizeX, rect.Y, scaledBorderSizeX, rect.Height), Color.White);
                 }
 
-                //handle thislist iteslef
-
                 if (ThisList.Count > 0)
                 {
                     int mouseX = Mouse.GetState().X;
-                    int screenWidth = _graphics.PreferredBackBufferWidth;
-                    int screenHeight = _graphics.PreferredBackBufferHeight;
 
                     // Determine the position to draw ThisListT
                     Vector2 texturePosition;
@@ -10634,9 +10806,8 @@ namespace Lightrealm
                         }
                     }
                 }
+
             }
-
-
 
             _spriteBatch.End();
 
