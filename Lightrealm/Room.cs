@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NAudio.MediaFoundation;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -37,6 +38,61 @@ namespace Lightrealm
             return Doors;
         }
 
+        public Door FindQuickestExitDoor()
+        {
+            if (Structure == null || Structure.Rooms == null || Structure.Rooms.Count == 0)
+            {
+                return null;
+            }
+
+            Room exitRoom = Structure.Rooms[0];
+            if (this != exitRoom)
+            {
+                return null; // Already in the exit room
+            }
+
+            // Use BFS to find the shortest path to the exit room
+            Queue<Room> queue = new Queue<Room>();
+            Dictionary<Room, Door> cameFrom = new Dictionary<Room, Door>();
+            HashSet<Room> visited = new HashSet<Room>();
+
+            queue.Enqueue(this);
+            visited.Add(this);
+
+            while (queue.Count > 0)
+            {
+                Room currentRoom = queue.Dequeue();
+
+                foreach (Object obj in currentRoom.Objects)
+                {
+                    if (obj is Door door)
+                    {
+                        Room nextRoom = door.DestinationRoom;
+                        if (!visited.Contains(nextRoom))
+                        {
+                            visited.Add(nextRoom);
+                            queue.Enqueue(nextRoom);
+                            cameFrom[nextRoom] = door;
+
+                            if (nextRoom == exitRoom)
+                            {
+                                // Backtrack to find the first door in the path
+                                Door quickestDoor = door;
+                                while (cameFrom.ContainsKey(currentRoom) && cameFrom[currentRoom] != null)
+                                {
+                                    quickestDoor = cameFrom[currentRoom];
+                                    currentRoom = quickestDoor.SourceRoom;
+                                }
+                                return quickestDoor;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null; // No path to exit room found
+        }
+
         public Room()
         {
 
@@ -50,7 +106,7 @@ namespace Lightrealm
             void AddObject(string type, Material material, bool isContainer = false)
             {
                 Object o = new Object(null, type, new List<Material> { material }, null);
-                o.Room = this; o.Structure = this.Structure; o.Block = this.Structure.Block;
+                o.Room = this; o.Block = this.Structure.Block;
                 Objects.Add(o);
             }
             
@@ -61,7 +117,7 @@ namespace Lightrealm
 
                 // Add exit door if it's the first room
                 if (Position == 0)
-                    AddObject("door", m);
+                    AddObject("exit door", m);
 
                 // Add random number of bookcases
                 for (int i = Game1.r.Next(0, 2); i > 0; i--)
@@ -115,7 +171,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // First room specific setup
-                    AddObject("door", Game1.GameWorld.Glass);  // Entrance door for the first room
+                    AddObject("exit door", Game1.GameWorld.Glass);  // Entrance door for the first room
 
                     // Door leading to the next room
                     string ForwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count)];
@@ -167,7 +223,7 @@ namespace Lightrealm
                 }
             }
 
-            else if (Structure.Type == "archway")
+            else if (Structure.Block.District.Location.Layout == "archway")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
@@ -177,7 +233,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // First room: add entrance door
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
 
                 if (Position < QuarterRooms)
@@ -221,7 +277,7 @@ namespace Lightrealm
                     if (Position == TotalRooms - 1)
                     {
                         // Last room: add exit door
-                        AddObject("door", m);
+                        AddObject("exit door", m);
                     }
                 }
             }
@@ -234,7 +290,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door
-                    AddObject("door", m);
+                    AddObject("exit door", m);
 
                     // Add staircase up to the central room
                     Door staircaseUp = new Door(this, Structure.Rooms[Position + 1], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -277,25 +333,56 @@ namespace Lightrealm
             }
             else if (Structure.Type == "core" || Structure.Type == "heart")
             {
-                Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
+                Material m;
+
+                if(Structure.Type == "core")
+                {
+                    m = Structure.Block.District.Location.HomeCivilization.CulturalGemstone;
+                }
+                else
+                {
+                    m = Game1.GameWorld.ShadeSludge;
+                }
+
                 int Position = Structure.Rooms.IndexOf(this);
 
                 // Central room
                 if (Position == 0)
                 {
+                    // Add entrance door
+                    AddObject("exit door", m);
+
                     // Add doors to north, east, south, west, up, and down rooms
-                    Door northDoor = new Door(this, Structure.Rooms[Position + 1], "north", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door eastDoor = new Door(this, Structure.Rooms[Position + 2], "east", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door southDoor = new Door(this, Structure.Rooms[Position + 3], "south", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door westDoor = new Door(this, Structure.Rooms[Position + 4], "west", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door upDoor = new Door(this, Structure.Rooms[Position + 5], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door downDoor = new Door(this, Structure.Rooms[Position + 6], "down", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(northDoor);
-                    Objects.Add(eastDoor);
-                    Objects.Add(southDoor);
-                    Objects.Add(westDoor);
-                    Objects.Add(upDoor);
-                    Objects.Add(downDoor);
+                    if (Structure.Rooms.Count > 1)
+                    {
+                        Door northDoor = new Door(this, Structure.Rooms[1], "north", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(northDoor);
+                    }
+                    if (Structure.Rooms.Count > 2)
+                    {
+                        Door eastDoor = new Door(this, Structure.Rooms[2], "east", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(eastDoor);
+                    }
+                    if (Structure.Rooms.Count > 3)
+                    {
+                        Door southDoor = new Door(this, Structure.Rooms[3], "south", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(southDoor);
+                    }
+                    if (Structure.Rooms.Count > 4)
+                    {
+                        Door westDoor = new Door(this, Structure.Rooms[4], "west", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(westDoor);
+                    }
+                    if (Structure.Rooms.Count > 5)
+                    {
+                        Door upDoor = new Door(this, Structure.Rooms[5], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(upDoor);
+                    }
+                    if (Structure.Rooms.Count > 6)
+                    {
+                        Door downDoor = new Door(this, Structure.Rooms[6], "down", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(downDoor);
+                    }
                 }
                 // North, East, South, West, Up, and Down rooms
                 else if (Position >= 1 && Position <= 6)
@@ -323,8 +410,11 @@ namespace Lightrealm
                             direction = "down";
                             break;
                     }
-                    Door nextRoomDoor = new Door(this, Structure.Rooms[Position + 6], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(nextRoomDoor);
+                    if (Position + 6 < Structure.Rooms.Count)
+                    {
+                        Door nextRoomDoor = new Door(this, Structure.Rooms[Position + 6], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(nextRoomDoor);
+                    }
                 }
                 // Remaining rooms
                 else
@@ -340,11 +430,32 @@ namespace Lightrealm
                 // Add door to connect to the previous room, except for the central room
                 if (Position > 0)
                 {
-                    Door previousRoomDoor = new Door(this, Structure.Rooms[Position - 1], "back", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    string previousDirection = ""; // determine the direction to connect to the previous room based on layout
+                    switch (Position % 6)
+                    {
+                        case 1:
+                            previousDirection = "north";
+                            break;
+                        case 2:
+                            previousDirection = "east";
+                            break;
+                        case 3:
+                            previousDirection = "south";
+                            break;
+                        case 4:
+                            previousDirection = "west";
+                            break;
+                        case 5:
+                            previousDirection = "up";
+                            break;
+                        case 0:
+                            previousDirection = "down";
+                            break;
+                    }
+                    Door previousRoomDoor = new Door(this, Structure.Rooms[Position - 1], previousDirection, null, previousDirection == "up" || previousDirection == "down" ? "staircase" : "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Structure.Rooms[Position - 1].Objects.Add(previousRoomDoor);
                 }
             }
-
             else if (Structure.Type == "fortress")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
@@ -354,6 +465,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add random doors to connect to other rooms
+                    AddObject("exit door", m);
                     List<string> directions = new List<string> { "north", "east", "south", "west", "up", "down" };
                     int numDoors = Game1.r.Next(2, directions.Count);  // Random number of doors between 2 and the number of directions
                     for (int i = 0; i < numDoors; i++)
@@ -410,7 +522,7 @@ namespace Lightrealm
                     Structure.Rooms[Position - 1].Objects.Add(previousRoomDoor);
                 }
             }
-            else if (Structure.Type == "hallway")
+            else if (Structure.Block.District.Location.Layout == "hallway")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
@@ -419,19 +531,29 @@ namespace Lightrealm
                 string[] horizontalDirections = new string[] { "north", "east", "south", "west" };
                 string direction;
 
-                // If it's the first room, determine the direction randomly
                 if (Position == 0)
                 {
+                    // Determine the direction randomly for the first room
                     direction = horizontalDirections[Game1.r.Next(horizontalDirections.Length)];
+
+                    // Create door to the next room
                     Door initialDoor = new Door(this, Structure.Rooms[Position + 1], direction, null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(initialDoor);
+
+                    AddObject("exit door", m);
                 }
                 else
                 {
                     // For subsequent rooms, use the direction of the previous room's door
-                    direction = ((Door)(Objects[0])).Direction; // Assuming the first object is always the door leading to the next room
-                    Door nextDoor = new Door(this, Structure.Rooms[Position + 1], direction, null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(nextDoor);
+                    Door previousRoomDoor = (Door)Structure.Rooms[Position - 1].Objects.First(o => o is Door);
+                    direction = previousRoomDoor.Direction;
+
+                    // Create door to the next room
+                    if (Position < Structure.Rooms.Count - 1)
+                    {
+                        Door nextDoor = new Door(this, Structure.Rooms[Position + 1], direction, null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(nextDoor);
+                    }
                 }
 
                 // Add door to connect to the previous room
@@ -460,6 +582,7 @@ namespace Lightrealm
                     Structure.Rooms[Position - 1].Objects.Add(previousRoomDoor);
                 }
             }
+
             else if (Structure.Type == "keep")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
@@ -468,7 +591,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -518,7 +641,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -569,7 +692,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -620,7 +743,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -670,7 +793,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -721,7 +844,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -763,7 +886,7 @@ namespace Lightrealm
                     Structure.Rooms[randomPreviousRoomIndex].Objects.Add(previousRoomDoor);
                 }
             }
-            else if (Structure.Type == "pyramid")
+            else if (Structure.Block.District.Location.Layout == "pyramid")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
@@ -773,6 +896,13 @@ namespace Lightrealm
                 int firstFloorCount = TotalRooms / 2;           // 3/6 of the rooms
                 int secondFloorCount = TotalRooms / 3;          // 2/6 of the rooms
                 int thirdFloorCount = TotalRooms - firstFloorCount - secondFloorCount; // 1/6 of the rooms
+
+
+                if(Position == 0)
+                {
+                    AddObject("exit door", m);
+                }
+
 
                 if (Position < firstFloorCount)
                 {
@@ -836,7 +966,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -886,7 +1016,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -936,7 +1066,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Add entrance door for the first room
-                    AddObject("door", m);
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -979,7 +1109,7 @@ namespace Lightrealm
                 }
             }
 
-            else if (Structure.Type == "toroid")
+            else if (Structure.Block.District.Location.Layout == "toroid")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
@@ -987,6 +1117,11 @@ namespace Lightrealm
 
                 // Horizontal directions
                 string[] horizontalDirections = new string[] { "north", "east", "south", "west" };
+
+                if(Position == 0)
+                {
+                    AddObject("exit door", m);
+                }
 
                 // Connect rooms in a linear path
                 if (Position < TotalRooms - 1)
@@ -1059,6 +1194,11 @@ namespace Lightrealm
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
 
+                if(Position == 0)
+                {
+                    AddObject("exit door", m);
+                }
+
                 // Connect rooms in a linear upward progression
                 if (Position < Structure.Rooms.Count - 1)
                 {
@@ -1071,7 +1211,7 @@ namespace Lightrealm
                     Structure.Rooms[Position + 1].Objects.Add(downDoor);
                 }
             }
-            else if (Structure.Type == "towers")
+            else if (Structure.Block.District.Location.Layout == "towers")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
@@ -1080,6 +1220,7 @@ namespace Lightrealm
                 if (Position == 0)
                 {
                     // Core room setup, no doors needed for now
+                    AddObject("exit door", m);
                 }
                 else
                 {
@@ -1101,6 +1242,51 @@ namespace Lightrealm
                     Objects.Add(downDoor);
                 }
             }
+            else
+            {
+                Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
+                int Position = Structure.Rooms.IndexOf(this);
+
+                if (Position == 0)
+                {
+                    // Add entrance door for the first room
+                    AddObject("exit door", m);
+                }
+                else
+                {
+                    // Randomly attach this room to any of the previous rooms orthogonally
+                    int randomPreviousRoomIndex = Game1.r.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west" }[Game1.r.Next(4)];
+
+                    // Create door from current room to previous room
+                    Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(newDoor);
+
+                    // Create door from previous room to current room in the opposite direction
+                    string oppositeDirection;
+                    switch (direction)
+                    {
+                        case "north":
+                            oppositeDirection = "south";
+                            break;
+                        case "east":
+                            oppositeDirection = "west";
+                            break;
+                        case "south":
+                            oppositeDirection = "north";
+                            break;
+                        case "west":
+                            oppositeDirection = "east";
+                            break;
+                        default:
+                            oppositeDirection = "north"; // default case, should not be hit
+                            break;
+                    }
+                    Door previousRoomDoor = new Door(Structure.Rooms[randomPreviousRoomIndex], this, oppositeDirection, null, "door", new List<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[randomPreviousRoomIndex].NumberOfDoors(), Structure.Block, Structure, this);
+                    Structure.Rooms[randomPreviousRoomIndex].Objects.Add(previousRoomDoor);
+                }
+            }
+
 
 
 
@@ -1499,6 +1685,41 @@ namespace Lightrealm
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
                 }
+
+                if(Position == 0)
+                {
+                    int Count = Game1.r.Next(4, 9);
+                    for(int I = 0; I < Count; I++)
+                    {
+                        Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
+                    }
+                }
+            }
+            else if (Structure.Type == "heart")
+            {
+                Material m = Game1.GameWorld.ShadeSludge;
+                int Position = Structure.Rooms.IndexOf(this);
+
+                // Add high-level magic items to each room
+                if (Game1.r.Next(1, 4) == 1)
+                {
+                    Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
+                }
+
+                if (Position == 0)
+                {
+                    int Count = Game1.r.Next(4, 9);
+                    for (int I = 0; I < Count; I++)
+                    {
+                        Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
+                    }
+                }
+
+                foreach(Object o in Objects)
+                {
+                    o.Materials.Clear();
+                    o.Materials.Add(Game1.GameWorld.ShadeSludge);
+                }
             }
             else if (Structure.Type == "monument")
             {
@@ -1815,7 +2036,7 @@ namespace Lightrealm
                 // Add military equipment
                 if (Game1.r.Next(1, 2) == 1)
                 {
-                    AddObject("sword", m);
+                    AddObject("shortsword", m);
                 }
 
                 if (Game1.r.Next(1, 2) == 1)
@@ -1852,7 +2073,7 @@ namespace Lightrealm
                 if (Game1.r.Next(1, 3) == 1)
                 {
                     Object weaponRack = new Object(null, "weapon rack", new List<Material> { m }, null);
-                    if (Game1.r.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "sword", new List<Material> { m }, null));
+                    if (Game1.r.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "shortsword", new List<Material> { m }, null));
                     if (Game1.r.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "shield", new List<Material> { m }, null));
                     Objects.Add(weaponRack);
                 }

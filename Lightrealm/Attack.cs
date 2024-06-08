@@ -11,10 +11,10 @@ namespace Lightrealm
     {
         public string Verb;
         public Architect Attacker;
-        public string Target;
+        public Object Target;
         public Object Weapon;
 
-        public Attack(string verb, Architect attacker, string target, Object weapon)
+        public Attack(string verb, Architect attacker, Object target, Object weapon)
         {
             Verb = verb;
             Attacker = attacker;

@@ -22,6 +22,7 @@ namespace Lightrealm
         public List<(int, int)> TragedyPoints = new List<(int, int)>();
 
         public bool Explored = false;
+        public bool RegionallyExplored = false;
 
         public Blight Blight;
 

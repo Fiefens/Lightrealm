@@ -40,7 +40,7 @@ namespace Lightrealm
                                         "Shifting shadows catch your eye in the distance.",
                                         "Faint noises carry on the desert wind.",
                                         "An unseen presence appears across the dunes.",
-                                        "Someone is following you, or could be heading the same direction.",
+                                        "Someone is following you, or could be heading the same way?",
                                         "You see something over a nearby hill."
                                     }
                                 },
@@ -95,7 +95,7 @@ namespace Lightrealm
                                         "Tracks lead into the depths of the mysterious forest.",
                                         "Distant calls hint at the unknown.",
                                         "The taiga conceals potential friend or foe.",
-                                        "Something is behind you, breathing from the heart of the forest."
+                                        "Something is behind you, breathing from the depths of the trees."
                                     }
                                 },
                                 {"tundra", new List<string>

@@ -42,7 +42,15 @@ namespace Lightrealm
         {
             Type = type;
 
-            FakePhotonexusColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+            if(type != "core")
+            {
+                FakePhotonexusColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+            }
+            else
+            {
+                FakePhotonexusColor = "white";
+            }
+
             GUID = Guid.NewGuid().ToString();
             Rooms = rooms;
             Block = block;
@@ -200,7 +208,6 @@ namespace Lightrealm
                 $"You see a {Type}, {Name}.",
                 $"You see the {Type} {Name}.",
                 $"A {Type} called {Name} is here.",
-                $"{Name}, a notable {Type}, stands before you.",
                 $"Before you is the {Type} known as {Name}."
             };
 

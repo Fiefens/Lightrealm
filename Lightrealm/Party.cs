@@ -88,10 +88,27 @@ namespace Lightrealm
                     a.LeftHandObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
                 }
 
-                for(int i = Game1.r.Next(10,20); i != 0; i--)
+                for (int i = 0; i < 3; i++)
                 {
-                    a.Inventory.Add(new Object(null, "fragment", new List<Material>() { Game1.GameWorld.Vitalium }, null));
+                    int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
+
+                    switch (healingItem)
+                    {
+                        case 1:
+                            // Adding a salve
+                            a.Inventory.Add(new Object(null, "salve", new List<Material>() { a.Location.Region.HarvestableFiber }, null));
+                            break;
+                        case 2:
+                            // Adding a bandage
+                            a.Inventory.Add(new Object(null, "bandage", new List<Material>() { a.Location.HomeCivilization.CulturalCloth }, null));
+                            break;
+                        case 3:
+                            // Adding a vitality vial
+                            a.Inventory.Add(new Object(null, "vial", new List<Material>() { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
+                            break;
+                    }
                 }
+
             }
         }
     }

@@ -30,14 +30,24 @@ namespace Lightrealm
 
         public string DyedColor = "none";
 
+        public bool IsMagical = false;
+
         public int YLevelInFeet { get; set; } = 0;
         public int YVelocity { get; set; } = 0;
 
         public double Weight { get; set; } = 0;
 
         public int WeaponMaximumRange = 0;
-
-        public Structure Structure;
+        
+        
+        public Structure Structure
+        {
+            get
+            {
+                // Return the Structure property of the Room
+                return Room?.Structure;
+            }
+        }
         public Block Block;
         public Room Room;
 
@@ -54,6 +64,8 @@ namespace Lightrealm
         public bool RealityAugumented = false;
 
         public string Rarity;
+
+        public int Exposure = 0;
 
         public bool IsBodyPart = false;
         public bool MajorArteryIsSevered = false;
@@ -158,8 +170,98 @@ namespace Lightrealm
             return BasePower + Materials.Max(m => m.Toughness);
         }
 
+        public TextStorage UpdateExposure(int IncreaseDecrease)
+        {
+            int InitialExposure = Exposure;
+            Exposure = Math.Max(0, Exposure + IncreaseDecrease); // Ensure exposure doesn't go below 0
+
+            // Related body-part logic
+            if (Owner != null && ((Architect)Owner).BodyParts != null)
+            {
+                if (Type == "left arm")
+                {
+                    var leftHand = ((Architect)Owner).FindBodyPart("left hand");
+                    if (leftHand != null)
+                    {
+                        leftHand.Exposure = Math.Max(0, leftHand.Exposure + (int)(IncreaseDecrease * 0.5));
+                    }
+                }
+                else if (Type == "right arm")
+                {
+                    var rightHand = ((Architect)Owner).FindBodyPart("right hand");
+                    if (rightHand != null)
+                    {
+                        rightHand.Exposure = Math.Max(0, rightHand.Exposure + (int)(IncreaseDecrease * 0.5));
+                    }
+                }
+                else if (Type == "left leg")
+                {
+                    var leftFoot = ((Architect)Owner).FindBodyPart("left foot");
+                    if (leftFoot != null)
+                    {
+                        leftFoot.Exposure = Math.Max(0, leftFoot.Exposure + (int)(IncreaseDecrease * 0.5));
+                    }
+                }
+                else if (Type == "right leg")
+                {
+                    var rightFoot = ((Architect)Owner).FindBodyPart("right foot");
+                    if (rightFoot != null)
+                    {
+                        rightFoot.Exposure = Math.Max(0, rightFoot.Exposure + (int)(IncreaseDecrease * 0.5));
+                    }
+                }
+                // Inverse relationships
+                else if (Type == "left hand")
+                {
+                    var leftArm = ((Architect)Owner).FindBodyPart("left arm");
+                    if (leftArm != null)
+                    {
+                        leftArm.Exposure = Math.Max(0, leftArm.Exposure + (int)(IncreaseDecrease * 2));
+                    }
+                }
+                else if (Type == "right hand")
+                {
+                    var rightArm = ((Architect)Owner).FindBodyPart("right arm");
+                    if (rightArm != null)
+                    {
+                        rightArm.Exposure = Math.Max(0, rightArm.Exposure + (int)(IncreaseDecrease * 2));
+                    }
+                }
+                else if (Type == "left foot")
+                {
+                    var leftLeg = ((Architect)Owner).FindBodyPart("left leg");
+                    if (leftLeg != null)
+                    {
+                        leftLeg.Exposure = Math.Max(0, leftLeg.Exposure + (int)(IncreaseDecrease * 2));
+                    }
+                }
+                else if (Type == "right foot")
+                {
+                    var rightLeg = ((Architect)Owner).FindBodyPart("right leg");
+                    if (rightLeg != null)
+                    {
+                        rightLeg.Exposure = Math.Max(0, rightLeg.Exposure + (int)(IncreaseDecrease * 2));
+                    }
+                }
+            }
+
+            if (Exposure > 50 && InitialExposure <= 50)
+            {
+                return new TextStorage(ReferredToNames[0] + " is very exposed!", Color.Orange, new List<Entity>() { this });
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
+            if(IsBodyPart)
+            {
+                UpdateExposure(-(15 * ((Architect)Owner).Dexterity));
+            }
+
             // Base damage values
             double basePain = 10;
             double baseIntegrityLoss = 10;
@@ -202,7 +304,7 @@ namespace Lightrealm
             double efficiencyFactor = 1 + (WielderProficiency * 0.05) + (o.FindObjectGenericStrength() * 0.05);
 
             // Combat intensity factor (example dynamic adjustment)
-            double combatIntensityMultiplier = 3; // This value should be dynamically adjusted based on combat conditions
+            double combatIntensityMultiplier = 2; // This value should be dynamically adjusted based on combat conditions
 
             // Calculate damage outcomes
             int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1)*(((Architect)Owner).Focus)));
@@ -343,10 +445,22 @@ namespace Lightrealm
             LatestUpdateCycle = Game1.GameWorld.Cycle;
             ClearReferredToNames();
 
-            if (this is Door door)
+            if (this is Door door && door.SourceRoom != null /*this is mainly to hodl of specific door updates before we finish the constructor*/)
             {
                 AddReferredToName(door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
                 AddReferredToName("door " + door.Number);
+
+                // Check if this door is the quickest exit door
+
+                Room currentRoom = door.SourceRoom;
+                Door quickestExitDoor = currentRoom.FindQuickestExitDoor();
+                if (quickestExitDoor == door)
+                {
+                    // Add * to the first ReferredToName and insert it at the front
+                    string quickestName = ReferredToNames[0] + "*";
+                    ReferredToNames.Insert(0, quickestName);
+                }
+
                 return;
             }
             else if (this.IsBodyPart)
@@ -418,7 +532,7 @@ namespace Lightrealm
             {
                 if (ReferredToNames.Count > 0)
                 {
-                    string firstName = ReferredToNames[0]; 
+                    string firstName = ReferredToNames[0];
                     ClearReferredToNames();
                     ReferredToNames.Add($"{firstName} ({ID})");
                     ReferredToNames.Add(firstName);
@@ -426,6 +540,7 @@ namespace Lightrealm
                 }
             }
         }
+
 
         public void UpdateSelfActionsAndSuch()
         {
@@ -509,7 +624,6 @@ namespace Lightrealm
             Creator = creator;
 
             Block = b;
-            Structure = s;
             Room = r;
 
             Name = name;
@@ -543,7 +657,7 @@ namespace Lightrealm
             }
 
 
-            if (Type == "sword" || Type == "greatsword" || Type == "axe" || Type == "greataxe" || Type == "knife")
+            if (Type == "shortsword" || Type == "greatsword" || Type == "axe" || Type == "greataxe" || Type == "knife")
             {
                 IsWeapon = true;
                 DamageType = "slashing";
@@ -597,6 +711,7 @@ namespace Lightrealm
                 case "fragment":
                     Weight = 10;
                     Description = "A small shard of /m.";
+                    IsConsumable = true;
                     break;
                 case "log":
                     Weight = 3000;
@@ -969,7 +1084,7 @@ namespace Lightrealm
                     Description = "A raw, uncut /m gemstone.";
                     break;
 
-                case "sword":
+                case "shortsword":
                     Weight = 1500;
                     IsWeapon = true;
                     DamageType = "slashing";
@@ -1208,6 +1323,12 @@ namespace Lightrealm
                     Description = "A large, swinging barrier for entry or exit.";
                     break;
 
+                case "exit door":
+                    Weight = 30000;
+                    IsContainer = false;
+                    Description = "A large, swinging barrier. You entered here to get in the structure.";
+                    break;
+
                 case "bed":
                     Weight = 20000;
                     IsContainer = true;
@@ -1395,32 +1516,28 @@ namespace Lightrealm
 
 
 
-                // potions
-                case "lesser energy potion":
-                    Weight = 150;
+                // healing
+                case "salve":
+                    Weight = 50;
+                    IsGeneralGood = true;
                     IsWeapon = false;
                     IsConsumable = true;
-                    VariableToChange = "energy";
-                    VariableChange = 30;
-                    Description = "A small potion made of /m, filled with pure energy.";
+                    Description = "A salve of /m that can be used to reduce pain.";
                     break;
-                case "energy potion":
-                    Weight = 250;
+                case "bandage":
+                    Weight = 50;
+                    IsGeneralGood = true;
                     IsWeapon = false;
                     IsConsumable = true;
-                    VariableToChange = "energy";
-                    VariableChange = 60;
-                    Description = "A medium sized potion made of /m, filled with pure energy.";
+                    Description = "A bandage made of /m that can be used to stop bleeding.";
                     break;
-                case "greater energy potion":
-                    Weight = 400;
-                    IsWeapon = false;
+                case "vial":
+                    Weight = 50;
+                    IsGeneralGood = true;
+                    IsContainer = true;
                     IsConsumable = true;
-                    VariableToChange = "energy";
-                    VariableChange = 90;
-                    Description = "A large potion made of /m, filled with pure energy.";
+                    Description = "A vial of vitality, a fast acting energy source.";
                     break;
-
 
                 default:
                     throw new Exception("Trying to create an unimplemented object!");
@@ -1476,6 +1593,11 @@ namespace Lightrealm
         public void ApplyImbuements(int Extra)
         {
             int Imbuements = Extra;
+
+            if(Type == "dagger")
+            {
+                return;
+            }
 
             this.Imbuements.Clear();
 
@@ -1555,11 +1677,21 @@ namespace Lightrealm
                     int buffIndex = Game1.r.Next(PassiveEffects.Count);
                     buffOrEffect = PassiveEffects[buffIndex];
                     // Example power calculation for passive buffs
-                    if (buffOrEffect.Equals("+heal") || buffOrEffect.Equals("+regen"))
+                    if (buffOrEffect.Equals("+heal"))
                     {
                         // Assuming heal and regen buffs require specific power values
                         secondPower = Game1.r.Next(5, 21); // Example range from 5 to 20
                     }
+                    else if (buffOrEffect.Equals("+regen"))
+                    {
+                        secondPower = 1;
+                    }
+                    else if (buffOrEffect.StartsWith("+") && buffOrEffect != "+stealth")
+                    {
+                        // Assuming heal and regen buffs require specific power values
+                        secondPower = Game1.r.Next(3, 8); // Example range from 5 to 20
+                    }
+
                     // For 'diminished' condition, set a specific range for the firstPower
                     if (conditionOrTrigger.Equals("diminished"))
                     {

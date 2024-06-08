@@ -14,6 +14,8 @@ namespace Lightrealm
         public string Name { get; set; }
         public int ID;
         private List<string> _referredToNames = new List<string>();
+
+        [NonSerialized]
         public Rectangle Hitbox = new Rectangle();
 
         public List<string> ReferredToNames
