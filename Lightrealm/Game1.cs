@@ -1307,84 +1307,89 @@ namespace Lightrealm
                             break;
 
                         case "parry":
-                            //test their skill out of 8, multiply by 10, thats the percent chance of success
-
+                            // Determine which hand (right or left) is holding the weapon used to parry
+                            string parryHand = "";
                             if (DefenderWeapon != null && DefenderWeapon.IsWeapon)
                             {
-                                switch (DefenderWeapon.DamageType)
+                                if (TargetArchitect.RightHandObject == DefenderWeapon)
                                 {
-                                    case "slashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("slashing");
-                                        break;
-                                    case "piercing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("piercing");
-                                        break;
-                                    case "bashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("bashing");
-                                        break;
-                                    case "scourging":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("scourging");
-                                        break;
-                                    default:
-                                        proficiencyModifier = 0;
-                                        break;
+                                    parryHand = "right";
                                 }
-
-                                if (r.Next(0, 101) < successChances.parry)
+                                else if (TargetArchitect.LeftHandObject == DefenderWeapon)
                                 {
-                                    Avoided = true;
-                                    AvoidFeedback = "The attack is parried by the " + DefenderWeapon.ReferredToNames[0] + "!";
-                                    TargetArchitect.ChangeXP("parrying", r.Next(1, 4));
-                                    foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
-                                    {
-                                        if (i.IsTrigger && i.ConditionOrTrigger == "onparry")
-                                        {
-                                            TargetArchitect.ActivatePower(i.BuffOrResult);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    AvoidFeedback = "The attack is not parried by the " + DefenderWeapon.ReferredToNames[0] + "!";
+                                    parryHand = "left";
                                 }
                             }
                             else if (DefenderSidearm != null && DefenderSidearm.IsWeapon)
                             {
-                                switch (DefenderSidearm.DamageType)
+                                if (TargetArchitect.RightHandObject == DefenderSidearm)
                                 {
-                                    case "slashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("slashing");
-                                        break;
-                                    case "piercing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("piercing");
-                                        break;
-                                    case "bashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("bashing");
-                                        break;
-                                    case "scourging":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("scourging");
-                                        break;
-                                    default:
-                                        proficiencyModifier = 0;
-                                        break;
+                                    parryHand = "right";
                                 }
-
-                                if (r.Next(0, 101) < successChances.block)
+                                else if (TargetArchitect.LeftHandObject == DefenderSidearm)
                                 {
-                                    Avoided = true;
-                                    AvoidFeedback = "The attack is parried by the " + DefenderSidearm.ReferredToNames[0] + "!";
+                                    parryHand = "left";
+                                }
+                            }
 
-                                    foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                            // Apply exposure update based on the identified parrying hand
+                            if (!string.IsNullOrEmpty(parryHand))
+                            {
+                                if (TargetArchitect.FindBodyPart(parryHand + " hand") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(parryHand + " hand").UpdateExposure(15 - TargetArchitect.Dexterity);
+                                }
+                                if (TargetArchitect.FindBodyPart(parryHand + " arm") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(parryHand + " arm").UpdateExposure(10 - TargetArchitect.Dexterity);
+                                }
+                            }
+
+                            // Handle proficiency and success chances
+                            if ((DefenderWeapon != null && DefenderWeapon.IsWeapon) || (DefenderSidearm != null && DefenderSidearm.IsWeapon))
+                            {
+                                Object usedWeapon = DefenderWeapon ?? DefenderSidearm;
+                                if (usedWeapon != null)
+                                {
+                                    switch (usedWeapon.DamageType)
                                     {
-                                        if (i.IsTrigger && i.ConditionOrTrigger == "onparry")
+                                        case "slashing":
+                                            proficiencyModifier = TargetArchitect.GetProficiency("slashing");
+                                            break;
+                                        case "piercing":
+                                            proficiencyModifier = TargetArchitect.GetProficiency("piercing");
+                                            break;
+                                        case "bashing":
+                                            proficiencyModifier = TargetArchitect.GetProficiency("bashing");
+                                            break;
+                                        case "scourging":
+                                            proficiencyModifier = TargetArchitect.GetProficiency("scourging");
+                                            break;
+                                        default:
+                                            proficiencyModifier = 0;
+                                            break;
+                                    }
+
+                                    int parrySuccessChance = r.Next(0, 101);
+                                    int SucChance = successChances.redirect;
+
+                                    if (parrySuccessChance < SucChance)
+                                    {
+                                        Avoided = true;
+                                        AvoidFeedback = "The attack is parried by the " + usedWeapon.ReferredToNames[0] + "!";
+                                        TargetArchitect.ChangeXP("parrying", r.Next(1, 4));
+                                        foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
                                         {
-                                            TargetArchitect.ActivatePower(i.BuffOrResult);
+                                            if (i.IsTrigger && i.ConditionOrTrigger == "onparry")
+                                            {
+                                                TargetArchitect.ActivatePower(i.BuffOrResult);
+                                            }
                                         }
                                     }
-                                }
-                                else
-                                {
-                                    AvoidFeedback = "The attack is not parried by the " + DefenderSidearm.ReferredToNames[0] + "!";
+                                    else
+                                    {
+                                        AvoidFeedback = "The attack is not parried by the " + usedWeapon.ReferredToNames[0] + "!";
+                                    }
                                 }
                             }
                             else
@@ -1395,11 +1400,51 @@ namespace Lightrealm
 
                         case "block":
                             // Check if the defender has a shield or any other item that could be used for blocking
-                            bool isShield = DefenderWeapon.Type == "shield" || DefenderSidearm.Type == "shield";
+                            bool isShield = (DefenderWeapon != null && DefenderWeapon.Type == "shield") ||
+                                            (DefenderSidearm != null && DefenderSidearm.Type == "shield");
+
                             // Use successChances.block as the base chance if a shield is used
                             int baseChance = isShield ? successChances.block : (int)(successChances.block * 0.75); // Apply 25% reduction to base chance if not a shield
 
-                            string blockingItem = isShield ? (DefenderWeapon.Type == "shield" ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) : "item";
+                            string blockingItem = isShield ? (DefenderWeapon != null && DefenderWeapon.Type == "shield" ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) : "item";
+
+                            // Determine which hand (right or left) is holding the shield or blocking item
+                            string blockHand = "";
+                            if (isShield)
+                            {
+                                if (TargetArchitect.RightHandObject != null && TargetArchitect.RightHandObject.Type == "shield")
+                                {
+                                    blockHand = "right";
+                                }
+                                else if (TargetArchitect.LeftHandObject != null && TargetArchitect.LeftHandObject.Type == "shield")
+                                {
+                                    blockHand = "left";
+                                }
+                            }
+                            else
+                            {
+                                if (TargetArchitect.RightHandObject == DefenderWeapon || TargetArchitect.RightHandObject == DefenderSidearm)
+                                {
+                                    blockHand = "right";
+                                }
+                                else if (TargetArchitect.LeftHandObject == DefenderWeapon || TargetArchitect.LeftHandObject == DefenderSidearm)
+                                {
+                                    blockHand = "left";
+                                }
+                            }
+
+                            // Apply exposure update based on the identified blocking hand
+                            if (!string.IsNullOrEmpty(blockHand))
+                            {
+                                if (TargetArchitect.FindBodyPart(blockHand + " hand") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(blockHand + " hand").UpdateExposure(15 - TargetArchitect.Dexterity);
+                                }
+                                if (TargetArchitect.FindBodyPart(blockHand + " arm") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(blockHand + " arm").UpdateExposure(10 - TargetArchitect.Dexterity);
+                                }
+                            }
 
                             // Calculate the chance of blocking
                             int proficiencyBonus = TargetArchitect.GetProficiency("blocking") * 4;
@@ -1431,18 +1476,43 @@ namespace Lightrealm
                             break;
 
 
+
                         case "duck":
                             if (r.Next(0, 101) < successChances.duck && !CantDuckBodyParts.Contains(target.Type))
                             {
                                 Avoided = true;
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " ducked under the attack!";
                                 TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
+
+                                // Apply exposure update for the "head", "neck", and "torso" parts
+                                if (TargetArchitect.FindBodyPart("head") != null)
+                                {
+                                    TargetArchitect.FindBodyPart("head").UpdateExposure(15 - TargetArchitect.Dexterity);
+                                }
+                                if (TargetArchitect.FindBodyPart("neck") != null)
+                                {
+                                    TargetArchitect.FindBodyPart("neck").UpdateExposure(10 - TargetArchitect.Dexterity);
+                                }
+                                if (TargetArchitect.FindBodyPart("torso") != null)
+                                {
+                                    TargetArchitect.FindBodyPart("torso").UpdateExposure(5 - TargetArchitect.Dexterity);
+                                }
+
+                                // Apply exposure update for parts ending with "shoulder"
+                                foreach (var part in TargetArchitect.BodyParts)
+                                {
+                                    if (part.Type.EndsWith("shoulder"))
+                                    {
+                                        part.UpdateExposure(12 - TargetArchitect.Dexterity);
+                                    }
+                                }
                             }
                             else
                             {
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to duck under the attack, but failed!";
                             }
                             break;
+
 
                         case "jump":
                             if (r.Next(0, 101) < successChances.jump && !CantJumpBodyParts.Contains(target.Type))
@@ -1456,14 +1526,30 @@ namespace Lightrealm
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to jump over the attack, but failed!";
                             }
 
+                            // Apply exposure update for parts containing "leg" or "foot"
+                            foreach (var part in TargetArchitect.BodyParts)
+                            {
+                                if (part.Type.Contains("foot"))
+                                {
+                                    int deposition = Math.Max(10 - TargetArchitect.Dexterity, 1);
+                                    part.UpdateExposure(deposition);
+                                }
+                                else if (part.Type.Contains("leg"))
+                                {
+                                    int deposition = Math.Max(5 - (TargetArchitect.Dexterity / 2), 1);
+                                    part.UpdateExposure(deposition);
+                                }
+                            }
+
                             TargetArchitect.CyclesSinceJump = 0;
                             break;
+
 
                         case "roll":
                             if (r.Next(0, 101) < successChances.roll)
                             {
                                 Avoided = true;
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " rolled away from the attack!";
+                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " rolled away from the attack, repositioning himself!";
                                 TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
                                 foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
                                 {
@@ -1475,9 +1561,17 @@ namespace Lightrealm
                             }
                             else
                             {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to roll away from the attack, but failed!";
+                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " failed to roll away from the attack, but repositioned himself!";
                             }
+
+                            int repositionAmount = Math.Max(3, TargetArchitect.Dexterity);
+                            foreach (var part in TargetArchitect.BodyParts)
+                            {
+                                part.UpdateExposure(-1 * repositionAmount);
+                            }
+
                             break;
+
 
                         case "disarm":
                             if (r.Next(0, 101) < successChances.disarm && (attacker.RightHandObject == weapon || attacker.LeftHandObject == weapon))
@@ -1511,8 +1605,7 @@ namespace Lightrealm
 
                         case "redirect":
 
-                            //REDIRECT WILL BE REPROAGRAMNNED LATER, I DONT CARE ENOUGH RIGHT NOW
-
+                            // Determine the proficiency modifier based on the weapon's damage type
                             if (DefenderWeapon.IsWeapon)
                             {
                                 switch (DefenderWeapon.DamageType)
@@ -1533,27 +1626,10 @@ namespace Lightrealm
                                         proficiencyModifier = 0;
                                         break;
                                 }
-
-                                if (r.Next(0, 101) < successChances.redirect)
-                                {
-                                    Avoided = true;
-                                    AvoidFeedback = "The attack is redirected by the " + DefenderWeapon.ReferredToNames[0] + "!";
-                                    TargetArchitect.ChangeXP("redirection", r.Next(1, 4));
-
-                                    foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
-                                    {
-                                        if (i.IsTrigger && i.ConditionOrTrigger == "redirect")
-                                        {
-                                            TargetArchitect.ActivatePower(i.BuffOrResult);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    AvoidFeedback = "The redirect of " + DefenderWeapon.ReferredToNames[0] + " failed!";
-                                }
                             }
-                            else if (DefenderSidearm.IsWeapon)
+
+                            // Determine the proficiency modifier for the sidearm
+                            if (DefenderSidearm.IsWeapon)
                             {
                                 switch (DefenderSidearm.DamageType)
                                 {
@@ -1573,33 +1649,69 @@ namespace Lightrealm
                                         proficiencyModifier = 0;
                                         break;
                                 }
+                            }
 
-                                if (r.Next(0, 101) < 50 + (proficiencyModifier * 4))
+                            // Calculate the success chance
+                            int successChance = successChances.redirect + (proficiencyModifier * 4);
+
+                            if (r.Next(0, 101) < successChance)
+                            {
+                                Avoided = true;
+                                AvoidFeedback = "The attack is redirected by the " + (DefenderWeapon.IsWeapon ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) + "!";
+                                TargetArchitect.ChangeXP("redirection", r.Next(1, 4));
+
+                                foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
                                 {
-                                    Avoided = true;
-                                    AvoidFeedback = "The attack is parried by the " + DefenderSidearm.ReferredToNames[0] + "!";
-
-                                    foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                    if (i.IsTrigger && i.ConditionOrTrigger == "redirect")
                                     {
-                                        if (i.IsTrigger && i.ConditionOrTrigger == "redirect")
-                                        {
-                                            TargetArchitect.ActivatePower(i.BuffOrResult);
-                                        }
+                                        TargetArchitect.ActivatePower(i.BuffOrResult);
                                     }
-                                }
-                                else
-                                {
-                                    AvoidFeedback = "The attack is not parried by the " + DefenderSidearm.ReferredToNames[0] + "!";
                                 }
                             }
                             else
                             {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " was unable to parry the attack with their arsenal!";
+                                AvoidFeedback = "The redirect of " + (DefenderWeapon.IsWeapon ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) + " failed!";
+                            }
+
+                            // Apply depositioning to all relevant limbs
+                            int depositionAmount = 15 - TargetArchitect.Dexterity;
+                            if (DefenderWeapon.IsWeapon && DefenderSidearm.IsWeapon)
+                            {
+                                depositionAmount = depositionAmount / 2; // Split the deposition if both exist
+                            }
+
+                            // Apply deposition to the limbs holding the DefenderWeapon
+                            if (DefenderWeapon.IsWeapon)
+                            {
+                                string weaponHand = (TargetArchitect.RightHandObject == DefenderWeapon) ? "right" : "left";
+                                if (TargetArchitect.FindBodyPart(weaponHand + " hand") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(weaponHand + " hand").UpdateExposure(depositionAmount);
+                                }
+                                if (TargetArchitect.FindBodyPart(weaponHand + " arm") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(weaponHand + " arm").UpdateExposure(depositionAmount);
+                                }
+                            }
+
+                            // Apply deposition to the limbs holding the DefenderSidearm
+                            if (DefenderSidearm.IsWeapon)
+                            {
+                                string sidearmHand = (TargetArchitect.RightHandObject == DefenderSidearm) ? "right" : "left";
+                                if (TargetArchitect.FindBodyPart(sidearmHand + " hand") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(sidearmHand + " hand").UpdateExposure(depositionAmount);
+                                }
+                                if (TargetArchitect.FindBodyPart(sidearmHand + " arm") != null)
+                                {
+                                    TargetArchitect.FindBodyPart(sidearmHand + " arm").UpdateExposure(depositionAmount);
+                                }
                             }
                             break;
 
                         default:
                             break;
+
                     }
                 }
 
@@ -2733,9 +2845,9 @@ namespace Lightrealm
                 Console.WriteLine("\n\n\n");
 
                 Console.WriteLine("Current Settings:");
-                Console.WriteLine($"Speech To Text (Press T): {(EnableTTS ? "Enabled (Recommended, will take some time to load)" : "Disabled (Recommended only if you can type like Usain Bolt)")}");
+                Console.WriteLine($"Speech To Text (Press T): {(EnableTTS ? "Enabled (Recommended)" : "Disabled")}");
                 Console.WriteLine($"Simplified Font (Press F): {(SimplifiedFont ? "Enabled (DePixel)" : "Disabled (Black Chancery)")}");
-                Console.WriteLine($"Fast World Generation (Press S): {(SpeedWorldGen ? "Enabled (Recommended, disable if your game crashes during world-gen)" : "Disabled")}\n");
+                Console.WriteLine($"Fast World Generation (Press S): {(SpeedWorldGen ? "Enabled (Disable if Unstable)" : "Disabled")}\n");
                 Console.WriteLine($"Press Space to begin.");
 
                 string key = Console.ReadKey().KeyChar.ToString().ToUpper();
@@ -2769,6 +2881,15 @@ namespace Lightrealm
                 SpeechToText = true;
                 Console.WriteLine("\nInitializing Databases... One Moment...");
                 Console.WriteLine("Press ENTER if this takes longer than 20 seconds.");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine($"Note: Click GUI Speech To Text is highly recommended, but if you end up not using it, disable it to speed up load times.");
 
                 await Task.Run(() =>
                 {
@@ -2782,6 +2903,7 @@ namespace Lightrealm
                 });
 
                 // List available audio devices
+                Console.Clear();
                 Console.WriteLine("Available Input Devices:");
                 for (int i = 0; i < WaveInEvent.DeviceCount; i++)
                 {
@@ -2792,7 +2914,7 @@ namespace Lightrealm
                 // Select audio device
                 Console.WriteLine("Please enter the number of the input device you want to use:");
                 int deviceNumber;
-                while (!int.TryParse(Console.ReadLine(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
+                while (!int.TryParse(Console.ReadKey().KeyChar.ToString(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
                 {
                     Console.WriteLine("Invalid input. Please enter a valid device number:");
                 }
@@ -2812,19 +2934,19 @@ namespace Lightrealm
             RecognizedCommands.Add("ask_name", (new List<string> { "ask ~ /p name", "ask ~ for /p name", "ask ~ name" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_directions", (new List<string> { "ask ~ where ~ is", "ask ~ where i can find ~", "ask ~ where to find ~" }, new List<string> { "nearby_architect", "entity" }));
             RecognizedCommands.Add("ask_generic_directions", (new List<string> { "ask ~ where a ~ is", "ask ~ where i can find a ~", "ask ~ where to find a ~", "ask ~ where the nearest ~ is", "ask ~ where i could find a ~", "ask ~ where an ~ is", "ask ~ where i can find an ~", "ask ~ where to find an ~" }, new List<string> { "nearby_architect", "entity" }));
-            RecognizedCommands.Add("ask_about_something", (new List<string> { "ask ~ about ~", "ask ~ for information on ~", "ask ~ what they know about ~", "ask ~ what they can tell me about ~" }, new List<string> { "nearby_architect", "entity" }));
+            RecognizedCommands.Add("ask_about_something", (new List<string> { "ask ~ about ~", "ask ~ for information on ~", "ask ~ what /p know about ~", "ask ~ what /p can tell me about ~" }, new List<string> { "nearby_architect", "entity" }));
             RecognizedCommands.Add("ask_ruler", (new List<string> { "ask ~ about the government", "ask ~ who rules", "ask ~ who the government is", "ask ~ who rules here" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("ask_trade", (new List<string> { "ask ~ to trade", "ask ~ trade", "ask ~ to trade with me", "ask ~ what they have for sale", "ask ~ what they sell", "ask ~ what they are selling" }, new List<string> { "nearby_architect" }));
+            RecognizedCommands.Add("ask_trade", (new List<string> { "ask ~ to trade", "ask ~ trade", "ask ~ to trade with me", "ask ~ what /p have for sale", "ask ~ what /p sell", "ask ~ what /p are selling" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_them_join", (new List<string> { "ask ~ to join me", "ask ~ to join us", "ask ~ to join me on my quest", "ask ~ to join my group" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("ask_me_join", (new List<string> { "ask ~ if i can join /p", "ask ~ if /p would let me join", "ask ~ if they are accepting members" }, new List<string> { "nearby_architect" }));
+            RecognizedCommands.Add("ask_me_join", (new List<string> { "ask ~ if i can join /p", "ask ~ if /p would let me join", "ask ~ if /p are accepting members" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_current_structure", (new List<string> { "ask ~ about this building", "ask ~ about this structure" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_location", (new List<string> { "ask ~ about this location", "ask ~ about this site", "ask ~ about this area" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("ask_profession", (new List<string> { "ask ~ what they do", "ask ~ what they do for a living", "ask ~ about /p job", "ask ~ /p job" }, new List<string> { "nearby_architect" }));
+            RecognizedCommands.Add("ask_profession", (new List<string> { "ask ~ what /p do", "ask ~ what /p do for a living", "ask ~ about /p job", "ask ~ /p job" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("greet", (new List<string> { "say hello to ~", "greet ~", "say hi to ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("farewell", (new List<string> { "say goodbye to ~", "dismiss ~", "say bye to ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("thank", (new List<string> { "thank ~", "say thank you to ~", "express my gratitude to ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("apologize", (new List<string> { "apologize to ~", "tell ~ i'm sorry", "say sorry to ~", "tell ~ i apologize", "tell ~ i am sorry" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("ask_health", (new List<string> { "ask ~ how they are feeling", "ask ~ their health", "ask ~ how they feel" }, new List<string> { "nearby_architect" }));
+            RecognizedCommands.Add("ask_health", (new List<string> { "ask ~ how /p are feeling", "ask ~ /p health", "ask ~ how /p feel" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_news", (new List<string> { "ask ~ what happened recently", "ask ~ the latest", " ask ~ about recent events" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_story", (new List<string> { "ask ~ /p story", "ask ~ about /p", "ask ~ about /p history" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_history", (new List<string> { "ask ~ about the history of ~", "ask ~ what happened to ~", "ask ~ about the story of ~" }, new List<string> { "nearby_architect", "entity" }));
@@ -2832,7 +2954,7 @@ namespace Lightrealm
             RecognizedCommands.Add("ask_interests", (new List<string> { "ask ~ what interests /p", "ask ~ about /p interests", "ask ~ about /p hobbies", "ask ~ what hobbies /p have" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_family", (new List<string> { "ask ~ about /p family", "ask ~ if /p has family", "ask ~ if /p has relatives", "ask ~ about /p relatives" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("challenge", (new List<string> { "challenge ~", "challenge ~ to a fight", "challenge ~ to a duel" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("provide_assistance", (new List<string> { "ask ~ if they need help", "ask ~ if i can help" }, new List<string> { "nearby_architect" }));
+            RecognizedCommands.Add("provide_assistance", (new List<string> { "ask ~ if /p need help", "ask ~ if i can help" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("ask_advice", (new List<string> { "ask ~ for advice on ~", "ask ~ advice on ~" }, new List<string> { "nearby_architect", "entity" }));
             RecognizedCommands.Add("inform_quest", (new List<string> { "tell ~ about my quest", "tell ~ about my goal", "tell ~ about my mission", "tell ~ my goal", "tell ~ my mission", "tell ~ my quest" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("tell_story_about", (new List<string> { "tell ~ about ~", "tell ~ the story of ~", "tell ~ a story about ~" }, new List<string> { "nearby_architect", "entity" }));
@@ -3828,6 +3950,13 @@ namespace Lightrealm
             }
 
 
+            FlashTick++;
+            if (FlashTick > 99)
+            {
+                FlashTick = 0;
+            }
+
+
             //BEFORE WE DO ANYTHING, FIX THE LOADED ARCHITECT THINGY
 
 
@@ -4193,11 +4322,6 @@ namespace Lightrealm
             }
 
 
-            FlashTick++;
-            if (FlashTick > 99)
-            {
-                FlashTick = 0;
-            }
 
             //update the Newly Pressed Key List
             KeysNewlyPressed = Keyboard.GetState().GetPressedKeys().ToList<Keys>();
@@ -5831,9 +5955,21 @@ namespace Lightrealm
                                             {
                                                 LoadedArchitects[ArchitectIndex].Prompt = LoadedArchitects[ArchitectIndex].LastPrompt;
                                             }
+                                            else if (k == Keys.Down)
+                                            {
+                                                LoadedArchitects[ArchitectIndex].LastPrompt = LoadedArchitects[ArchitectIndex].Prompt;
+                                                LoadedArchitects[ArchitectIndex].Prompt = "";
+                                            }
                                             if (k == Keys.Back && LoadedArchitects[ArchitectIndex].Prompt.Length != 0)
                                             {
-                                                LoadedArchitects[ArchitectIndex].Prompt = LoadedArchitects[ArchitectIndex].Prompt.Substring(0, LoadedArchitects[ArchitectIndex].Prompt.Length - 1);
+                                                if(Keyboard.GetState().IsKeyDown(Keys.LeftControl))
+                                                {
+                                                    LoadedArchitects[ArchitectIndex].Prompt = "";
+                                                }
+                                                else
+                                                {
+                                                    LoadedArchitects[ArchitectIndex].Prompt = LoadedArchitects[ArchitectIndex].Prompt.Substring(0, LoadedArchitects[ArchitectIndex].Prompt.Length - 1);
+                                                }
                                             }
                                             else if (KeyAtlas.ContainsKey(k))
                                             {
@@ -5918,7 +6054,7 @@ namespace Lightrealm
 
                                             // Determine modifier
                                             string Modifier = "none";
-                                            if (commandParts.Length > 0 && (commandParts[0].StartsWith("get") || commandParts[0].StartsWith("grab") || commandParts[0].StartsWith("take") || commandParts[0].StartsWith("pick up") || commandParts[0].StartsWith("steal")))
+                                            if (commandParts.Length > 0 && (commandParts[0].StartsWith("get") || commandParts[0].StartsWith("grab") || (commandParts[0].StartsWith("take") && !commandParts[0].StartsWith("take off")) || commandParts[0].StartsWith("pick up") || commandParts[0].StartsWith("steal")))
                                             {
                                                 Modifier = "get";
                                             }
@@ -6985,7 +7121,7 @@ namespace Lightrealm
                                     Exposition.Add(new TextStorage("", Color.White, new List<Entity>()));
                                     Exposition.Add(new TextStorage("", Color.White, new List<Entity>()));
                                     Exposition.Add(new TextStorage("", Color.White, new List<Entity>()));
-                                    Exposition.Add(new TextStorage("Press ENTER to continue...", Color.White, new List<Entity>()));
+                                    Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White, new List<Entity>()));
                                 }
                             }
                         }
@@ -7416,6 +7552,10 @@ namespace Lightrealm
                         {
                             _spriteBatch.Draw(CursorT, tileRect, Color.White);
                         }
+                        else if (GamePlayerParty != null && GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width]) && FlashTick < 50)
+                        {
+                            _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
+                        }
                         else
                         {
                             // Adjust tile brightness based on elevation
@@ -7588,7 +7728,7 @@ namespace Lightrealm
                 _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
             }
 
-            void DrawCenteredText(SpriteBatch spriteBatch, string text, float yPosition, SpriteFont Font, Color color)
+            void DrawCenteredText(SpriteBatch spriteBatch, string text, int yPosition, SpriteFont Font, Color color)
             {
                 // Load the Shibafont SpriteFont
                 Vector2 textSize = Font.MeasureString(text);
@@ -7602,7 +7742,6 @@ namespace Lightrealm
                 // Draw the text
                 spriteBatch.DrawString(Font, text, position, color);
             }
-
             void DrawWorldSegment(int centerX, int centerZ, int segmentWidth, int segmentHeight, float tileScale, int tileRadius)
             {
                 // Variables for elevation-based color adjustment
@@ -7675,7 +7814,7 @@ namespace Lightrealm
                             continue; // Skip drawing unexplored tiles in travelmode
                         }
 
-                        // Define constants
+                        // Define constants for time-of-day brightness adjustment
                         float minimumDarkness = 0.6f;
                         int sunriseStartHour = 6;
                         int sunriseEndHour = 8;
@@ -7714,22 +7853,29 @@ namespace Lightrealm
                             darknessLevel = minimumDarkness * (1.0f - transitionProgress);
                         }
 
-                        // Adjust tile brightness based on elevation
-                        float elevation = GameWorld.ElevationNoiseValues[index];
-                        float normalizedElevation = elevation / 256f;
-                        float brightness = MathHelper.Lerp(minBrightness, maxBrightness, normalizedElevation);
-                        Color baseColor = new Color(brightness, brightness, brightness); // Base color adjusted by elevation
+                        // Draw cursor or tile
+                        if (GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
+                        {
+                            _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
+                        }
+                        else
+                        {
+                            // Adjust tile brightness based on elevation
+                            float elevation = GameWorld.ElevationNoiseValues[index];
+                            float normalizedElevation = elevation / 256f;
+                            float brightness = MathHelper.Lerp(minBrightness, maxBrightness, normalizedElevation);
+                            Color baseColor = new Color(brightness, brightness, brightness); // Base color adjusted by elevation
 
-                        // Apply blight effect on top of the elevation-adjusted base color
-                        Color finalColor = GameWorld.WorldMap[index].Blight != GameWorld.Purity ?
-                            Color.Lerp(baseColor, new Color(100, 100, 100), 1.0f) : baseColor;
+                            // Apply blight effect on top of the elevation-adjusted base color
+                            Color finalColor = GameWorld.WorldMap[index].Blight != GameWorld.Purity ?
+                                Color.Lerp(baseColor, new Color(100, 100, 100), 1.0f) : baseColor;
 
-                        // Apply additional darkness filter based on the time of day only if necessary
-                        finalColor = Color.Lerp(finalColor, new Color(0, 0, 0), darknessLevel);
+                            // Apply additional darkness filter based on the time of day only if necessary
+                            finalColor = Color.Lerp(finalColor, new Color(0, 0, 0), darknessLevel);
 
-                        // Draw the region tile with combined elevation, blight, and time-of-day adjusted color
-                        _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
-
+                            // Draw the region tile with combined elevation, blight, and time-of-day adjusted color
+                            _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
+                        }
                     }
                 }
 
@@ -7919,7 +8065,6 @@ namespace Lightrealm
                 // Reset SpriteBatch settings to normal
                 _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
             }
-
 
 
             void DrawCharacter(Architect a, int x, int y, double Scale)
@@ -8229,7 +8374,13 @@ namespace Lightrealm
                             else
                             {
                                 _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont,
+                                                "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation() +
+                                                (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace != null && GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name != "" ?
+                                                " (Primarily " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + ")" : ""),
+                                                new Vector2(DrawX, DrawY + 30),
+                                                Color.White);
+
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -8243,12 +8394,12 @@ namespace Lightrealm
 
                                 foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts)
                                 {
+                                    ArchitectPopulation += d.Architects.Count;
+
                                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                                     {
                                         for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                                         {
-                                            ArchitectPopulation += d.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count;
-
                                             foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
                                             {
                                                 structures++;
@@ -8606,8 +8757,8 @@ namespace Lightrealm
                 // Keeping other text draws as they are since they're not dependent on cycle conversion
                 _spriteBatch.DrawString(BabyShibafont, "Architects, Total: " + GameWorld.TotalArchitects + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1750, 1320), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + GameWorld.Groups.Count, new Vector2(1750, 1360), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Written Objects: " + GameWorld.TotalWrittenObjects, new Vector2(1750, 1400), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(1750, 1400), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Cultural Works: " + GameWorld.WorksOfCulture, new Vector2(1750, 1400), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(2000, 1400), Color.White);
 
                 // Updating the calculation for Month and Year using new cycles
                 int Month = (int)Math.Round((decimal)(GameWorld.Cycle / 24192000)) % 12 + 1;
@@ -8642,7 +8793,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(BabyShibafont, "Choose your character preferences ([] denotes a keybind):", new Vector2(DrawX + 500, 100), Color.White);
                 }
 
-                Dictionary<string, string> BonusDictionary = new Dictionary<string, string>() { { "luminarch", "(+10% Max Energy, -10% Attack Power)" }, { "nightfell", "(-10% Max Energy, +10% Attack Power)" }, { "archaix", "(No Specific Bonuses)" } };
+                Dictionary<string, string> BonusDictionary = new Dictionary<string, string>() { { "luminarch", "(+10% Max Energy, -10% Attack Power)" }, { "nightfell", "(-10% Max Energy, +10% Attack Power)" }, { "archaix", "(Average Energy, Average Attack Power)" } };
 
                 _spriteBatch.DrawString(BabyShibafont, "[1] Race: " + Capitalize(GameWorld.Races[CurrentlySelectingRace].Name) + " " + BonusDictionary[GameWorld.Races[CurrentlySelectingRace].Name], new Vector2(DrawX + 500, 150), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "[2] Sex: " + Capitalize(Sexes[CurrentlySelectingSex]), new Vector2(DrawX + 500, 200), Color.White);
@@ -8800,12 +8951,12 @@ namespace Lightrealm
 
                                 foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts)
                                 {
+                                    ArchitectPopulation += d.Architects.Count;
+
                                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                                     {
                                         for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                                         {
-                                            ArchitectPopulation += d.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count;
-
                                             foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
                                             {
                                                 structures++;
@@ -8979,7 +9130,7 @@ namespace Lightrealm
 
                     _spriteBatch.Draw(FrameT, backgroundRect, Color.White);
 
-                    _spriteBatch.DrawString(Shibafont, "Press CTRL+? for Help", new Vector2(600, 1350), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Press CTRL+? for GUI Info", new Vector2(600, 1350), Color.White);
 
                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                     {
@@ -9671,6 +9822,8 @@ namespace Lightrealm
                             };
 
                             DrawListInColumns(categories.Select(c => $"[{c.Key}] {c.Value}").ToList(), 830, startY, 40, 50, BabyShibafont);
+
+                            _spriteBatch.DrawString(BabyShibafont, "[X] Exit", new Vector2(830, 1050), Color.White);
                         }
                         // Draw commands
                         else if (CommandBuilderStage == "commands")
@@ -9680,6 +9833,8 @@ namespace Lightrealm
 
                             var commandList = commands.Take(keys.Count).Select((cmd, index) => $"[{keys[index]}] {cmd}").ToList();
                             DrawListInColumns(commandList, 830, startY, 40, 50, BabyShibafont);
+
+                            _spriteBatch.DrawString(BabyShibafont, "[X] Go Back", new Vector2(830, 1050), Color.White);
                         }
                         // Draw pickingsubjects
                         else if (CommandBuilderStage == "pickingsubjects")
@@ -9787,10 +9942,16 @@ namespace Lightrealm
                     void DrawBodyPart(SpriteBatch spriteBatch, Texture2D texture, string bodyPartType, Vector2 position)
                     {
                         int exposure = MostRecentPartyTurnArchitect.FindBodyPart(bodyPartType).Exposure;
-                        Color color = InterpolateColor(Color.White, new Color(85, 0, 170), exposure / 100f);
+
+                        // Calculate the red and blue values based on the exposure
+                        int red = (exposure <= 50) ? (int)(1 + 124 * (exposure / 50f)) : 125;
+                        int blue = (exposure <= 50) ? (int)(1 + 254 * (exposure / 50f)) : 255;
+
+                        Color color = new Color(red, 0, blue);
 
                         spriteBatch.Draw(texture, position, null, color, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
                     }
+
 
                     Color InterpolateColor(Color start, Color end, float amount)
                     {
@@ -9811,6 +9972,17 @@ namespace Lightrealm
                 else
                 {
                     _spriteBatch.Draw(InventoryGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
+
+                    DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.Name, 80, BabyShibafont, Color.White);
+                    DrawCenteredText(_spriteBatch, "STR: " + MostRecentPartyTurnArchitect.Strength + " / " +
+                                                    "AGL: " + MostRecentPartyTurnArchitect.Agility + " / " +
+                                                    "DEX: " + MostRecentPartyTurnArchitect.Dexterity + " / " +
+                                                    "END: " + MostRecentPartyTurnArchitect.Endurance + " / " +
+                                                    "CRE: " + MostRecentPartyTurnArchitect.Creativity + " / " +
+                                                    "CHA: " + MostRecentPartyTurnArchitect.Charisma + " / " +
+                                                    "FOC: " + MostRecentPartyTurnArchitect.Focus,
+                                                    110, BabyShibafont, Color.White);
+                    DrawCenteredText(_spriteBatch, "Use \"remember skills\" or \"remember spells\" to list spell or skill information.", 140, BabyShibafont, Color.White);
 
                     int line = 0;
 
@@ -9908,7 +10080,7 @@ namespace Lightrealm
                     foreach ((string, int) p in MostRecentPartyTurnArchitect.XPValues)
                     {
                         line++;
-                        DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetProficiency(p.Item1)} XP", 290, 100 + 20 * line, BabyShibafont);
+                        DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetXP(p.Item1)} XP", 290, 100 + 20 * line, BabyShibafont);
                     }
                     if (line == 0)
                     {
@@ -10828,18 +11000,32 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "Enter a command. Press F5 For Help: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
 
 
+                    string MovementDescription = "";
+
                     if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
                     {
-                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
+                        MovementDescription = "You are not moving right now.";
                     }
                     else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
                     {
-                        _spriteBatch.DrawString(Shibafont, "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace, new Vector2(50, 1150), Color.White);
+                        MovementDescription = "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace + ".";
                     }
                     else
                     {
-                        _spriteBatch.DrawString(Shibafont, "You are not moving right now.", new Vector2(50, 1150), Color.White);
+                        MovementDescription = "You are not moving right now.";
                     }
+
+
+                    if(MostRecentPartyTurnArchitect.OnGround)
+                    {
+                        MovementDescription += (" You are currently prone.");
+                    }
+                    else
+                    {
+                        MovementDescription += (" You are currently standing.");
+                    }
+
+                    _spriteBatch.DrawString(Shibafont, MovementDescription, new Vector2(50, 1150), Color.White);
                 }
 
                 //cmd help
@@ -10914,7 +11100,13 @@ namespace Lightrealm
                                 }
 
                                 _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX + 500, DrawY - 30), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX + 500, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont,
+     "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation() +
+     (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace != null && GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name != "" ?
+     " (Primarily " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + ")" : ""),
+     new Vector2(DrawX + 500, DrawY + 30),
+     Color.White);
+
 
                                 int ArchitectPopulation = 0;
                                 int structures = 0;
@@ -10930,22 +11122,22 @@ namespace Lightrealm
                                     {
                                         if (d.Industry.Length > 4)
                                         {
-                                            _spriteBatch.DrawString(Shibafont, ">" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Shibafont, ">" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
                                         }
                                         else
                                         {
-                                            _spriteBatch.DrawString(Shibafont, ">" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Shibafont, ">" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
                                         }
                                     }
                                     else
                                     {
                                         if (d.Industry.Length > 4)
                                         {
-                                            _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
                                         }
                                         else
                                         {
-                                            _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 20), Color.White);
+                                            _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
                                         }
                                     }
                                     DistrictLine++;
@@ -10958,12 +11150,13 @@ namespace Lightrealm
                                             groups++;
                                         }
                                     }
+
+                                    ArchitectPopulation += d.Architects.Count;
+
                                     for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                                     {
                                         for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                                         {
-                                            ArchitectPopulation = d.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count;
-
                                             foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
                                             {
                                                 structures++;

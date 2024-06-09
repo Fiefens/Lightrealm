@@ -454,6 +454,7 @@ namespace Lightrealm
 
                 Room currentRoom = door.SourceRoom;
                 Door quickestExitDoor = currentRoom.FindQuickestExitDoor();
+
                 if (quickestExitDoor == door)
                 {
                     // Add * to the first ReferredToName and insert it at the front
@@ -538,6 +539,12 @@ namespace Lightrealm
                     ReferredToNames.Add(firstName);
                     ReferredToNames.Add(ID.ToString());
                 }
+            }
+
+            if(this.Type == "exit door")
+            {
+                string quickestName = ReferredToNames[0] + "*";
+                ReferredToNames.Insert(0, quickestName);
             }
         }
 

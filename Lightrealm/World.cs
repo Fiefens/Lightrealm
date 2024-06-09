@@ -993,7 +993,7 @@ namespace Lightrealm
         public List<string> WritingUnderstandings { get; set; } = new List<string> { "is incredibly easy to understand.", "has some obscurities, but is very simple overall.", "stumbles over some details, but gets the important information well.", "goes off on many unnecessary tangents, but isn't too unreadable.", "floats around the original subject matter, but rambles on about somewhat related, but not important topics.", "is fairly informative, but is full of many extra unrelated opinions.", "seems very coherent, but the topics must be beyond   mind.", "doesn't have a very defined flow, and is rather difficult to read and understand", "has absolutely no coherence whatsoever." };
         public List<string> WriterTypes { get; set; } = new List<string> { "has no idea what they're talking about.", "can't pinpoint many specific instances.", "is well informed on the subject matter.", "really enjoys this subject.", "doesn't care that much about what they are writing about." };
 
-        public int TotalWrittenObjects { get; set; }
+        public int WorksOfCulture { get; set; }
 
         public int MaxAge = 0;
         public double ProsperityMultiplier = 1.0;
@@ -2728,7 +2728,7 @@ namespace Lightrealm
 
                                         foreach (Architect a in ChosenDistrict.Architects)
                                         {
-                                            if (r.Next(GrievanceChance) == 1)
+                                            if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
                                             {
                                                 a.Grievances.Add((Calamitizer, " plagued " + a.PossessivePronoun + " town, " + a.Location.Name + "."));
                                                 Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
@@ -2743,17 +2743,15 @@ namespace Lightrealm
                                             Calamitizer.TakenLocations.Add(Calamitizer.InteractionLocation);
                                             foreach (Architect a in ChosenDistrict.Architects)
                                             {
-                                                if (r.Next(GrievanceChance) == 1)
+                                                if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, "unjustly took control of " + a.PossessivePronoun + " town, " + a.Location.Name + ""));
+                                                    a.Grievances.Add((Calamitizer, " unjustly took control of " + a.PossessivePronoun + " town, " + a.Location.Name + ""));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
                                         }
-
                                         else if (Calamitizer.InteractionLocation.Government != Calamitizer)
                                         {
-                                            // Existing logic for when there is a government.
                                             if (r.Next(2) == 1)
                                             {
                                                 LogEvent(Calamitizer.Name + " threatened " + Calamitizer.InteractionLocation.Government.Name + ", the government of " + Calamitizer.InteractionLocation.Name + ", demanding they step down. " + Calamitizer.InteractionLocation.Government.Name + " complied.");
@@ -2764,8 +2762,9 @@ namespace Lightrealm
 
                                                 if (Calamitizer.InteractionLocation.Government is Architect)
                                                 {
-                                                    ((Architect)(Calamitizer.InteractionLocation.Government)).District.Architects.Remove(((Architect)(Calamitizer.InteractionLocation.Government)));
-                                                    Calamitizer.KilledPeopleWhoActuallyMatter.Add(((Architect)(Calamitizer.InteractionLocation.Government)));
+                                                    Architect govArchitect = (Architect)(Calamitizer.InteractionLocation.Government);
+                                                    govArchitect.District.Architects.Remove(govArchitect);
+                                                    Calamitizer.KilledPeopleWhoActuallyMatter.Add(govArchitect);
                                                 }
                                                 else
                                                 {
@@ -2781,21 +2780,19 @@ namespace Lightrealm
 
                                             foreach (Architect a in ChosenDistrict.Architects)
                                             {
-                                                if (r.Next(GrievanceChance) == 1)
+                                                if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, "unjustly took control of " + a.PossessivePronoun + " town, " + a.Location));
+                                                    a.Grievances.Add((Calamitizer, " unjustly took control of " + a.PossessivePronoun + " town, " + a.Location.Name + ""));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
 
-                                            // This line seems redundant, as it's assigning the government to itself without any change.
-                                            // Calamitizer.InteractionLocation.Government = (Calamitizer.InteractionLocation.Government);
                                             Calamitizer.TakenLocations.Add(Calamitizer.InteractionLocation);
                                         }
                                     }
                                     else if (CalamityIdeologicalObsession == "killer")
                                     {
-                                        if (Game1.r.Next(3 * MonthToDayConstant) == 1)
+                                        if (Game1.r.Next(12 * MonthToDayConstant) == 1)
                                         {
                                             if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3) == 1)
                                             {
@@ -2829,20 +2826,21 @@ namespace Lightrealm
                                                         continue;
                                                     }
 
-                                                    ChosenDistrict.ArchitectsToRemove.Add(ChosenDistrict.Architects[Index]);
+                                                    Architect affectedArchitect = ChosenDistrict.Architects[Index];
+                                                    ChosenDistrict.ArchitectsToRemove.Add(affectedArchitect);
 
-                                                    LogEvent(Calamitizer.Name + " assassinated " + ChosenDistrict.Architects[Index].Name + " in " + Calamitizer.InteractionLocation.Name + ".");
+                                                    LogEvent(Calamitizer.Name + " assassinated " + affectedArchitect.Name + " in " + Calamitizer.InteractionLocation.Name + ".");
 
                                                     foreach (Architect a in ChosenDistrict.Architects)
                                                     {
-                                                        if (r.Next(GrievanceChance) == 1)
+                                                        if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
                                                         {
-                                                            a.Grievances.Add((Calamitizer, " murdered a friend of " + a.Name + ", " + ChosenDistrict.Architects[Index].Name));
+                                                            a.Grievances.Add((Calamitizer, " murdered a friend of " + a.Name + ", " + affectedArchitect.Name));
                                                             Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                         }
                                                     }
 
-                                                    Calamitizer.KilledPeopleWhoActuallyMatter.Add(ChosenDistrict.Architects[Index]);
+                                                    Calamitizer.KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
                                                 }
                                             }
                                         }
@@ -2872,7 +2870,7 @@ namespace Lightrealm
                                             }
                                             foreach (Architect a in ChosenDistrict.Architects)
                                             {
-                                                if (r.Next(GrievanceChance) == 1)
+                                                if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
                                                 {
                                                     a.Grievances.Add((Calamitizer, " kidnapped some people from the home of " + a.Name + ", causing distress in their community"));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
@@ -2885,50 +2883,52 @@ namespace Lightrealm
                                             {
                                                 int Index = r.Next(ChosenDistrict.Architects.Count);
 
-                                                ChosenDistrict.ArchitectsToRemove.Add(ChosenDistrict.Architects[Index]);
+                                                Architect affectedArchitect = ChosenDistrict.Architects[Index];
+                                                ChosenDistrict.ArchitectsToRemove.Add(affectedArchitect);
 
-                                                LogEvent(Calamitizer.Name + " kidnapped " + ChosenDistrict.Architects[Index].Name + " in " + Calamitizer.InteractionLocation.Name + ".");
+                                                LogEvent(Calamitizer.Name + " kidnapped " + affectedArchitect.Name + " in " + Calamitizer.InteractionLocation.Name + ".");
 
-                                                Calamitizer.KidnappedPeopleWhoActuallyMatter.Add(ChosenDistrict.Architects[Index]);
+                                                Calamitizer.KidnappedPeopleWhoActuallyMatter.Add(affectedArchitect);
                                                 foreach (Architect a in ChosenDistrict.Architects)
                                                 {
-                                                    if (r.Next(GrievanceChance) == 1)
+                                                    if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
                                                     {
-                                                        a.Grievances.Add((Calamitizer, " kidnapped " + ChosenDistrict.Architects[Index].Name + ", a valued member of " + a.PossessivePronoun + " community"));
+                                                        a.Grievances.Add((Calamitizer, " kidnapped " + affectedArchitect.Name + ", a valued member of " + a.PossessivePronoun + " community"));
                                                         Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                     }
                                                 }
                                             }
                                         }
                                     }
-
                                     else if (CalamityIdeologicalObsession == "corruptor")
                                     {
                                         if (ChosenDistrict.Architects.Count > 0)
                                         {
                                             int Index = r.Next(ChosenDistrict.Architects.Count);
 
-                                            if (ChosenDistrict.Architects[Index] == Calamitizer)
+                                            Architect affectedArchitect = ChosenDistrict.Architects[Index];
+
+                                            if (affectedArchitect == Calamitizer)
                                             {
                                                 continue;
                                             }
 
-                                            LogEvent(Calamitizer.Name + " corrupted " + ChosenDistrict.Architects[Index].Name + "'s moral values in " + Calamitizer.InteractionLocation.Name + ".");
+                                            LogEvent(Calamitizer.Name + " corrupted " + affectedArchitect.Name + "'s moral values in " + Calamitizer.InteractionLocation.Name + ".");
 
-                                            ChosenDistrict.Architects[Index].MoralCompass -= r.Next(10, 20);
-                                            ChosenDistrict.Architects[Index].StabilityCompass -= r.Next(10, 20);
+                                            affectedArchitect.MoralCompass -= r.Next(10, 20);
+                                            affectedArchitect.StabilityCompass -= r.Next(10, 20);
 
                                             foreach (Architect a in ChosenDistrict.Architects)
                                             {
-                                                if (r.Next(GrievanceChance) == 1)
+                                                if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
                                                 {
-                                                    if (a == ChosenDistrict.Architects[Index])
+                                                    if (a == affectedArchitect)
                                                     {
                                                         a.Grievances.Add((Calamitizer, " was noticed by " + a.Name + ", who started to notice a difference in " + a.PossessivePronoun + " own psychology"));
                                                     }
                                                     else
                                                     {
-                                                        a.Grievances.Add((Calamitizer, " was noticed by " + ChosenDistrict.Architects[Index].Name + ", who began to notice a difference in " + ChosenDistrict.Architects[Index].Name + ""));
+                                                        a.Grievances.Add((Calamitizer, " was noticed by " + a.Name + ", who began to notice a difference in " + affectedArchitect.Name + ""));
                                                     }
 
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
@@ -2936,26 +2936,27 @@ namespace Lightrealm
                                             }
                                         }
                                     }
-
                                     else if (CalamityIdeologicalObsession == "diplomancer")
                                     {
                                         if (ChosenDistrict.Architects.Count > 0)
                                         {
                                             int Index = r.Next(ChosenDistrict.Architects.Count);
 
-                                            if (ChosenDistrict.Architects[Index] == Calamitizer)
+                                            Architect affectedArchitect = ChosenDistrict.Architects[Index];
+
+                                            if (affectedArchitect == Calamitizer)
                                             {
                                                 continue;
                                             }
 
-                                            (ChosenDistrict.Architects[Index]).MoralCompass -= r.Next(15, 35);
+                                            affectedArchitect.MoralCompass -= r.Next(15, 35);
 
-                                            LogEvent(Calamitizer.Name + " influenced " + ChosenDistrict.Architects[Index].Name + "'s values towards evil in " + Calamitizer.InteractionLocation.Name + ".");
+                                            LogEvent(Calamitizer.Name + " influenced " + affectedArchitect.Name + "'s values towards evil in " + Calamitizer.InteractionLocation.Name + ".");
                                             foreach (Architect a in ChosenDistrict.Architects)
                                             {
-                                                if (r.Next(GrievanceChance) == 1)
+                                                if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, " was noticed by " + a.Name + ", who began to see a major change in " + ChosenDistrict.Architects[Index].Name + " towards evil"));
+                                                    a.Grievances.Add((Calamitizer, " was noticed by " + a.Name + ", who began to see a major change in " + affectedArchitect.Name + " towards evil"));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
@@ -2991,8 +2992,9 @@ namespace Lightrealm
                                                 Calamitizer.InteractionLocation.HomeCivilization.WakeUpAndChooseViolencePoints = 0;
                                             }
 
-                                            (ChosenDistrict.Architects[Index]).MoralCompass -= r.Next(1, 3);
-                                            (ChosenDistrict.Architects[Index]).StabilityCompass -= r.Next(1, 3);
+                                            Architect affectedArchitect = ChosenDistrict.Architects[Index];
+                                            affectedArchitect.MoralCompass -= r.Next(1, 3);
+                                            affectedArchitect.StabilityCompass -= r.Next(1, 3);
                                         }
                                     }
                                     else if (CalamityIdeologicalObsession == "power")
@@ -3019,9 +3021,9 @@ namespace Lightrealm
                                             }
                                             foreach (Architect a in ChosenDistrict.Architects)
                                             {
-                                                if (r.Next(GrievanceChance) == 1)
+                                                if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, "harvested energy, causing the death of many in " + a.PossessivePronoun + " town, " + Calamitizer.InteractionLocation.Name + ""));
+                                                    a.Grievances.Add((Calamitizer, " harvested energy, causing the death of many in " + a.PossessivePronoun + " town, " + Calamitizer.InteractionLocation.Name + ""));
                                                     Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                 }
                                             }
@@ -3032,21 +3034,23 @@ namespace Lightrealm
                                             {
                                                 int Index = r.Next(ChosenDistrict.Architects.Count);
 
-                                                if (ChosenDistrict.Architects[Index] == Calamitizer)
+                                                Architect affectedArchitect = ChosenDistrict.Architects[Index];
+
+                                                if (affectedArchitect == Calamitizer)
                                                 {
                                                     continue;
                                                 }
 
-                                                ChosenDistrict.ArchitectsToRemove.Add(ChosenDistrict.Architects[Index]);
+                                                ChosenDistrict.ArchitectsToRemove.Add(affectedArchitect);
 
-                                                LogEvent(Calamitizer.Name + " assassinated " + ChosenDistrict.Architects[Index].Name + " in " + Calamitizer.InteractionLocation.Name + ", and harvested his energy.");
+                                                LogEvent(Calamitizer.Name + " assassinated " + affectedArchitect.Name + " in " + Calamitizer.InteractionLocation.Name + ", and harvested his energy.");
 
-                                                Calamitizer.KilledPeopleWhoActuallyMatter.Add(ChosenDistrict.Architects[Index]);
+                                                Calamitizer.KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
                                                 foreach (Architect a in ChosenDistrict.Architects)
                                                 {
-                                                    if (r.Next(GrievanceChance) == 1)
+                                                    if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
                                                     {
-                                                        a.Grievances.Add((Calamitizer, "murdered and harvested energy from " + ChosenDistrict.Architects[Index].Name + ", a good friend of theirs"));
+                                                        a.Grievances.Add((Calamitizer, " murdered and harvested energy from " + affectedArchitect.Name + ", a good friend of theirs"));
                                                         Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
                                                     }
                                                 }
@@ -3099,9 +3103,9 @@ namespace Lightrealm
                                                                 {
                                                                     foreach (Architect architect in district.Architects)
                                                                     {
-                                                                        if (r.Next(GrievanceChance) == 1)
+                                                                        if (r.Next(GrievanceChance) == 1 && architect != Calamitizer)
                                                                         {
-                                                                            architect.Grievances.Add((Calamitizer, "caused a rupture near " + architect.Name + "'s district."));
+                                                                            architect.Grievances.Add((Calamitizer, " caused a rupture near " + architect.Name + "'s district."));
                                                                         }
                                                                     }
                                                                 }
@@ -3118,10 +3122,15 @@ namespace Lightrealm
                                         }
                                     }
 
-
-                                    foreach(Architect a in ChosenDistrict.ArchitectsToRemove)
+                                    foreach (Architect a in ChosenDistrict.ArchitectsToRemove)
                                     {
                                         ChosenDistrict.Architects.Remove(a);
+
+                                        if (a.Group != null)
+                                        {
+                                            a.Group.Architects.Remove(a);
+                                            a.Group = null;
+                                        }
 
                                         if (ChosenDistrict.Location.Government == a)
                                         {
@@ -3137,11 +3146,11 @@ namespace Lightrealm
                                             {
                                                 LogEvent(Calamitizer.Name + " kidnapped the ruler of " + ChosenDistrict.Location.Name + ", " + a.Name + ", causing a minor power struggle.");
                                             }
-
                                         }
                                     }
                                     ChosenDistrict.ArchitectsToRemove = new List<Architect>();
                                 }
+
                             }
                         }
                     }
@@ -4247,7 +4256,7 @@ namespace Lightrealm
                                         }
                                     }
 
-                                    else if (f.CreativityValue >= 3 && r.Next(AmbitionRank * 6) == 1 && SettlementTypes.Contains(location.Type))
+                                    else if (f.CreativityValue >= 3 && r.Next(AmbitionRank * 150) == 1 && SettlementTypes.Contains(location.Type))
                                     {
                                         //craftsmanship
 
@@ -4898,7 +4907,7 @@ namespace Lightrealm
                                         }
 
                                         // Decide to write
-                                        if (Game1.r.Next(1, (Math.Max(1000 - (a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints), 100)) * MonthToDayConstant) == 1)
+                                        if (Game1.r.Next(1, (Math.Max(700 - (a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints), 50)) * MonthToDayConstant) == 1)
                                         {
                                             string writingType = "";
                                             int totalWeight = a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints;
@@ -4936,12 +4945,15 @@ namespace Lightrealm
 
                                                 Object o = new Object(newWork.Name, ObjectType, new List<Material>() { d.Location.HomeCivilization.CulturalCloth }, a);
                                                 a.StudyBuilding.HistoricalObjects.Add(o);
+                                                o.CompositionContent = newWork;
                                                 AllWrittenContent.Add(o);
                                             }
                                             else
                                             {
                                                 a.CultureBank.Add(newWork); // Storing poems and songs in the CultureBank
                                             }
+
+                                            WorksOfCulture++;
 
                                             // Log historical event
                                             HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));

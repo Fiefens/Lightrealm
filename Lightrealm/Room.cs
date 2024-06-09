@@ -46,7 +46,7 @@ namespace Lightrealm
             }
 
             Room exitRoom = Structure.Rooms[0];
-            if (this != exitRoom)
+            if (this == exitRoom)
             {
                 return null; // Already in the exit room
             }

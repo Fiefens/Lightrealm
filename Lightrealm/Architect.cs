@@ -36,6 +36,8 @@ namespace Lightrealm
         public string PossessivePronoun { get; set; }
         public string ObjectivePronoun { get; set; }
 
+        public int DismissalCycles = 0;
+
         public int PulseCharge = 0;
 
         public string TryDropItemType = "";
@@ -422,7 +424,14 @@ namespace Lightrealm
 
         public int EscapeChance()
         {
-            return Math.Min(Agility * 4 + PathOfShadowLevel * 3 + (CyclesSinceMoved/50) * 2, 100);
+            int Chance = Math.Min(Agility * 4 + PathOfShadowLevel * 3 + (CyclesSinceMoved / 50) * 2, 100);
+
+            if(DismissalCycles > 0)
+            {
+                Chance += 20;
+            }
+
+            return Math.Min(Chance, 100);
         }
 
         public int CombatCycles = 0;
@@ -798,7 +807,7 @@ namespace Lightrealm
         public (int sustain, int parry, int block, int duck, int jump, int roll, int disarm, int redirect) CalculateSuccessChances(Attack attack, int reactionModifierInt, Architect Attacker, int attackersProficiency)
         {
             // Assuming you have methods to get these values from imbuements
-            int extraDodgeChance = ExtraDodgeChance;
+            int extraDodgeChance = ExtraDodgeChance + (DismissalCycles > 0 ? 10 : 0);
             int extraRedirectionChance = ExtraRedirectionChance;
             int extraShieldEffectiveness = ExtraShieldEffectiveness;
 
@@ -861,7 +870,7 @@ namespace Lightrealm
             int duckChance = targetAffectsDuck ? ModifyChanceBasedOnTarget(baseDuckChance, true) : baseDuckChance;
             int jumpChance = targetAffectsJump ? ModifyChanceBasedOnTarget(baseJumpChance, true) : baseJumpChance;
 
-            int rollChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("dodging") + extraDodgeChance, 35, 4), reactionModifierInt, 5);
+            int rollChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("dodging") + extraDodgeChance, 40, 4), reactionModifierInt, 5);
             int disarmChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("disarming"), 0, 6), reactionModifierInt, 6);
             int redirectChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("redirection") + extraRedirectionChance, 50, 4), reactionModifierInt, 7);
 
@@ -1175,7 +1184,20 @@ namespace Lightrealm
                 XPValues[proficiencyIndex] = (XPValues[proficiencyIndex].Item1, XPValues[proficiencyIndex].Item2 + xpChange);
             }
         }
-
+        public int GetXP(string proficiencyName)
+        {
+            // Find the proficiency in the list
+            var proficiency = XPValues.FirstOrDefault(p => p.Item1.Equals(proficiencyName, StringComparison.OrdinalIgnoreCase));
+            if (proficiency.Equals(default((string, int))))
+            {
+                return -1; // Return -1 if not found
+            }
+            else
+            {
+                // Return the level based on the XP
+                return proficiency.Item2;
+            }
+        }
         public int GetProficiency(string proficiencyName)
         {
             // Find the proficiency in the list
@@ -1193,21 +1215,22 @@ namespace Lightrealm
         private int CalculateLevel(int xp)
         {
             int level = 0;
-            int currentThreshold = 100;
+            int currentThreshold = 20; // Start with the new threshold
             while (xp >= currentThreshold)
             {
                 level++;
 
                 // Determine the multiplier based on the cycle for this level
                 double multiplier;
-                if ((level - 2) % 3 == 0) multiplier = 2.5; // Every 3rd level starting from level 2
+                if ((level) % 3 == 0) multiplier = 2.5; // Every 3rd level starting from level 0
                 else multiplier = 2.0; // For the other levels
 
                 currentThreshold = (int)(currentThreshold * multiplier);
             }
             return level;
         }
- 
+
+
 
         public void SetProficiency(string proficiencyName, int value)
         {
@@ -1464,7 +1487,7 @@ namespace Lightrealm
                 // Add cut gems (50% chance)
                 if (random.Next(2) == 0)
                 {
-                    Object gem = new Object(null, "cut gem", new List<Material>() { /* Specify gem material */ }, null);
+                    Object gem = new Object(null, "cut gem", new List<Material>() { FavoriteGemstone }, null);
                     Inventory.Add(gem);
                 }
 
@@ -1995,10 +2018,13 @@ namespace Lightrealm
                 }
 
                 Clothing.Add(new Object(null, "undergarment", new List<Material>() { Cloth }, null));
+                ApplyDye(Clothing[0]);
 
                 if (Sex == "female")
                 {
                     Clothing.Add(new Object(null, "uppergarment", new List<Material>() { Cloth }, null));
+                    ApplyDye(Clothing[1]);
+
                 }
 
                 Location L;
@@ -2129,7 +2155,7 @@ namespace Lightrealm
                     int decider = Game1.r.Next(100);
                     string colorToApply = null;
 
-                    if (decider < 60 || clothingItem.Type == "undergarment" || clothingItem.Type == "uppershirt")
+                    if (decider < 60 || clothingItem.Type == "undergarment" || clothingItem.Type == "uppergarment")
                     {
                         // 60% chance to dye with the HomeCivilization color
                         colorToApply = HomeLocation.HomeCivilization.Color;
@@ -3190,6 +3216,10 @@ namespace Lightrealm
             {
                 BlindCycles--;
             }
+            if (DismissalCycles > 0)
+            {
+                DismissalCycles--;
+            }
             if (DestabilizedCycles > 0)
             {
                 DestabilizedCycles--;
@@ -3380,9 +3410,9 @@ namespace Lightrealm
                     int baseChanceToDerail = 5;
                     int baseChanceToFlatter = 5;
 
-                    if (m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender))
+                    if (m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender) || m.MessageContent.StartsWith("Would you tell me where I can find"))
                     {
-                        // Always respond truthfully if the sender is in ArchitectsIWillTellTruthTo
+                        // Always respond truthfully if the sender is in ArchitectsIWillTellTruthTo or if its a Request for Directions
                         baseChanceToTruth = 100;
                         baseChanceToMakeUp = 0;
                         baseChanceToClaimIgnorance = 0;
@@ -3970,8 +4000,6 @@ namespace Lightrealm
                         {
                             List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock" };
 
-
-
                             if(Game1.r.Next(50) == 1)
                             {
                                 AnnounceToParty(ReferredToNames[0] + " repositions!", Color.MediumPurple, new List<Entity>() { this });
@@ -4034,6 +4062,7 @@ namespace Lightrealm
                                             Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                                             objects.Add(o);
                                             o.Owner = this;
+                                            o.Thrower = this; //whatever...
                                             o.AirborneTarget = TargetArchitect;
                                             o.AirborneCyclesToHitTarget = 15 - Focus;
                                             AnnounceToParty(ReferredToNames[0] + " fires a bolt at " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, TargetArchitect });
@@ -4605,6 +4634,10 @@ namespace Lightrealm
                 Energy = 1;
                 HalfFocusTicks = 5000;
                 Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed, new List<Entity>()));
+            }
+            else
+            {
+                Energy -= Math.Max(0, (10 - (SpellcastingPower+(Focus/3))));
             }
 
             if(Game1.AllLegendarySpells.Contains(Spell))
@@ -5699,7 +5732,7 @@ namespace Lightrealm
             }
             else if (Power == "dismiss")
             {
-                ExtraDodgeChance += 10;
+                DismissalCycles += 30;
                 return new TextStorage(ReferredToNames[0] + " becomes partially intangible!", Color.Magenta, new List<Entity>() { this });
             }
             return new TextStorage("An unknown power triggered!", Color.Magenta, new List<Entity>() { this });

@@ -22,14 +22,14 @@ Solstic
 Celesti
 Aegis
 Zephyr
-Resonanc
+Reson
 Paragon
 Echo
 Eclips
-Maelstrom
+Maelst
 Chronos
 Seraph
-Nocturne
+Nocturn
 Crimson
 Nexus
 Quasar
@@ -48,7 +48,6 @@ Spectr
 Radiat
 Nebulon
 Tidalis
-Nocturni
 Celestri
 Mirag
 Astrion

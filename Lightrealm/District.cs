@@ -487,7 +487,7 @@ namespace Lightrealm
                     }
                 }
 
-                if(allDistrictStructures.Contains(Location.Prism))
+                if(!allDistrictStructures.Contains(Location.Prism) && Location.Prism != null)
                 {
                     //idk how this is happenign btu whaverver
 
@@ -703,6 +703,7 @@ namespace Lightrealm
                         a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                         a.Room = structureInSameDistrict.Rooms[Game1.r.Next(structureInSameDistrict.Rooms.Count)];
                         a.Block = a.Room.Structure.Block;
+                        a.HomeLocation = Location;
                         a.Room.Architects.Add(a);
                         Game1.LoadedArchitects.Add(a);
                     }
@@ -846,7 +847,7 @@ namespace Lightrealm
                     {
                         if (!Game1.GamePlayerParty.Architects.Contains(a))
                         {
-                            if (!a.IsLoadedTrader)
+                            if (!a.IsLoadedTrader && !Game1.GameWorld.ConstructRaces.Contains(a.Race))
                             {
                                 if (a.Race == Game1.GameWorld.GetRace("debtshiba"))
                                 {

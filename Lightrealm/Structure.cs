@@ -204,12 +204,12 @@ namespace Lightrealm
         {
             // Random introductory sentences
             List<string> introductions = new List<string>
-            {
-                $"You see a {Type}, {Name}.",
-                $"You see the {Type} {Name}.",
-                $"A {Type} called {Name} is here.",
-                $"Before you is the {Type} known as {Name}."
-            };
+    {
+        $"You see a {Type} called {Name}.",
+        $"The {Type} named {Name} stands before you.",
+        $"In front of you is a {Type} known as {Name}.",
+        $"You come across a {Type} known as {Name}."
+    };
 
             // Select a random introduction
             Random rnd = new Random();
@@ -263,7 +263,7 @@ namespace Lightrealm
             }
 
             // Describe lighting
-            string lightingDescription = LightingMethods.Count > 0 ? $"lit up with {String.Join(", ", LightingMethods)}" : "";
+            string lightingDescription = LightingMethods.Count > 0 ? $"lit by {String.Join(", ", LightingMethods)}" : "";
 
             // Describe age
             string ageDescription = "";
@@ -288,15 +288,17 @@ namespace Lightrealm
             bool isLightingFirst = rnd.Next(2) == 0; // 50% chance
             if (isLightingFirst)
             {
-                description += Game1.Capitalize($"{lightingDescription} and is {sizeDescription}. {ageDescription}.");
+                description += $"It is {lightingDescription} and it is {sizeDescription}. {ageDescription}.";
             }
             else
             {
-                description += Game1.Capitalize($"{ageDescription}, {sizeDescription}, and {lightingDescription}.");
+                description += $"{Game1.Capitalize(ageDescription)}, {sizeDescription}, and {lightingDescription}.";
             }
 
-            return description.Trim();
+            // Clean up the description
+            return description.Replace("..", ".").Trim();
         }
+
 
 
         public Structure()

@@ -14,6 +14,7 @@ namespace Lightrealm
         public InteractableEvent CurrentEvent = null;
 
         public List<Architect> IntriguingArchitects = new List<Architect>();
+        public List<Region> CurrentlyMarkedRegions = new List<Region>();
 
         public Party() : base()
         {

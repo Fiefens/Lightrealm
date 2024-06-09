@@ -118,7 +118,7 @@ namespace Lightrealm
                         description = $"destabilize the nearest hostile.";
                         break;
                     case "dismiss":
-                        description = $"gain dismissal for one turn.";
+                        description = $"gain dismissal for two seconds.";
                         break;
                 }
             }
