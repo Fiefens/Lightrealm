@@ -10,6 +10,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Lightrealm
 {
@@ -38,8 +39,8 @@ namespace Lightrealm
         public double Weight { get; set; } = 0;
 
         public int WeaponMaximumRange = 0;
-        
-        
+
+
         public Structure Structure
         {
             get
@@ -131,7 +132,7 @@ namespace Lightrealm
         public int FindObjectGenericStrength()
         {
             List<string> MaterialStrings = new List<string>();
-            foreach(Material m in Materials)
+            foreach (Material m in Materials)
             {
                 MaterialStrings.Add(m.Type);
             }
@@ -257,7 +258,7 @@ namespace Lightrealm
 
         public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
-            if(IsBodyPart)
+            if (IsBodyPart)
             {
                 UpdateExposure(-(15 * ((Architect)Owner).Dexterity));
             }
@@ -307,12 +308,20 @@ namespace Lightrealm
             double combatIntensityMultiplier = 2; // This value should be dynamically adjusted based on combat conditions
 
             // Calculate damage outcomes
-            int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1)*(((Architect)Owner).Focus)));
+            int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1) * (((Architect)Owner).Focus)));
             int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * efficiencyFactor * combatIntensityMultiplier);
             int Bleeding = (int)(baseBleeding * bleedingModifier * efficiencyFactor * combatIntensityMultiplier);
             int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * efficiencyFactor * combatIntensityMultiplier);
 
+
             List<TextStorage> Announcements = new List<TextStorage>();
+
+            //heat damage
+            if (o.HeatInCelsius > 50)
+            {
+                Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new List<Entity>()));
+                EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
+            }
 
             // Determine if the attack gets blocked by coverage or armor
             double coverageMissChance = (Coverage / 22.5) * 75;
@@ -363,7 +372,7 @@ namespace Lightrealm
 
             if (Pain > 10)
             {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator)}));
+                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
             }
             else if (Pain > 7)
             {
@@ -541,7 +550,7 @@ namespace Lightrealm
                 }
             }
 
-            if(this.Type == "exit door")
+            if (this.Type == "exit door")
             {
                 string quickestName = ReferredToNames[0] + "*";
                 ReferredToNames.Insert(0, quickestName);
@@ -553,7 +562,7 @@ namespace Lightrealm
         {
             //remove bad spells
 
-            if(Game1.GameWorld.DeletedSpells.Contains(SpecialKnowledge))
+            if (Game1.GameWorld.DeletedSpells.Contains(SpecialKnowledge))
             {
                 SpecialKnowledge = null;
             }
@@ -597,7 +606,7 @@ namespace Lightrealm
                 {
                     Integrity = Integrity - YVelocity;
 
-                    if(Game1.LoadedArchitects[Game1.ArchitectIndex].Structure == this.Structure || Game1.LoadedArchitects[Game1.ArchitectIndex].Block == Block)
+                    if (Game1.LoadedArchitects[Game1.ArchitectIndex].Structure == this.Structure || Game1.LoadedArchitects[Game1.ArchitectIndex].Block == Block)
                     {
                         if (Integrity > 0)
                         {
@@ -613,14 +622,14 @@ namespace Lightrealm
 
             //burn
 
-            if(FireCycles > 0)
+            if (FireCycles > 0)
             {
                 Integrity -= FireCycles;
                 FireCycles--;
             }
         }
-        
-        public Object (string name, string type, List<Material> materials, bool InOrOn, bool isContainer, Composition content, Entity creator, double weight, bool isGeneralGood, Block b, Structure s, Room r, bool IsWearable)
+
+        public Object(string name, string type, List<Material> materials, bool InOrOn, bool isContainer, Composition content, Entity creator, double weight, bool isGeneralGood, Block b, Structure s, Room r, bool IsWearable)
         {
             Weight = weight;
             Type = type;
@@ -647,7 +656,7 @@ namespace Lightrealm
 
                 if (Type == "scroll")
                 {
-                    WordCount = "~"+Game1.r.Next(5, 500)+"0";
+                    WordCount = "~" + Game1.r.Next(5, 500) + "0";
                 }
                 else if (Type == "book")
                 {
@@ -716,7 +725,7 @@ namespace Lightrealm
                     Description = "A bright concentration of energy. It seems highly unstable.";
                     break;
                 case "fragment":
-                    Weight = 10;
+                    Weight = 5;
                     Description = "A small shard of /m.";
                     IsConsumable = true;
                     break;
@@ -1158,7 +1167,12 @@ namespace Lightrealm
                 case "pickaxe":
                     Weight = 1200;
                     DamageType = "piercing";
-                    Description = "A useful mining tool. Can be used to gather materials.";
+                    Description = "A useful mining tool. Can be used to gather various tough materials.";
+                    break;
+                case "shovel":
+                    Weight = 1200;
+                    DamageType = "piercing";
+                    Description = "A tool used for digging. Ideal for gathering sand.";
                     break;
                 case "scythe":
                     Weight = 1200;
@@ -1431,7 +1445,7 @@ namespace Lightrealm
                     IsContainer = false;
                     Description = "A large living organism, typically used for decoration or herbal purposes.";
                     break;
-                    
+
                 case "orb":
                     Weight = 0;
                     IsContainer = false;
@@ -1509,7 +1523,7 @@ namespace Lightrealm
 
                 // Case for a "spatial grenade"
                 case "spatial grenade":
-                    Weight = 250; 
+                    Weight = 250;
                     IsWeapon = false; // Considering its grenade nature
                     Description = "A strange /m capsule with an unknown function.";
                     break;
@@ -1552,9 +1566,9 @@ namespace Lightrealm
             }
 
             List<string> Mater = new List<string>();
-            foreach(Material m in Materials)
+            foreach (Material m in Materials)
             {
-                Mater.Add(m.Name);
+               Mater.Add(m.Name);
             }
             string MaterialList = Game1.FormatList(Mater);
 
@@ -1562,15 +1576,15 @@ namespace Lightrealm
 
             //rarity
 
-            if(IsWearable || IsWeapon)
+            if (IsWearable || IsWeapon)
             {
                 int CoolioNumber = 500;
-                if(Creator is Architect)
+                if (Creator is Architect)
                 {
                     CoolioNumber -= ((Architect)Creator).Creativity * 25;
                 }
 
-                
+
 
                 int rarityInt = Game1.r.Next(1, CoolioNumber);
 
@@ -1601,7 +1615,7 @@ namespace Lightrealm
         {
             int Imbuements = Extra;
 
-            if(Type == "dagger")
+            if (Type == "dagger")
             {
                 return;
             }

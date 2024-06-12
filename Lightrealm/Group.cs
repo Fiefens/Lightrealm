@@ -54,7 +54,7 @@ namespace Lightrealm
 
         public List<Location> TradeRoute = new List<Location>();
         public int MaxTradeRouteLength = Game1.r.Next(3, 10);
-        public bool TradedThisMonth = false;
+        public bool TradeCooldown = false;
 
         public int MoralCompass = 0;
         public int StabilityCompass = 0;
@@ -134,4 +134,3 @@ namespace Lightrealm
         }
     }
 }
-

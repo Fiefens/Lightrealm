@@ -24,6 +24,7 @@ namespace Lightrealm
         public List<(Entity, int)> Embezzlements = new List<(Entity, int)>();
 
         public Structure Market;
+        public Structure Library;
         public Structure Prism;
 
         public string Color;

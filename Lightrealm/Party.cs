@@ -89,6 +89,13 @@ namespace Lightrealm
                     a.LeftHandObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
                 }
 
+                /*
+                a.Inventory.Add(new Object(null, "pickaxe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
+                a.Inventory.Add(new Object(null, "scythe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
+                a.Inventory.Add(new Object(null, "axe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
+                a.Inventory.Add(new Object(null, "shovel", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
+                */
+
                 for (int i = 0; i < 3; i++)
                 {
                     int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available

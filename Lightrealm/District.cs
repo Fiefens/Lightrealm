@@ -36,9 +36,8 @@ namespace Lightrealm
         public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
         public List<Architect> ArchitectsToAdd { get; set; } = new List<Architect>();
 
-        public List<Object> Objects { get; set; } = new List<Object>();
+        public List<Object> GeneralItemsWeHave { get; set; } = new List<Object>();
 
-        public List<Object> GeneralItemsWeHave = new List<Object>();
         public bool IsLoaded { get; set; }
         public bool HasBeenLoadedEver { get; set; } = false;
 
@@ -135,6 +134,7 @@ namespace Lightrealm
         {
 
         }
+
 
         public int Population()
         {
@@ -282,6 +282,8 @@ namespace Lightrealm
                             Objects.Add(new Object(null, "scythe", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
                         if (Game1.r.Next(0, 5) == 0)
                             Objects.Add(new Object(null, "axe", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                        if (Game1.r.Next(0, 5) == 0)
+                            Objects.Add(new Object(null, "shovel", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
                         break;
 
                     case "military":
@@ -487,7 +489,7 @@ namespace Lightrealm
                     }
                 }
 
-                if(!allDistrictStructures.Contains(Location.Prism) && Location.Prism != null)
+                if (!allDistrictStructures.Contains(Location.Prism) && Location.Prism != null)
                 {
                     //idk how this is happenign btu whaverver
 
@@ -501,7 +503,7 @@ namespace Lightrealm
 
                     string Layout = s.Type;
 
-                    if(Location.Layout != null && Location.Layout != "")
+                    if (Location.Layout != null && Location.Layout != "")
                     {
                         Layout = Location.Layout;
                     }
@@ -647,13 +649,20 @@ namespace Lightrealm
                         chosenRoom.Architects.Add(a);
                         a.Room = chosenRoom;
                         a.Block = chosenRoom.Structure.Block;
-                        a.Structure = chosenRoom.Structure;
                     }
-                    else
+                    else if (a.IsCalamity == false || Game1.r.Next(3) == 0)
                     {
                         Block b = DistrictMap[Game1.r.Next(0, 49)];
                         b.Architects.Add(a);
                         a.Block = b;
+                    }
+                    else
+                    {
+                        Structure chosenStructure = Location.AllStructures[0];
+                        Room chosenRoom = chosenStructure.Rooms[Game1.r.Next(chosenStructure.Rooms.Count)];
+                        chosenRoom.Architects.Add(a);
+                        a.Room = chosenRoom;
+                        a.Block = chosenRoom.Structure.Block;
                     }
 
                     a.District = this;
@@ -668,7 +677,7 @@ namespace Lightrealm
                              a.Profession == "brute" ||
                              a.Profession == "cluster";
 
-                if(!isCoolProfession)
+                if (!isCoolProfession)
                 {
                     if (a.Race.Name == "photonexus")
                     {
@@ -684,7 +693,7 @@ namespace Lightrealm
                     }
                 }
             }
-            
+
 
             if (Location.Districts.Count == 1 && Location.AllStructures.Count == 1)
             {
@@ -726,7 +735,7 @@ namespace Lightrealm
 
             bool EverythingBelongsToTheQueen = false;
 
-            if(Location.Type == "core" || Location.Type == "heart")
+            if (Location.Type == "core" || Location.Type == "heart")
             {
                 EverythingBelongsToTheQueen = true;
             }
@@ -743,7 +752,7 @@ namespace Lightrealm
                     foreach (Object o in DistrictMap[x + z * 7].Objects)
                     {
                         o.Block = DistrictMap[x + z * 7];
-                        if(EverythingBelongsToTheQueen)
+                        if (EverythingBelongsToTheQueen)
                         {
                             o.Owner = Location.Government;
                         }
@@ -773,14 +782,14 @@ namespace Lightrealm
                 }
             }
 
-            foreach(Architect a in Game1.LoadedArchitects)
+            foreach (Architect a in Game1.LoadedArchitects)
             {
-                if(a.Profession == "soverign" || a.Profession == "heart")
+                if (a.Profession == "soverign" || a.Profession == "heart")
                 {
                     a.Task = "sentinel";
                     a.CyclesLeftInTask = 99999;
 
-                    if(a.Room != null)
+                    if (a.Room != null)
                     {
                         a.Room.Architects.Remove(a);
                     }
@@ -811,7 +820,7 @@ namespace Lightrealm
                 {
                     for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                     {
-                        if(Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
+                        if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
                         {
                             possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures.Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]));
                         }
@@ -891,7 +900,7 @@ namespace Lightrealm
                             {
                                 Location.Prism.HistoricalObjects.Add(o);
                             }
-                            else
+                            else if(Location.AllStructures.Count > 0)
                             {
                                 Location.AllStructures[0].HistoricalObjects.Add(o);
                             }
@@ -954,6 +963,5 @@ namespace Lightrealm
 
             Game1.LoadedArchitects.Clear();
         }
-
     }
 }

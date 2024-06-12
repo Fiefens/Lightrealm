@@ -37,6 +37,18 @@ namespace Lightrealm
 
         public int NextUniqueID = 0;
 
+
+        Dictionary <string, string> groupTypes = new Dictionary<string, string>
+                    {
+                        { "anarchist", "noticed the anarchistic similarities of both their groups and forged them into one" },
+                        { "guild", "recognized their mutual goals and merged to form a stronger guild" },
+                        { "scholarly", "found their scholarly pursuits aligned and combined their resources" },
+                        { "military", "saw the strategic advantage in uniting their forces" },
+                        { "political", "realized their political ambitions were better achieved together" },
+                        { "entertainment", "decided that merging their talents would entertain more people" }
+                    };
+
+
         public int ConvertLevelToToughness(int level)
         {
             if (level < 1 || level > 10)
@@ -53,6 +65,21 @@ namespace Lightrealm
             int toughness = minToughness + (level - minLevel) * (maxToughness - minToughness) / (maxLevel - minLevel);
             return toughness;
         }
+        
+        public Dictionary<string, string> GenericHatredDictionary = new Dictionary<string, string>()
+        {
+            {"civilized", "archaix"},
+            {"archaix", "shade"},
+            {"shade", "druid"},
+            {"druid", "scavenger"},
+            {"scavenger", "photonexus"},
+            {"photonexus", "anarchist"},
+            {"anarchist", "cultist"},
+            {"cultist", "isofractal"},
+            {"isofractal", "pirate"},
+            {"pirate", "civilized"}
+        };
+
 
         public Dictionary<string, List<Material>> MaterialsFromColors = new Dictionary<string, List<Material>>
         {
@@ -652,7 +679,7 @@ namespace Lightrealm
             Object o = new Object(null, ChosenItem, Materials, null);
             o.Rarity = GenerateItemRarity(Level);
             o.IsMagical = true;
-            o.ApplyImbuements(0);
+            o.ApplyImbuements(1);
             return (o);
         }
 
@@ -759,8 +786,6 @@ namespace Lightrealm
 
         public List<Location> AllLocations { get; set; } = new List<Location>();
         public List<string> UnusedCivColors = new List<string>();
-
-        public string SubjectCatalogueInActuallyReadableForm;
 
         public string CountEntities(Dictionary<string, Entity> subjectCatalogue)
         {
@@ -1001,7 +1026,6 @@ namespace Lightrealm
 
         public int LivingArchitects { get; set; }
         public int DeadArchitects { get; set; }
-        public int TotalArchitects { get; set; }
 
         public List<Architect> Colossals { get; set; } = new List<Architect>();
 
@@ -1050,6 +1074,8 @@ namespace Lightrealm
 
             return filteredMaterials[index];
         }
+
+
 
         public Material Enchromalite { get; set; } = new Material("enchromalite", "metal", 3, 4, "black");
         public Material Illuminite { get; set; } = new Material("illuminite", "stone", 3, 4, "white");
@@ -1528,7 +1554,7 @@ namespace Lightrealm
                     BodyParts.Add(("tooth", Membrane));
 
                 // Add to list (assuming GenerateUniqueName and Race constructor are defined elsewhere)
-                Race r = new Race("", Size, BodyParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string>() { "allunalike" }, Game1.r.Next(10,20));
+                Race r = new Race("", Size, BodyParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string>() { "allunalike" }, Game1.r.Next(0,6));
                 r.Name = GenerateUniqueName("1S" + Game1.r.Next(5) + "s", r);
                 WildRaces.Add(r);
             }
@@ -1736,6 +1762,7 @@ namespace Lightrealm
                 }
             }
 
+
             void DFS(Region[] worldMap, int x, int y, int width, bool[] visited, List<Region> currentIsland)
             {
                 int length = worldMap.Length / width; // Calculate length based on total size and width
@@ -1868,6 +1895,7 @@ namespace Lightrealm
             {
                 List<LocationBuilderPacket> LocationBuilderPackets = new List<LocationBuilderPacket>();
 
+
                 //add historical abridged events
 
                 if (AbridgedHistoricalEvents.Count * 10 < Math.Round(Cycle / 290304000, 0, MidpointRounding.ToNegativeInfinity))
@@ -1878,8 +1906,6 @@ namespace Lightrealm
                 int MonthToDayConstant = (28 / Days);
 
                 //place civilizations that need to be placed.
-
-                SubjectCatalogueInActuallyReadableForm = CountEntities(SubjectCatalogue);
 
                 void PlaceFancyCiv(Race race)
                 {
@@ -1919,10 +1945,6 @@ namespace Lightrealm
                         }
 
                         Tries++;
-                        if (Tries > 300)
-                        {
-                            throw new Exception("yehe thats not enoughe :)");
-                        }
                     }
 
                     Civilization c = new Civilization(race, race.Name, FoundX, FoundZ, this);
@@ -2659,6 +2681,8 @@ namespace Lightrealm
                                     FoundGuy.Charisma = Math.Max(FoundGuy.Charisma, FoundGuy.Level);
                                     FoundGuy.Focus = Math.Max(FoundGuy.Focus, FoundGuy.Level);
 
+                                    FoundGuy.IsCalamity = true;
+
                                     HistoricalEvents.Add(Date + " " + Calamitizer.Name + " recruited " + FoundGuy.Name + " as a " + FoundGuy.MasterRelation + " to serve " + Calamitizer.ObjectivePronoun + " and the almighty " + Calamity[0].Name + ".");
                                     CalamitiesToAdd.Add(FoundGuy);
                                 }
@@ -2667,7 +2691,7 @@ namespace Lightrealm
 
                         //do actions
 
-                        if (r.Next((30 - (Calamitizer.Level*2)) * MonthToDayConstant) == 0)
+                        if (r.Next((30 - (Calamitizer.Level*2)) * MonthToDayConstant) == 0 && Calamity[0].IsAlive)
                         {
                             //determine whether you want to move
 
@@ -2847,7 +2871,7 @@ namespace Lightrealm
                                     }
                                     else if (CalamityIdeologicalObsession == "kidnapper")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3 * MonthToDayConstant) == 1)
+                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 7 * MonthToDayConstant) == 1)
                                         {
                                             int InitialPop = ChosenDistrict.UnplacedPopulation;
 
@@ -2877,7 +2901,7 @@ namespace Lightrealm
                                                 }
                                             }
                                         }
-                                        else if (ChosenDistrict.Architects.Count > 0)
+                                        else if (ChosenDistrict.Architects.Count > 0 && r.Next(1, 7 * MonthToDayConstant) == 1)
                                         {
                                             for (int i = r.Next(1, 3 * MonthToDayConstant); i != 0; i--)
                                             {
@@ -3287,49 +3311,123 @@ namespace Lightrealm
 
 
                 //spread blight
-                for (int x = 0; x < Width; x++)
+                foreach (Region R in WorldMap)
                 {
-                    for (int z = 0; z < Length; z++)
+                    if (R.Blight != Purity)
                     {
-                        if (WorldMap[x + z * Width].Blight != Purity)
+                        if (r.Next(1, 600 * MonthToDayConstant) == 1)
                         {
-                            if (r.Next(1, 600 * MonthToDayConstant) == 1)
+                            //pick a random number between 1-4 and spread cardinally
+                            int Spread = r.Next(4);
+                            if (Spread == 1)
                             {
-                                //pick a random number between 1-4 and spread cardinally
-                                int Spread = r.Next(4);
-                                if (Spread == 1)
+                                //spread north if available
+                                if (R.X > 0)
                                 {
-                                    //spread north if available
-                                    if (z > 0)
-                                    {
-                                        WorldMap[(x) + (z - 1) * Width].Blight = WorldMap[x + z * Width].Blight;
-                                    }
+                                    WorldMap[(R.X) + (R.Z - 1) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
                                 }
-                                else if (Spread == 2)
+                            }
+                            else if (Spread == 2)
+                            {
+                                //spread east if available
+                                if (R.X < Width - 1)
                                 {
-                                    //spread east if available
-                                    if (x < Width - 1)
-                                    {
-                                        WorldMap[(x + 1) + (z) * Width].Blight = WorldMap[x + z * Width].Blight;
-                                    }
+                                    WorldMap[(R.X + 1) + (R.Z) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
                                 }
-                                else if (Spread == 3)
+                            }
+                            else if (Spread == 3)
+                            {
+                                //spread south if available
+                                if (R.Z < Length - 1)
                                 {
-                                    //spread south if available
-                                    if (z < Length - 1)
-                                    {
-                                        WorldMap[(x) + (z + 1) * Width].Blight = WorldMap[x + z * Width].Blight;
-                                    }
+                                    WorldMap[(R.X) + (R.Z + 1) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
+                                }
+                            }
+                            else
+                            {
+                                //spread west if available
+                                if (R.X > 0)
+                                {
+                                    WorldMap[(R.X - 1) + (R.Z) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                //try to merge a group together
+
+                // 2% chance to pick a group type
+                if (Game1.r.Next(1, 50 * MonthToDayConstant) == 1)
+                {
+                    // Pick a random group type from the predefined list
+                    var selectedGroupType = groupTypes.Keys.ElementAt(Game1.r.Next(groupTypes.Count));
+
+                    // Find all groups of the selected type
+                    var groupsOfType = Groups
+                        .Where(g => g.Type == selectedGroupType)
+                        .GroupBy(g => g.Leader.Location)
+                        .Where(g => g.Count() > 1)
+                        .SelectMany(g => g)
+                        .ToList();
+
+                    // Randomly shuffle the groups to ensure randomness
+                    groupsOfType = groupsOfType.OrderBy(g => Game1.r.Next()).ToList();
+
+                    // Attempt to merge the first pair found sharing the same location
+                    for (int i = 0; i < groupsOfType.Count() - 1; i++)
+                    {
+                        var g1 = groupsOfType[i];
+                        var g2 = groupsOfType[i + 1];
+
+                        if (g1.Leader.Location == g2.Leader.Location)
+                        {
+                            // Merge groups g1 and g2
+                            HistoricalEvents.Add($"{Date} {g1.Name} and {g2.Name} started talking about merging their groups.");
+
+                            Group mergedGroup = new Group(new List<Architect>(), g1.Type, g2.Leader, g1.Leader.Location);
+                            List<Architect> joiners = new List<Architect>();
+                            List<Architect> leavers = new List<Architect>();
+
+                            IEnumerable<Architect> allArchitects = g1.Architects.Union(g2.Architects);
+
+                            foreach (Architect architect in allArchitects)
+                            {
+                                if (Game1.r.Next(1, 10) == 1 && architect != mergedGroup.Leader)
+                                {
+                                    HistoricalEvents.Add($"{Date} {architect.Name} disagreed with the idea of merging groups and left them both to settle it themselves.");
+                                    leavers.Add(architect);
                                 }
                                 else
                                 {
-                                    //spread west if available
-                                    if (x > 0)
-                                    {
-                                        WorldMap[(x - 1) + (z) * Width].Blight = WorldMap[x + z * Width].Blight;
-                                    }
+                                    joiners.Add(architect);
                                 }
                             }
+
+                            foreach (Architect architect in joiners)
+                            {
+                                architect.Group = mergedGroup;
+                                mergedGroup.Architects.Add(architect);
+                            }
+
+                            foreach (Architect architect in leavers)
+                            {
+                                architect.Group = null;
+                                g1.Leader.Location.Districts[0].DistrictMap[Game1.r.Next(0, 49)].Architects.Add(architect);
+                            }
+
+                            mergedGroup.Reputation = (g1.Reputation + g2.Reputation) / 2;
+
+                            HistoricalEvents.Add($"{Date} {g1.Name} and {g2.Name} {groupTypes[g1.Type]}, going under the name {mergedGroup.Name}.");
+
+                            Groups.Remove(g1);
+                            Groups.Remove(g2);
+                            Groups.Add(mergedGroup);
+                            g1.Leader.Location.GroupsAtThisLocation.Remove(g1);
+                            g1.Leader.Location.GroupsAtThisLocation.Remove(g2);
+                            g1.Leader.Location.GroupsAtThisLocation.Add(mergedGroup);
+
+                            break;
                         }
                     }
                 }
@@ -3341,18 +3439,12 @@ namespace Lightrealm
                 foreach (Group g in Groups)
                 {
                     g.DaysOld += Days;
-                }
 
-                for (int x = 0; x < Width; x++)
-                {
-                    for (int z = 0; z < Length; z++)
+                    if(g.TradeCooldown == true)
                     {
-                        if (WorldMap[x + z * Width].MyLocation != null)
+                        if(r.Next(1,10) == 1)
                         {
-                            foreach (Group g in WorldMap[x + z * Width].MyLocation.TradersAtThisLocation)
-                            {
-                                g.TradedThisMonth = false;
-                            }
+                            g.TradeCooldown = false;
                         }
                     }
                 }
@@ -3426,10 +3518,12 @@ namespace Lightrealm
                 foreach (Location l in AllLocations)
                 {
                     //develop squads slowly
-
-                    if (r.Next(1, 10000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count * 250)))
+                    if(SettlementTypes.Contains(l.Type))
                     {
-                        SummonNewUnit(l);
+                        if (r.Next(1, 10000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count * 250)))
+                        {
+                            SummonNewUnit(l);
+                        }
                     }
                 }
 
@@ -3442,20 +3536,6 @@ namespace Lightrealm
 
                 foreach (Civilization c in Civilizations)
                 {
-                    Dictionary<string, string> GenericHatredDictionary = new Dictionary<string, string>()
-                    {
-                        {"civilized", "archaix"},
-                        {"archaix", "shade"},
-                        {"shade", "druid"},
-                        {"druid", "scavenger"},
-                        {"scavenger", "photonexus"},
-                        {"photonexus", "anarchist"},
-                        {"anarchist", "cultist"},
-                        {"cultist", "isofractal"},
-                        {"isofractal", "pirate"},
-                        {"pirate", "civilized"}
-                    };
-
                     string PrimaryHaterType = GenericHatredDictionary[c.WarType];
                     Location currentCapitol = GetCapitol(c, AllLocations);
 
@@ -3598,673 +3678,585 @@ namespace Lightrealm
 
 
             // Loop through the world map and update locations
-                for (int x = 0; x < Width; x++)
+                
+                foreach(Location location in AllLocations)
                 {
-                    for (int z = 0; z < Length; z++)
+                    // Efficiently add traders to this location
+                    location.TradersAtThisLocation.AddRange(location.TradersAtThisLocationToAdd);
+                    location.TradersAtThisLocationToAdd.Clear();
+
+                    int WealthIncrease = 50; // Assuming this is used later in your code
+
+                    // Only proceed if location is core or garrison, has enough wealth, and a rare condition is met
+                    if ((location.Type == "core" || location.Type == "garrison") && location.Wealth > 10000 && r.Next(1, 500) == 1)
                     {
-                        Location location = WorldMap[x + z * Width].MyLocation;
+                        // Simplify direction decision using a more direct approach
+                        int direction = r.Next(4); // 0: Right, 1: Left, 2: Up, 3: Down
 
-                        if (location != null)
+                        // Calculate new position based on the direction
+                        int NewX = location.X + (direction == 0 ? 1 : direction == 1 ? -1 : 0);
+                        int NewZ = location.Z + (direction == 2 ? 1 : direction == 3 ? -1 : 0);
+
+                        // Check if the new position is within bounds and not a "void" biome
+                        bool isValidPosition = NewX > 0 && NewX < Width && NewZ > 0 && NewZ < Length;
+                        bool isNotVoid = isValidPosition && WorldMap[NewX + NewZ * Width].MyLocation == null && WorldMap[NewX + NewZ * Width].Biome != "void";
+
+                        if (isValidPosition && isNotVoid)
                         {
-                            // Efficiently add traders to this location
-                            location.TradersAtThisLocation.AddRange(location.TradersAtThisLocationToAdd);
-                            location.TradersAtThisLocationToAdd.Clear();
+                            // Create and add the new location if conditions are met
+                            LocationBuilderPacket l = new LocationBuilderPacket(
+                                location.Government, NewX, NewZ, "garrison", location.PrimaryRace,
+                                r.Next(5, 10), 0, location.HomeCivilization, new List<Object>(), location, "none"
+                            );
+                            LocationBuilderPackets.Add(l);
+                            location.Wealth -= 10000; // Deduct wealth as the location is being expanded
+                        }
+                    }
 
-                            int WealthIncrease = 50; // Assuming this is used later in your code
-
-                            // Only proceed if location is core or garrison, has enough wealth, and a rare condition is met
-                            if ((location.Type == "core" || location.Type == "garrison") && location.Wealth > 10000 && r.Next(1, 500 ) == 1)
+                    if (SettlementTypes.Contains(location.Type))
+                    {
+                        foreach (District d in location.Districts)
+                        {
+                            for (int DistrictX = 0; DistrictX < 7; DistrictX++)
                             {
-                                // Simplify direction decision using a more direct approach
-                                int direction = r.Next(4); // 0: Right, 1: Left, 2: Up, 3: Down
-
-                                // Calculate new position based on the direction
-                                int NewX = location.X + (direction == 0 ? 1 : direction == 1 ? -1 : 0);
-                                int NewZ = location.Z + (direction == 2 ? 1 : direction == 3 ? -1 : 0);
-
-                                // Check if the new position is within bounds and not a "void" biome
-                                bool isValidPosition = NewX > 0 && NewX < Width && NewZ > 0 && NewZ < Length;
-                                bool isNotVoid = isValidPosition && WorldMap[NewX + NewZ * Width].MyLocation == null && WorldMap[NewX + NewZ * Width].Biome != "void";
-
-                                if (isValidPosition && isNotVoid)
+                                for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                                 {
-                                    // Create and add the new location if conditions are met
-                                    LocationBuilderPacket l = new LocationBuilderPacket(
-                                        location.Government, NewX, NewZ, "garrison", location.PrimaryRace,
-                                        r.Next(5, 10), 0, location.HomeCivilization, new List<Object>(), location, "none"
-                                    );
-                                    LocationBuilderPackets.Add(l);
-                                    location.Wealth -= 10000; // Deduct wealth as the location is being expanded
+                                    foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
+                                    {
+                                        if (s.Type == "forge")
+                                        {
+                                            WealthIncrease += 1;
+                                        }
+                                        else if (s.Type == "market")
+                                        {
+                                            WealthIncrease += 2;
+                                        }
+                                    }
                                 }
                             }
 
-                            if (SettlementTypes.Contains(location.Type))
+                            //establish an industry and do industry things :O
+
+                            if (d.Industry == null && (location.Type == "village" || location.Type == "town" || location.Type == "city"))
                             {
+                                d.Industry = Game1.Industries[r.Next(Game1.Industries.Count)];
+                                HistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
+                                location.LocationHistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
+                            }
+
+                            //foreach district with an industry, use it to increase the capitol's wealth bwzhaaahahahahahahahahahaaaa just kidding its actually the location that theyre based around
+
+                            if (d.Industry != null && r.Next(1, 20) == 1)
+                            {
+                                d.SupplyLocation(1);
+                            }
+                        }
+                    }
+
+                    location.Wealth = location.Wealth + (int)Math.Round(WealthIncrease * ProsperityMultiplier);
+
+
+                    //create interactable events based on history
+
+
+                    int IEDecider = r.Next(1, 500 * MonthToDayConstant);
+
+                    int LX = location.X + r.Next(-5, 6);
+                    int LZ = location.Z + r.Next(-5, 6);
+
+                    if (LX >= 0 && LX < Width && LZ >= 0 && LZ < Width && WorldMap[LX + LZ * Width].MyLocation == null && WorldMap[LX + LZ * Width].Biome != "void" && WorldMap[LX + LZ * Width].Biome != "ocean" && new string[] { "town", "city", "camp", "village" }.Contains(location.Type))
+                    {
+                        string DecidedType = "";
+
+                        List<Architect> GuarranteedArch = new List<Architect>();
+
+                        switch (IEDecider)
+                        {
+                            case int decider when decider < 2:
+                                DecidedType = "bandits";
+                                for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
+                                {
+                                    Architect AA = new Architect("", Game1.Sexes[r.Next(2)], location.HomeCivilization.PrimaryInhabiantRace, r.Next(13, 39), "bandit", new List<Object>(), null, null, null, "", 3);
+                                    AA.KitOutArchitect("bandit");
+                                    AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
+                                    GuarranteedArch.Add(AA);
+                                }
+                                break;
+                            case int decider when decider < 3:
+                                DecidedType = "shadebeast";
+                                Architect SB = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shadebeast"), r.Next(Year), "shadebeast", new List<Object>(), null, null, null, "", 3);
+                                SB.Name = Game1.GameWorld.GenerateUniqueArchitectName(SB);
+                                GuarranteedArch.Add(SB);
+                                break;
+                            case int decider when decider < 4:
+                                DecidedType = "construct";
+                                Architect CN = new Architect("", Game1.Sexes[r.Next(2)], ConstructRaces[r.Next(ConstructRaces.Count)], r.Next(Year), "construct", new List<Object>(), null, null, null, "", 3);
+                                CN.Name = Game1.GameWorld.GenerateUniqueArchitectName(CN);
+                                GuarranteedArch.Add(CN);
+                                break;
+                            case int decider when decider < 5:
+                                DecidedType = "wildcreatures";
+                                Race DecidedRace = WildRaces[r.Next(WildRaces.Count)];
+
+                                for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
+                                {
+                                    Architect AA = new Architect("", Game1.Sexes[r.Next(2)], DecidedRace, r.Next(13, 39), "beast", new List<Object>(), null, null, null, "", 2);
+                                    AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
+                                    GuarranteedArch.Add(AA);
+                                }
+                                break;
+                            case int decider when decider < 6 && TradingGroups.Count > 0:
+                                DecidedType = "traders";
+                                Group TradingGroup = TradingGroups[r.Next(TradingGroups.Count)];
+                                GuarranteedArch = TradingGroup.Architects; //updates if the group updates\
+                                break;
+                            case int decider when decider < 8:
+                                DecidedType = "vagabond";
+                                Architect VB = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "vagabond", new List<Object>(), null, null, null, "", 3);
+                                VB.KitOutArchitect("vagabond");
+                                VB.Name = Game1.GameWorld.GenerateUniqueArchitectName(VB);
+                                GuarranteedArch.Add(VB);
+                                break;
+                            case int decider when decider < 9:
+                                DecidedType = "adventurer";
+                                Architect AD = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "adventurer", new List<Object>(), null, null, null, "", 3);
+                                AD.KitOutArchitect("adventurer");
+                                AD.Name = Game1.GameWorld.GenerateUniqueArchitectName(AD);
+                                GuarranteedArch.Add(AD);
+                                break;
+                            case int decider when decider < 10:
+                                DecidedType = "priest";
+                                Architect PR = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "priest", new List<Object>(), null, null, null, "", 1);
+                                PR.KitOutArchitect("priest");
+                                PR.Name = Game1.GameWorld.GenerateUniqueArchitectName(PR);
+                                GuarranteedArch.Add(PR);
+                                break;
+                        }
+
+
+                        if (DecidedType != "")
+                        {
+                            WorldMap[LX + LZ * Width].Events.Add(new InteractableEvent(WorldMap[LX + LZ * Width], r.Next(28, 54), DecidedType, location.HomeCivilization, GuarranteedArch));
+                        }
+                    }
+
+                    //traders do stuff
+
+                    foreach (Group g in location.TradersAtThisLocation)
+                    {
+                        if (location.Market != null)
+                        {
+                            if (!g.TradeCooldown)
+                            {
+                                //trade at your current location
+                                for (int i = r.Next(20, 30); i != 0; i--)
+                                {
+                                    if (location.Market.Block.District.GeneralItemsWeHave.Count < 5)
+                                    {
+                                        break;
+                                    }
+
+                                    int CaravanIndex = r.Next(g.CaravanItems.Count);
+                                    Object CaravanObject = g.CaravanItems[CaravanIndex];
+
+                                    int LocationIndex = r.Next(location.Market.Block.District.GeneralItemsWeHave.Count);
+                                    Object LocationObject = location.Market.Block.District.GeneralItemsWeHave[LocationIndex];
+
+                                    g.CaravanItems.Remove(CaravanObject);
+                                    location.Market.Block.District.GeneralItemsWeHave.Add(CaravanObject);
+                                    CaravanObject.Owner = null;
+
+                                    location.Market.Block.District.GeneralItemsWeHave.Remove(LocationObject);
+                                    g.CaravanItems.Add(LocationObject);
+                                    LocationObject.Owner = g;
+
+                                    if (!ItemTypesInCirculation.Contains(CaravanObject.Type))
+                                    {
+                                        ItemTypesInCirculation.Add(CaravanObject.Type);
+                                    }
+                                    if (!ItemTypesInCirculation.Contains(LocationObject.Type))
+                                    {
+                                        ItemTypesInCirculation.Add(LocationObject.Type);
+                                    }
+
+                                    //make sure the traders make a profit from the general wealth of the community, yeah this system probably will change somewhat
+
+                                    //was originally going to make it so the civilization has to pay to make up for the g.storedviatlium, but im not sure how to do that without plummeting the cost of currency. will need a rework soon.
+
+                                    g.StoredVitalium += r.Next(10, 30);
+                                }
+
+
+                                //test for a new decade
+
+                                double currentCycle = Cycle;
+                                double newCycle = Cycle + (Days * 864000);
+                                double currentYear = (int)Math.Round((decimal)(currentCycle / 290304000));
+                                double newYear = (int)Math.Round((decimal)(newCycle / 290304000));
+
+                                if ((newYear / 10) > (currentYear / 10))
+                                {
+                                    g.TradeCooldown = true;
+
+                                    if (r.Next(1, 3) == 1 && g.TradeRoute.Count <= g.MaxTradeRouteLength)
+                                    {
+                                        foreach (Location l in AllLocations)
+                                        {
+                                            if (Vector2.Distance(new Vector2(l.X, l.Z), new Vector2(location.X, location.Z)) < 20 && !(g.TradeRoute.Contains(l)))
+                                            {
+                                                if (SettlementTypes.Contains(l.Type))
+                                                {
+                                                    HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " added ", l.Name, " to their list of trading partners."));
+                                                    g.TradeRoute.Add(l);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+
+                                //actually MOVE The trader this time!
+                                if (g.TradeRoute.Count > 1)
+                                {
+                                    int TravelIndex = g.TradeRoute.IndexOf(location);
+
+                                    if (TravelIndex == g.TradeRoute.Count - 1)
+                                    {
+                                        TravelIndex = 0;
+                                    }
+                                    else
+                                    {
+                                        TravelIndex++;
+                                    }
+
+                                    location.TradersAtThisLocationToRemove.Add(g);
+                                    g.TradeRoute[TravelIndex].TradersAtThisLocation.Add(g);
+
+                                    foreach (Architect a in g.Architects)
+                                    {
+                                        a.NextMigrationLocation = g.TradeRoute[TravelIndex];
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+
+                    foreach (Group g in location.TradersAtThisLocationToRemove)
+                    {
+                        location.TradersAtThisLocation.Remove(g);
+                    }
+                    location.TradersAtThisLocationToRemove = new List<Group>();
+
+                   
+                    // Random chance to build a port
+                    if (r.Next(500 * MonthToDayConstant) == 0 && TradingGroups.Count > 0)
+                    {
+                        // Assuming the existence of static int ContinentalPortMaximum = X; where X is your desired maximum number of ports on the largest island.
+                        // Initialize lists for islands and port locations
+                        List<List<Region>> islands = new List<List<Region>>();
+                        List<List<Region>> portLocations = new List<List<Region>>();
+
+                        // Detect islands and potential port locations
+                        DetectIslandsAndPorts(WorldMap, Width, islands, portLocations);
+
+                        // Identify the biggest island
+                        List<Region> biggestIsland = islands.OrderByDescending(island => island.Count).FirstOrDefault();
+
+                        // Initialize a counter for ports on the biggest island based on current port conditions
+                        int biggestIslandIndex = islands.IndexOf(biggestIsland);
+                        int portsOnBiggestIsland = portLocations[biggestIslandIndex].Count(port => !string.IsNullOrEmpty(port.PortName));
+
+                        bool portBuilt = false;
+                        Random random = new Random();
+
+                        foreach (var island in islands)
+                        {
+                            var potentialPorts = FindPotentialPorts(WorldMap, Width, island);
+                            bool islandHasPort = potentialPorts.Any(port => !string.IsNullOrEmpty(port.PortName));
+
+                            if (island == biggestIsland && portsOnBiggestIsland < ContinentalPortMaximum)
+                            {
+                                // For the biggest island, allow adding ports until it reaches ContinentalPortMaximum
+                                var availablePorts = potentialPorts.Where(port => string.IsNullOrEmpty(port.PortName)).ToList();
+                                if (availablePorts.Any())
+                                {
+                                    var portLocation = availablePorts[random.Next(availablePorts.Count)];
+                                    portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
+
+                                    HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built by {TradingGroups[r.Next(TradingGroups.Count)].Name} to facilitate trade.");
+
+                                    portBuilt = true;
+                                    portsOnBiggestIsland++; // Update the counter for ports on the biggest island
+                                }
+                            }
+                            else if (!islandHasPort)
+                            {
+                                // For other islands, build only one port if there isn't already one
+                                var availablePorts = potentialPorts.Where(port => string.IsNullOrEmpty(port.PortName)).ToList();
+                                if (availablePorts.Any())
+                                {
+                                    var portLocation = availablePorts[random.Next(availablePorts.Count)];
+                                    portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
+
+                                    if (TradingGroups.Count > 0)
+                                    {
+                                        HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built by {TradingGroups[r.Next(TradingGroups.Count)].Name} to facilitate trade.");
+                                    }
+                                    else
+                                    {
+                                        HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
+                                    }
+
+                                    portBuilt = true;
+                                }
+                            }
+
+                            if (portBuilt) break; // Exit the loop once a port is built
+                        }
+                    }
+
+                    //Handle architect/architect group actions regardless of district
+                    //this is the meat of the history
+
+                    List<Architect> ArchitectsAtLocation = new List<Architect>();
+                    foreach (District d in location.Districts)
+                    {
+                        ArchitectsAtLocation.AddRange(d.Architects);
+                    }
+
+
+                    //other actions favorable or not, based on allignment
+                    //gather "forces" in the location. each "force" is assigned a power, values, and name which demonstrates its ability to act based on resources and such and tells you who did it. 
+
+                    List<Force> Forces = new List<Force>();
+
+                    foreach (Architect a in ArchitectsAtLocation)
+                    {
+                        //salary
+
+                        a.Wealth += r.Next(0, 3);
+
+                        if (a.Group == null || r.Next(1, 3) == 1) //architects are less likely to act by themselves if they have friends they might act with, but they still can :)
+                        {
+                            Forces.Add(new Force(a.Name, a.Profession, 1, a.MoralCompass, a.StabilityCompass, a.PropertyValue, a.FamilyValue, a.PowerValue, a.MoneyValue, a.KnowledgeValue, a.SpiritualityValue, a.ProwessValue, a.PatriotismValue, a.CourageValue, a.CreativityValue, a));
+                        }
+                    }
+                    foreach (Group g in location.GroupsAtThisLocation)
+                    {
+                        //salary
+
+                        g.Wealth += g.Architects.Count * r.Next(0, 4);
+
+                        if (g.Architects.Count > 0)
+                        {
+                            //set group values
+                            {
+                                // Initialize accumulators for each value for non-leaders
+                                int totalMoralCompass = 0, totalStabilityCompass = 0, totalPropertyValue = 0,
+                                    totalFamilyValue = 0, totalPowerValue = 0, totalMoneyValue = 0,
+                                    totalKnowledgeValue = 0, totalSpiritualityValue = 0, totalProwessValue = 0,
+                                    totalPatriotismValue = 0, totalCourageValue = 0;
+
+                                int nonLeaderCount = g.Architects.Count(a => (g.Leader != a)); // Assuming there's always one leader
+
+                                foreach (var architect in g.Architects)
+                                {
+                                    // Skip the leader in this loop
+                                    if (g.Leader == architect) continue;
+
+                                    // Accumulate values for non-leaders
+                                    totalMoralCompass += architect.MoralCompass;
+                                    totalStabilityCompass += architect.StabilityCompass;
+                                    totalPropertyValue += architect.PropertyValue;
+                                    totalFamilyValue += architect.FamilyValue;
+                                    totalPowerValue += architect.PowerValue;
+                                    totalMoneyValue += architect.MoneyValue;
+                                    totalKnowledgeValue += architect.KnowledgeValue;
+                                    totalSpiritualityValue += architect.SpiritualityValue;
+                                    totalProwessValue += architect.ProwessValue;
+                                    totalPatriotismValue += architect.PatriotismValue;
+                                    totalCourageValue += architect.CourageValue;
+                                }
+
+                                // Find the leader (assuming there's exactly one leader)
+                                var leader = g.Architects.FirstOrDefault(a => (g.Leader != a));
+
+                                // Calculate average for non-leaders, ensure no division by zero
+                                double avgMoralCompass = nonLeaderCount > 0 ? (double)totalMoralCompass / nonLeaderCount : 0;
+                                double avgStabilityCompass = nonLeaderCount > 0 ? (double)totalStabilityCompass / nonLeaderCount : 0;
+                                double avgPropertyValue = nonLeaderCount > 0 ? (double)totalPropertyValue / nonLeaderCount : 0;
+                                double avgFamilyValue = nonLeaderCount > 0 ? (double)totalFamilyValue / nonLeaderCount : 0;
+                                double avgPowerValue = nonLeaderCount > 0 ? (double)totalPowerValue / nonLeaderCount : 0;
+                                double avgMoneyValue = nonLeaderCount > 0 ? (double)totalMoneyValue / nonLeaderCount : 0;
+                                double avgKnowledgeValue = nonLeaderCount > 0 ? (double)totalKnowledgeValue / nonLeaderCount : 0;
+                                double avgSpiritualityValue = nonLeaderCount > 0 ? (double)totalSpiritualityValue / nonLeaderCount : 0;
+                                double avgProwessValue = nonLeaderCount > 0 ? (double)totalProwessValue / nonLeaderCount : 0;
+                                double avgPatriotismValue = nonLeaderCount > 0 ? (double)totalPatriotismValue / nonLeaderCount : 0;
+                                double avgCourageValue = nonLeaderCount > 0 ? (double)totalCourageValue / nonLeaderCount : 0;
+
+                                // Assuming leader is not null before accessing its properties
+                                if (leader != null)
+                                {
+                                    // Calculate final group values, combining leader's values (50% weight) with non-leader averages
+                                    g.MoralCompass = (int)((leader.MoralCompass + avgMoralCompass) / 2);
+                                    g.StabilityCompass = (int)((leader.StabilityCompass + avgStabilityCompass) / 2);
+                                    g.PropertyValue = (int)((leader.PropertyValue + avgPropertyValue) / 2);
+                                    g.FamilyValue = (int)((leader.FamilyValue + avgFamilyValue) / 2);
+                                    g.PowerValue = (int)((leader.PowerValue + avgPowerValue) / 2);
+                                    g.MoneyValue = (int)((leader.MoneyValue + avgMoneyValue) / 2);
+                                    g.KnowledgeValue = (int)((leader.KnowledgeValue + avgKnowledgeValue) / 2);
+                                    g.SpiritualityValue = (int)((leader.SpiritualityValue + avgSpiritualityValue) / 2);
+                                    g.ProwessValue = (int)((leader.ProwessValue + avgProwessValue) / 2);
+                                    g.PatriotismValue = (int)((leader.PatriotismValue + avgPatriotismValue) / 2);
+                                    g.CourageValue = (int)((leader.CourageValue + avgCourageValue) / 2);
+                                }
+                            }
+
+                            Forces.Add(new Force(g.Name, g.Type + " group", g.Architects.Count, g.MoralCompass, g.StabilityCompass, g.PropertyValue, g.FamilyValue, g.PowerValue, g.MoneyValue, g.KnowledgeValue, g.SpiritualityValue, g.ProwessValue, g.PatriotismValue, g.CourageValue, g.CreativityValue, g));
+                        }
+                    }
+
+                    //ok now we have all our forces lets do stuff with them
+
+                    void LogForceAction(string Event)
+                    {
+                        HistoricalEvents.Add(Date + " " + Event);
+                        location.LocationHistoricalEvents.Add(Date + " " + Event);
+                    }
+
+                    void ReputationChange(Force f, int Change)
+                    {
+                        if (f.Base is Architect)
+                        {
+                            ((Architect)f.Base).Reputation += Change;
+                        }
+                        else if (f.Base is Group)
+                        {
+                            ((Group)f.Base).Reputation += Change;
+                        }
+                        return;
+                    }
+
+                    foreach (Force f in Forces)
+                    {
+                        int AmbitionRank = 200; //decrease this to increase the likelihood of forces acting
+
+                        if (ArchitectsAtLocation.Count > 0)
+                        {
+                            if (f.MoneyValue >= 3 && f.StabilityCompass < 40 && r.Next(AmbitionRank) == 1)
+                            {
+                                string industry = location.Districts[r.Next(location.Districts.Count)].Industry;
+                                string profession = Game1.IndustryToProfession[industry];
+
+                                if (industry == "military" || industry == "waspkeeping")
+                                {
+                                    industry += " supplies";
+                                }
+
+                                LogForceAction(f.Name + " stole " + industry + " from " + location.Name + ".");
+                                ReputationChange(f, -3);
+                                location.Wealth -= r.Next(50, 200) * f.Power;
+
                                 foreach (District d in location.Districts)
                                 {
-                                    for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+                                    foreach (Architect a in d.Architects)
                                     {
-                                        for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                                        if (a.Profession == profession)
                                         {
-                                            foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
-                                            {
-                                                if (s.Type == "forge")
-                                                {
-                                                    WealthIncrease += 1;
-                                                }
-                                                else if (s.Type == "market")
-                                                {
-                                                    WealthIncrease += 2;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    //establish an industry and do industry things :O
-
-                                    if (d.Industry == null && (location.Type == "village" || location.Type == "town" || location.Type == "city"))
-                                    {
-                                        d.Industry = Game1.Industries[r.Next(Game1.Industries.Count)];
-                                        HistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
-                                        location.LocationHistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
-                                    }
-
-                                    //foreach district with an industry, use it to increase the capitol's wealth bwzhaaahahahahahahahahahaaaa just kidding its actually the location that theyre based around
-
-                                    if (d.Industry != null && r.Next(1, 20) == 1)
-                                    {
-                                        d.SupplyLocation(1);
-                                    }
-                                }
-                            }
-
-                            location.Wealth = location.Wealth + (int)Math.Round(WealthIncrease * ProsperityMultiplier);
-
-
-                            //create interactable events based on history
-
-
-                            int IEDecider = r.Next(1, 500 * MonthToDayConstant);
-
-                            int LX = location.X + r.Next(-5, 6);
-                            int LZ = location.Z + r.Next(-5, 6);
-
-                            if (LX >= 0 && LX < Width && LZ >= 0 && LZ < Width && WorldMap[LX + LZ * Width].MyLocation == null && WorldMap[LX + LZ * Width].Biome != "void" && WorldMap[LX + LZ * Width].Biome != "ocean" && new string[] { "town", "city", "camp", "village" }.Contains(location.Type))
-                            {
-                                string DecidedType = "";
-
-                                List<Architect> GuarranteedArch = new List<Architect>();
-
-                                switch (IEDecider)
-                                {
-                                    case int decider when decider < 2:
-                                        DecidedType = "bandits";
-                                        for(int Arch = r.Next(4,8); Arch != 0; Arch--)
-                                        {
-                                            Architect AA = new Architect("", Game1.Sexes[r.Next(2)], location.HomeCivilization.PrimaryInhabiantRace, r.Next(13, 39), "bandit", new List<Object>(), null, null, null, "", 3);
-                                            AA.KitOutArchitect("bandit");
-                                            AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
-                                            GuarranteedArch.Add(AA);
-                                        }
-                                        break;
-                                    case int decider when decider < 3:
-                                        DecidedType = "shadebeast";
-                                        Architect SB = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shadebeast"), r.Next(Year), "shadebeast", new List<Object>(), null, null, null, "", 3);
-                                        SB.Name = Game1.GameWorld.GenerateUniqueArchitectName(SB);
-                                        GuarranteedArch.Add(SB);
-                                        break;
-                                    case int decider when decider < 4:
-                                        DecidedType = "construct"; 
-                                        Architect CN = new Architect("", Game1.Sexes[r.Next(2)], ConstructRaces[r.Next(ConstructRaces.Count)], r.Next(Year), "construct", new List<Object>(), null, null, null, "", 3);
-                                        CN.Name = Game1.GameWorld.GenerateUniqueArchitectName(CN);
-                                        GuarranteedArch.Add(CN);
-                                        break;
-                                    case int decider when decider < 5:
-                                        DecidedType = "wildcreatures";
-                                        Race DecidedRace = WildRaces[r.Next(WildRaces.Count)];
-
-                                        for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
-                                        {
-                                            Architect AA = new Architect("", Game1.Sexes[r.Next(2)], DecidedRace, r.Next(13, 39), "beast", new List<Object>(), null, null, null, "", 2);
-                                            AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
-                                            GuarranteedArch.Add(AA);
-                                        }
-                                        break;
-                                    case int decider when decider < 6 && TradingGroups.Count > 0:
-                                        DecidedType = "traders";
-                                        Group TradingGroup = TradingGroups[r.Next(TradingGroups.Count)];
-                                        GuarranteedArch = TradingGroup.Architects; //updates if the group updates\
-                                        break;
-                                    case int decider when decider < 8:
-                                        DecidedType = "vagabond";
-                                        Architect VB = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "vagabond", new List<Object>(), null, null, null, "", 3);
-                                        VB.KitOutArchitect("vagabond");
-                                        VB.Name = Game1.GameWorld.GenerateUniqueArchitectName(VB);
-                                        GuarranteedArch.Add(VB);
-                                        break;
-                                    case int decider when decider < 9:
-                                        DecidedType = "adventurer";
-                                        Architect AD = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "adventurer", new List<Object>(), null, null, null, "", 3);
-                                        AD.KitOutArchitect("adventurer");
-                                        AD.Name = Game1.GameWorld.GenerateUniqueArchitectName(AD);
-                                        GuarranteedArch.Add(AD);
-                                        break;
-                                    case int decider when decider < 10:
-                                        DecidedType = "priest";
-                                        Architect PR = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "priest", new List<Object>(), null, null, null, "", 1);
-                                        PR.KitOutArchitect("priest");
-                                        PR.Name = Game1.GameWorld.GenerateUniqueArchitectName(PR);
-                                        GuarranteedArch.Add(PR);
-                                        break;
-                                }
-
-
-                                if (DecidedType != "")
-                                {
-                                    WorldMap[LX + LZ * Width].Events.Add(new InteractableEvent(WorldMap[LX + LZ * Width], r.Next(28, 54), DecidedType, location.HomeCivilization, GuarranteedArch));
-                                }
-                            }
-
-                            //traders do stuff
-
-                            foreach (Group g in location.TradersAtThisLocation)
-                            {
-                                if(location.Market != null)
-                                {
-                                    if (!g.TradedThisMonth)
-                                    {
-                                        //trade at your current location
-                                        for (int i = r.Next(20, 30); i != 0; i--)
-                                        {
-                                            if (location.Market.Block.District.GeneralItemsWeHave.Count < 5)
-                                            {
-                                                break;
-                                            }
-
-                                            int CaravanIndex = r.Next(g.CaravanItems.Count);
-                                            Object CaravanObject = g.CaravanItems[CaravanIndex];
-
-                                            int LocationIndex = r.Next(location.Market.Block.District.GeneralItemsWeHave.Count);
-                                            Object LocationObject = location.Market.Block.District.GeneralItemsWeHave[LocationIndex];
-
-                                            g.CaravanItems.Remove(CaravanObject);
-                                            location.Market.Block.District.GeneralItemsWeHave.Add(CaravanObject);
-                                            CaravanObject.Owner = null;
-
-                                            location.Market.Block.District.GeneralItemsWeHave.Remove(LocationObject);
-                                            g.CaravanItems.Add(LocationObject);
-                                            LocationObject.Owner = g;
-
-                                            if (!ItemTypesInCirculation.Contains(CaravanObject.Type))
-                                            {
-                                                ItemTypesInCirculation.Add(CaravanObject.Type);
-                                            }
-                                            if (!ItemTypesInCirculation.Contains(LocationObject.Type))
-                                            {
-                                                ItemTypesInCirculation.Add(LocationObject.Type);
-                                            }
-
-                                            //make sure the traders make a profit from the general wealth of the community, yeah this system probably will change somewhat
-
-                                            //was originally going to make it so the civilization has to pay to make up for the g.storedviatlium, but im not sure how to do that without plummeting the cost of currency. will need a rework soon.
-
-                                            g.StoredVitalium += r.Next(10, 30);
-                                        }
-
-
-                                        //test for a new decade
-
-                                        double currentCycle = Cycle;
-                                        double newCycle = Cycle + (Days * 864000);
-                                        double currentYear = (int)Math.Round((decimal)(currentCycle / 290304000));
-                                        double newYear = (int)Math.Round((decimal)(newCycle / 290304000));
-
-                                        if ((newYear / 10) > (currentYear / 10))
-                                        {
-                                            g.TradedThisMonth = true;
-
-                                            if (r.Next(1, 3) == 1 && g.TradeRoute.Count <= g.MaxTradeRouteLength)
-                                            {
-                                                foreach (Location l in AllLocations)
-                                                {
-                                                    if (Vector2.Distance(new Vector2(l.X, l.Z), new Vector2(location.X, location.Z)) < 20 && !(g.TradeRoute.Contains(l)))
-                                                    {
-                                                        if (SettlementTypes.Contains(l.Type))
-                                                        {
-                                                            HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " added ", l.Name, " to their list of trading partners."));
-                                                            g.TradeRoute.Add(l);
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-
-                                        //actually MOVE The trader this time!
-                                        if (g.TradeRoute.Count > 1)
-                                        {
-                                            int TravelIndex = g.TradeRoute.IndexOf(location);
-
-                                            if (TravelIndex == g.TradeRoute.Count - 1)
-                                            {
-                                                TravelIndex = 0;
-                                            }
-                                            else
-                                            {
-                                                TravelIndex++;
-                                            }
-
-                                            location.TradersAtThisLocationToRemove.Add(g);
-                                            g.TradeRoute[TravelIndex].TradersAtThisLocation.Add(g);
-
-                                            foreach (Architect a in g.Architects)
-                                            {
-                                                a.NextMigrationLocation = g.TradeRoute[TravelIndex];
-                                            }
-                                        }
-
-
-
-                                        // Random chance to build a port
-                                        if (r.Next(500*MonthToDayConstant) == 0)
-                                        {
-                                            // Assuming the existence of static int ContinentalPortMaximum = X; where X is your desired maximum number of ports on the largest island.
-                                            // Initialize lists for islands and port locations
-                                            List<List<Region>> islands = new List<List<Region>>();
-                                            List<List<Region>> portLocations = new List<List<Region>>();
-
-                                            // Detect islands and potential port locations
-                                            DetectIslandsAndPorts(WorldMap, Width, islands, portLocations);
-
-                                            // Identify the biggest island
-                                            List<Region> biggestIsland = islands.OrderByDescending(island => island.Count).FirstOrDefault();
-
-                                            // Initialize a counter for ports on the biggest island based on current port conditions
-                                            int biggestIslandIndex = islands.IndexOf(biggestIsland);
-                                            int portsOnBiggestIsland = portLocations[biggestIslandIndex].Count(port => !string.IsNullOrEmpty(port.PortName));
-
-                                            bool portBuilt = false;
-                                            Random random = new Random();
-
-                                            foreach (var island in islands)
-                                            {
-                                                var potentialPorts = FindPotentialPorts(WorldMap, Width, island);
-                                                bool islandHasPort = potentialPorts.Any(port => !string.IsNullOrEmpty(port.PortName));
-
-                                                if (island == biggestIsland && portsOnBiggestIsland < ContinentalPortMaximum)
-                                                {
-                                                    // For the biggest island, allow adding ports until it reaches ContinentalPortMaximum
-                                                    var availablePorts = potentialPorts.Where(port => string.IsNullOrEmpty(port.PortName)).ToList();
-                                                    if (availablePorts.Any())
-                                                    {
-                                                        var portLocation = availablePorts[random.Next(availablePorts.Count)];
-                                                        portLocation.PortName = GenerateUniqueName("1S7s", portLocation);
-
-                                                        if(TradingGroups.Count > 0)
-                                                        {
-                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built by {TradingGroups[r.Next(TradingGroups.Count)].Name} to facilitate trade.");
-                                                        }
-                                                        else
-                                                        {
-                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
-                                                        }
-
-                                                        portBuilt = true;
-                                                        portsOnBiggestIsland++; // Update the counter for ports on the biggest island
-                                                    }
-                                                }
-                                                else if (!islandHasPort)
-                                                {
-                                                    // For other islands, build only one port if there isn't already one
-                                                    var availablePorts = potentialPorts.Where(port => string.IsNullOrEmpty(port.PortName)).ToList();
-                                                    if (availablePorts.Any())
-                                                    {
-                                                        var portLocation = availablePorts[random.Next(availablePorts.Count)];
-                                                        portLocation.PortName = GenerateUniqueName("1S7s", portLocation); 
-                                                        
-                                                        if (TradingGroups.Count > 0)
-                                                        {
-                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built by {TradingGroups[r.Next(TradingGroups.Count)].Name} to facilitate trade.");
-                                                        }
-                                                        else
-                                                        {
-                                                            HistoricalEvents.Add($"{Date} A new port named {portLocation.PortName} was built to facilitate trade.");
-                                                        }
-
-                                                        portBuilt = true;
-                                                    }
-                                                }
-
-                                                if (portBuilt) break; // Exit the loop once a port is built
-                                            }
+                                            a.Grievances.Add((f.Base, "stole " + industry + ", affecting " + a.PossessivePronoun + " livelihood"));
                                         }
                                     }
                                 }
                             }
 
-                            foreach (Group g in location.TradersAtThisLocationToRemove)
+                            else if (f.MoneyValue >= 4 && f.StabilityCompass < 40 && r.Next(AmbitionRank) == 1)
                             {
-                                location.TradersAtThisLocation.Remove(g);
-                            }
-                            location.TradersAtThisLocationToRemove = new List<Group>();
+                                LogForceAction(f.Name + " set up means to embezzle extra funding from " + location.Name + "'s governmental structure.");
+                                ReputationChange(f, -1);
+                                location.Embezzlements.Add((f.Base, f.Power + r.Next(4, 8)));
 
-                            //forge two groups together
-
-                            foreach (Group g in location.GroupsAtThisLocation)
-                            {
-                                foreach (Group G in location.GroupsAtThisLocation)
+                                if (location.Government is Group)
                                 {
-                                    if (G != g)
+                                    foreach (Architect a in ((Group)location.Government).Architects)
                                     {
-                                        if (Game1.r.Next(1, 5 * MonthToDayConstant) == 1)
+                                        a.Grievances.Add((f.Base, "embezzled funds from the government, undermining " + a.PossessivePronoun + " authority and trust"));
+                                    }
+                                }
+                                else if (location.Government is Architect)
+                                {
+                                    ((Architect)location.Government).Grievances.Add((f.Base, "embezzled funds, undermining the governance"));
+                                }
+                            }
+
+                            else if (f.MoneyValue >= 4 && f.KnowledgeValue >= 1 && f.StabilityCompass < 30 && r.Next(AmbitionRank * 5) == 1 && SettlementTypes.Contains(location.Type))
+                            {
+                                if (location.Prism.HistoricalObjects.Count > 1)
+                                {
+                                    Object o = location.Prism.HistoricalObjects[r.Next(location.Prism.HistoricalObjects.Count)];
+                                    if (r.Next(f.Power) > r.Next(3, 20))
+                                    {
+                                        LogForceAction($"{f.Name} attempted to steal {o.Name} from the prism in {location.Name}. The plan succeeded.");
+                                        ReputationChange(f, -10);
+                                        if (f.Base is Group)
                                         {
-                                            if (g.Type == "anarchist" && G.Type == "anarchist")
+                                            ((Group)f.Base).Leader.Inventory.Add(o);
+                                            location.Prism.HistoricalObjects.Remove(o);
+                                        }
+                                        else
+                                        {
+                                            ((Architect)f.Base).Inventory.Add(o);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        LogForceAction($"{f.Name} attempted to steal {o.Name} from the prism in {location.Name}. The plan failed, but {f.Name} escaped.");
+                                        ReputationChange(f, -10);
+                                    }
+
+                                    if (location.Government is Group)
+                                    {
+                                        foreach (Architect a in ((Group)location.Government).Architects)
+                                        {
+                                            a.Grievances.Add((f.Base, "attempted to steal " + o.Name + ", a treasured artifact, impacting the heritage and pride of " + location.Name + "."));
+                                        }
+                                    }
+                                    else if (location.Government is Architect)
+                                    {
+                                        ((Architect)location.Government).Grievances.Add((f.Base, "attempted to steal " + o.Name + ", a treasured artifact, impacting the heritage and pride of " + location.Name + "."));
+                                    }
+                                    // Additional grievance to the creator of the artifact if known
+                                    // Additional grievance to the creator of the artifact if known
+                                    if (o.Creator != null)
+                                    {
+                                        if (o.Creator is Architect)
+                                        {
+                                            // If the creator is an individual architect
+                                            ((Architect)(o.Creator)).Grievances.Add((f.Base, "stole " + o.Name + ", a creation of great cultural significance."));
+                                        }
+                                        else if (o.Creator is Group)
+                                        {
+                                            // If the creator is a group, add a grievance to each member of the group
+                                            foreach (Architect member in ((Group)(o.Creator)).Architects)
                                             {
-                                                HistoricalEvents.Add(string.Concat(Date, g.Name, " and ", G.Name, " started talking about merging their groups."));
-
-                                                Group GG = new Group(new List<Architect>(), g.Type, G.Leader, location);
-
-                                                List<Architect> Joiners = new List<Architect>();
-                                                List<Architect> Leavers = new List<Architect>();
-
-                                                foreach (Architect architect in G.Architects)
-                                                {
-                                                    if (Game1.r.Next(1, 10) == 1 && architect != GG.Leader)
-                                                    {
-                                                        HistoricalEvents.Add(string.Concat(Date, architect.Name, " disagreed with the idea of merging groups and left them both to settle it themselves."));
-                                                        Leavers.Add(architect);
-                                                    }
-                                                    else
-                                                    {
-                                                        Joiners.Add(architect);
-                                                    }
-                                                }
-                                                foreach (Architect architect in g.Architects)
-                                                {
-                                                    if (Game1.r.Next(1, 10) == 1)
-                                                    {
-                                                        HistoricalEvents.Add(string.Concat(Date, architect.Name, " disagreed with the idea of merging groups and left them both to settle it themselves."));
-                                                        Leavers.Add(architect);
-                                                    }
-                                                    else
-                                                    {
-                                                        Joiners.Add(architect);
-                                                    }
-                                                }
-
-                                                foreach (Architect a in Joiners)
-                                                {
-                                                    a.Group = GG;
-                                                    GG.Architects.Add(a);
-                                                }
-                                                foreach (Architect a in Leavers)
-                                                {
-                                                    a.Group = null;
-                                                    g.Leader.Location.Districts[0].DistrictMap[Game1.r.Next(0, 49)].Architects.Add(a);
-                                                }
-
-                                                GG.Reputation = (g.Reputation + G.Reputation) / 2;
-
-                                                HistoricalEvents.Add(Date + g.Name + " and " + G.Name + " noticed the anarchistic similarities of both their groups and forged them into one, going under the name " + GG.Name + ".");
-                                                
-                                                Groups.Remove(g);
-                                                Groups.Remove(G);
-                                                Groups.Add(GG);
-
-                                                Break = true;
-                                                break;
+                                                member.Grievances.Add((f.Base, "stole " + o.Name + ", a creation of great cultural significance."));
                                             }
                                         }
                                     }
 
                                 }
-                                if (Break)
-                                {
-                                    break;
-                                }
                             }
 
-                            //Handle architect/architect group actions regardless of district
-                            //this is the meat of the history
-
-                            List<Architect> ArchitectsAtLocation = new List<Architect>();
-                            foreach(District d in location.Districts)
+                            else if (f.CreativityValue >= 3 && r.Next(AmbitionRank * 150) == 1 && SettlementTypes.Contains(location.Type))
                             {
-                                ArchitectsAtLocation.AddRange(d.Architects);
-                            }
+                                //craftsmanship
 
+                                int totalMetals = Metals.Count;
+                                int midpoint = totalMetals / 2; // This will give the midpoint of the list
+                                Material Metal = Metals[r.Next(midpoint)]; //only use the first half of the materials
 
-                            //other actions favorable or not, based on allignment
-                            //gather "forces" in the location. each "force" is assigned a power, values, and name which demonstrates its ability to act based on resources and such and tells you who did it. 
-
-                            List<Force> Forces = new List<Force>();
-
-                            foreach(Architect a in ArchitectsAtLocation)
-                            {
-                                //salary
-
-                                a.Wealth += r.Next(0, 3);
-
-                                if (a.Group == null || r.Next(1,3) == 1 ) //architects are less likely to act by themselves if they have friends they might act with, but they still can :)
-                                {
-                                    Forces.Add(new Force(a.Name, a.Profession, 1, a.MoralCompass, a.StabilityCompass, a.PropertyValue, a.FamilyValue, a.PowerValue, a.MoneyValue, a.KnowledgeValue, a.SpiritualityValue, a.ProwessValue, a.PatriotismValue, a.CourageValue, a.CreativityValue, a));
-                                }
-                            }
-                            foreach (Group g in location.GroupsAtThisLocation)
-                            {
-                                //salary
-
-                                g.Wealth += g.Architects.Count * r.Next(0, 4);
-
-                                if(g.Architects.Count > 0)
-                                {
-                                    //set group values
-                                    {
-                                        // Initialize accumulators for each value for non-leaders
-                                        int totalMoralCompass = 0, totalStabilityCompass = 0, totalPropertyValue = 0,
-                                            totalFamilyValue = 0, totalPowerValue = 0, totalMoneyValue = 0,
-                                            totalKnowledgeValue = 0, totalSpiritualityValue = 0, totalProwessValue = 0,
-                                            totalPatriotismValue = 0, totalCourageValue = 0;
-
-                                        int nonLeaderCount = g.Architects.Count(a => (g.Leader != a)); // Assuming there's always one leader
-
-                                        foreach (var architect in g.Architects)
-                                        {
-                                            // Skip the leader in this loop
-                                            if (g.Leader == architect) continue;
-
-                                            // Accumulate values for non-leaders
-                                            totalMoralCompass += architect.MoralCompass;
-                                            totalStabilityCompass += architect.StabilityCompass;
-                                            totalPropertyValue += architect.PropertyValue;
-                                            totalFamilyValue += architect.FamilyValue;
-                                            totalPowerValue += architect.PowerValue;
-                                            totalMoneyValue += architect.MoneyValue;
-                                            totalKnowledgeValue += architect.KnowledgeValue;
-                                            totalSpiritualityValue += architect.SpiritualityValue;
-                                            totalProwessValue += architect.ProwessValue;
-                                            totalPatriotismValue += architect.PatriotismValue;
-                                            totalCourageValue += architect.CourageValue;
-                                        }
-
-                                        // Find the leader (assuming there's exactly one leader)
-                                        var leader = g.Architects.FirstOrDefault(a => (g.Leader != a));
-
-                                        // Calculate average for non-leaders, ensure no division by zero
-                                        double avgMoralCompass = nonLeaderCount > 0 ? (double)totalMoralCompass / nonLeaderCount : 0;
-                                        double avgStabilityCompass = nonLeaderCount > 0 ? (double)totalStabilityCompass / nonLeaderCount : 0;
-                                        double avgPropertyValue = nonLeaderCount > 0 ? (double)totalPropertyValue / nonLeaderCount : 0;
-                                        double avgFamilyValue = nonLeaderCount > 0 ? (double)totalFamilyValue / nonLeaderCount : 0;
-                                        double avgPowerValue = nonLeaderCount > 0 ? (double)totalPowerValue / nonLeaderCount : 0;
-                                        double avgMoneyValue = nonLeaderCount > 0 ? (double)totalMoneyValue / nonLeaderCount : 0;
-                                        double avgKnowledgeValue = nonLeaderCount > 0 ? (double)totalKnowledgeValue / nonLeaderCount : 0;
-                                        double avgSpiritualityValue = nonLeaderCount > 0 ? (double)totalSpiritualityValue / nonLeaderCount : 0;
-                                        double avgProwessValue = nonLeaderCount > 0 ? (double)totalProwessValue / nonLeaderCount : 0;
-                                        double avgPatriotismValue = nonLeaderCount > 0 ? (double)totalPatriotismValue / nonLeaderCount : 0;
-                                        double avgCourageValue = nonLeaderCount > 0 ? (double)totalCourageValue / nonLeaderCount : 0;
-
-                                        // Assuming leader is not null before accessing its properties
-                                        if (leader != null)
-                                        {
-                                            // Calculate final group values, combining leader's values (50% weight) with non-leader averages
-                                            g.MoralCompass = (int)((leader.MoralCompass + avgMoralCompass) / 2);
-                                            g.StabilityCompass = (int)((leader.StabilityCompass + avgStabilityCompass) / 2);
-                                            g.PropertyValue = (int)((leader.PropertyValue + avgPropertyValue) / 2);
-                                            g.FamilyValue = (int)((leader.FamilyValue + avgFamilyValue) / 2);
-                                            g.PowerValue = (int)((leader.PowerValue + avgPowerValue) / 2);
-                                            g.MoneyValue = (int)((leader.MoneyValue + avgMoneyValue) / 2);
-                                            g.KnowledgeValue = (int)((leader.KnowledgeValue + avgKnowledgeValue) / 2);
-                                            g.SpiritualityValue = (int)((leader.SpiritualityValue + avgSpiritualityValue) / 2);
-                                            g.ProwessValue = (int)((leader.ProwessValue + avgProwessValue) / 2);
-                                            g.PatriotismValue = (int)((leader.PatriotismValue + avgPatriotismValue) / 2);
-                                            g.CourageValue = (int)((leader.CourageValue + avgCourageValue) / 2);
-                                        }
-                                    }
-
-                                    Forces.Add(new Force(g.Name, g.Type + " group", g.Architects.Count, g.MoralCompass, g.StabilityCompass, g.PropertyValue, g.FamilyValue, g.PowerValue, g.MoneyValue, g.KnowledgeValue, g.SpiritualityValue, g.ProwessValue, g.PatriotismValue, g.CourageValue, g.CreativityValue, g));
-                                }
-                            }
-
-                            //ok now we have all our forces lets do stuff with them
-
-                            void LogForceAction(string Event)
-                            {
-                                HistoricalEvents.Add(Date + " " + Event);
-                                location.LocationHistoricalEvents.Add(Date + " " + Event);
-                            }
-
-                            void ReputationChange(Force f, int Change)
-                            {
-                                if(f.Base is Architect)
-                                {
-                                    ((Architect)f.Base).Reputation += Change;
-                                }
-                                else if (f.Base is Group)
-                                {
-                                    ((Group)f.Base).Reputation += Change;
-                                }
-                                return;
-                            }
-
-                            foreach (Force f in Forces)
-                            {
-                                int AmbitionRank = 200; //decrease this to increase the likelihood of forces acting
-
-                                if(ArchitectsAtLocation.Count > 0)
-                                {
-                                    if (f.MoneyValue >= 3 && f.StabilityCompass < 40 && r.Next(AmbitionRank) == 1)
-                                    {
-                                        string industry = location.Districts[r.Next(location.Districts.Count)].Industry;
-                                        string profession = Game1.IndustryToProfession[industry];
-
-                                        if (industry == "military" || industry == "waspkeeping")
-                                        {
-                                            industry += " supplies";
-                                        }
-
-                                        LogForceAction(f.Name + " stole " + industry + " from " + location.Name + ".");
-                                        ReputationChange(f, -3);
-                                        location.Wealth -= r.Next(50, 200) * f.Power;
-
-                                        foreach(District d in location.Districts)
-                                        {
-                                            foreach (Architect a in d.Architects)
-                                            {
-                                                if (a.Profession == profession)
-                                                {
-                                                    a.Grievances.Add((f.Base, "stole " + industry + ", affecting " + a.PossessivePronoun + " livelihood"));
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    else if (f.MoneyValue >= 4 && f.StabilityCompass < 40 && r.Next(AmbitionRank) == 1)
-                                    {
-                                        LogForceAction(f.Name + " set up means to embezzle extra funding from " + location.Name + "'s governmental structure.");
-                                        ReputationChange(f, -1);
-                                        location.Embezzlements.Add((f.Base, f.Power + r.Next(4, 8)));
-
-                                        if (location.Government is Group)
-                                        {
-                                            foreach (Architect a in ((Group)location.Government).Architects)
-                                            {
-                                                a.Grievances.Add((f.Base, "embezzled funds from the government, undermining " + a.PossessivePronoun + " authority and trust"));
-                                            }
-                                        }
-                                        else if (location.Government is Architect)
-                                        {
-                                            ((Architect)location.Government).Grievances.Add((f.Base, "embezzled funds, undermining the governance"));
-                                        }
-                                    }
-
-                                    else if (f.MoneyValue >= 4 && f.KnowledgeValue >= 1 && f.StabilityCompass < 30 && r.Next(AmbitionRank * 5) == 1 && SettlementTypes.Contains(location.Type))
-                                    {
-                                        if (location.Prism.HistoricalObjects.Count > 1)
-                                        {
-                                            Object o = location.Prism.HistoricalObjects[r.Next(location.Prism.HistoricalObjects.Count)];
-                                            if (r.Next(f.Power) > r.Next(3, 20))
-                                            {
-                                                LogForceAction($"{f.Name} attempted to steal {o.Name} from the prism in {location.Name}. The plan succeeded.");
-                                                ReputationChange(f, -10);
-                                                if (f.Base is Group)
-                                                {
-                                                    ((Group)f.Base).Leader.Inventory.Add(o);
-                                                    location.Prism.HistoricalObjects.Remove(o);
-                                                }
-                                                else
-                                                {
-                                                    ((Architect)f.Base).Inventory.Add(o);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                LogForceAction($"{f.Name} attempted to steal {o.Name} from the prism in {location.Name}. The plan failed, but {f.Name} escaped.");
-                                                ReputationChange(f, -10);
-                                            }
-
-                                            if (location.Government is Group)
-                                            {
-                                                foreach (Architect a in ((Group)location.Government).Architects)
-                                                {
-                                                    a.Grievances.Add((f.Base, "attempted to steal " + o.Name + ", a treasured artifact, impacting the heritage and pride of " + location.Name + "."));
-                                                }
-                                            }
-                                            else if (location.Government is Architect)
-                                            {
-                                                ((Architect)location.Government).Grievances.Add((f.Base, "attempted to steal " + o.Name + ", a treasured artifact, impacting the heritage and pride of " + location.Name + "."));
-                                            }
-                                            // Additional grievance to the creator of the artifact if known
-                                            // Additional grievance to the creator of the artifact if known
-                                            if (o.Creator != null)
-                                            {
-                                                if (o.Creator is Architect)
-                                                {
-                                                    // If the creator is an individual architect
-                                                    ((Architect)(o.Creator)).Grievances.Add((f.Base, "stole " + o.Name + ", a creation of great cultural significance."));
-                                                }
-                                                else if (o.Creator is Group)
-                                                {
-                                                    // If the creator is a group, add a grievance to each member of the group
-                                                    foreach (Architect member in ((Group)(o.Creator)).Architects)
-                                                    {
-                                                        member.Grievances.Add((f.Base, "stole " + o.Name + ", a creation of great cultural significance."));
-                                                    }
-                                                }
-                                            }
-
-                                        }
-                                    }
-
-                                    else if (f.CreativityValue >= 3 && r.Next(AmbitionRank * 150) == 1 && SettlementTypes.Contains(location.Type))
-                                    {
-                                        //craftsmanship
-
-                                        int totalMetals = Metals.Count;
-                                        int midpoint = totalMetals / 2; // This will give the midpoint of the list
-                                        Material Metal = Metals[r.Next(midpoint)]; //only use the first half of the materials
-
-                                        List<string> metalObjects = new List<string>
+                                List<string> metalObjects = new List<string>
                                         {
                                             "shortsword",
                                             "knife",
@@ -4304,1589 +4296,1577 @@ namespace Lightrealm
                                             "chair"
                                         };
 
-                                        Object o = new Object("", metalObjects[r.Next(metalObjects.Count)], new List<Material>() { Metal }, f.Base);
-                                        o.Name = GenerateUniqueName("1W" + r.Next(4, 7) + "s", o);
+                                Object o = new Object("", metalObjects[r.Next(metalObjects.Count)], new List<Material>() { Metal }, f.Base);
+                                o.Name = GenerateUniqueName("1W" + r.Next(4, 7) + "s", o);
 
-                                        int Decider = r.Next(1, 4);
+                                int Decider = r.Next(1, 4);
 
-                                        if (Decider == 1)
-                                        {
-                                            location.Prism.HistoricalObjects.Add(o);
-                                            LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. They stored it in the prism of {location.Name} for safekeeping.");
-                                            ReputationChange(f, 5);
-                                        }
-                                        else if (Decider == 2)
-                                        {
-                                            if (f.Base is Group)
-                                            {
-                                                ((Group)f.Base).Leader.Inventory.Add(o);
-                                                LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Group)f.Base).Leader.Name} held onto it for safekeeping.");
-                                                ReputationChange(f, 5);
-                                            }
-                                            else
-                                            {
-                                                ((Architect)f.Base).Inventory.Add(o);
-                                                LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Architect)f.Base).Name} held onto it for safekeeping.");
-                                                ReputationChange(f, 5);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            Architect Buyer = ArchitectsAtLocation[r.Next(ArchitectsAtLocation.Count)];
-                                            int Price = r.Next(0, Buyer.Wealth);
-                                            Buyer.Inventory.Add(o);
-                                            Buyer.Wealth -= Price;
-
-                                            if (f.Base is Group)
-                                            {
-                                                ((Group)f.Base).Wealth += Price;
-                                                LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Group)f.Base).Leader.Name} sold it to {Buyer.Name} for {Price}.");
-                                                ReputationChange(f, 5);
-                                            }
-                                            else
-                                            {
-                                                ((Architect)f.Base).Wealth += Price;
-                                                LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Architect)f.Base).Pronoun} sold it to {Buyer.Name} for {Price}.");
-                                                ReputationChange(f, 5);
-                                            }
-                                        }
-                                    }
-                                    else if (f.Base is Architect && f.FamilyValue >= 1 && r.Next(AmbitionRank * 5) == 1 && ((Architect)(f.Base)).Spouse == null)
-                                    {
-                                        bool CaresAboutMarriageRace = true;
-                                        if (r.Next(15) == 1)
-                                        {
-                                            CaresAboutMarriageRace = false;
-                                        }
-
-                                        foreach (Architect a in ArchitectsAtLocation)
-                                        {
-                                            // Skip if the same architect or if sex is the same or if theyre already married lul
-                                            if (a.Spouse != null || a == f.Base || a.Sex == ((Architect)f.Base).Sex) continue;
-
-                                            // Check for similarity in compasses within 20
-                                            bool similarCompasses = Math.Abs(a.MoralCompass - f.MoralCompass) < 20 && Math.Abs(a.StabilityCompass - f.StabilityCompass) < 20;
-
-                                            // Check for at least 5 values within 2 of each other
-                                            int similarValuesCount = 0;
-                                            similarValuesCount += Math.Abs(a.PropertyValue - f.PropertyValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.FamilyValue - f.FamilyValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.PowerValue - f.PowerValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.MoneyValue - f.MoneyValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.KnowledgeValue - f.KnowledgeValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.SpiritualityValue - f.SpiritualityValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.ProwessValue - f.ProwessValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.PatriotismValue - f.PatriotismValue) < 2 ? 1 : 0;
-                                            similarValuesCount += Math.Abs(a.CourageValue - f.CourageValue) < 2 ? 1 : 0;
-
-                                            // Evaluate race consideration if applicable
-                                            bool raceConsideration = CaresAboutMarriageRace ? a.Race == ((Architect)f.Base).Race : true;
-
-                                            if (similarCompasses && similarValuesCount >= 5 && raceConsideration)
-                                            {
-                                                a.Spouse = ((Architect)f.Base);
-                                                ((Architect)f.Base).Spouse = a;
-
-                                                // Initialize a variable to hold the name of the shrine if one is found
-                                                string shrineName = string.Empty;
-
-                                                // Iterate through all structures in the location to find a shrine
-                                                foreach (var structure in location.AllStructures)
-                                                {
-                                                    if (structure.Type == "shrine")
-                                                    {
-                                                        shrineName = structure.Name;
-                                                        break; // Exit the loop once a shrine is found
-                                                    }
-                                                }
-
-                                                // Check if a shrine was found and adjust the log message accordingly
-                                                if (!string.IsNullOrEmpty(shrineName))
-                                                {
-                                                    LogForceAction($"{f.Name} and {a.Name} got married at {shrineName} in {location.Name}.");
-                                                }
-                                                else
-                                                {
-                                                    LogForceAction($"{f.Name} and {a.Name} got married in {location.Name}.");
-                                                }
-                                            }
-
-                                        }
-                                    }
-                                    else if (f.Base is Architect && ((Architect)f.Base).Spouse != null && ((Architect)f.Base).HadChildren == false)
-                                    {
-                                        ((Architect)f.Base).HadChildren = true;
-                                        ((Architect)f.Base).Spouse.HadChildren = true;
-
-                                        static int GenerateChildrenNumber(Random r)
-                                        {
-                                            double lambda = 0.2; // Adjust this parameter to tweak the distribution
-                                            double uniformRandom = r.NextDouble();
-                                            double skewedRandom = -Math.Log(1 - uniformRandom) / lambda;
-
-                                            // Ensure the number is within our desired range but skewed towards lower numbers
-                                            int children = (int)Math.Floor(skewedRandom);
-
-                                            // Cap the result at 30 to allow for incredibly uncommon scenarios but not exceed it
-                                            if (children > 30) children = 30;
-
-                                            // Ensure at least 1 child
-                                            if (children < 1) children = 1;
-
-                                            return children;
-                                        }
-
-                                        int Children = GenerateChildrenNumber(r);
-
-                                        int ImportantChildren = r.Next(0, Children / 2);
-
-                                        if (ImportantChildren == 0)
-                                        {
-                                            LogForceAction(f.Base.Name + " and " + ((Architect)(f.Base)).Spouse.Name + " had " + Children + " children, but none of them actually matter.");
-                                            location.Districts[r.Next(location.Districts.Count)].UnplacedPopulation += Children;
-                                        }
-                                        else
-                                        {
-                                            Race ChildRace;
-
-                                            if (((Architect)f.Base).Race == ((Architect)f.Base).Spouse.Race)
-                                            {
-                                                ChildRace = ((Architect)f.Base).Race;
-                                            }
-                                            else
-                                            {
-                                                ChildRace = GetRace("archaix");
-                                            }
-
-                                            List<string> ImportantChildrenNames = new List<string>();
-
-                                            for (int i = ImportantChildren; i != 0; i--)
-                                            {
-                                                Architect a = new Architect("", Game1.Sexes[r.Next(2)], ChildRace, 0, "child", new List<Object>(), ((Architect)f.Base).Location, ((Architect)f.Base).District, ((Architect)f.Base).Block, "", 0);
-                                                a.Name = GenerateUniqueArchitectName(a);
-                                                location.Districts[r.Next(location.Districts.Count)].Architects.Add(a);
-                                            }
-                                            location.Districts[r.Next(location.Districts.Count)].UnplacedPopulation += (Children - ImportantChildren);
-
-                                            LogForceAction(f.Base.Name + " and " + f.Base.Name + " had " + Children + " children. The ones that actually matter are " + Game1.FormatList(ImportantChildrenNames) + ".");
-                                        }
-                                    }
-
-                                }
-                                
-                            }
-
-
-                            //hahahahaaha embezzlementeeee
-                            List<(Entity, int)> EmbezzlToRemove = new List<(Entity, int)>();
-                            foreach((Entity, int) e in location.Embezzlements)
-                            {
-                                if(r.Next(1,10 * MonthToDayConstant) == 1)
+                                if (Decider == 1)
                                 {
-                                    if (e.Item1 is Architect)
+                                    location.Prism.HistoricalObjects.Add(o);
+                                    LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. They stored it in the prism of {location.Name} for safekeeping.");
+                                    ReputationChange(f, 5);
+                                }
+                                else if (Decider == 2)
+                                {
+                                    if (f.Base is Group)
                                     {
-                                        ((Architect)e.Item1).Wealth += e.Item2;
-                                        location.Wealth -= e.Item2;
+                                        ((Group)f.Base).Leader.Inventory.Add(o);
+                                        LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Group)f.Base).Leader.Name} held onto it for safekeeping.");
+                                        ReputationChange(f, 5);
                                     }
                                     else
                                     {
-                                        ((Group)e.Item1).Wealth += e.Item2;
-                                        location.Wealth -= e.Item2;
+                                        ((Architect)f.Base).Inventory.Add(o);
+                                        LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Architect)f.Base).Name} held onto it for safekeeping.");
+                                        ReputationChange(f, 5);
                                     }
                                 }
-                                
-
-                                if(r.Next(1,100 * MonthToDayConstant) == 0)
+                                else
                                 {
-                                    HistoricalEvents.Add("A loophole in the governmental structure of " + location.Name + " was discovered and fixed, and " + e.Item1.Name + " lost some ability to embezzle funding.");
-                                    EmbezzlToRemove.Add(e);
+                                    Architect Buyer = ArchitectsAtLocation[r.Next(ArchitectsAtLocation.Count)];
+                                    int Price = r.Next(0, Buyer.Wealth);
+                                    Buyer.Inventory.Add(o);
+                                    Buyer.Wealth -= Price;
+
+                                    if (f.Base is Group)
+                                    {
+                                        ((Group)f.Base).Wealth += Price;
+                                        LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Group)f.Base).Leader.Name} sold it to {Buyer.Name} for {Price}.");
+                                        ReputationChange(f, 5);
+                                    }
+                                    else
+                                    {
+                                        ((Architect)f.Base).Wealth += Price;
+                                        LogForceAction($"{f.Name} created the legendary {o.Type} {o.Name} in {location.Name}. {((Architect)f.Base).Pronoun} sold it to {Buyer.Name} for {Price}.");
+                                        ReputationChange(f, 5);
+                                    }
                                 }
                             }
-                            foreach((Entity, int) E in EmbezzlToRemove)
+                            else if (f.Base is Architect && f.FamilyValue >= 1 && r.Next(AmbitionRank * 5) == 1 && ((Architect)(f.Base)).Spouse == null)
                             {
-                                location.Embezzlements.Remove(E);
+                                bool CaresAboutMarriageRace = true;
+                                if (r.Next(15) == 1)
+                                {
+                                    CaresAboutMarriageRace = false;
+                                }
+
+                                foreach (Architect a in ArchitectsAtLocation)
+                                {
+                                    // Skip if the same architect or if sex is the same or if theyre already married lul
+                                    if (a.Spouse != null || a == f.Base || a.Sex == ((Architect)f.Base).Sex) continue;
+
+                                    // Check for similarity in compasses within 20
+                                    bool similarCompasses = Math.Abs(a.MoralCompass - f.MoralCompass) < 20 && Math.Abs(a.StabilityCompass - f.StabilityCompass) < 20;
+
+                                    // Check for at least 5 values within 2 of each other
+                                    int similarValuesCount = 0;
+                                    similarValuesCount += Math.Abs(a.PropertyValue - f.PropertyValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.FamilyValue - f.FamilyValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.PowerValue - f.PowerValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.MoneyValue - f.MoneyValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.KnowledgeValue - f.KnowledgeValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.SpiritualityValue - f.SpiritualityValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.ProwessValue - f.ProwessValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.PatriotismValue - f.PatriotismValue) < 2 ? 1 : 0;
+                                    similarValuesCount += Math.Abs(a.CourageValue - f.CourageValue) < 2 ? 1 : 0;
+
+                                    // Evaluate race consideration if applicable
+                                    bool raceConsideration = CaresAboutMarriageRace ? a.Race == ((Architect)f.Base).Race : true;
+
+                                    if (similarCompasses && similarValuesCount >= 5 && raceConsideration)
+                                    {
+                                        a.Spouse = ((Architect)f.Base);
+                                        ((Architect)f.Base).Spouse = a;
+
+                                        // Initialize a variable to hold the name of the shrine if one is found
+                                        string shrineName = string.Empty;
+
+                                        // Iterate through all structures in the location to find a shrine
+                                        foreach (var structure in location.AllStructures)
+                                        {
+                                            if (structure.Type == "shrine")
+                                            {
+                                                shrineName = structure.Name;
+                                                break; // Exit the loop once a shrine is found
+                                            }
+                                        }
+
+                                        // Check if a shrine was found and adjust the log message accordingly
+                                        if (!string.IsNullOrEmpty(shrineName))
+                                        {
+                                            LogForceAction($"{f.Name} and {a.Name} got married at {shrineName} in {location.Name}.");
+                                        }
+                                        else
+                                        {
+                                            LogForceAction($"{f.Name} and {a.Name} got married in {location.Name}.");
+                                        }
+                                    }
+
+                                }
+                            }
+                            else if (f.Base is Architect && ((Architect)f.Base).Spouse != null && ((Architect)f.Base).HadChildren == false)
+                            {
+                                ((Architect)f.Base).HadChildren = true;
+                                ((Architect)f.Base).Spouse.HadChildren = true;
+
+                                static int GenerateChildrenNumber(Random r)
+                                {
+                                    double lambda = 0.2; // Adjust this parameter to tweak the distribution
+                                    double uniformRandom = r.NextDouble();
+                                    double skewedRandom = -Math.Log(1 - uniformRandom) / lambda;
+
+                                    // Ensure the number is within our desired range but skewed towards lower numbers
+                                    int children = (int)Math.Floor(skewedRandom);
+
+                                    // Cap the result at 30 to allow for incredibly uncommon scenarios but not exceed it
+                                    if (children > 30) children = 30;
+
+                                    // Ensure at least 1 child
+                                    if (children < 1) children = 1;
+
+                                    return children;
+                                }
+
+                                int Children = GenerateChildrenNumber(r);
+
+                                int ImportantChildren = r.Next(0, Children / 2);
+
+                                if (ImportantChildren == 0)
+                                {
+                                    LogForceAction(f.Base.Name + " and " + ((Architect)(f.Base)).Spouse.Name + " had " + Children + " children, but none of them actually matter.");
+                                    location.Districts[r.Next(location.Districts.Count)].UnplacedPopulation += Children;
+                                }
+                                else
+                                {
+                                    Race ChildRace;
+
+                                    if (((Architect)f.Base).Race == ((Architect)f.Base).Spouse.Race)
+                                    {
+                                        ChildRace = ((Architect)f.Base).Race;
+                                    }
+                                    else
+                                    {
+                                        ChildRace = GetRace("archaix");
+                                    }
+
+                                    List<string> ImportantChildrenNames = new List<string>();
+
+                                    for (int i = ImportantChildren; i != 0; i--)
+                                    {
+                                        Architect a = new Architect("", Game1.Sexes[r.Next(2)], ChildRace, 0, "child", new List<Object>(), ((Architect)f.Base).Location, ((Architect)f.Base).District, ((Architect)f.Base).Block, "", 0);
+                                        a.Name = GenerateUniqueArchitectName(a);
+                                        location.Districts[r.Next(location.Districts.Count)].Architects.Add(a);
+                                    }
+                                    location.Districts[r.Next(location.Districts.Count)].UnplacedPopulation += (Children - ImportantChildren);
+
+                                    LogForceAction(f.Base.Name + " and " + f.Base.Name + " had " + Children + " children. The ones that actually matter are " + Game1.FormatList(ImportantChildrenNames) + ".");
+                                }
+                            }
+
+                        }
+
+                    }
+
+
+                    //hahahahaaha embezzlementeeee
+                    List<(Entity, int)> EmbezzlToRemove = new List<(Entity, int)>();
+                    foreach ((Entity, int) e in location.Embezzlements)
+                    {
+                        if (r.Next(1, 10 * MonthToDayConstant) == 1)
+                        {
+                            if (e.Item1 is Architect)
+                            {
+                                ((Architect)e.Item1).Wealth += e.Item2;
+                                location.Wealth -= e.Item2;
+                            }
+                            else
+                            {
+                                ((Group)e.Item1).Wealth += e.Item2;
+                                location.Wealth -= e.Item2;
+                            }
+                        }
+
+
+                        if (r.Next(1, 100 * MonthToDayConstant) == 0)
+                        {
+                            HistoricalEvents.Add("A loophole in the governmental structure of " + location.Name + " was discovered and fixed, and " + e.Item1.Name + " lost some ability to embezzle funding.");
+                            EmbezzlToRemove.Add(e);
+                        }
+                    }
+                    foreach ((Entity, int) E in EmbezzlToRemove)
+                    {
+                        location.Embezzlements.Remove(E);
+                    }
+
+
+
+
+
+                    //iterate through districts
+
+                    foreach (District d in location.Districts)
+                    {
+                        int DistrictMaxPopulation = 0;
+
+                        for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+                        {
+                            for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                            {
+                                DistrictMaxPopulation += d.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count * 3;
+
+                                //structure age
+
+                                foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
+                                {
+                                    s.AgeInYears += (1 / 12 * MonthToDayConstant);
+                                }
+                            }
+                        }
+
+                        //Handle population increase in the district
+
+
+                        if (location.Region.Blight != Purity && SettlementTypes.Contains(location.Type))
+                        {
+                            if (d.UnplacedPopulation != 0)
+                            {
+                                d.UnplacedPopulation = Math.Max(d.UnplacedPopulation - r.Next(0, 4), 0);
+
+                                if (d.UnplacedPopulation == 0)
+                                {
+                                    HistoricalEvents.Add($"{Date} {location.Name} fell to the {location.Region.Blight.Name}.");
+                                    location.LocationHistoricalEvents.Add($"{location.Name} fell to the {location.Region.Blight.Name}.");
+                                }
+                            }
+                            foreach (Architect a in d.Architects)
+                            {
+                                if (r.Next(1, 70 * MonthToDayConstant) == 1)
+                                {
+                                    d.ArchitectsToRemove.Add(a);
+
+                                    HistoricalEvents.Add($"{Date} {a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
+                                    location.LocationHistoricalEvents.Add($"{Date} {a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
+                                }
+                            }
+                        }
+
+
+
+                        int BirthProbabilityMod = 100; // higher is less likely, decrease the chance of procreation
+
+                        if (d.Population() < DistrictMaxPopulation && location.TruePopulation() > 4)
+                        {
+                            // Calculate birth probability dynamically based on the original function
+                            double baseProbability = 1.0; // Set a base probability
+                            double populationFactor = 1 + (d.Population() / 100.0); // Adjust based on population (modify the factor as needed)
+                            double monthToDayConstant = 28.0 / Days; // Adjust probability to account for days instead of a month
+
+                            double birthProbability = (baseProbability / populationFactor) * monthToDayConstant;
+
+                            int births = 0;
+
+                            // Calculate births using a random number and the probability
+                            for (int i = 0; i < d.Population(); i++)
+                            {
+                                if (Game1.r.NextDouble() < birthProbability / BirthProbabilityMod)
+                                {
+                                    births++;
+                                }
+                            }
+
+                            // Update the unplaced population with the calculated births
+                            d.UnplacedPopulation += births;
+                        }
+
+
+
+
+                        //Designate the Construction of a new District
+
+                        if (d.UnplacedPopulation + d.Architects.Count > 150)
+                        {
+                            int Movers = Game1.r.Next(65, 85);
+
+                            District NewD = new District(false, location, Movers);
+                            d.UnplacedPopulation = d.UnplacedPopulation - Movers;
+
+                            foreach (Architect a in d.Architects)
+                            {
+                                if (Game1.r.Next(1, 4) == 1 && a.Group != location.Government)
+                                {
+                                    NewD.Architects.Add(a);
+                                    d.ArchitectsToRemove.Add(a);
+                                    Movers--;
+                                }
+                            }
+                            foreach (Architect a in d.ArchitectsToRemove)
+                            {
+                                d.Architects.Remove(a);
+                            }
+                            d.ArchitectsToRemove = new List<Architect>();
+
+                            //go ahead and build a bunch of houses in the new district instead of moving stuff everywhere.
+
+                            if (SettlementTypes.Contains(d.Location.Type) || d.Location.Type == "core" || d.Location.Type == "garrison")
+                            {
+                                for (int i = 0; i < Game1.r.Next(6, 10); i++)
+                                {
+                                    Block ChosenBlock = NewD.DistrictMap[Game1.r.Next(0, 49)];
+                                    Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { location.HomeCivilization.CulturalWood }, new List<string> { location.HomeCivilization.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
+
+                                    ChosenBlock.Structures.Add(s);
+                                }
+                            }
+
+                            //well
+                            NewD.DistrictMap[r.Next(2, 6) + r.Next(2, 5) * 7].Objects.Add(new Object(null, "well", new List<Material> { location.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
+
+                            HistoricalEvents.Add($"{Date} {location.Name} segmented off a plot of land to a new district, {NewD.Name}, dedicated to {NewD.Industry}.");
+                            location.LocationHistoricalEvents.Add($"{Date} {location.Name} segmented off a plot of land to a new district, {NewD.Name}, dedicated to {NewD.Industry}.");
+
+                            location.DistrictsToAdd.Add(NewD);
+                        }
+
+
+                        //Handle elevation of a member of the population to Architect
+
+                        int decider = Game1.r.Next(1, 75 * MonthToDayConstant);
+
+                        if (decider == 1 && d.UnplacedPopulation > 0)
+                        {
+                            bool Ismale = true;
+                            if (Game1.r.Next(1, 3) == 1)
+                            {
+                                Ismale = false;
+                            }
+
+                            string Role = "";
+                            string Destiny = "";
+                            Race Race;
+
+
+                            if (Game1.r.Next(1, 20) == 1 || location.PrimaryRace == null || location.PrimaryRace == GetRace(""))
+                            {
+                                Race = HumanoidRaces[Game1.r.Next(HumanoidRaces.Count)];
+                            }
+                            else
+                            {
+                                Race = location.PrimaryRace;
+                            }
+
+                            //decide if the creature will be magical
+
+                            int DestinyDecider = Game1.r.Next(1, 300);
+
+                            if (DestinyDecider < 5 && Race == GetRace("nightfell"))
+                            {
+                                Destiny = "warlock";
+                            }
+                            else if (DestinyDecider < 7 && Race == GetRace("luminarch"))
+                            {
+                                Destiny = "sorcerer";
+                            }
+                            else if (DestinyDecider < 8)
+                            {
+                                Destiny = "parasite";
+                            }
+
+                            string gender = Ismale ? "male" : "female";
+
+                            string role = Game1.WeightedRandomArchitectProfessions[Game1.r.Next(Game1.WeightedRandomArchitectProfessions.Count)];
+                            Role = role;
+
+                            Architect architect = new Architect("", gender, Race, Game1.r.Next(14, 60), Role, new List<Object>(), location, d, null, Destiny, 1);
+                            location.HomeCivilization.Citizens.Add(architect);
+                            string Name = GenerateUniqueArchitectName(architect);
+                            architect.Name = Name;
+
+                            HistoricalEvents.Add($"{Date} {Name} became an influential {Role} in {location.Name}");
+                            location.LocationHistoricalEvents.Add($"{Date} {Name} became an influential {Role} in {location.Name}");
+
+                            if (r.Next(100) == 1)
+                            {
+                                HistoricalEvents.Add($"{Date}{Name} possessed an unrivaled spirit and determination.");
+                                location.LocationHistoricalEvents.Add($"{Date}{Name} possessed an unrivaled spirit and determination.");
+
+                                Legends.Add(architect);
+                            }
+
+                            d.Architects.Add(architect);
+
+                            d.UnplacedPopulation = d.UnplacedPopulation - 1;
+                        }
+
+
+
+                        //LEGENDS
+
+                        LegendsManager.ManageLegends(this, Days);
+
+
+
+
+                        foreach (Structure s in location.AllStructures)
+                        {
+                            if (s.Type == "forge")
+                            {
+                                WealthIncrease += 1;
+                            }
+                            else if (s.Type == "market")
+                            {
+                                WealthIncrease += 2;
+                            }
+                        }
+
+                        //ok so THIS stuff is all gonna happen once per district
+
+                        //Handle the creation of a Group
+                        //make a group
+                        //new group
+                        //i cant find this area all the time fsr lolloooolooolol
+
+                        if (d.Architects.Count > 0 && SettlementTypes.Contains(location.Type))
+                        {
+                            foreach (Architect a in d.Architects)
+                            {
+                                if (a.Group == null)
+                                {
+                                    //see if we actually need a group lul
+
+                                    int GroupsAlreadyLikeThis = 0;
+
+                                    foreach (Group g in location.GroupsAtThisLocation)
+                                    {
+                                        if (g.Type == Game1.ConvertArchitectToGroupType[a.Profession])
+                                        {
+                                            GroupsAlreadyLikeThis++;
+                                        }
+                                    }
+
+                                    if (GroupsAlreadyLikeThis <= Math.Round((decimal)location.TruePopulation() / 500, MidpointRounding.ToNegativeInfinity))
+                                    {
+                                        if (Game1.r.Next(1, 1000 * MonthToDayConstant) == 1 && a.Profession != "prophet")
+                                        {
+                                            if (Game1.ConvertArchitectToGroupType[a.Profession] != "trade" || location.Market != null)
+                                            {
+                                                Group g = new Group(new List<Architect>(), Game1.ConvertArchitectToGroupType[a.Profession], a, location);
+                                                a.Group = g;
+                                                g.Architects.Add(a);
+                                                Groups.Add(g);
+
+                                                location.GroupsAtThisLocation.Add(g);
+                                                if (g.Type == "trade")
+                                                {
+                                                    for (int i = r.Next(10, 20); i != 0; i--)
+                                                    {
+                                                        Object bar = new Object(null, "bar", new List<Material> { location.HomeCivilization.CulturalMetal }, Unknown);
+                                                        bar.Owner = g;
+                                                        g.CaravanItems.Add(bar);
+                                                    }
+                                                    location.TradersAtThisLocation.Add(g);
+                                                    g.TradeRoute.Add(location);
+                                                    TradingGroups.Add(g);
+                                                }
+
+                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " founded ", g.Name, ", a ", g.Type, " group, in ", location.Name));
+
+                                                a.GroupLoyalty = 5;
+                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " founded ", g.Name, ", a ", g.Type, " group, in ", location.Name));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        foreach (Architect a in d.ArchitectsToRemove)
+                        {
+                            d.Architects.Remove(a);
+                        }
+                        d.ArchitectsToRemove = new List<Architect>();
+
+                        //Handle civilization leadership changes
+
+                        if (location.Government == null && SettlementTypes.Contains(location.Type))
+                        {
+                            foreach (Group g in location.GroupsAtThisLocation)
+                            {
+                                if (g.Type != "trade")
+                                {
+                                    HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " took power in ", location.Name, "."));
+
+                                    location.LocationHistoricalEvents.Add(string.Concat(Date, " ", g.Name, " took power in ", location.Name, "."));
+                                    location.Government = g;
+
+                                    foreach (Architect a in g.Architects)
+                                    {
+                                        if (a.District != location.Districts[0])
+                                        {
+                                            a.District.Architects.Remove(a);
+                                            location.Districts[0].Architects.Add(a);
+                                            a.District = location.Districts[0];
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        else if (location.Government == null && SettlementTypes.Contains(location.Type))
+                        {
+
+                        }
+                        else if (location.Government is Group && SettlementTypes.Contains(location.Type))
+                        {
+                            if (((Group)location.Government).Type != "political")
+                            {
+                                foreach (Group g in location.GroupsAtThisLocation)
+                                {
+                                    if (g.Type == "political")
+                                    {
+                                        HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " took power from ", location.Government.Name, " thanks to their credibility and support in ", location.Name, "."));
+
+                                        location.LocationHistoricalEvents.Add(string.Concat(Date, " ", g.Name, " took power from ", location.Government.Name, " thanks to their credibility and support in ", location.Name, "."));
+                                        location.Government = g;
+
+                                        foreach (Architect a in g.Architects)
+                                        {
+                                            if (a.District != location.Districts[0])
+                                            {
+                                                a.District.Architects.Remove(a);
+                                                location.Districts[0].Architects.Add(a);
+                                                a.District = location.Districts[0];
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        //Handle architect/architect group actions IN THE DISTRICT
+
+
+                        //study and write books
+
+                        // Study and write books
+                        int Threshold = 500;
+
+                        foreach (Architect a in d.Architects)
+                        {
+                            if (a.Profession == "scholar" && a.IsStudying)
+                            {
+                                switch (a.ScholarType)
+                                {
+                                    case "mage":
+                                        a.MagicStudyPoints += Game1.r.Next(0, 7);
+                                        break;
+                                    case "engineer":
+                                        a.ScienceStudyPoints += Game1.r.Next(0, 7);
+                                        break;
+                                    case "entertainer":
+                                        a.CultureStudyPoints += Game1.r.Next(0, 7);
+                                        break;
+                                    case "artificer":
+                                        a.ScienceStudyPoints += Game1.r.Next(0, 4);
+                                        a.MagicStudyPoints += Game1.r.Next(0, 4);
+                                        break;
+                                    case "bard":
+                                        a.CultureStudyPoints += Game1.r.Next(0, 4);
+                                        a.MagicStudyPoints += Game1.r.Next(0, 4);
+                                        break;
+                                    case "sage":
+                                        a.CultureStudyPoints += Game1.r.Next(0, 4);
+                                        a.ScienceStudyPoints += Game1.r.Next(0, 4);
+                                        break;
+                                    case "luminary":
+                                        a.ScienceStudyPoints += Game1.r.Next(0, 2);
+                                        a.CultureStudyPoints += Game1.r.Next(0, 2);
+                                        a.MagicStudyPoints += Game1.r.Next(0, 2);
+                                        break;
+                                    default:
+                                        // Handle unknown ScholarType, if needed
+                                        break;
+                                }
+
+                                // Decide to write
+                                if (Game1.r.Next(1, (Math.Max(500 - (a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints), 50)) * MonthToDayConstant) == 1)
+                                {
+                                    string writingType = "";
+                                    int totalWeight = a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints;
+                                    if (totalWeight == 0) totalWeight = 1;  // Prevent division by zero
+
+                                    // Calculate probabilities based on relative weight of each study point
+                                    int magicWeight = (a.MagicStudyPoints * 100) / totalWeight;
+                                    int scienceWeight = (a.ScienceStudyPoints * 100) / totalWeight;
+                                    int cultureWeight = (a.CultureStudyPoints * 100) / totalWeight;
+
+                                    // Use a random number to decide based on weights
+                                    int randomChoice = Game1.r.Next(100);
+                                    if (randomChoice < magicWeight)
+                                    {
+                                        writingType = "poem";
+                                    }
+                                    else if (randomChoice < magicWeight + scienceWeight)
+                                    {
+                                        writingType = "book";
+                                    }
+                                    else
+                                    {
+                                        writingType = "song";
+                                    }
+
+                                    Composition newWork;
+                                    if (writingType == "book" && Game1.r.NextDouble() < 0.5)
+                                    {
+                                        // 50% chance to write a history book about a specific subject
+                                        Entity subject = GenerateRandomSubject();
+                                        newWork = new Composition(writingType, a, subject);
+                                    }
+                                    else
+                                    {
+                                        // 50% chance to write about a general domain
+                                        Entity domainEntity = new Entity(a.AlignedDomains[r.Next(a.AlignedDomains.Count)]);
+                                        newWork = new Composition(writingType, a, domainEntity);
+                                    }
+
+                                    if (writingType == "book")
+                                    {
+                                        string ObjectType = new List<string>() { "scroll", "scroll", "sheet", "book", "book" }[r.Next(5)];
+
+                                        Object o = new Object(newWork.Name, ObjectType, new List<Material>() { d.Location.HomeCivilization.CulturalCloth }, a);
+                                        a.StudyBuilding.HistoricalObjects.Add(o);
+                                        o.CompositionContent = newWork;
+                                        AllWrittenContent.Add(o);
+                                    }
+                                    else
+                                    {
+                                        a.CultureBank.Add(newWork); // Storing poems and songs in the CultureBank
+                                    }
+
+                                    WorksOfCulture++;
+
+                                    // Log historical event
+                                    HistoricalEvents.Add($"{Date} {a.Name} authored a {writingType} titled '{newWork.Name}' in {location.Name}");
+                                    location.LocationHistoricalEvents.Add($"{Date} {a.Name} authored a {writingType} titled '{newWork.Name}' in {location.Name}");
+                                }
+
+                                // Archelevation
+                                if (!a.ScholarType.StartsWith("arch"))
+                                {
+                                    if (a.ScholarType == "mage" && a.MagicStudyPoints > Threshold)
+                                    {
+                                        a.ScholarType = "archmage";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archmage in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archmage in {location.Name}");
+                                    }
+                                    else if (a.ScholarType == "engineer" && a.ScienceStudyPoints > Threshold)
+                                    {
+                                        a.ScholarType = "archengineer";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archengineer in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archengineer in {location.Name}");
+                                    }
+                                    else if (a.ScholarType == "entertainer" && a.CultureStudyPoints > Threshold)
+                                    {
+                                        a.ScholarType = "archentertainer";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archentertainer in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archentertainer in {location.Name}");
+                                    }
+                                    else if (a.ScholarType == "artificer" && a.MagicStudyPoints > Threshold / 2 && a.ScienceStudyPoints > Threshold / 2)
+                                    {
+                                        a.ScholarType = "archartificer";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archartificer in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archartificer in {location.Name}");
+                                    }
+                                    else if (a.ScholarType == "bard" && a.MagicStudyPoints > Threshold / 2 && a.CultureStudyPoints > Threshold / 2)
+                                    {
+                                        a.ScholarType = "archbard";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archbard in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archbard in {location.Name}");
+                                    }
+                                    else if (a.ScholarType == "sage" && a.CultureStudyPoints > Threshold / 2 && a.ScienceStudyPoints > Threshold / 2)
+                                    {
+                                        a.ScholarType = "archsage";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archsage in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archsage in {location.Name}");
+                                    }
+                                    else if (a.ScholarType == "luminary" && a.CultureStudyPoints > Threshold / 3 && a.ScienceStudyPoints > Threshold / 3 && a.MagicStudyPoints > Threshold / 3)
+                                    {
+                                        a.ScholarType = "archluminary";
+                                        HistoricalEvents.Add($"{Date} {a.Name} became an archluminary in {location.Name}");
+                                        location.LocationHistoricalEvents.Add($"{Date} {a.Name} became an archluminary in {location.Name}");
+                                    }
+                                }
+
+                                // Mage scholars learn spells, each can only discover one in their lifetime, but can learn more from others.
+                                if ((a.ScholarType == "mage" || a.ScholarType == "artificer" || a.ScholarType == "luminary" || a.ScholarType == "bard" || a.ScholarType == "archmage" || a.ScholarType == "archartificer" || a.ScholarType == "archluminary" || a.ScholarType == "archbard") && !a.DiscoveredASpell && UndiscoveredSpells.Count > 0 && a.MagicStudyPoints > 1800)
+                                {
+                                    int SpellID = Game1.r.Next(UndiscoveredSpells.Count);
+                                    a.SpellsKnown.Add(UndiscoveredSpells[SpellID]);
+                                    location.LocationHistoricalEvents.Add($"{Date} {a.Name} discovered the secret of {UndiscoveredSpells[SpellID]} in {location.Name}");
+                                    HistoricalEvents.Add($"{Date} {a.Name} discovered the secret of {UndiscoveredSpells[SpellID]} in {location.Name}");
+                                    DiscoveredSpells.Add(UndiscoveredSpells[SpellID]);
+                                    UndiscoveredSpells.RemoveAt(SpellID);
+                                    a.DiscoveredASpell = true;
+                                }
+                            }
+
+                            // Destiny
+                            List<string> PossibleInfusionSpells = new List<string>();
+
+                            if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock"))
+                            {
+                                a.AssignSpells();
+
+                                if (a.Destiny == "warlock")
+                                {
+                                    a.Profession = a.Destiny;
+                                    HistoricalEvents.Add($"{Date} {a.Name} was infused with incredible power by {DarkDeity.Name} in {location.Name}, blessed to become an immortal warlock tied to his service.");
+                                    location.LocationHistoricalEvents.Add($"{Date} {a.Name} was infused with incredible power by {DarkDeity.Name} in {location.Name}, blessed to become an immortal warlock tied to his service.");
+                                    a.GroupLoyalty = -10;
+                                    a.IsImmortal = true;
+                                    a.Inventory.AddRange(LootTableMachine("magictreasure34"));
+                                }
+                                else if (a.Destiny == "sorcerer")
+                                {
+                                    a.Profession = a.Destiny;
+                                    HistoricalEvents.Add($"{Date} {a.Name} was infused with incredible power by {LightDeity.Name} in {location.Name}, blessed to become an eternal sorcerer tied to his service.");
+                                    location.LocationHistoricalEvents.Add($"{Date} {a.Name} was infused with incredible power by {LightDeity.Name} in {location.Name}, blessed to become an eternal sorcerer tied to his service.");
+                                    a.GroupLoyalty = -10;
+                                    a.Inventory.AddRange(LootTableMachine("magictreasure34"));
+                                    a.IsImmortal = true;
+                                }
+                            }
+                        }
+
+                        Entity GenerateRandomSubject()
+                        {
+                            var random = new Random();
+                            List<Entity> subjects = new List<Entity>();
+
+                            subjects.AddRange(AllArchitects);
+                            subjects.AddRange(AllLocations);
+                            subjects.AddRange(AllLocations.SelectMany(loc => loc.AllStructures));
+                            subjects.AddRange(AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
+
+                            return subjects[random.Next(subjects.Count)];
+                        }
+
+                        //also make sure that architects change their group loyalty based on actions
+
+                        foreach (Architect a in d.Architects)
+                        {
+                            // Count population
+                            CurrentlyCountingArchitects++;
+
+                            if (a.Profession == "scholar" && !a.IsStudying)
+                            {
+                                bool FoundLibrary = false;
+
+                                // Search for a library within the current district
+                                if (d.Location.Library != null)
+                                {
+                                    FoundLibrary = true;
+                                    a.IsStudying = true;
+                                    a.StudyBuilding = d.Location.Library;
+                                    HistoricalEvents.Add($"{Date} {a.Name} began studying at {d.Location.Library.Name} in {location.Name}");
+                                }
+
+                                // If no library found, search other locations
+                                if (!FoundLibrary)
+                                {
+                                    foreach (var Location in AllLocations)
+                                    {
+                                        if (Location.HomeCivilization == a.HomeLocation.HomeCivilization && Location.Library != null)
+                                        {
+                                            a.NextMigrationLocation = Location;
+                                            a.IsStudying = true;
+                                            a.StudyBuilding = Location.Library;
+                                            string migrationEvent = $"{Date} {a.Name} heard of {Location.Library.Name}, a library in {Location.Name}, and migrated there to study.";
+                                            string studyEvent = $"{Date} {a.Name} began studying at {Location.Library.Name} in {Location.Name}.";
+                                            HistoricalEvents.Add(migrationEvent);
+                                            Location.LocationHistoricalEvents.Add(migrationEvent);
+                                            HistoricalEvents.Add(studyEvent);
+                                            Location.LocationHistoricalEvents.Add(studyEvent);
+                                            FoundLibrary = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        foreach (Architect a in d.ArchitectsToAdd)
+                        {
+                            d.Architects.Add(a);
+                        }
+                        d.ArchitectsToAdd = new List<Architect>();
+
+
+                        // TODO: Handle architect/architect group stability
+                        // also utilize group loyalty
+
+
+                        // TODO: Handle the disbanding of a Group
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            if (g.Architects.Count == 0)
+                            {
+                                HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " collapsed in ", location.Name, " due to running out of passionate members."));
+                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", g.Name, " collapsed in ", location.Name, " due to running out of passionate members."));
+                                GroupsToRemove.Add(g);
+                                if (location.Government == g)
+                                {
+                                    location.Government = null;
+                                }
+                            }
+                            else if (g.Stability < 1)
+                            {
+                                HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " collapsed in ", location.Name, " due to a disagreement of values."));
+                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", g.Name, " collapsed in ", location.Name, " due to a disagreement of values."));
+                                foreach (Architect a in g.Architects)
+                                {
+                                    a.Group = null;
+                                }
+                                GroupsToRemove.Add(g);
+                                if (location.Government == g)
+                                {
+                                    location.Government = null;
+                                }
+                            }
+                            else if (g.MonthsOld > 60 && g.Architects.Count <= 1 && location.Government != g)
+                            {
+                                HistoricalEvents.Add(string.Concat(Date, " ", g.Leader.Name, " disbanded ", g.Name, " to become an individual practitioner in ", location.Name, "."));
+                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", g.Leader.Name, " disbanded ", g.Name, " to become an individual practitioner in ", location.Name, "."));
+                                g.Leader.Group = null;
+                                GroupsToRemove.Add(g);
+                            }
+                            else if (g.MonthsOld > 180 && g.Architects.Count == 2 && location.Government != g)
+                            {
+                                HistoricalEvents.Add(string.Concat(Date, " ", g.Architects[0].Name, " and ", g.Architects[1].Name, " disbanded ", g.Name, " and stopped traveling together in ", location.Name, "."));
+                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", g.Architects[0].Name, " and ", g.Architects[1].Name, " disbanded ", g.Name, " and stopped traveling together in ", location.Name, "."));
+                                g.Leader.Group = null;
+                                GroupsToRemove.Add(g);
+                            }
+                        }
+                        foreach (Group g in GroupsToRemove)
+                        {
+                            Groups.Remove(g);
+                            location.GroupsAtThisLocation.Remove(g);
+                        }
+                        GroupsToRemove = new List<Group>();
+
+                        foreach (Group G in location.GroupsAtThisLocation)
+                        {
+                            foreach (Architect a in G.ArchitectsToRemove)
+                            {
+                                a.Group = null;
+                                G.Architects.Remove(a);
+                            }
+                        }
+
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            g.ArchitectsToRemove = new List<Architect>();
+                        }
+
+                        //Handle recruiting of Architects to a group
+
+
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            foreach (Architect a in d.Architects)
+                            {
+                                if (a.Group == null && Game1.ConvertArchitectToGroupType[a.Profession] == g.Type && (!g.ArchitectsWhoDeclined.Contains(a)))
+                                {
+                                    if (Game1.r.Next(1, 7) == 1)
+                                    {
+                                        // denial
+                                        if (Game1.r.Next(1, 3) == 1)
+                                        {
+                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " requested to join ", g.Name, ", but was denied."));
+                                            g.ArchitectsWhoDeclined.Add(a);
+                                        }
+                                        else
+                                        {
+                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " was invited to join ", g.Name, ", but decided against it."));
+                                            g.ArchitectsWhoDeclined.Add(a);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // acceptance
+                                        if (Game1.r.Next(1, 3) == 1)
+                                        {
+                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " requested to join ", g.Name, ", and was accepted."));
+                                            g.Architects.Add(a);
+                                            d.ArchitectsToRemove.Add(a);
+                                            a.Group = g;
+                                            a.GroupLoyalty = 3;
+                                        }
+                                        else
+                                        {
+                                            HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " requested that ", a.Name, " join them, and ", a.Name, " accepted."));
+                                            g.Architects.Add(a);
+                                            d.ArchitectsToRemove.Add(a);
+                                            a.Group = g;
+                                            a.GroupLoyalty = 3;
+                                        }
+                                    }
+                                }
+                            }
+                            foreach (Architect a in d.ArchitectsToRemove)
+                            {
+                                d.Architects.Remove(a);
+                            }
+                        }
+
+                        // TODO: Handle Architects leaving groups due to loyalty loss or low loyalty and boredom
+
+                        foreach (Architect a in d.Architects)
+                        {
+                            if (a.Group != null)
+                            {
+                                if (a.GroupLoyalty <= 0)
+                                {
+                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " left ", a.Group.Name, " due to a disagreement with their values."));
+                                    a.Group.ArchitectsToRemove.Add(a);
+                                    a.Group = null;
+                                }
+                                else if (a.GroupLoyalty <= 2 && Game1.r.Next(1, 100) == 1)
+                                {
+                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " left ", a.Group.Name, " due to boredom."));
+                                    a.Group.ArchitectsToRemove.Add(a);
+                                    a.Group = null;
+                                }
+                            }
+                        }
+
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            foreach (Architect a in g.ArchitectsToRemove)
+                            {
+                                g.Architects.Remove(a);
+                            }
+                            g.ArchitectsToRemove.Clear();
+                        }
+
+
+                        d.ArchitectsToAdd = new List<Architect>();
+
+                        // TODO: Handle structure building based on population and number of structures, and number of structures city can support.
+
+                        if (!location.IsSavingUpToSettle)
+                        {
+                            if (location.Wealth > 5000)
+                            {
+                                if (SettlementTypes.Contains(location.Type))
+                                {
+                                    int Build = 0;
+
+                                    if (d.IsPrimary)
+                                    {
+                                        Build = Game1.r.Next(1, 3);
+                                    }
+                                    else
+                                    {
+                                        Build = Game1.r.Next(1, 7);
+                                    }
+
+                                    if (Build == 1)
+                                    {
+                                        int BuildingDecider = Game1.r.Next(1, 30);
+                                        string BuildingType = "";
+                                        int Windows = 0;
+                                        int llOf5 = 0;
+
+                                        List<string> LightingMethods = new List<string>();
+                                        List<string> PrimarySmells = new List<string>();
+                                        List<Material> Materials = new List<Material>();
+
+
+                                        if (BuildingDecider < 15)
+                                        {
+                                            BuildingType = "house";
+                                            Materials.Add(location.HomeCivilization.CulturalWood);
+                                            Windows = Game1.r.Next(0, 2);
+                                            location.Wealth = location.Wealth - 1000;
+                                        }
+                                        else if (BuildingDecider < 17)
+                                        {
+                                            BuildingType = "shrine";
+                                            Windows = Game1.r.Next(0, 3);
+                                            Materials.Add(location.HomeCivilization.CulturalStone);
+                                            location.Wealth = location.Wealth - 2000;
+                                        }
+                                        else if (BuildingDecider < 19 && location.Library == null)
+                                        {
+                                            BuildingType = "library";
+                                            Windows = Game1.r.Next(0, 4);
+                                            Materials.Add(location.HomeCivilization.CulturalWood);
+                                            location.Wealth = location.Wealth - 2000;
+                                        }
+                                        else if (BuildingDecider < 21)
+                                        {
+                                            BuildingType = "tavern";
+                                            Windows = Game1.r.Next(0, 2);
+                                            Materials.Add(location.HomeCivilization.CulturalWood);
+                                            location.Wealth = location.Wealth - 2500;
+                                        }
+                                        else if (BuildingDecider < 22)
+                                        {
+                                            BuildingType = "forge";
+                                            Windows = Game1.r.Next(0, 2);
+                                            Materials.Add(location.HomeCivilization.CulturalStone);
+                                            location.Wealth = location.Wealth - 3000;
+                                        }
+                                        else if (BuildingDecider < 23)
+                                        {
+                                            BuildingType = "watchtower";
+                                            Windows = 0;
+                                            Materials.Add(location.HomeCivilization.CulturalWood);
+                                            Materials.Add(location.HomeCivilization.CulturalStone);
+                                            location.Wealth = location.Wealth - 2500;
+                                        }
+                                        else if (location.Market == null)
+                                        {
+                                            BuildingType = "market";
+                                            Windows = 0;
+                                            Materials.Add(location.HomeCivilization.CulturalWood);
+                                            Materials.Add(location.HomeCivilization.CulturalCloth);
+                                            location.Wealth = location.Wealth - 2500;
+                                        }
+                                        else
+                                        {
+                                            BuildingType = "bighouse";
+                                            Windows = Game1.r.Next(0, 5);
+                                            Materials.Add(location.HomeCivilization.CulturalWood);
+                                            location.Wealth = location.Wealth - 1500;
+                                        }
+
+                                        while (LightingMethods.Count == 0)
+                                        {
+                                            foreach (string S in location.PrimaryLightingStyles)
+                                            {
+                                                if (Game1.r.Next(1, 4) != 1)
+                                                {
+                                                    LightingMethods.Add(S);
+                                                }
+                                            }
+                                        }
+
+
+                                        //find an owner if you want lul
+                                        List<Group> PotentialGroups = new List<Group>();
+
+                                        if (BuildingType == "shrine")
+                                        {
+                                            foreach (Group g in location.GroupsAtThisLocation)
+                                            {
+                                                if (g.Type == "religious")
+                                                {
+                                                    PotentialGroups.Add(g);
+                                                }
+                                            }
+                                        }
+                                        else if (BuildingType == "market")
+                                        {
+                                            foreach (Group g in location.GroupsAtThisLocation)
+                                            {
+                                                if (g.Type == "trade")
+                                                {
+                                                    PotentialGroups.Add(g);
+                                                }
+                                            }
+                                        }
+                                        else if (BuildingType == "watchtower")
+                                        {
+                                            foreach (Group g in location.GroupsAtThisLocation)
+                                            {
+                                                if (g.Type == "mercenary" || g.Type == "military")
+                                                {
+                                                    PotentialGroups.Add(g);
+                                                }
+                                            }
+                                        }
+                                        else if (BuildingType != "bighouse")
+                                        {
+                                            foreach (Group g in location.GroupsAtThisLocation)
+                                            {
+                                                PotentialGroups.Add(g);
+                                            }
+                                        }
+
+                                        Block DecidedBlock = d.DistrictMap[Game1.r.Next(0, 49)];
+
+                                        Structure s = new Structure(BuildingType, new List<Object>(), new List<Room>(), DecidedBlock, Materials, PrimarySmells, LightingMethods, llOf5, Windows);
+
+                                        if (s.Type == "market")
+                                        {
+                                            location.Market = s;
+                                        }
+                                        else if (s.Type == "library")
+                                        {
+                                            location.Library = s;
+                                        }
+
+                                        if (PotentialGroups.Count == 0)
+                                        {
+                                            s.Owner = null;
+                                        }
+                                        else
+                                        {
+                                            s.Owner = PotentialGroups[Game1.r.Next(PotentialGroups.Count)];
+                                        }
+
+                                        if (s.Type != "house" && s.Type != "bighouse")
+                                        {
+                                            if (s.Owner == null)
+                                            {
+                                                HistoricalEvents.Add(string.Concat(Date, " ", s.Name, ", a ", s.Type, ", was founded by the people of ", location.Name));
+                                            }
+                                            else
+                                            {
+                                                HistoricalEvents.Add(string.Concat(Date, " ", s.Name, ", a ", s.Type, ", was founded by ", s.Owner.Name));
+                                            }
+                                        }
+
+                                        DecidedBlock.Structures.Add(s);
+                                    }
+                                }
+                            }
+                        }
+
+                        // TODO: Handle architect/architect group creating a new location
+
+                        bool breaken = false;
+
+                        //regular architects leaving to go make sites
+
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            if (location.Government != g && location.Wealth > 10000 && location.IsSavingUpToSettle && location.TruePopulation() > 100 && location.ColonizationDesire > 0 && new List<string> { "town", "city", "camp", "village" }.Contains(location.Type))
+                            {
+                                //start looking for a new location to find
+
+                                int Attempts = 0;
+
+                                while (Attempts < 10)
+                                {
+                                    int XChange = Game1.r.Next(-5, 6);
+                                    int ZChange = Game1.r.Next(-5, 6);
+
+                                    if (!(location.Region.X + XChange < 0 || location.Region.X + XChange > Width - 1 || location.Region.Z + ZChange < 0 || location.Region.Z + ZChange > Length - 1))
+                                    {
+                                        if (WorldMap[(location.Region.X + XChange) + (location.Region.Z + ZChange) * Width].Biome != "ocean" && WorldMap[(location.Region.X + XChange) + (location.Region.Z + ZChange) * Width].Biome != "void" && WorldMap[(location.Region.X + XChange) + (location.Region.Z + ZChange) * Width].Biome != "snowpeak" && WorldMap[(location.Region.X + XChange) + (location.Region.Z + ZChange) * Width].Biome != "mountain" && WorldMap[(location.Region.X + XChange) + (location.Region.Z + ZChange) * Width].MyLocation == null && WorldMap[(location.Region.X + XChange) + (location.Region.Z + ZChange) * Width].Blight == Purity)
+                                        {
+                                            // Check if group has at least one member from the humanoid races
+                                            bool hasHumanoid = g.Architects.Any(a => HumanoidRaces.Contains(a.Race));
+
+                                            if (hasHumanoid)
+                                            {
+                                                // Rest of the existing code for settling...
+                                                // Ensure primary race is one of the humanoid races present
+                                                Race primaryRace = g.Architects.First(a => HumanoidRaces.Contains(a.Race)).Race;
+
+                                                // Code for wealth deduction, race count, and other settlement logic
+                                                int PopulationFollowing = Game1.r.Next(location.TruePopulation() / 10, location.TruePopulation() / 5);
+
+                                                if (g.Architects.Count() * 200 > 15000)
+                                                {
+                                                    location.Wealth -= 14500;
+                                                }
+                                                else
+                                                {
+                                                    location.Wealth -= g.Architects.Count() * 200;
+                                                }
+
+                                                // Dictionary to keep track of race counts
+                                                Dictionary<Race, int> raceCounts = new Dictionary<Race, int>();
+
+                                                // Counting the races
+                                                foreach (Architect a in g.Architects)
+                                                {
+                                                    if (!raceCounts.ContainsKey(a.Race))
+                                                    {
+                                                        raceCounts[a.Race] = 0;
+                                                    }
+                                                    raceCounts[a.Race]++;
+                                                }
+
+                                                // Now primaryRace holds the Race object with the highest count
+
+                                                LocationBuilderPacket l = new LocationBuilderPacket(g, location.Region.X + XChange, location.Region.Z + ZChange, "camp", primaryRace, PopulationFollowing, location.MaxColonizationDesire - 1, location.HomeCivilization, new List<Object>(), location, "none");
+                                                LocationBuilderPackets.Add(l);
+
+                                                // Adjusting population following the settlement
+                                                if (d.UnplacedPopulation > PopulationFollowing)
+                                                {
+                                                    d.UnplacedPopulation = (d.UnplacedPopulation - PopulationFollowing) + 5;
+                                                }
+                                                else
+                                                {
+                                                    d.UnplacedPopulation = 5;
+                                                }
+
+                                                location.ColonizationDesire = location.ColonizationDesire - 1;
+                                                location.GroupsAtThisLocationToRemove.Add(g);
+                                                location.IsSavingUpToSettle = false;
+
+                                                breaken = true;
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                continue; // Continue to the next iteration if no settlement occurs
+                                            }
+                                        }
+                                    }
+
+                                    Attempts++;
+                                }
+                                if (breaken == true)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        foreach (Group g in location.GroupsAtThisLocationToRemove)
+                        {
+                            location.GroupsAtThisLocation.Remove(g);
+                        }
+
+                        //warlock or sorcerer goes to build a spire
+
+                        foreach (Architect a in d.Architects)
+                        {
+                            if ((a.Profession == "warlock" || a.Profession == "sorcerer") && location.Type != "spire")
+                            {
+                                //hunt an unnoccupied location
+
+                                bool Found = false;
+
+                                int X = 0;
+                                int Z = 0;
+
+                                while (!Found)
+                                {
+                                    X = Game1.r.Next(Width);
+                                    Z = Game1.r.Next(Length);
+
+                                    if (WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void")
+                                    {
+                                        Found = true;
+                                    }
+                                }
+
+                                LocationBuilderPacket l = new LocationBuilderPacket(a, X, Z, "spire", GetRace(""), 0, 0, null, new List<Object>(), location, "none");
+                                LocationBuilderPackets.Add(l);
+                            }
+                        }
+
+                        //adventuring group builds an outpost to store their items
+                        List<Group> AdvGroups = new List<Group>();
+                        foreach (Group g in Groups)
+                        {
+                            if (g.Type == "mercenary")
+                            {
+                                AdvGroups.Add(g);
+                            }
+                        }
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            if (g.Type == "mercenary" && g.Architects.Count >= 3)
+                            {
+                                if (g.Base.Type != "outpost")
+                                {
+                                    //find a location
+                                    List<(int, int)> PossibleLocations = new List<(int, int)>();
+
+                                    for (int SearchingX = -10; SearchingX < 10; SearchingX++)
+                                    {
+                                        for (int SearchingZ = -10; SearchingZ < 10; SearchingZ++)
+                                        {
+                                            if (g.Leader.Location.X + SearchingX > 0 && g.Leader.Location.X + SearchingX < Width && g.Leader.Location.Z + SearchingZ > 0 && g.Leader.Location.Z + SearchingZ < Length)
+                                            {
+                                                if (WorldMap[(g.Leader.Location.X + SearchingX) + (g.Leader.Location.Z + SearchingZ) * Length].MyLocation == null && WorldMap[(g.Leader.Location.X + SearchingX) + (g.Leader.Location.Z + SearchingZ) * Length].Biome != "ocean" && WorldMap[(g.Leader.Location.X + SearchingX) + (g.Leader.Location.Z + SearchingZ) * Length].Biome != "void")
+                                                {
+                                                    PossibleLocations.Add((g.Leader.Location.X + SearchingX, g.Leader.Location.Z + SearchingZ));
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (PossibleLocations.Count > 0)
+                                    {
+                                        (int, int) Coords = PossibleLocations[Game1.r.Next(PossibleLocations.Count)];
+                                        LocationBuilderPacket l = new LocationBuilderPacket(g, Coords.Item1, Coords.Item2, "outpost", GetRace(""), 0, 0, g.Leader.Location.HomeCivilization, new List<Object>(), location, "none");
+                                        location.GroupsAtThisLocationToRemove.Add(g);
+
+                                        foreach(Architect a in g.Architects)
+                                        {
+                                            a.Level = 4;
+                                            a.Strength = Math.Max(4, a.Strength);
+                                        }
+
+                                        if (location.Government == g)
+                                        {
+                                            location.Government = null;
+                                        }
+                                        LocationBuilderPackets.Add(l);
+                                    }
+                                }
+                            }
+                        }
+
+                        foreach (Group g in location.GroupsAtThisLocationToRemove)
+                        {
+                            location.GroupsAtThisLocation.Remove(g);
+                        }
+                        location.GroupsAtThisLocationToRemove = new List<Group>();
+
+
+
+                        //colossal creates a legendary artifact and builds a sanctum to protect it
+
+                        foreach (Architect a in Colossals)
+                        {
+                            if (!a.HasMadeALegendaryArtifact && r.Next(1, 10000 * MonthToDayConstant) == 1 && UndiscoveredLegendarySpells.Count > 1)
+                            {
+                                string Spell = UndiscoveredLegendarySpells[r.Next(UndiscoveredLegendarySpells.Count)];
+                                UndiscoveredLegendarySpells.Remove(Spell);
+                                DiscoveredLegendarySpells.Add(Spell);
+
+                                Object o = new Object("", Game1.PossibleMagicalItems[r.Next(Game1.PossibleMagicalItems.Count)], new List<Material> { Metals[r.Next(Metals.Count)] }, false, false, null, a, 5, false, null, null, null, false);
+                                o.Name = GenerateUniqueName("1S" + Game1.r.Next(2, 4) + "s1w", o);
+                                o.SpecialKnowledge = Spell;
+                                o.Owner = a;
+
+                                string MagicPhrase = "";
+
+                                if (Spell == "ethereal rupture")
+                                {
+                                    MagicPhrase = "ravaging the land with fractal exposure";
+                                }
+                                else if (Spell == "emergence")
+                                {
+                                    MagicPhrase = "summoning the fallen";
+                                }
+                                else if (Spell == "eternal bind")
+                                {
+                                    MagicPhrase = "enslaving all to its will";
+                                }
+                                else if (Spell == "expunge")
+                                {
+                                    MagicPhrase = "banishing legends and the memories of them";
+                                }
+                                else if (Spell == "echo")
+                                {
+                                    MagicPhrase = "assembling an echo of a legend";
+                                }
+
+                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " created ", o.Name, ", a legendary ", o.Materials[0].Name, " ", o.Type, " capable of ", MagicPhrase, "."));
+
+                                //find a sanctum location
+
+                                bool Found = false;
+
+                                int X = 0;
+                                int Z = 0;
+
+                                while (!Found)
+                                {
+                                    X = Game1.r.Next(Width);
+                                    Z = Game1.r.Next(Length);
+
+                                    if (WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void" && WorldMap[X + Z * Width].Biome != "ocean")
+                                    {
+                                        Found = true;
+                                    }
+                                }
+
+                                LocationBuilderPacket l = new LocationBuilderPacket(a, X, Z, "sanctum", GetRace(""), 0, 0, null, new List<Object> { o }, location, "none");
+                                LocationBuilderPackets.Add(l);
+                            }
+                        }
+
+
+                        //start saving up to settle
+
+
+                        if (Game1.r.Next(1, 50 * MonthToDayConstant) == 1 && location.TruePopulation() > 120 && location.ColonizationDesire > 0)
+                        {
+                            location.IsSavingUpToSettle = true;
+                        }
+                        if (location.TruePopulation() < 100)
+                        {
+                            location.IsSavingUpToSettle = false;
+                        }
+
+                        foreach (Architect a in d.ArchitectsToRemove)
+                        {
+                            d.Architects.Remove(a);
+                        }
+                        d.ArchitectsToRemove = new List<Architect>();
+
+                        //Architects die lul
+
+                        foreach (Architect a in d.Architects)
+                        {
+                            //immortality boons
+
+                            if (a.IsImmortal && a.RecievedImmortalityBuff == false)
+                            {
+                                a.DoIDieOfOldAge = false;
+                                a.RecievedImmortalityBuff = true;
+                                a.TerminalAge = a.TerminalAge + (Game1.r.Next(40, 200));
                             }
 
 
+                            if (a.Age > a.TerminalAge)
+                            {
+                                if (a.DoIDieOfOldAge)
+                                {
+                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " died of old age in ", location.Name, "."));
+                                }
+                                else
+                                {
+                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " ", Game1.DeathCauses[Game1.r.Next(Game1.DeathCauses.Count)], " in ", location.Name, "."));
+                                }
+
+                                if (a.Group != null)
+                                {
+                                    a.Group.ArchitectsToRemove.Add(a);
+                                }
+
+                                d.ArchitectsToRemove.Add(a);
+                            }
+                        }
+
+                        foreach (Architect a in d.ArchitectsToRemove)
+                        {
+                            d.Architects.Remove(a);
+                        }
+                        d.ArchitectsToRemove = new List<Architect>();
+
+
+                        foreach (Group g in location.GroupsAtThisLocation)
+                        {
+                            foreach (Architect a in g.ArchitectsToRemove)
+                            {
+                                g.Architects.Remove(a);
+                            }
+                        }
+                        foreach (Group g in GroupsToRemove)
+                        {
+                            Groups.Remove(g);
+                            location.GroupsAtThisLocation.Remove(g);
+                        }
+                        GroupsToRemove = new List<Group>();
 
 
 
-                            //iterate through districts
+                        // TODO: Handle Architect/architect groups moving into/taking structures.
+
+                        // TODO: Handle craftsmen making stuff and instruments
+                        // TODO: Handle musicians creating new musical forms
+                        // TODO: Handle travel. Remember to remove the group's leader from the location when the leader moves and do the FIFTY OTHER THING  RWHIOWEH RIHIDSAFBISUOEFWSEY
+
+
+
+                    }
+
+                    //Handle location type changes
+
+                    if (location.Type == "camp" && location.TruePopulation() > 10)
+                    {
+                        location.Type = "village";
+                    }
+                    if (location.Type == "village" && location.TruePopulation() > 200)
+                    {
+                        location.Type = "town";
+                    }
+                    if (location.Type == "town" && location.TruePopulation() > 500)
+                    {
+                        location.Type = "city";
+                    }
+
+
+
+                    //captiols build special procgen sites
+
+
+                    if (r.Next(1, 1000 * MonthToDayConstant) == 1 && location.IsCapitol && SettlementTypes.Contains(location.Type))
+                    {
+                        // Decide what type of structure you're going to make
+                        string SType = new List<string>() { "observatory", "library", "conservatory", "prison", "tomb", "gallery", "armory" }[r.Next(7)];
+
+                        // List to store all valid locations
+                        List<(int, int)> validLocations = new List<(int, int)>();
+
+                        // Search for valid locations
+                        for (int SearchingX = -10; SearchingX <= 10; SearchingX++)
+                        {
+                            for (int SearchingZ = -10; SearchingZ <= 10; SearchingZ++)
+                            {
+                                int X = location.X + SearchingX;
+                                int Z = location.Z + SearchingZ;
+                                if (X >= 0 && X < Width && Z >= 0 && Z < Length && WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void")
+                                {
+                                    validLocations.Add((X, Z));
+                                }
+                            }
+                        }
+
+                        // If there are valid locations, pick a random one
+                        if (validLocations.Count > 0)
+                        {
+                            var selectedLocation = validLocations[r.Next(validLocations.Count)];
+                            int selectedX = selectedLocation.Item1;
+                            int selectedZ = selectedLocation.Item2;
+
+                            // Decide people to send there
+                            List<Architect> PossibleArchitects = new List<Architect>();
 
                             foreach (District d in location.Districts)
                             {
-                                int DistrictMaxPopulation = 0;
-
-                                for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                                {
-                                    for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                                    {
-                                        DistrictMaxPopulation += d.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count * 3;
-
-                                        //structure age
-
-                                        foreach(Structure s in d.DistrictMap[DistrictX + DistrictZ*7].Structures)
-                                        {
-                                            s.AgeInYears += (1 / 12 * MonthToDayConstant);
-                                        }
-                                    }
-                                }
-
-                                //Handle population increase in the district
-
-
-                                if(location.Region.Blight != Purity && SettlementTypes.Contains(location.Type))
-                                {
-                                    if (d.UnplacedPopulation != 0)
-                                    {
-                                        d.UnplacedPopulation = Math.Max(d.UnplacedPopulation - r.Next(0, 4), 0);
-
-                                        if(d.UnplacedPopulation == 0)
-                                        {
-                                            HistoricalEvents.Add($"{Date} {location.Name} fell to the {location.Region.Blight.Name}.");
-                                            location.LocationHistoricalEvents.Add($"{location.Name} fell to the {location.Region.Blight.Name}.");
-                                        }
-                                    }
-                                    foreach (Architect a in d.Architects)
-                                    {
-                                        if (r.Next(1, 70 * MonthToDayConstant) == 1)
-                                        {
-                                            d.ArchitectsToRemove.Add(a);
-
-                                            HistoricalEvents.Add($"{Date} {a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
-                                            location.LocationHistoricalEvents.Add($"{Date} {a.Name} died to the {location.Region.Blight.Name} in {location.Name}.");
-                                        }
-                                    }
-                                }
-
-
-
-                                int BirthProbabilityMod = 100; // higher is less likely, decrease the chance of procreation
-
-                                if (d.Population() < DistrictMaxPopulation && location.TruePopulation() > 4)
-                                {
-                                    // Calculate birth probability dynamically based on the original function
-                                    double baseProbability = 1.0; // Set a base probability
-                                    double populationFactor = 1 + (d.Population() / 100.0); // Adjust based on population (modify the factor as needed)
-                                    double monthToDayConstant = 28.0 / Days; // Adjust probability to account for days instead of a month
-
-                                    double birthProbability = (baseProbability / populationFactor) * monthToDayConstant;
-
-                                    int births = 0;
-
-                                    // Calculate births using a random number and the probability
-                                    for (int i = 0; i < d.Population(); i++)
-                                    {
-                                        if (Game1.r.NextDouble() < birthProbability / BirthProbabilityMod)
-                                        {
-                                            births++;
-                                        }
-                                    }
-
-                                    // Update the unplaced population with the calculated births
-                                    d.UnplacedPopulation += births;
-                                }
-
-
-
-
-                                //Designate the Construction of a new District
-
-                                if (d.UnplacedPopulation + d.Architects.Count > 150)
-                                {
-                                    int Movers = Game1.r.Next(65, 85);         
-
-                                    District NewD = new District(false, location, Movers);
-                                    d.UnplacedPopulation = d.UnplacedPopulation - Movers;
-
-                                    foreach (Architect a in d.Architects)
-                                    {
-                                        if (Game1.r.Next(1, 4) == 1 && a.Group != location.Government)
-                                        {
-                                            NewD.Architects.Add(a);
-                                            d.ArchitectsToRemove.Add(a);
-                                            Movers--;
-                                        }
-                                    }
-                                    foreach (Architect a in d.ArchitectsToRemove)
-                                    {
-                                        d.Architects.Remove(a);
-                                    }
-                                    d.ArchitectsToRemove = new List<Architect>();
-
-                                    //go ahead and build a bunch of houses in the new district instead of moving stuff everywhere.
-
-                                    if(SettlementTypes.Contains(d.Location.Type) || d.Location.Type == "core" || d.Location.Type == "garrison")
-                                    {
-                                        for (int i = 0; i < Game1.r.Next(6, 10); i++)
-                                        {
-                                            Block ChosenBlock = NewD.DistrictMap[Game1.r.Next(0, 49)];
-                                            Structure s = new Structure("house", new List<Object>(), new List<Room>(), ChosenBlock, new List<Material> { location.HomeCivilization.CulturalWood }, new List<string> { location.HomeCivilization.CulturalWood.Name }, new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4));
-                                            
-                                            ChosenBlock.Structures.Add(s);
-                                        }
-                                    }
-
-                                    //well
-                                    NewD.DistrictMap[r.Next(2, 6) + r.Next(2, 5) * 7].Objects.Add(new Object(null, "well", new List<Material> { location.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
-
-                                    HistoricalEvents.Add($"{Date} {location.Name} segmented off a plot of land to a new district, {NewD.Name}, dedicated to {NewD.Industry}.");
-                                    location.LocationHistoricalEvents.Add($"{Date} {location.Name} segmented off a plot of land to a new district, {NewD.Name}, dedicated to {NewD.Industry}.");
-
-                                    location.DistrictsToAdd.Add(NewD);
-                                }
-
-
-                                //Handle elevation of a member of the population to Architect
-
-                                int decider = Game1.r.Next(1, 75*MonthToDayConstant);
-
-                                if (decider == 1 && d.UnplacedPopulation > 0)
-                                {
-                                    bool Ismale = true;
-                                    if (Game1.r.Next(1, 3) == 1)
-                                    {
-                                        Ismale = false;
-                                    }
-
-                                    string Role = "";
-                                    string Destiny = "";
-                                    Race Race;
-
-
-                                    if (Game1.r.Next(1, 20) == 1 || location.PrimaryRace == null)
-                                    {
-                                        Race = HumanoidRaces[Game1.r.Next(HumanoidRaces.Count)];
-                                    }
-                                    else
-                                    {
-                                        Race = location.PrimaryRace;
-                                    }
-
-                                    //decide if the creature will be magical
-
-                                    int DestinyDecider = Game1.r.Next(1, 300);
-
-                                    if (DestinyDecider < 5 && Race == GetRace("nightfell"))
-                                    {
-                                        Destiny = "warlock";
-                                    }
-                                    else if (DestinyDecider < 7 && Race == GetRace("luminarch"))
-                                    {
-                                        Destiny = "sorcerer";
-                                    }
-                                    else if (DestinyDecider < 8)
-                                    {
-                                        Destiny = "parasite";
-                                    }
-
-                                    string gender = Ismale ? "male" : "female";
-
-                                    string role = Game1.WeightedRandomArchitectProfessions[Game1.r.Next(Game1.WeightedRandomArchitectProfessions.Count)];
-                                    Role = role;
-
-                                    Architect architect = new Architect("", gender, Race, Game1.r.Next(14, 60), Role, new List<Object>(), location, d, null, Destiny, 1);
-                                    location.HomeCivilization.Citizens.Add(architect);
-                                    string Name = GenerateUniqueArchitectName(architect);
-                                    architect.Name = Name;
-
-                                    HistoricalEvents.Add($"{Date} {Name} became an influential {Role} in {location.Name}");
-                                    location.LocationHistoricalEvents.Add($"{Date} {Name} became an influential {Role} in {location.Name}");
-
-                                    if (r.Next(100) == 1)
-                                    {
-                                        HistoricalEvents.Add($"{Date}{Name} possessed an unrivaled spirit and determination.");
-                                        location.LocationHistoricalEvents.Add($"{Date}{Name} possessed an unrivaled spirit and determination.");
-
-                                        Legends.Add(architect);
-                                    }
-
-                                    d.Architects.Add(architect);
-
-                                    d.UnplacedPopulation = d.UnplacedPopulation - 1;
-
-                                    TotalArchitects = TotalArchitects + 1;
-                                }
-
-
-
-                                //LEGENDS
-
-                                LegendsManager.ManageLegends(this, Days);
-
-
-
-
-                                for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                                {
-                                    for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                                    {
-                                        //wealth 
-
-                                        foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
-                                        {
-                                            if (s.Type == "forge")
-                                            {
-                                                WealthIncrease += 1;
-                                            }
-                                            else if (s.Type == "market")
-                                            {
-                                                WealthIncrease += 2;
-                                            }
-                                        }
-                                    }
-                                }
-
-
-                                //ok so THIS stuff is all gonna happen once per district
-
-                                //Handle the creation of a Group
-                                //make a group
-                                //new group
-                                //i cant find this area all the time fsr lolloooolooolol
-
-                                if (d.Architects.Count > 0 && SettlementTypes.Contains(location.Type))
-                                {
-                                    foreach (Architect a in d.Architects)
-                                    {
-                                        if (a.Group == null)
-                                        {
-                                            //see if we actually need a group lul
-
-                                            int GroupsAlreadyLikeThis = 0;
-
-                                            foreach (Group g in location.GroupsAtThisLocation)
-                                            {
-                                                if (g.Type == Game1.ConvertArchitectToGroupType[a.Profession])
-                                                {
-                                                    GroupsAlreadyLikeThis++;
-                                                }
-                                            }
-
-                                            if (GroupsAlreadyLikeThis <= Math.Round((decimal)location.TruePopulation() / 500, MidpointRounding.ToNegativeInfinity))
-                                            {
-                                                if (Game1.r.Next(1, 1000 * MonthToDayConstant) == 1 && a.Profession != "prophet")
-                                                {
-                                                    if (Game1.ConvertArchitectToGroupType[a.Profession] != "trade" || location.Market != null)
-                                                    {
-                                                        Group g = new Group(new List<Architect>(), Game1.ConvertArchitectToGroupType[a.Profession], a, location);
-                                                        a.Group = g;
-                                                        g.Architects.Add(a);
-                                                        Groups.Add(g);
-
-                                                        location.GroupsAtThisLocation.Add(g);
-                                                        if (g.Type == "trade")
-                                                        {
-                                                            for (int i = r.Next(10, 20); i != 0; i--)
-                                                            {
-                                                                Object bar = new Object(null, "bar", new List<Material> { location.HomeCivilization.CulturalMetal }, Unknown);
-                                                                bar.Owner = g;
-                                                                g.CaravanItems.Add(bar);
-                                                            }
-                                                            location.TradersAtThisLocation.Add(g);
-                                                            g.TradeRoute.Add(location);
-                                                            TradingGroups.Add(g);
-                                                        }
-
-                                                        HistoricalEvents.Add(string.Concat(Date, a.Name, " founded ", g.Name, ", a ", g.Type, " group, in ", location.Name));
-                                                        
-                                                        a.GroupLoyalty = 5;
-                                                        location.LocationHistoricalEvents.Add(string.Concat(Date, a.Name, " founded ", g.Name, ", a ", g.Type, " group, in ", location.Name));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                foreach (Architect a in d.ArchitectsToRemove)
-                                {
-                                    d.Architects.Remove(a);
-                                }
-                                d.ArchitectsToRemove = new List<Architect>();
-
-                                //Handle civilization leadership changes
-
-                                if (location.Government == null && SettlementTypes.Contains(location.Type))
-                                {   
-                                    foreach (Group g in location.GroupsAtThisLocation)
-                                    {
-                                        if(g.Type != "trade")
-                                        {
-                                            HistoricalEvents.Add(string.Concat(Date, g.Name, " took power in ", location.Name, "."));
-                                            
-                                            location.LocationHistoricalEvents.Add(string.Concat(Date, g.Name, " took power in ", location.Name, "."));
-                                            location.Government = g;
-
-                                            foreach (Architect a in g.Architects)
-                                            {
-                                                if (a.District != location.Districts[0])
-                                                {
-                                                    a.District.Architects.Remove(a);
-                                                    location.Districts[0].Architects.Add(a);
-                                                    a.District = location.Districts[0];
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                else if (location.Government == null && SettlementTypes.Contains(location.Type))
-                                {
-
-                                }
-                                else if (location.Government is Group && SettlementTypes.Contains(location.Type))
-                                {
-                                    if (((Group)location.Government).Type != "political")
-                                    {
-                                        foreach (Group g in location.GroupsAtThisLocation)
-                                        {
-                                            if (g.Type == "political")
-                                            {
-                                                HistoricalEvents.Add(string.Concat(Date, g.Name, " took power from ", location.Government.Name, " thanks to their credibility and support in ", location.Name, "."));
-                                                
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, g.Name, " took power from ", location.Government.Name, " thanks to their credibility and support in ", location.Name, "."));
-                                                location.Government = g;
-
-                                                foreach (Architect a in g.Architects)
-                                                {
-                                                    if (a.District != location.Districts[0])
-                                                    {
-                                                        a.District.Architects.Remove(a);
-                                                        location.Districts[0].Architects.Add(a);
-                                                        a.District = location.Districts[0];
-                                                    }
-                                                }
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                //Handle architect/architect group actions IN THE DISTRICT
-
-
-                                //study and write books
-
-                                int Threshold = 500;
-
                                 foreach (Architect a in d.Architects)
                                 {
-                                    if (a.Profession == "scholar" && a.IsStudying)
+                                    if (!a.IsCalamity && !a.IsColossal /*lol a serpent was tryna build an observatory :( */ && !(location.Government is Architect && (Architect)location.Government == a) && a.Group == null)
                                     {
-                                        switch (a.ScholarType)
-                                        {
-                                            case "mage":
-                                                a.MagicStudyPoints += Game1.r.Next(0, 7);
-                                                break;
-                                            case "engineer":
-                                                a.ScienceStudyPoints += Game1.r.Next(0, 7);
-                                                break;
-                                            case "entertainer":
-                                                a.CultureStudyPoints += Game1.r.Next(0, 7);
-                                                break;
-                                            case "artificer":
-                                                a.ScienceStudyPoints += Game1.r.Next(0, 4);
-                                                a.MagicStudyPoints += Game1.r.Next(0, 4);
-                                                break;
-                                            case "bard":
-                                                a.CultureStudyPoints += Game1.r.Next(0, 4);
-                                                a.MagicStudyPoints += Game1.r.Next(0, 4);
-                                                break;
-                                            case "sage":
-                                                a.CultureStudyPoints += Game1.r.Next(0, 4);
-                                                a.ScienceStudyPoints += Game1.r.Next(0, 4);
-                                                break;
-                                            case "luminary":
-                                                a.ScienceStudyPoints += Game1.r.Next(0, 2);
-                                                a.CultureStudyPoints += Game1.r.Next(0, 2);
-                                                a.MagicStudyPoints += Game1.r.Next(0, 2);
-                                                break;
-                                            default:
-                                                // Handle unknown ScholarType, if needed
-                                                break;
-                                        }
-
-                                        // Decide to write
-                                        if (Game1.r.Next(1, (Math.Max(700 - (a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints), 50)) * MonthToDayConstant) == 1)
-                                        {
-                                            string writingType = "";
-                                            int totalWeight = a.MagicStudyPoints + a.ScienceStudyPoints + a.CultureStudyPoints;
-                                            if (totalWeight == 0) totalWeight = 1;  // Prevent division by zero
-
-                                            // Calculate probabilities based on relative weight of each study point
-                                            int magicWeight = (a.MagicStudyPoints * 100) / totalWeight;
-                                            int scienceWeight = (a.ScienceStudyPoints * 100) / totalWeight;
-                                            int cultureWeight = (a.CultureStudyPoints * 100) / totalWeight;
-
-                                            // Use a random number to decide based on weights
-                                            int randomChoice = Game1.r.Next(100);
-                                            if (randomChoice < magicWeight)
-                                            {
-                                                writingType = "poem";
-                                            }
-                                            else if (randomChoice < magicWeight + scienceWeight)
-                                            {
-                                                writingType = "book";
-                                            }
-                                            else
-                                            {
-                                                writingType = "song";
-                                            }
-
-                                            // Create a new Composition object based on the determined type
-
-                                            string Domain = a.AlignedDomains[r.Next(a.AlignedDomains.Count)];
-
-                                            Composition newWork = new Composition(writingType, a, Domain);
-
-                                            if (writingType == "book")
-                                            {
-                                                string ObjectType = new List<string>() { "scroll", "scroll", "sheet", "book", "book" }[r.Next(5)];
-
-                                                Object o = new Object(newWork.Name, ObjectType, new List<Material>() { d.Location.HomeCivilization.CulturalCloth }, a);
-                                                a.StudyBuilding.HistoricalObjects.Add(o);
-                                                o.CompositionContent = newWork;
-                                                AllWrittenContent.Add(o);
-                                            }
-                                            else
-                                            {
-                                                a.CultureBank.Add(newWork); // Storing poems and songs in the CultureBank
-                                            }
-
-                                            WorksOfCulture++;
-
-                                            // Log historical event
-                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));
-                                            location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " authored a ", writingType, " titled '", newWork.Name, "' in ", location.Name));
-                                        }
-
-                                        //archelevation
-                                        if (!a.ScholarType.StartsWith("arch"))
-                                        {
-                                            if (a.ScholarType == "mage" && a.MagicStudyPoints > Threshold)
-                                            {
-                                                a.ScholarType = "archmage";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archmage in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archmage in ", location.Name));
-                                            }
-                                            else if (a.ScholarType == "engineer" && a.ScienceStudyPoints > Threshold)
-                                            {
-                                                a.ScholarType = "archengineer";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archengineer in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archengineer in ", location.Name));
-                                            }
-                                            else if (a.ScholarType == "entertainer" && a.CultureStudyPoints > Threshold)
-                                            {
-                                                a.ScholarType = "archentertainer";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archentertainer in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archentertainer in ", location.Name));
-                                            }
-                                            else if (a.ScholarType == "artificer" && a.MagicStudyPoints > Threshold / 2 && a.ScienceStudyPoints > Threshold / 2)
-                                            {
-                                                a.ScholarType = "archartificer";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archartificer in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archartificer in ", location.Name));
-                                            }
-                                            else if (a.ScholarType == "bard" && a.MagicStudyPoints > Threshold / 2 && a.CultureStudyPoints > Threshold / 2)
-                                            {
-                                                a.ScholarType = "archbard";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archbard in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archbard in ", location.Name));
-                                            }
-                                            else if (a.ScholarType == "sage" && a.CultureStudyPoints > Threshold / 2 && a.ScienceStudyPoints > Threshold / 2)
-                                            {
-                                                a.ScholarType = "archsage";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archsage in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archsage in ", location.Name));
-                                            }
-                                            else if (a.ScholarType == "luminary" && a.CultureStudyPoints > Threshold / 3 && a.ScienceStudyPoints > Threshold / 3 && a.MagicStudyPoints > Threshold / 3)
-                                            {
-                                                a.ScholarType = "archluminary";
-                                                HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archluminary in ", location.Name));
-                                                location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " became an archluminary in ", location.Name));
-                                            }
-                                        }
-
-                                        //mage scholars learn spells, each can only discover one in their lifetime, but can learn more from others.
-
-                                        if ((a.ScholarType == "mage" || a.ScholarType == "artificer" || a.ScholarType == "luminary" || a.ScholarType == "bard" || a.ScholarType == "archmage" || a.ScholarType == "archartificer" || a.ScholarType == "archluminary" || a.ScholarType == "archbard") && a.DiscoveredASpell == false && UndiscoveredSpells.Count > 0 && a.MagicStudyPoints > 1800)
-                                        {
-                                            int SpellID = Game1.r.Next(UndiscoveredSpells.Count);
-                                            a.SpellsKnown.Add(UndiscoveredSpells[SpellID]);
-                                            location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " discovered the secret of ", UndiscoveredSpells[SpellID], " in ", location.Name));
-                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " discovered the secret of ", UndiscoveredSpells[SpellID], " in ", location.Name));
-                                            DiscoveredSpells.Add(UndiscoveredSpells[SpellID]);
-                                            UndiscoveredSpells.RemoveAt(SpellID);
-                                            a.DiscoveredASpell = true;
-                                        }
-                                    }
-
-                                    //destiny
-
-                                    List<string> PossibleInfusionSpells = new List<string>();
-
-                                    if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock") /*for some reason this is running for everyone and infusing everyone lmaoooo*/)
-                                    {
-                                        a.AssignSpells();
-
-                                        if (a.Destiny == "warlock")
-                                        {
-                                            a.Profession = a.Destiny;
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " was infused with incredible power by ", DarkDeity.Name, " in ", location.Name, ", blessed to become an immortal warlock tied to his service."));
-                                            location.LocationHistoricalEvents.Add(string.Concat(Date, a.Name, " was infused with incredible power by ", DarkDeity.Name, " in ", location.Name, ", blessed to become an immortal warlock tied to his service."));
-                                            a.GroupLoyalty = -10;
-                                            a.IsImmortal = true;
-                                            a.Inventory.AddRange(LootTableMachine("magictreasure34"));
-                                        }
-                                        else if (a.Destiny == "sorcerer")
-                                        {
-                                            a.Profession = a.Destiny;
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " was infused with incredible power by ", LightDeity.Name, " in ", location.Name, ", blessed to become an eternal sorcerer tied to his service."));
-                                            location.LocationHistoricalEvents.Add(string.Concat(Date, a.Name, " was infused with incredible power by ", LightDeity.Name, " in ", location.Name, ", blessed to become an eternal sorcerer tied to his service."));
-                                            a.GroupLoyalty = -10;
-                                            a.Inventory.AddRange(LootTableMachine("magictreasure34"));
-                                            a.IsImmortal = true;
-                                        }
+                                        PossibleArchitects.Add(a);
                                     }
                                 }
-
-
-                                //also make sure that architects change their group loyalty based on actions
-
-                                foreach (Architect a in d.Architects)
-                                {
-                                    //count population
-                                    CurrentlyCountingArchitects++;
-
-                                    if (a.Profession == "scholar")
-                                    {
-                                        //search for a library
-
-                                        if (!a.IsStudying)
-                                        {
-                                            bool FoundLibrary = false;
-                                            for (int DistrictX2 = 0; DistrictX2 < 7; DistrictX2++)
-                                            {
-                                                for (int DistrictZ2 = 0; DistrictZ2 < 7; DistrictZ2++)
-                                                {
-                                                    foreach (Structure s in d.DistrictMap[DistrictX2 + DistrictZ2 * 7].Structures)
-                                                    {
-                                                        if (s.Type == "library")
-                                                        {
-                                                            FoundLibrary = true;
-                                                            a.IsStudying = true;
-                                                            a.StudyBuilding = s;
-                                                            HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " began studying at ", s.Name, " in ", location.Name));
-                                                            break;
-                                                        }
-                                                    }
-                                                    if (FoundLibrary)
-                                                    {
-                                                        break;
-                                                    }
-                                                }
-                                                if (FoundLibrary)
-                                                {
-                                                    break;
-                                                }
-                                            }
-
-                                            if (!FoundLibrary)
-                                            {
-                                                foreach (var Location in AllLocations)
-                                                {
-                                                    if (Location.HomeCivilization == a.HomeLocation.HomeCivilization)
-                                                    {
-                                                        foreach (var structure in Location.AllStructures)
-                                                        {
-                                                            if (structure.Type == "library")
-                                                            {
-                                                                a.NextMigrationLocation = Location;
-                                                                a.IsStudying = true;
-                                                                a.StudyBuilding = structure;
-                                                                string migrationEvent = $"{Date} {a.Name} heard of {structure.Name}, a library in {Location.Name} and migrated there to study.";
-                                                                string studyEvent = $"{Date} {a.Name} began studying at {structure.Name} in {Location.Name}.";
-                                                                HistoricalEvents.Add(migrationEvent);
-                                                                Location.LocationHistoricalEvents.Add(migrationEvent);
-                                                                HistoricalEvents.Add(studyEvent);
-                                                                Location.LocationHistoricalEvents.Add(studyEvent);
-                                                                FoundLibrary = true;
-                                                                break;
-                                                            }
-                                                        }
-                                                    }
-                                                    if (FoundLibrary) break;
-                                                }
-                                            }
-
-
-
-                                        }
-                                    }
-                                }
-
-                                foreach (Architect a in d.ArchitectsToAdd)
-                                {
-                                    d.Architects.Add(a);
-                                }
-                                d.ArchitectsToAdd = new List<Architect>();
-
-
-                                // TODO: Handle architect/architect group stability
-                                // also utilize group loyalty
-
-
-                                // TODO: Handle the disbanding of a Group
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    if (g.Architects.Count == 0)
-                                    {
-                                        HistoricalEvents.Add(string.Concat(Date, g.Name, " collapsed in ", location.Name, " due to running out of passionate members."));
-                                        location.LocationHistoricalEvents.Add(string.Concat(Date, g.Name, " collapsed in ", location.Name, " due to running out of passionate members."));
-                                        GroupsToRemove.Add(g);
-                                        if (location.Government == g)
-                                        {
-                                            location.Government = null;
-                                        }
-                                    }
-                                    else if (g.Stability < 1)
-                                    {
-                                        HistoricalEvents.Add(string.Concat(Date, g.Name, " collapsed in ", location.Name, " due to a disagreement of values."));
-                                        location.LocationHistoricalEvents.Add(string.Concat(Date, g.Name, " collapsed in ", location.Name, " due to a disagreement of values."));
-                                        foreach (Architect a in g.Architects)
-                                        {
-                                            a.Group = null;
-                                        }
-                                        GroupsToRemove.Add(g);
-                                        if (location.Government == g)
-                                        {
-                                            location.Government = null;
-                                        }
-                                    }
-                                    else if (g.MonthsOld > 60 && g.Architects.Count <= 1 && location.Government != g)
-                                    {
-                                        HistoricalEvents.Add(string.Concat(Date, g.Leader.Name, " disbanded ", g.Name, " to become an individual practitioner in ", location.Name, "."));
-                                        location.LocationHistoricalEvents.Add(string.Concat(Date, g.Leader.Name, " disbanded ", g.Name, " to become an individual practitioner in ", location.Name, "."));
-                                        g.Leader.Group = null;
-                                        GroupsToRemove.Add(g);
-                                    }
-                                    else if (g.MonthsOld > 180 && g.Architects.Count == 2 && location.Government != g)
-                                    {
-                                        HistoricalEvents.Add(string.Concat(Date, g.Architects[0].Name, " and ", g.Architects[1].Name, " disbanded ", g.Name, " and stopped traveling together in ", location.Name, "."));
-                                        location.LocationHistoricalEvents.Add(string.Concat(Date, g.Architects[0].Name, " and ", g.Architects[1].Name, " disbanded ", g.Name, " and stopped traveling together in ", location.Name, "."));
-                                        g.Leader.Group = null;
-                                        GroupsToRemove.Add(g);
-                                    }
-                                }
-                                foreach (Group g in GroupsToRemove)
-                                {
-                                    Groups.Remove(g);
-                                    location.GroupsAtThisLocation.Remove(g);
-                                }
-                                GroupsToRemove = new List<Group>();
-
-                                foreach (Group G in location.GroupsAtThisLocation)
-                                {
-                                    foreach (Architect a in G.ArchitectsToRemove)
-                                    {
-                                        a.Group = null;
-                                        G.Architects.Remove(a);
-                                    }
-                                }
-
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    g.ArchitectsToRemove = new List<Architect>();
-                                }
-
-                                //Handle recruiting of Architects to a group
-
-
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    foreach (Architect a in d.Architects)
-                                    {
-                                        if (a.Group == null && Game1.ConvertArchitectToGroupType[a.Profession] == g.Type && (!g.ArchitectsWhoDeclined.Contains(a)))
-                                        {
-                                            if (Game1.r.Next(1, 7) == 1)
-                                            {
-                                                // denial
-                                                if (Game1.r.Next(1, 3) == 1)
-                                                {
-                                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " requested to join ", g.Name, ", but was denied."));
-                                                    g.ArchitectsWhoDeclined.Add(a);
-                                                }
-                                                else
-                                                {
-                                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " was invited to join ", g.Name, ", but decided against it."));
-                                                    g.ArchitectsWhoDeclined.Add(a);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                // acceptance
-                                                if (Game1.r.Next(1, 3) == 1)
-                                                {
-                                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " requested to join ", g.Name, ", and was accepted."));
-                                                    g.Architects.Add(a);
-                                                    d.ArchitectsToRemove.Add(a);
-                                                    a.Group = g;
-                                                    a.GroupLoyalty = 3;
-                                                }
-                                                else
-                                                {
-                                                    HistoricalEvents.Add(string.Concat(Date, " ", g.Name, " requested that ", a.Name, " join them, and ", a.Name, " accepted."));
-                                                    g.Architects.Add(a);
-                                                    d.ArchitectsToRemove.Add(a);
-                                                    a.Group = g;
-                                                    a.GroupLoyalty = 3;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    foreach (Architect a in d.ArchitectsToRemove)
-                                    {
-                                        d.Architects.Remove(a);
-                                    }
-                                }
-
-                                // TODO: Handle Architects leaving groups due to loyalty loss or low loyalty and boredom
-
-                                foreach (Architect a in d.Architects)
-                                {
-                                    if (a.Group != null)
-                                    {
-                                        if (a.GroupLoyalty <= 0)
-                                        {
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " left ", a.Group.Name, " due to a disagreement with their values."));
-                                            a.Group.ArchitectsToRemove.Add(a);
-                                            a.Group = null;
-                                        }
-                                        else if (a.GroupLoyalty <= 2 && Game1.r.Next(1, 100) == 1)
-                                        {
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " left ", a.Group.Name, " due to boredom."));
-                                            a.Group.ArchitectsToRemove.Add(a);
-                                            a.Group = null;
-                                        }
-                                    }
-                                }
-
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    foreach (Architect a in g.ArchitectsToRemove)
-                                    {
-                                        g.Architects.Remove(a);
-                                    }
-                                    g.ArchitectsToRemove.Clear();
-                                }
-
-
-                                d.ArchitectsToAdd = new List<Architect>();
-
-                                // TODO: Handle structure building based on population and number of structures, and number of structures city can support.
-
-                                if (!location.IsSavingUpToSettle)
-                                {
-                                    if (location.Wealth > 5000)
-                                    {
-                                        if (SettlementTypes.Contains(location.Type))
-                                        {
-                                            int Build = 0;
-
-                                            if (d.IsPrimary)
-                                            {
-                                                Build = Game1.r.Next(1, 3);
-                                            }
-                                            else
-                                            {
-                                                Build = Game1.r.Next(1, 7);
-                                            }
-
-                                            if (Build == 1)
-                                            {
-                                                int BuildingDecider = Game1.r.Next(1, 30);
-                                                string BuildingType = "";
-                                                int Windows = 0;
-                                                int llOf5 = 0;
-
-                                                List<string> LightingMethods = new List<string>();
-                                                List<string> PrimarySmells = new List<string>();
-                                                List<Material> Materials = new List<Material>();
-
-
-                                                if (BuildingDecider < 15)
-                                                {
-                                                    BuildingType = "house";
-                                                    Materials.Add(location.HomeCivilization.CulturalWood);
-                                                    Windows = Game1.r.Next(0, 2);
-                                                    location.Wealth = location.Wealth - 1000;
-                                                }
-                                                else if (BuildingDecider < 17)
-                                                {
-                                                    BuildingType = "shrine";
-                                                    Windows = Game1.r.Next(0, 3);
-                                                    Materials.Add(location.HomeCivilization.CulturalStone);
-                                                    location.Wealth = location.Wealth - 2000;
-                                                }
-                                                else if (BuildingDecider < 19)
-                                                {
-                                                    BuildingType = "library";
-                                                    Windows = Game1.r.Next(0, 4);
-                                                    Materials.Add(location.HomeCivilization.CulturalWood);
-                                                    location.Wealth = location.Wealth - 2000;
-                                                }
-                                                else if (BuildingDecider < 21)
-                                                {
-                                                    BuildingType = "tavern";
-                                                    Windows = Game1.r.Next(0, 2);
-                                                    Materials.Add(location.HomeCivilization.CulturalWood);
-                                                    location.Wealth = location.Wealth - 2500;
-                                                }
-                                                else if (BuildingDecider < 22)
-                                                {
-                                                    BuildingType = "forge";
-                                                    Windows = Game1.r.Next(0, 2);
-                                                    Materials.Add(location.HomeCivilization.CulturalStone);
-                                                    location.Wealth = location.Wealth - 3000;
-                                                }
-                                                else if (BuildingDecider < 23)
-                                                {
-                                                    BuildingType = "watchtower";
-                                                    Windows = 0;
-                                                    Materials.Add(location.HomeCivilization.CulturalWood);
-                                                    Materials.Add(location.HomeCivilization.CulturalStone);
-                                                    location.Wealth = location.Wealth - 2500;
-                                                }
-                                                else if (location.Market == null)
-                                                {
-                                                    BuildingType = "market";
-                                                    Windows = 0;
-                                                    Materials.Add(location.HomeCivilization.CulturalWood);
-                                                    Materials.Add(location.HomeCivilization.CulturalCloth);
-                                                    location.Wealth = location.Wealth - 2500;
-                                                }
-                                                else
-                                                {
-                                                    BuildingType = "bighouse";
-                                                    Windows = Game1.r.Next(0, 5);
-                                                    Materials.Add(location.HomeCivilization.CulturalWood);
-                                                    location.Wealth = location.Wealth - 1500;
-                                                }
-
-                                                while (LightingMethods.Count == 0)
-                                                {
-                                                    foreach (string S in location.PrimaryLightingStyles)
-                                                    {
-                                                        if (Game1.r.Next(1, 4) != 1)
-                                                        {
-                                                            LightingMethods.Add(S);
-                                                        }
-                                                    }
-                                                }
-
-
-                                                //find an owner if you want lul
-                                                List<Group> PotentialGroups = new List<Group>();
-
-                                                if (BuildingType == "shrine")
-                                                {
-                                                    foreach (Group g in location.GroupsAtThisLocation)
-                                                    {
-                                                        if (g.Type == "religious")
-                                                        {
-                                                            PotentialGroups.Add(g);
-                                                        }
-                                                    }
-                                                }
-                                                else if (BuildingType == "market")
-                                                {
-                                                    foreach (Group g in location.GroupsAtThisLocation)
-                                                    {
-                                                        if (g.Type == "trade")
-                                                        {
-                                                            PotentialGroups.Add(g);
-                                                        }
-                                                    }
-                                                }
-                                                else if (BuildingType == "watchtower")
-                                                {
-                                                    foreach (Group g in location.GroupsAtThisLocation)
-                                                    {
-                                                        if (g.Type == "mercenary" || g.Type == "military")
-                                                        {
-                                                            PotentialGroups.Add(g);
-                                                        }
-                                                    }
-                                                }
-                                                else if (BuildingType != "bighouse")
-                                                {
-                                                    foreach (Group g in location.GroupsAtThisLocation)
-                                                    {
-                                                        PotentialGroups.Add(g);
-                                                    }
-                                                }
-
-                                                Block DecidedBlock = d.DistrictMap[Game1.r.Next(0, 49)];
-
-                                                Structure s = new Structure(BuildingType, new List<Object>(), new List<Room>(), DecidedBlock, Materials, PrimarySmells, LightingMethods, llOf5, Windows);
-
-                                                if (s.Type == "market")
-                                                {
-                                                    location.Market = s;
-                                                }
-
-                                                if (PotentialGroups.Count == 0)
-                                                {
-                                                    s.Owner = null;
-                                                }
-                                                else
-                                                {
-                                                    s.Owner = PotentialGroups[Game1.r.Next(PotentialGroups.Count)];
-                                                }
-
-                                                if (s.Type != "house" && s.Type != "bighouse")
-                                                {
-                                                    if (s.Owner == null)
-                                                    {
-                                                        HistoricalEvents.Add(string.Concat(Date, s.Name, ", a ", s.Type, ", was founded by the people of ", location.Name));
-                                                    }
-                                                    else
-                                                    {
-                                                        HistoricalEvents.Add(string.Concat(Date, s.Name, ", a ", s.Type, ", was founded by ", s.Owner.Name));
-                                                    }
-                                                }
-
-                                                DecidedBlock.Structures.Add(s);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // TODO: Handle architect/architect group creating a new location
-
-                                bool breaken = false;
-
-                                //regular architects leaving to go make sites
-
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    if (location.Government != g && location.Wealth > 10000 && location.IsSavingUpToSettle && location.TruePopulation() > 100 && location.ColonizationDesire > 0 && new List<string> { "town", "city", "camp", "village"}.Contains(location.Type))
-                                    {
-                                        //start looking for a new location to find
-
-                                        int Attempts = 0;
-
-                                        while (Attempts < 10)
-                                        {
-                                            int XChange = Game1.r.Next(-5, 6);
-                                            int ZChange = Game1.r.Next(-5, 6);
-
-                                            if (!(x + XChange < 0 || x + XChange > Width - 1 || z + ZChange < 0 || z + ZChange > Length - 1))
-                                            {
-                                                if (WorldMap[(x + XChange) + (z + ZChange) * Width].Biome != "ocean" && WorldMap[(x + XChange) + (z + ZChange) * Width].Biome != "void" && WorldMap[(x + XChange) + (z + ZChange) * Width].Biome != "snowpeak" && WorldMap[(x + XChange) + (z + ZChange) * Width].Biome != "mountain" && WorldMap[(x + XChange) + (z + ZChange) * Width].MyLocation == null && WorldMap[(x + XChange) + (z + ZChange) * Width].Blight == Purity)
-                                                {
-                                                    // Check if group has at least one member from the humanoid races
-                                                    bool hasHumanoid = g.Architects.Any(a => HumanoidRaces.Contains(a.Race));
-
-                                                    if (hasHumanoid)
-                                                    {
-                                                        // Rest of the existing code for settling...
-                                                        // Ensure primary race is one of the humanoid races present
-                                                        Race primaryRace = g.Architects.First(a => HumanoidRaces.Contains(a.Race)).Race;
-
-                                                        // Code for wealth deduction, race count, and other settlement logic
-                                                        int PopulationFollowing = Game1.r.Next(location.TruePopulation() / 10, location.TruePopulation() / 5);
-
-                                                        if (g.Architects.Count() * 200 > 15000)
-                                                        {
-                                                            location.Wealth -= 14500;
-                                                        }
-                                                        else
-                                                        {
-                                                            location.Wealth -= g.Architects.Count() * 200;
-                                                        }
-
-                                                        // Dictionary to keep track of race counts
-                                                        Dictionary<Race, int> raceCounts = new Dictionary<Race, int>();
-
-                                                        // Counting the races
-                                                        foreach (Architect a in g.Architects)
-                                                        {
-                                                            if (!raceCounts.ContainsKey(a.Race))
-                                                            {
-                                                                raceCounts[a.Race] = 0;
-                                                            }
-                                                            raceCounts[a.Race]++;
-                                                        }
-
-                                                        // Now primaryRace holds the Race object with the highest count
-
-                                                        LocationBuilderPacket l = new LocationBuilderPacket(g, x + XChange, z + ZChange, "camp", primaryRace, PopulationFollowing, location.MaxColonizationDesire - 1, location.HomeCivilization, new List<Object>(), location, "none");
-                                                        LocationBuilderPackets.Add(l);
-
-                                                        // Adjusting population following the settlement
-                                                        if (d.UnplacedPopulation > PopulationFollowing)
-                                                        {
-                                                            d.UnplacedPopulation = (d.UnplacedPopulation - PopulationFollowing) + 5;
-                                                        }
-                                                        else
-                                                        {
-                                                            d.UnplacedPopulation = 5;
-                                                        }
-
-                                                        location.ColonizationDesire = location.ColonizationDesire - 1;
-                                                        location.GroupsAtThisLocationToRemove.Add(g);
-                                                        location.IsSavingUpToSettle = false;
-
-                                                        breaken = true;
-                                                        break;
-                                                    }
-                                                    else
-                                                    {
-                                                        continue; // Continue to the next iteration if no settlement occurs
-                                                    }
-                                                }
-                                            }
-
-                                            Attempts++;
-                                        }
-                                        if (breaken == true)
-                                        {
-                                            break;
-                                        }
-                                    }
-                                }
-                                foreach (Group g in location.GroupsAtThisLocationToRemove)
-                                {
-                                    location.GroupsAtThisLocation.Remove(g);
-                                }
-
-                                //warlock or sorcerer goes to build a spire
-
-                                foreach (Architect a in d.Architects)
-                                {
-                                    if ((a.Profession == "warlock" || a.Profession == "sorcerer") && location.Type != "spire")
-                                    {
-                                        //hunt an unnoccupied location
-
-                                        bool Found = false;
-
-                                        int X = 0;
-                                        int Z = 0;
-
-                                        while (!Found)
-                                        {
-                                            X = Game1.r.Next(Width);
-                                            Z = Game1.r.Next(Length);
-
-                                            if (WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void")
-                                            {
-                                                Found = true;
-                                            }
-                                        }
-
-                                        LocationBuilderPacket l = new LocationBuilderPacket(a, X, Z, "spire", GetRace(""), 0, 0, null, new List<Object>(), location, "none");
-                                        LocationBuilderPackets.Add(l);
-                                    }
-                                }
-
-                                //adventuring group builds an outpost to store their items
-                                List<Group> AdvGroups = new List<Group>();
-                                foreach (Group g in Groups)
-                                {
-                                    if (g.Type == "mercenary")
-                                    {
-                                        AdvGroups.Add(g);
-                                    }
-                                }
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    if (g.Type == "mercenary" && g.Architects.Count >= 3)
-                                    {
-                                        if (g.Base.Type != "outpost")
-                                        {
-                                            //find a location
-                                            List<(int, int)> PossibleLocations = new List<(int, int)>();
-
-                                            for (int SearchingX = -10; SearchingX < 10; SearchingX++)
-                                            {
-                                                for (int SearchingZ = -10; SearchingZ < 10; SearchingZ++)
-                                                {
-                                                    if (g.Leader.Location.X + SearchingX > 0 && g.Leader.Location.X + SearchingX < Width && g.Leader.Location.Z + SearchingZ > 0 && g.Leader.Location.Z + SearchingZ < Length)
-                                                    {
-                                                        if (WorldMap[(g.Leader.Location.X + SearchingX) + (g.Leader.Location.Z + SearchingZ) * Length].MyLocation == null && WorldMap[(g.Leader.Location.X + SearchingX) + (g.Leader.Location.Z + SearchingZ) * Length].Biome != "ocean" && WorldMap[(g.Leader.Location.X + SearchingX) + (g.Leader.Location.Z + SearchingZ) * Length].Biome != "void")
-                                                        {
-                                                            PossibleLocations.Add((g.Leader.Location.X + SearchingX, g.Leader.Location.Z + SearchingZ));
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            if (PossibleLocations.Count > 0)
-                                            {
-                                                (int, int) Coords = PossibleLocations[Game1.r.Next(PossibleLocations.Count)];
-                                                LocationBuilderPacket l = new LocationBuilderPacket(g, Coords.Item1, Coords.Item2, "outpost", GetRace(""), 0, 0, g.Leader.Location.HomeCivilization, new List<Object>(), location, "none");
-                                                location.GroupsAtThisLocationToRemove.Add(g);
-
-                                                if (location.Government == g)
-                                                {
-                                                    location.Government = null;
-                                                }
-                                                LocationBuilderPackets.Add(l);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                foreach (Group g in location.GroupsAtThisLocationToRemove)
-                                {
-                                    location.GroupsAtThisLocation.Remove(g);
-                                }
-                                location.GroupsAtThisLocationToRemove = new List<Group>();
-
-
-
-                                //colossal creates a legendary artifact and builds a sanctum to protect it
-
-                                foreach (Architect a in Colossals)
-                                {
-                                    if (!a.HasMadeALegendaryArtifact && r.Next(1, 10000 * MonthToDayConstant) == 1 && UndiscoveredLegendarySpells.Count > 1)
-                                    {
-                                        string Spell = UndiscoveredLegendarySpells[r.Next(UndiscoveredLegendarySpells.Count)];
-                                        UndiscoveredLegendarySpells.Remove(Spell);
-                                        DiscoveredLegendarySpells.Add(Spell);
-
-                                        Object o = new Object("", Game1.PossibleMagicalItems[r.Next(Game1.PossibleMagicalItems.Count)], new List<Material> { Metals[r.Next(Metals.Count)] }, false, false, null, a, 5, false, null, null, null, false);
-                                        o.Name = GenerateUniqueName("1S" + Game1.r.Next(2, 4) + "s1w", o);
-                                        o.SpecialKnowledge = Spell;
-                                        o.Owner = a;
-
-                                        string MagicPhrase = "";
-
-                                        if (Spell == "ethereal rupture")
-                                        {
-                                            MagicPhrase = "ravaging the land with fractal exposure";
-                                        }
-                                        else if (Spell == "emergence")
-                                        {
-                                            MagicPhrase = "summoning the fallen";
-                                        }
-                                        else if (Spell == "eternal bind")
-                                        {
-                                            MagicPhrase = "enslaving all to its will";
-                                        }
-                                        else if (Spell == "expunge")
-                                        {
-                                            MagicPhrase = "banishing legends and the memories of them";
-                                        }
-                                        else if (Spell == "echo")
-                                        {
-                                            MagicPhrase = "assembling an echo of a legend";
-                                        }
-
-                                        HistoricalEvents.Add(string.Concat(Date, a.Name, " created ", o.Name, ", a legendary ", o.Materials[0].Name, " ", o.Type, " capable of ", MagicPhrase, "."));
-
-                                        //find a sanctum location
-
-                                        bool Found = false;
-
-                                        int X = 0;
-                                        int Z = 0;
-
-                                        while (!Found)
-                                        {
-                                            X = Game1.r.Next(Width);
-                                            Z = Game1.r.Next(Length);
-
-                                            if (WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void" && WorldMap[X + Z * Width].Biome != "ocean")
-                                            {
-                                                Found = true;
-                                            }
-                                        }
-
-                                        LocationBuilderPacket l = new LocationBuilderPacket(a, X, Z, "sanctum", GetRace(""), 0, 0, null, new List<Object> { o }, location, "none");
-                                        LocationBuilderPackets.Add(l);
-                                    }
-                                }
-
-
-                                //start saving up to settle
-
-
-                                if (Game1.r.Next(1, 50 * MonthToDayConstant) == 1 && location.TruePopulation() > 120 && location.ColonizationDesire > 0)
-                                {
-                                    location.IsSavingUpToSettle = true;
-                                }
-                                if (location.TruePopulation() < 100)
-                                {
-                                    location.IsSavingUpToSettle = false;
-                                }
-
-                                foreach (Architect a in d.ArchitectsToRemove)
-                                {
-                                    d.Architects.Remove(a);
-                                }
-                                d.ArchitectsToRemove = new List<Architect>();
-
-                                //Architects die lul
-
-                                foreach (Architect a in d.Architects)
-                                {
-                                    //immortality boons
-
-                                    if (a.IsImmortal && a.RecievedImmortalityBuff == false)
-                                    {
-                                        a.DoIDieOfOldAge = false;
-                                        a.RecievedImmortalityBuff = true;
-                                        a.TerminalAge = a.TerminalAge + (Game1.r.Next(40, 200));
-                                    }
-
-
-                                    if (a.Age > a.TerminalAge)
-                                    {
-                                        if (a.DoIDieOfOldAge)
-                                        {
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " died of old age in ", location.Name, "."));
-                                        }
-                                        else
-                                        {
-                                            HistoricalEvents.Add(string.Concat(Date, a.Name, " ", Game1.DeathCauses[Game1.r.Next(Game1.DeathCauses.Count)], " in ", location.Name, "."));
-                                        }
-
-                                        if (a.Group != null)
-                                        {
-                                            a.Group.ArchitectsToRemove.Add(a);
-                                        }
-
-                                        d.ArchitectsToRemove.Add(a);
-                                    }
-                                }
-
-                                foreach (Architect a in d.ArchitectsToRemove)
-                                {
-                                    d.Architects.Remove(a);
-                                }
-                                d.ArchitectsToRemove = new List<Architect>();
-
-
-                                foreach (Group g in location.GroupsAtThisLocation)
-                                {
-                                    foreach (Architect a in g.ArchitectsToRemove)
-                                    {
-                                        g.Architects.Remove(a);
-                                    }
-                                }
-                                foreach (Group g in GroupsToRemove)
-                                {
-                                    Groups.Remove(g);
-                                    location.GroupsAtThisLocation.Remove(g);
-                                }
-                                GroupsToRemove = new List<Group>();
-
-
-
-                                // TODO: Handle Architect/architect groups moving into/taking structures.
-
-                                // TODO: Handle craftsmen making stuff and instruments
-                                // TODO: Handle musicians creating new musical forms
-                                // TODO: Handle travel. Remember to remove the group's leader from the location when the leader moves and do the FIFTY OTHER THING  RWHIOWEH RIHIDSAFBISUOEFWSEY
-
-
-
                             }
 
-                            //Handle location type changes
+                            List<Architect> DecidedArchitects = new List<Architect>();
+                            int Amount = r.Next(1, 6);
 
-                            if (location.Type == "camp" && location.TruePopulation() > 10)
+                            if (PossibleArchitects.Count >= Amount)
                             {
-                                location.Type = "village";
-                            }
-                            if (location.Type == "village" && location.TruePopulation() > 200)
-                            {
-                                location.Type = "town";
-                            }
-                            if (location.Type == "town" && location.TruePopulation() > 500)
-                            {
-                                location.Type = "city";
-                            }
-
-
-
-                            //captiols build special procgen sites
-
-
-                            if (r.Next(1, 1000 * MonthToDayConstant) == 1 && location.IsCapitol && SettlementTypes.Contains(location.Type))
-                            {
-                                // Decide what type of structure you're going to make
-                                string SType = new List<string>() { "observatory", "library", "conservatory", "prison", "tomb", "gallery", "armory" }[r.Next(7)];
-
-                                // List to store all valid locations
-                                List<(int, int)> validLocations = new List<(int, int)>();
-
-                                // Search for valid locations
-                                for (int SearchingX = -10; SearchingX <= 10; SearchingX++)
+                                for (int i = 0; i < Amount; i++)
                                 {
-                                    for (int SearchingZ = -10; SearchingZ <= 10; SearchingZ++)
-                                    {
-                                        int X = location.X + SearchingX;
-                                        int Z = location.Z + SearchingZ;
-                                        if (X >= 0 && X < Width && Z >= 0 && Z < Length && WorldMap[X + Z * Width].MyLocation == null && WorldMap[X + Z * Width].Biome != "void")
-                                        {
-                                            validLocations.Add((X, Z));
-                                        }
-                                    }
-                                }
-
-                                // If there are valid locations, pick a random one
-                                if (validLocations.Count > 0)
-                                {
-                                    var selectedLocation = validLocations[r.Next(validLocations.Count)];
-                                    int selectedX = selectedLocation.Item1;
-                                    int selectedZ = selectedLocation.Item2;
-
-                                    // Decide people to send there
-                                    List<Architect> PossibleArchitects = new List<Architect>();
-
-                                    foreach (District d in location.Districts)
-                                    {
-                                        foreach (Architect a in d.Architects)
-                                        {
-                                            if (!a.IsCalamity && !a.IsColossal /*lol a serpent was tryna build an observatory :( */ && !(location.Government is Architect && (Architect)location.Government == a) && a.Group == null)
-                                            {
-                                                PossibleArchitects.Add(a);
-                                            }
-                                        }
-                                    }
-
-                                    List<Architect> DecidedArchitects = new List<Architect>();
-                                    int Amount = r.Next(1, 6);
-
-                                    if (PossibleArchitects.Count >= Amount)
-                                    {
-                                        for (int i = 0; i < Amount; i++)
-                                        {
-                                            int index = r.Next(PossibleArchitects.Count);
-                                            DecidedArchitects.Add(PossibleArchitects[index]);
-                                            PossibleArchitects.RemoveAt(index);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        DecidedArchitects = new List<Architect>(PossibleArchitects);
-                                    }
-
-                                    if (DecidedArchitects.Count > 0)
-                                    {
-                                        LocationBuilderPacket l = new LocationBuilderPacket(DecidedArchitects[0], selectedX, selectedZ, SType, GetRace(""), 0, r.Next(3), DecidedArchitects[0].HomeLocation.HomeCivilization, new List<Object>(), location, "none");
-                                        LocationBuilderPackets.Add(l);
-                                    }
+                                    int index = r.Next(PossibleArchitects.Count);
+                                    DecidedArchitects.Add(PossibleArchitects[index]);
+                                    PossibleArchitects.RemoveAt(index);
                                 }
                             }
+                            else
+                            {
+                                DecidedArchitects = new List<Architect>(PossibleArchitects);
+                            }
+
+                            if (DecidedArchitects.Count > 0)
+                            {
+                                LocationBuilderPacket l = new LocationBuilderPacket(DecidedArchitects[0], selectedX, selectedZ, SType, GetRace(""), 0, r.Next(3), DecidedArchitects[0].HomeLocation.HomeCivilization, new List<Object>(), location, "none");
+                                LocationBuilderPackets.Add(l);
+                            }
+                        }
+                    }
 
 
-                            //update outcast civ data
+                    //update outcast civ data
 
-                            Dictionary<string, string> OutcastCivToStructure = new Dictionary<string, string>
+                    Dictionary<string, string> OutcastCivToStructure = new Dictionary<string, string>
                             {
                                 { "druid", "preserve" },
                                 { "pirate", "cove" },
@@ -5894,179 +5874,174 @@ namespace Lightrealm
                                 { "anarchist", "commune" },
                                 { "scavenger", "hoard" }
                             };
-                            string OutcastCivType = "";
+                    string OutcastCivType = "";
 
-                            foreach (var kvp in OutcastCivToStructure)
-                            {
-                                if (kvp.Value == location.Type)
-                                {
-                                    OutcastCivType = kvp.Key;
-                                    break;
-                                }
-                            }
-
-                            if (OutcastCivType != "") //this also means that theyre an outcast civ in general
-                            {
-                                //recruitment
-
-                                if (r.Next(1, 100 * MonthToDayConstant) == 1)
-                                {
-                                    if (r.Next(2) == 0)
-                                    {
-                                        HistoricalEvents.Add(Date + " A group of " + OutcastCivType + "s migrated to " + location.Name + ".");
-                                        location.LocationHistoricalEvents.Add(Date + " A group of " + OutcastCivType + "s migrated to " + location.Name + ".");
-                                        location.Districts[0].UnplacedPopulation += r.Next(15, 30);
-                                    }
-                                    else
-                                    {
-                                        List<Architect> PossibleArch = new List<Architect>();
-                                        foreach (Architect a in AllArchitects)
-                                        {
-                                            if (a.Group == null && !Calamity.Contains(a) && a.IsAlive)
-                                            {
-                                                PossibleArch.Add(a);
-                                            }
-                                        }
-
-                                        if (PossibleArch.Count > 0)
-                                        {
-                                            Architect Migrator = PossibleArch[r.Next(PossibleArch.Count)];
-                                            Migrator.NextMigrationLocation = location;
-
-                                            HistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
-                                            location.LocationHistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
-                                        }
-                                    }
-                                }
-
-                                //spread
-
-                                if (location.TruePopulation() > 80 && location.ColonizationDesire > 0)
-                                {
-                                    // List to store all valid locations
-                                    List<(int X, int Z, string Dockside)> validLocations = new List<(int X, int Z, string Dockside)>();
-
-                                    int centerX = location.X;
-                                    int centerZ = location.Z;
-
-                                    // Iterate over a 9x9 area centered at location.X and location.Z
-                                    for (int TryX = centerX - 4; TryX <= centerX + 4; TryX++)
-                                    {
-                                        for (int TryZ = centerZ - 4; TryZ <= centerX + 4; TryZ++)
-                                        {
-                                            // Check a square of size 5 centered around (TryX, TryZ)
-                                            bool validLocation = true;
-                                            for (int i = TryX - 3; i <= TryX + 3 && validLocation; i++)
-                                            {
-                                                for (int j = TryZ - 3; j <= TryZ + 3 && validLocation; j++)
-                                                {
-                                                    // Check if any region inside the area's Region.Location is not equal to null
-                                                    if (i < 0 || i >= Width || j < 0 || j >= Length ||
-                                                        WorldMap[i + j * Width].Biome == "void" ||
-                                                        WorldMap[i + j * Width].MyLocation != null)
-                                                    {
-                                                        validLocation = false;
-                                                    }
-                                                }
-                                            }
-
-                                            if (validLocation)
-                                            {
-                                                bool SpecificConditionsMet = false;
-                                                string dockside = null;
-
-                                                if (OutcastCivType == "druid")
-                                                {
-                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "forest");
-                                                }
-                                                else if (OutcastCivType == "pirate")
-                                                {
-                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "ocean" &&
-                                                        ((WorldMap[(TryX) + (TryZ + 1) * Width].Biome != "ocean") ||
-                                                         (WorldMap[(TryX) + (TryZ - 1) * Width].Biome != "ocean") ||
-                                                         (WorldMap[(TryX - 1) + (TryZ) * Width].Biome != "ocean") ||
-                                                         (WorldMap[(TryX + 1) + (TryZ) * Width].Biome != "ocean")));
-
-                                                    if (SpecificConditionsMet)
-                                                    {
-                                                        List<string> docksideOptions = new List<string>();
-                                                        if (WorldMap[(TryX) + (TryZ + 1) * Width].Biome != "ocean")
-                                                        {
-                                                            docksideOptions.Add("south");
-                                                        }
-                                                        if (WorldMap[(TryX) + (TryZ - 1) * Width].Biome != "ocean")
-                                                        {
-                                                            docksideOptions.Add("north");
-                                                        }
-                                                        if (WorldMap[(TryX - 1) + (TryZ) * Width].Biome != "ocean")
-                                                        {
-                                                            docksideOptions.Add("west");
-                                                        }
-                                                        if (WorldMap[(TryX + 1) + (TryZ) * Width].Biome != "ocean")
-                                                        {
-                                                            docksideOptions.Add("east");
-                                                        }
-
-                                                        if (docksideOptions.Count > 0)
-                                                        {
-                                                            dockside = docksideOptions[Game1.r.Next(docksideOptions.Count)];
-                                                        }
-                                                    }
-                                                }
-                                                else if (OutcastCivType == "cultist")
-                                                {
-                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "snowpeak");
-                                                }
-                                                else if (OutcastCivType == "anarchist")
-                                                {
-                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "desert");
-                                                }
-                                                else if (OutcastCivType == "scavenger")
-                                                {
-                                                    SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome != "ocean");
-                                                }
-
-                                                if (SpecificConditionsMet)
-                                                {
-                                                    validLocations.Add((TryX, TryZ, dockside));
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (validLocations.Count > 0)
-                                    {
-                                        var (FoundX, FoundZ, FoundDockside) = validLocations[Game1.r.Next(validLocations.Count)];
-                                        LocationBuilderPacket l = new LocationBuilderPacket(null, FoundX, FoundZ, location.Type, GetRace(""), r.Next(4, 10), location.MaxColonizationDesire - 1, location.HomeCivilization, new List<Object>(), location, FoundDockside);
-                                        LocationBuilderPackets.Add(l);
-
-                                    }
-                                    else
-                                    {
-                                        // We won't do anything this time, it's cool
-                                    }
-                                }
-
-
-
-                            }
-
-
-
-
-                            //districts you waited to place
-
-                            foreach (District d in location.DistrictsToAdd)
-                            {
-                                location.Districts.Add(d);
-                            }
-
-                            location.DistrictsToAdd = new List<District>();
-
-                            WorldMap[x + z * Width].MyLocation = location;
-
+                    foreach (var kvp in OutcastCivToStructure)
+                    {
+                        if (kvp.Value == location.Type)
+                        {
+                            OutcastCivType = kvp.Key;
+                            break;
                         }
                     }
+
+                    if (OutcastCivType != "") //this also means that theyre an outcast civ in general
+                    {
+                        //recruitment
+
+                        if (r.Next(1, 100 * MonthToDayConstant) == 1)
+                        {
+                            if (r.Next(2) == 0)
+                            {
+                                HistoricalEvents.Add(Date + " A group of " + OutcastCivType + "s migrated to " + location.Name + ".");
+                                location.LocationHistoricalEvents.Add(Date + " A group of " + OutcastCivType + "s migrated to " + location.Name + ".");
+                                location.Districts[0].UnplacedPopulation += r.Next(15, 30);
+                            }
+                            else
+                            {
+                                List<Architect> PossibleArch = new List<Architect>();
+                                foreach (Architect a in AllArchitects)
+                                {
+                                    if (a.Group == null && !Calamity.Contains(a) && a.IsAlive)
+                                    {
+                                        PossibleArch.Add(a);
+                                    }
+                                }
+
+                                if (PossibleArch.Count > 0)
+                                {
+                                    Architect Migrator = PossibleArch[r.Next(PossibleArch.Count)];
+                                    Migrator.NextMigrationLocation = location;
+
+                                    HistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
+                                    location.LocationHistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
+                                }
+                            }
+                        }
+
+                        //spread
+
+                        if (location.TruePopulation() > 80 && location.ColonizationDesire > 0)
+                        {
+                            // List to store all valid locations
+                            List<(int X, int Z, string Dockside)> validLocations = new List<(int X, int Z, string Dockside)>();
+
+                            int centerX = location.X;
+                            int centerZ = location.Z;
+
+                            // Iterate over a 9x9 area centered at location.X and location.Z
+                            for (int TryX = centerX - 4; TryX <= centerX + 4; TryX++)
+                            {
+                                for (int TryZ = centerZ - 4; TryZ <= centerX + 4; TryZ++)
+                                {
+                                    // Check a square of size 5 centered around (TryX, TryZ)
+                                    bool validLocation = true;
+                                    for (int i = TryX - 3; i <= TryX + 3 && validLocation; i++)
+                                    {
+                                        for (int j = TryZ - 3; j <= TryZ + 3 && validLocation; j++)
+                                        {
+                                            // Check if any region inside the area's Region.Location is not equal to null
+                                            if (i < 0 || i >= Width || j < 0 || j >= Length ||
+                                                WorldMap[i + j * Width].Biome == "void" ||
+                                                WorldMap[i + j * Width].MyLocation != null)
+                                            {
+                                                validLocation = false;
+                                            }
+                                        }
+                                    }
+
+                                    if (validLocation)
+                                    {
+                                        bool SpecificConditionsMet = false;
+                                        string dockside = null;
+
+                                        if (OutcastCivType == "druid")
+                                        {
+                                            SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "forest");
+                                        }
+                                        else if (OutcastCivType == "pirate")
+                                        {
+                                            SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "ocean" &&
+                                                ((WorldMap[(TryX) + (TryZ + 1) * Width].Biome != "ocean") ||
+                                                 (WorldMap[(TryX) + (TryZ - 1) * Width].Biome != "ocean") ||
+                                                 (WorldMap[(TryX - 1) + (TryZ) * Width].Biome != "ocean") ||
+                                                 (WorldMap[(TryX + 1) + (TryZ) * Width].Biome != "ocean")));
+
+                                            if (SpecificConditionsMet)
+                                            {
+                                                List<string> docksideOptions = new List<string>();
+                                                if (WorldMap[(TryX) + (TryZ + 1) * Width].Biome != "ocean")
+                                                {
+                                                    docksideOptions.Add("south");
+                                                }
+                                                if (WorldMap[(TryX) + (TryZ - 1) * Width].Biome != "ocean")
+                                                {
+                                                    docksideOptions.Add("north");
+                                                }
+                                                if (WorldMap[(TryX - 1) + (TryZ) * Width].Biome != "ocean")
+                                                {
+                                                    docksideOptions.Add("west");
+                                                }
+                                                if (WorldMap[(TryX + 1) + (TryZ) * Width].Biome != "ocean")
+                                                {
+                                                    docksideOptions.Add("east");
+                                                }
+
+                                                if (docksideOptions.Count > 0)
+                                                {
+                                                    dockside = docksideOptions[Game1.r.Next(docksideOptions.Count)];
+                                                }
+                                            }
+                                        }
+                                        else if (OutcastCivType == "cultist")
+                                        {
+                                            SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "snowpeak");
+                                        }
+                                        else if (OutcastCivType == "anarchist")
+                                        {
+                                            SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome == "desert");
+                                        }
+                                        else if (OutcastCivType == "scavenger")
+                                        {
+                                            SpecificConditionsMet = (WorldMap[TryX + TryZ * Width].Biome != "ocean");
+                                        }
+
+                                        if (SpecificConditionsMet)
+                                        {
+                                            validLocations.Add((TryX, TryZ, dockside));
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (validLocations.Count > 0)
+                            {
+                                var (FoundX, FoundZ, FoundDockside) = validLocations[Game1.r.Next(validLocations.Count)];
+                                LocationBuilderPacket l = new LocationBuilderPacket(null, FoundX, FoundZ, location.Type, GetRace(""), r.Next(4, 10), location.MaxColonizationDesire - 1, location.HomeCivilization, new List<Object>(), location, FoundDockside);
+                                LocationBuilderPackets.Add(l);
+
+                            }
+                            else
+                            {
+                                // We won't do anything this time, it's cool
+                            }
+                        }
+
+
+
+                    }
+
+
+
+
+                    //districts you waited to place
+
+                    foreach (District d in location.DistrictsToAdd)
+                    {
+                        location.Districts.Add(d);
+                    }
+
+                    location.DistrictsToAdd = new List<District>();
                 }
 
                 //Place the locations you waited to place
@@ -6094,16 +6069,16 @@ namespace Lightrealm
 
                     if (l.Type == "camp")
                     {
-                        HistoricalEvents.Add(string.Concat(Date, "After preparing for years, ", l.Government.Name, " left ", l.BaseLocation.Name, " with a following of ", l.MiscPopulation, " people and founded ", NewLocation.Name, "."));
+                        HistoricalEvents.Add(string.Concat(Date, " After preparing for years, ", l.Government.Name, " left ", l.BaseLocation.Name, " with a following of ", l.MiscPopulation, " people and founded ", NewLocation.Name, "."));
                     }
                     else if (l.Type == "spire")
                     {
-                        HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " left ", l.BaseLocation.Name, " and constructed a glorious spire, ", NewLocation.Name));
+                        HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, " left ", l.BaseLocation.Name, " and constructed a glorious spire, ", NewLocation.Name));
                         ((Architect)l.Government).OppositionTags.Add("intruders");
                     }
                     else if (l.Type == "sanctum")
                     {
-                        HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " built ", NewLocation.Name, " to house ", l.Artifacts[0].Name, "."));
+                        HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, " constructed ", NewLocation.Name, " to house ", l.Artifacts[0].Name, "."));
                     }
                     else if (l.Type == "outpost")
                     {
@@ -6123,11 +6098,11 @@ namespace Lightrealm
                     {
                         if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new preserve, ", NewLocation.Name, "."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.BaseLocation.Name, ", expanded their influence to a new preserve, ", NewLocation.Name, "."));
                         }
                         else
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", distraught about the destructive nature of the energy people around him, sought to build ", NewLocation.Name, " to preserve part of the island."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, ", distraught about the destructive nature of the energy people around him, sought to build ", NewLocation.Name, " to preserve part of the island."));
                             NewLocation.IsCapitol = true;
                         }
                     }
@@ -6135,11 +6110,11 @@ namespace Lightrealm
                     {
                         if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new cove, ", NewLocation.Name, "."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.BaseLocation.Name, ", expanded their influence to a new cove, ", NewLocation.Name, "."));
                         }
                         else
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", desiring the great wealth of the surrounding trade, built ", NewLocation.Name, " to base a massive piracy operation."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, ", desiring the great wealth of the surrounding trade, built ", NewLocation.Name, " to base a massive piracy operation."));
                             NewLocation.IsCapitol = true;
                         }
                     }
@@ -6147,11 +6122,11 @@ namespace Lightrealm
                     {
                         if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new monastery, ", NewLocation.Name, "."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.BaseLocation.Name, ", expanded their influence to a new monastery, ", NewLocation.Name, "."));
                         }
                         else
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", in awe of a beautiful creature, constructed ", NewLocation.Name, " to honor it and its legacy."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, ", in awe of a beautiful creature, constructed ", NewLocation.Name, " to honor it and its legacy."));
                             NewLocation.IsCapitol = true;
                         }
                     }
@@ -6159,11 +6134,11 @@ namespace Lightrealm
                     {
                         if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new commune, ", NewLocation.Name, "."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.BaseLocation.Name, ", expanded their influence to a new commune, ", NewLocation.Name, "."));
                         }
                         else
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, ", in hatred of the regulations of society, decided to construct ", NewLocation.Name, ", a commune of complete freedom and expression."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, ", in hatred of the regulations of society, decided to construct ", NewLocation.Name, ", a commune of complete freedom and expression."));
                             NewLocation.IsCapitol = true;
                         }
                     }
@@ -6171,11 +6146,11 @@ namespace Lightrealm
                     {
                         if (l.BaseLocation != null && l.BaseLocation.Type == l.Type)
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.BaseLocation.Name, ", expanded their influence to a new hoard, ", NewLocation.Name, "."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.BaseLocation.Name, ", expanded their influence to a new hoard, ", NewLocation.Name, "."));
                         }
                         else
                         {
-                            HistoricalEvents.Add(string.Concat(Date, l.Government.Name, " began to tear apart the land for its treasures, and constructed ", NewLocation.Name, " to recruit others and scavenge the entire continent."));
+                            HistoricalEvents.Add(string.Concat(Date, " ", l.Government.Name, " began to tear apart the land for its treasures, and constructed ", NewLocation.Name, " to recruit others and scavenge the entire continent."));
                             NewLocation.IsCapitol = true;
                         }
                     }
@@ -6529,7 +6504,7 @@ namespace Lightrealm
             }
 
             LivingArchitects = CurrentlyCountingArchitects;
-            DeadArchitects = TotalArchitects - LivingArchitects;
+            DeadArchitects = AllArchitects.Count - LivingArchitects;
         }
     }
 }

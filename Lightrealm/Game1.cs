@@ -14,6 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -71,6 +72,7 @@ namespace Lightrealm
 
         public MouseState previousMouseState;
         public MouseState currentMouseState;
+
 
         public Model VoskModel;
 
@@ -568,7 +570,14 @@ namespace Lightrealm
 
         public static string Capitalize(string Word)
         {
-            return Word[0].ToString().ToUpper() + Word.Substring(1);
+            if(Word.Length > 0)
+            {
+                return Word[0].ToString().ToUpper() + Word.Substring(1);
+            }
+            else
+            {
+                return "";
+            }
         }
 
         int CurrentlyAssigningSkill = 7;
@@ -863,17 +872,17 @@ namespace Lightrealm
         }
 
 
-        public static void MessageWorldEdit(Architect Sender, Architect Reciever, string MessageID, List<Entity> Subjects, string Response)
+        public static void MessageWorldEdit(Architect Sender, Architect Reciever, string MessageID, List<Entity> Subjects, string Response, List<Location> storedRevealLocations)
         {
             var triggers = new Dictionary<string, List<string>>
-            {
-                { "ask_them_join", new List<string> { "I would be honored", "If it means I spend" } },
-                { "ask_me_join", new List<string> { "Yes, Welcome to", "If it means you" } },
-                { "challenge", new List<string> { "I accept your challenge", "I don’t think I can" } },
-                { "surrender", new List<string> { "Stay put and do", "I surrender too", "Surrender to my looks?" } },
-                { "demand_surrender", new List<string> { "I yield", "Okay! But only to you" } },
-                { "demand_item", new List<string> { "Okay! I’ll", "I’ll drop it, but" } }
-            };
+    {
+        { "ask_them_join", new List<string> { "I would be honored", "If it means I spend" } },
+        { "ask_me_join", new List<string> { "Yes, Welcome to", "If it means you" } },
+        { "challenge", new List<string> { "I accept your challenge", "I don’t think I can" } },
+        { "surrender", new List<string> { "Stay put and do", "I surrender too", "Surrender to my looks?" } },
+        { "demand_surrender", new List<string> { "I yield", "Okay! But only to you" } },
+        { "demand_item", new List<string> { "Okay! I’ll", "I’ll drop it, but" } }
+    };
 
             if (triggers.ContainsKey(MessageID))
             {
@@ -979,7 +988,6 @@ namespace Lightrealm
                             }
                             break;
 
-
                         case "surrender":
                             if (triggers["surrender"].Any(trigger => Response.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)))
                             {
@@ -997,7 +1005,6 @@ namespace Lightrealm
                             }
                             break;
 
-
                         case "demand_surrender":
                             if (triggers["demand_surrender"].Any(trigger => Response.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)))
                             {
@@ -1014,7 +1021,6 @@ namespace Lightrealm
                                 // HandleSurrender(Sender, Reciever);
                             }
                             break;
-
 
                         case "demand_item":
                             if (triggers["demand_item"].Any(trigger => Response.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)))
@@ -1062,12 +1068,23 @@ namespace Lightrealm
                             }
                             break;
 
-
-
                         default:
                             // No action for other message IDs
                             break;
                     }
+                }
+            }
+
+            // Check for storedRevealLocations and update the map accordingly
+            if (storedRevealLocations.Count > 0 && GamePlayerParty.Architects.Contains(Sender) && Response.EndsWith("[Map Updated]"))
+            {
+                foreach (var location in storedRevealLocations)
+                {
+                    var region = location.Region;
+                    region.Explored = true;
+                    region.RegionallyExplored = true;
+                    location.Explored = true;
+                    Game1.GamePlayerParty.CurrentlyMarkedRegions.Add(region);
                 }
             }
         }
@@ -1564,7 +1581,7 @@ namespace Lightrealm
                                 AvoidFeedback = TargetArchitect.ReferredToNames[0] + " failed to roll away from the attack, but repositioned himself!";
                             }
 
-                            int repositionAmount = Math.Max(3, TargetArchitect.Dexterity);
+                            int repositionAmount = Math.Max(3, TargetArchitect.Dexterity) * 8;
                             foreach (var part in TargetArchitect.BodyParts)
                             {
                                 part.UpdateExposure(-1 * repositionAmount);
@@ -1674,39 +1691,22 @@ namespace Lightrealm
                             }
 
                             // Apply depositioning to all relevant limbs
-                            int depositionAmount = 15 - TargetArchitect.Dexterity;
-                            if (DefenderWeapon.IsWeapon && DefenderSidearm.IsWeapon)
-                            {
-                                depositionAmount = depositionAmount / 2; // Split the deposition if both exist
-                            }
+                            int depositionAmount = 20 - attacker.Dexterity;
 
                             // Apply deposition to the limbs holding the DefenderWeapon
-                            if (DefenderWeapon.IsWeapon)
+                            string weaponHand = (attacker.RightHandObject == weapon) ? "right" : "left";
+
+                            if (attacker.FindBodyPart(weaponHand + " hand") != null)
                             {
-                                string weaponHand = (TargetArchitect.RightHandObject == DefenderWeapon) ? "right" : "left";
-                                if (TargetArchitect.FindBodyPart(weaponHand + " hand") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(weaponHand + " hand").UpdateExposure(depositionAmount);
-                                }
-                                if (TargetArchitect.FindBodyPart(weaponHand + " arm") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(weaponHand + " arm").UpdateExposure(depositionAmount);
-                                }
+                                attacker.FindBodyPart(weaponHand + " hand").UpdateExposure(depositionAmount);
+                            }
+                            if (attacker.FindBodyPart(weaponHand + " arm") != null)
+                            {
+                                attacker.FindBodyPart(weaponHand + " arm").UpdateExposure(depositionAmount);
                             }
 
-                            // Apply deposition to the limbs holding the DefenderSidearm
-                            if (DefenderSidearm.IsWeapon)
-                            {
-                                string sidearmHand = (TargetArchitect.RightHandObject == DefenderSidearm) ? "right" : "left";
-                                if (TargetArchitect.FindBodyPart(sidearmHand + " hand") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(sidearmHand + " hand").UpdateExposure(depositionAmount);
-                                }
-                                if (TargetArchitect.FindBodyPart(sidearmHand + " arm") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(sidearmHand + " arm").UpdateExposure(depositionAmount);
-                                }
-                            }
+
+
                             break;
 
                         default:
@@ -1737,7 +1737,7 @@ namespace Lightrealm
                     List<Architect> FightingArchitects = new List<Architect>();
                     foreach (Architect a in attacker.Room.Architects)
                     {
-                        if (a.Task == "fighting" && ((GamePlayerParty.Architects.Contains(attacker) && !GamePlayerParty.Architects.Contains(TargetArchitect)) || (!GamePlayerParty.Architects.Contains(attacker) && GamePlayerParty.Architects.Contains(TargetArchitect))))
+                        if ((a.Task == "killtarget" || a.Task == "disabletarget") && ((GamePlayerParty.Architects.Contains(attacker) && !GamePlayerParty.Architects.Contains(TargetArchitect)) || (!GamePlayerParty.Architects.Contains(attacker) && GamePlayerParty.Architects.Contains(TargetArchitect))))
                         {
                             FightingArchitects.Add(a);
                         }
@@ -1931,7 +1931,7 @@ namespace Lightrealm
                             { "quick strike", "The next attack you make is instantaneous. (Initiate with \"initiate quick strike\")" },
                             { "severing strike", "The next attack you make inflicts +6 Bleeding. (Initiate with \"initiate severing strike\")" },
                             { "backflip", "Increase reaction success chances by 30% for 6 seconds. (Initiate with \"initiate backflip\")" },
-                            { "escape", "Immediately travel through a random adjacent door. (Initiate with \"initiate escape\")" },
+                            { "escape", "Immediately travel through a random adjacent door, or to an adjacent block. (Initiate with \"initiate escape\")" },
                             { "finale", "If your next attack is fatal, severely damage all nearby hostiles. (Initiate with \"initiate finale\")" },
                             { "concentration", "Increase focus by 1 for 30 seconds. (Initiate with \"initiate concentration\")" },
                             { "body slam", "Your next torso bash attack does extra damage and destabilizes proportional to your energy. (Initiate with \"initiate body slam\")" },
@@ -2533,10 +2533,12 @@ namespace Lightrealm
         public Texture2D Celestrioris;
 
         public Texture2D CursorT;
+        public Texture2D BetterCursorT;
         public Texture2D Gradient;
         public Texture2D TitleScreen;
         public Texture2D GuideT;
         public Texture2D ReactionGUIT;
+        public Texture2D ReactionGUIHelpT;
         public Texture2D MessageGUIT;
         public Texture2D CmdHelpT;
         public Texture2D BleedT;
@@ -2739,8 +2741,11 @@ namespace Lightrealm
         }
 
         protected override void Initialize()
-        {// TODO: Add your initialization logic here
+        {
+            // Initialization logic
             Window.IsBorderless = true;
+
+            IsMouseVisible = false;
 
             PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
@@ -2750,45 +2755,34 @@ namespace Lightrealm
 
             _graphics.ApplyChanges();
 
-            //determine the best way to draw the map
-
-            //WE ONLY SUPPORT 16x9 for now, sorry nerds
-
-            //i was going to change this by resolution but im keepign it static for now
+            // Determine the best way to draw the map
             TileSize = 12;
             TileXDistance = 13;
             TileZDistance = 10;
 
-            //create save directory if not already
-
-            if (Directory.Exists(DocumentsFolderPath + "/LightrealmSaves"))
+            // Create save directory if not already
+            if (!Directory.Exists(DocumentsFolderPath + "/LightrealmSaves"))
             {
                 Directory.CreateDirectory(DocumentsFolderPath + "/LightrealmSaves");
             }
 
             static void EnsureSettingsFile(string path, ref bool enableTTS, ref bool simplifiedFont, ref bool speedWorldGen, GraphicsDeviceManager graphics)
             {
-                // Create directory if it does not exist
                 string directory = Path.GetDirectoryName(path);
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                // Check the default adapter width and height using _graphics.PreferredBackBufferWidth and _graphics.PreferredBackBufferHeight
                 int screenWidth = graphics.PreferredBackBufferWidth;
                 int screenHeight = graphics.PreferredBackBufferHeight;
-
-                // Determine default value for simplifiedFont based on screen resolution
                 bool defaultSimplifiedFont = screenWidth < 2560 || screenHeight < 1440;
 
-                // Create settings file with default values if it does not exist
                 if (!File.Exists(path))
                 {
                     File.WriteAllLines(path, new[] { "T:1", $"S:{(defaultSimplifiedFont ? 1 : 0)}", "W:1" });
                 }
 
-                // Read settings from file
                 string[] settingsLines = File.ReadAllLines(path);
                 foreach (string line in settingsLines)
                 {
@@ -2810,17 +2804,16 @@ namespace Lightrealm
                 }
             }
 
-
             bool Break = false;
 
             static void SaveSettings(string path, bool enableTTS, bool simplifiedFont, bool speedWorldGen)
             {
                 string[] settingsLines =
                 {
-                    $"T:{(enableTTS ? 1 : 0)}",
-                    $"S:{(simplifiedFont ? 1 : 0)}",
-                    $"W:{(speedWorldGen ? 1 : 0)}"
-                };
+            $"T:{(enableTTS ? 1 : 0)}",
+            $"S:{(simplifiedFont ? 1 : 0)}",
+            $"W:{(speedWorldGen ? 1 : 0)}"
+        };
 
                 File.WriteAllLines(path, settingsLines);
             }
@@ -2876,7 +2869,7 @@ namespace Lightrealm
             SaveSettings(settingsPath, EnableTTS, SimplifiedFont, SpeedWorldGen);
 
 
-            async Task InitializeSpeechToTextAsync()
+            void InitializeSpeechToText()
             {
                 SpeechToText = true;
                 Console.WriteLine("\nInitializing Databases... One Moment...");
@@ -2891,20 +2884,20 @@ namespace Lightrealm
                 Console.WriteLine("");
                 Console.WriteLine($"Note: Click GUI Speech To Text is highly recommended, but if you end up not using it, disable it to speed up load times.");
 
-                await Task.Run(() =>
-                {
-                    // Initialize Vosk
-                    Vosk.Vosk.SetLogLevel(0);
-                    string modelPath = "C:\\Users\\maxpi\\OneDrive\\Desktop\\STT Test Mozilla Thing\\STT Test Mozilla Thing\\vosk-model-en-us-0.22\\";
-                    VoskModel = new Model(modelPath);
-                    _recognizer = new VoskRecognizer(VoskModel, 16000.0f);
-                    _recognizer.SetMaxAlternatives(0);
-                    _recognizer.SetWords(true);
-                });
+                // Initialize Vosk
+                Vosk.Vosk.SetLogLevel(0);
+                string modelPath = "C:\\Users\\maxpi\\OneDrive\\Desktop\\STT Test Mozilla Thing\\STT Test Mozilla Thing\\vosk-model-en-us-0.22\\";
+                VoskModel = new Model(modelPath);
+                _recognizer = new VoskRecognizer(VoskModel, 16000.0f);
+                _recognizer.SetMaxAlternatives(0);
+                _recognizer.SetWords(true);
 
                 // List available audio devices
+                Console.Write("");
+                Console.WriteLine("");
                 Console.Clear();
-                Console.WriteLine("Available Input Devices:");
+                Console.Write("");
+                Console.WriteLine("");
                 for (int i = 0; i < WaveInEvent.DeviceCount; i++)
                 {
                     var deviceInfo = WaveInEvent.GetCapabilities(i);
@@ -2914,7 +2907,7 @@ namespace Lightrealm
                 // Select audio device
                 Console.WriteLine("Please enter the number of the input device you want to use:");
                 int deviceNumber;
-                while (!int.TryParse(Console.ReadKey().KeyChar.ToString(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
+                while (!int.TryParse(Console.ReadLine(), out deviceNumber) || deviceNumber < 0 || deviceNumber >= WaveInEvent.DeviceCount)
                 {
                     Console.WriteLine("Invalid input. Please enter a valid device number:");
                 }
@@ -2924,7 +2917,7 @@ namespace Lightrealm
 
             if (EnableTTS)
             {
-                InitializeSpeechToTextAsync().GetAwaiter().GetResult();
+                InitializeSpeechToText();
             }
             else
             {
@@ -2932,7 +2925,7 @@ namespace Lightrealm
             }
 
             RecognizedCommands.Add("ask_name", (new List<string> { "ask ~ /p name", "ask ~ for /p name", "ask ~ name" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("ask_directions", (new List<string> { "ask ~ where ~ is", "ask ~ where i can find ~", "ask ~ where to find ~" }, new List<string> { "nearby_architect", "entity" }));
+            RecognizedCommands.Add("ask_directions", (new List<string> { "ask ~ where ~ is", "ask ~ where i can find ~", "ask ~ where to find ~", "ask ~ for directions to ~" }, new List<string> { "nearby_architect", "entity" }));
             RecognizedCommands.Add("ask_generic_directions", (new List<string> { "ask ~ where a ~ is", "ask ~ where i can find a ~", "ask ~ where to find a ~", "ask ~ where the nearest ~ is", "ask ~ where i could find a ~", "ask ~ where an ~ is", "ask ~ where i can find an ~", "ask ~ where to find an ~" }, new List<string> { "nearby_architect", "entity" }));
             RecognizedCommands.Add("ask_about_something", (new List<string> { "ask ~ about ~", "ask ~ for information on ~", "ask ~ what /p know about ~", "ask ~ what /p can tell me about ~" }, new List<string> { "nearby_architect", "entity" }));
             RecognizedCommands.Add("ask_ruler", (new List<string> { "ask ~ about the government", "ask ~ who rules", "ask ~ who the government is", "ask ~ who rules here" }, new List<string> { "nearby_architect" }));
@@ -3305,6 +3298,7 @@ namespace Lightrealm
                 { "priest", "religious" },
                 { "shadebeast", "none" },
                 { "knight", "military" },
+                { "duelist", "military" },
                 { "thief", "none" },
                 { "archmage", "scholarly" },
                 { "beastmaster", "none" },
@@ -3803,6 +3797,7 @@ namespace Lightrealm
             Celestrioris = Content.Load<Texture2D>("other/celestrioris");
             
             CursorT = Content.Load<Texture2D>("tiles/cursor");
+            BetterCursorT = Content.Load<Texture2D>("other/cursor");
             GuideT = Content.Load<Texture2D>("icons/moveguide");
             HealthGuiT = Content.Load<Texture2D>("icons/healthgui");
 
@@ -3814,6 +3809,7 @@ namespace Lightrealm
 
             whiteRect = Content.Load<Texture2D>("other/pixel");
             ReactionGUIT = Content.Load<Texture2D>("gui/reaction gui");
+            ReactionGUIHelpT = Content.Load<Texture2D>("gui/reaction gui help");
             MessageGUIT = Content.Load<Texture2D>("gui/messageGUI");
             CmdHelpT = Content.Load<Texture2D>("gui/cmdhelp");
             LightrealmMainTheme = Content.Load<Song>("audio/lightrealm main theme (2023)");
@@ -3919,13 +3915,17 @@ namespace Lightrealm
 
         protected override void Update(GameTime gameTime)
         {
-            GameInput.Update();
-
-            if (GameInput.WasKeyPressed(FrameCounter.Key))
+            if(GameInput != null && FrameCounter != null)
             {
-                FrameCounter.RenderFps = !FrameCounter.RenderFps;
+                GameInput.Update();
+
+                if (GameInput.WasKeyPressed(FrameCounter.Key))
+                {
+                    FrameCounter.RenderFps = !FrameCounter.RenderFps;
+                }
+                FrameCounter.Update(gameTime);
+
             }
-            FrameCounter.Update(gameTime);
 
             if (!AllEnteredGameStates.Contains(GameState))
             {
@@ -4134,7 +4134,7 @@ namespace Lightrealm
                         {
                             if (((Architect)(o.Creator)).PathOfHeatLevel >= 8 && ((Architect)(o.Creator)).FireCycles > 0)
                             {
-                                target.FireCycles += r.Next(40, 80 + (((Architect)(o.Creator)).FireCycles) / 30);
+                                target.FireCycles += r.Next(40, 80 + (((Architect)(o.Creator)).FireCycles));
                             }
                             else if (((Architect)(o.Creator)).PathOfHeatLevel >= 6)
                             {
@@ -4898,14 +4898,14 @@ namespace Lightrealm
                             {
                                 if (GameWorld.Cycle < 24192000000)
                                 {
-                                    for (int i = 0; i < 12; i++)
+                                    for (int i = 0; i < 8; i++)
                                     {
                                         GameWorld.ProgressDays(28, true);
                                     }
                                 }
                                 else if (GameWorld.Cycle < 24192000000 * 2)
                                 {
-                                    for (int i = 0; i < 6; i++)
+                                    for (int i = 0; i < 4; i++)
                                     {
                                         GameWorld.ProgressDays(28, true);
                                     }
@@ -5723,12 +5723,6 @@ namespace Lightrealm
 
                                 if (!IsInGui)
                                 {
-
-
-
-
-
-
                                     if (LoadedArchitects[ArchitectIndex].SpendableLevels > 0 && InInventory == true)
                                     {
                                         if (LoadedArchitects[ArchitectIndex].SpendableLevels > 0 && InInventory == true)
@@ -6167,6 +6161,14 @@ namespace Lightrealm
                                                                         MapCursorX = LoadedArchitects[ArchitectIndex].Location.X;
                                                                         MapCursorZ = LoadedArchitects[ArchitectIndex].Location.Z;
 
+                                                                        foreach(Architect a in GamePlayerParty.Architects)
+                                                                        {
+                                                                            foreach (Object o in a.BodyParts)
+                                                                            {
+                                                                                o.UpdateExposure(-9999);
+                                                                            }
+                                                                        }
+
                                                                         GameWorld.RevealNearbyTiles(MapCursorX, MapCursorZ);
 
                                                                         GamePlayerParty.Architects[0].District.Unload();
@@ -6183,6 +6185,15 @@ namespace Lightrealm
 
                                                                     LoadedArchitects[ArchitectIndex].Block.Architects.Remove(LoadedArchitects[ArchitectIndex]);
                                                                     LoadedArchitects[ArchitectIndex].Block = LoadedArchitects[ArchitectIndex].District.DistrictMap[newX + newZ * 7];
+
+                                                                    foreach (Architect a in GamePlayerParty.Architects)
+                                                                    {
+                                                                        foreach (Object o in a.BodyParts)
+                                                                        {
+                                                                            o.UpdateExposure(-9999);
+                                                                        }
+                                                                    }
+
                                                                     foreach (Structure s in LoadedArchitects[ArchitectIndex].Block.Structures)
                                                                     {
                                                                         if (s.Type != "house" && s.Type != "bighouse")
@@ -6543,14 +6554,14 @@ namespace Lightrealm
                             if(Reply != "")
                             {
                                 AddMessage(MostRecentPartyTurnArchitect.ReferredToNames[0] + ": " + Reply, new Color(0, 255, 0), new List<Entity> { MostRecentPartyTurnArchitect }.Union(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects).ToList());
-                                MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, Reply);
+                                MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, Reply, new List<Location>());
                                 MostRecentPartyTurnArchitect.MessagesNotRespondedTo.RemoveAt(0);
                                 MostRecentPartyTurnArchitect.CooldownCycles += (int)Math.Round(30 / MostRecentPartyTurnArchitect.Speed());
                             }
                             else
                             {
                                 AddMessage(MostRecentPartyTurnArchitect.ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { MostRecentPartyTurnArchitect });
-                                MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, Reply);
+                                MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, Reply, new List<Location>());
                                 MostRecentPartyTurnArchitect.MessagesNotRespondedTo.RemoveAt(0);
                             }
 
@@ -6580,6 +6591,13 @@ namespace Lightrealm
                                 }
                                 MostRecentPartyTurnArchitect.Inventory.Add(item);
                                 MakeObservation("You pick up the " + item.ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new List<Entity>() { item });
+
+                                // Relieve market debt if in a market
+                                if (MostRecentPartyTurnArchitect.Structure != null && MostRecentPartyTurnArchitect.Structure.Type == "market")
+                                {
+                                    MostRecentPartyTurnArchitect.Structure.MarketDebt -= item.Value();
+                                }
+
                                 MostRecentPartyTurnArchitect.CooldownCycles += (int)(Math.Round(5 / MostRecentPartyTurnArchitect.Speed()));
                             }
                         }
@@ -6620,7 +6638,6 @@ namespace Lightrealm
                         }
                     }
 
-
                     else if (GameState == "trydrop")
                     {
                         void DropItems(int count)
@@ -6644,6 +6661,13 @@ namespace Lightrealm
                                     item.Block = MostRecentPartyTurnArchitect.Block;
                                 }
                                 MakeObservation("You drop the " + item.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { item });
+
+                                // Incur market debt if in a market
+                                if (MostRecentPartyTurnArchitect.Structure != null && MostRecentPartyTurnArchitect.Structure.Type == "market")
+                                {
+                                    MostRecentPartyTurnArchitect.Structure.MarketDebt += item.Value();
+                                }
+
                                 MostRecentPartyTurnArchitect.CooldownCycles += (int)(Math.Round(5 / MostRecentPartyTurnArchitect.Speed()));
                             }
                         }
@@ -6681,6 +6705,7 @@ namespace Lightrealm
                             GameState = "otherturn";
                         }
                     }
+
 
 
 
@@ -7099,7 +7124,7 @@ namespace Lightrealm
                                         {
                                             var magicalItems = GameWorld.MagicalSuperLoot(5);
                                             GamePlayerParty.Architects[0].Inventory.Add(magicalItems);
-                                            Announcements.Add(new TextStorage("You have obtained a magical item.", Color.White, new List<Entity>()));
+                                            Announcements.Add(new TextStorage("You have obtained a magical item, an imbued " + magicalItems.ReferredToNames[0] + ".", Color.White, new List<Entity>()));
                                         }
 
                                         InspirationSelected = "";
@@ -7137,46 +7162,46 @@ namespace Lightrealm
 
                         // Mapping of biomes to the tools required for gathering
                         var gatheringActions = new Dictionary<string, string> {
-                            {"forest", "axe"}, {"lightforest", "axe"}, {"taiga", "axe"},
-                            {"mountain", "pickaxe"}, {"snowpeak", "pickaxe"},
-                            {"desert", "shovel"},
-                            {"plains", "scythe, sword"},
-                            {"tundra", "pickaxe"}, {"ice", "pickaxe"}
-                        };
+        {"forest", "axe"}, {"lightforest", "axe"}, {"taiga", "axe"},
+        {"mountain", "pickaxe"}, {"snowpeak", "pickaxe"},
+        {"desert", "shovel"},
+        {"plains", "scythe, sword"},
+        {"tundra", "pickaxe"}, {"ice", "pickaxe"}
+    };
 
                         // Mapping of biomes to harvestable materials
                         var harvestableMaterials = new Dictionary<string, Material> {
-                            {"forest", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood},
-                            {"lightforest", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood},
-                            {"taiga", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood},
-                            {"mountain", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableStone},
-                            {"snowpeak", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableMetal},
-                            {"desert", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableSand},
-                            {"plains", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableFiber},
-                            {"tundra", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableIce},
-                            {"ice", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableIce}
-                        };
+        {"forest", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood},
+        {"lightforest", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood},
+        {"taiga", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood},
+        {"mountain", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableStone},
+        {"snowpeak", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableMetal},
+        {"desert", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableSand},
+        {"plains", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableFiber},
+        {"tundra", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableIce},
+        {"ice", GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableIce}
+    };
 
                         // Mapping materials to the type of resource they represent
                         Dictionary<Material, string> ResourcetoType = new Dictionary<Material, string>()
-                        {
-                            {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood, "log"},
-                            {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableStone, "stone"},
-                            {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableMetal, "ore"},
-                            {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableSand, "pile"},
-                            {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableFiber, "bunch"},
-                            {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableIce, "block"}
-                        };
+    {
+        {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableWood, "log"},
+        {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableStone, "stone"},
+        {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableMetal, "ore"},
+        {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableSand, "pile"},
+        {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableFiber, "bunch"},
+        {GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].HarvestableIce, "block"}
+    };
 
                         // Mapping of numeric keys to resource types
                         var resourceKeyMap = new Dictionary<int, string> {
-                            {1, "wood"},
-                            {2, "stone"},
-                            {3, "metal"},
-                            {4, "sand"},
-                            {5, "fiber"},
-                            {6, "ice"}
-                        };
+        {1, "wood"},
+        {2, "stone"},
+        {3, "metal"},
+        {4, "sand"},
+        {5, "fiber"},
+        {6, "ice"}
+    };
 
                         bool HasRequiredTool(Architect architect, string toolRequirements)
                         {
@@ -7204,6 +7229,8 @@ namespace Lightrealm
                             return false;
                         }
 
+                        // Get the current biome
+                        string currentBiome = GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome;
 
                         // Iterate through each mapped key to resource type
                         foreach (var resourceKey in resourceKeyMap)
@@ -7211,12 +7238,11 @@ namespace Lightrealm
                             if (KeysNewlyPressed.Contains((Keys)Enum.Parse(typeof(Keys), $"D{resourceKey.Key}")))
                             {
                                 // Check if the biome has the corresponding resource
-                                Material resourceMaterial = harvestableMaterials.FirstOrDefault(hm => hm.Value.Type.Contains(resourceKey.Value)).Value;
-                                if (resourceMaterial != null)
+                                if (harvestableMaterials.ContainsKey(currentBiome) && harvestableMaterials[currentBiome].Type.Contains(resourceKey.Value))
                                 {
+                                    Material resourceMaterial = harvestableMaterials[currentBiome];
                                     string resourceType = ResourcetoType[resourceMaterial];
-                                    string biome = GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Length].Biome;
-                                    string toolRequired = gatheringActions.ContainsKey(biome) ? gatheringActions[biome] : null;
+                                    string toolRequired = gatheringActions.ContainsKey(currentBiome) ? gatheringActions[currentBiome] : null;
                                     bool toolNeeded = true;
 
                                     foreach (var architect in GamePlayerParty.Architects)
@@ -7241,6 +7267,20 @@ namespace Lightrealm
                                                 "takes a deep breath"
                                             };
 
+                                            // List of break activities for a single architect in the party
+                                            List<string> soloBreakActivities = new List<string>()
+                                            {
+                                                "sleeps for a bit",
+                                                "takes a moment to meditate on the current state that is",
+                                                "enjoys the solitude",
+                                                "practices some skills",
+                                                "sketches the surroundings",
+                                                "sings quietly to themselves",
+                                                "examines the environment",
+                                                "reflects on the past",
+                                                "stretches and relaxes"
+                                            };
+
                                             // Code inside the harvesting loop
                                             if (count > 0)
                                             {
@@ -7252,13 +7292,21 @@ namespace Lightrealm
                                             }
                                             else
                                             {
-                                                // Select a random break activity
-                                                string breakActivity = breakActivities[r.Next(breakActivities.Count)];
+                                                // Select a random break activity based on the number of architects in the party
+                                                string breakActivity;
+                                                if (GamePlayerParty.Architects.Count == 1)
+                                                {
+                                                    breakActivity = soloBreakActivities[r.Next(soloBreakActivities.Count)];
+                                                }
+                                                else
+                                                {
+                                                    breakActivity = breakActivities[r.Next(breakActivities.Count)];
+                                                }
                                                 Exposition.Add(new TextStorage($"{architect.Name} {breakActivity}.", Color.LightBlue, new List<Entity>()));
                                             }
-
                                         }
                                     }
+
 
                                     if (toolNeeded)
                                     {
@@ -7303,6 +7351,7 @@ namespace Lightrealm
                             if (KeysNewlyPressed.Contains(Keys.Enter))
                             {
                                 CraftingPhase = "selectingredients";
+                                IndexesForResources = new List<int>();  // Clear the previous selection
                             }
                         }
                         else if (CraftingPhase == "selectingredients")
@@ -7313,20 +7362,44 @@ namespace Lightrealm
                                 IndexesForResources = new List<int>();
                             }
 
+                            Dictionary<string, string> materialToObjectMap = new Dictionary<string, string>
+        {
+            {"cloth", "bolt"},
+            {"wood", "log"},
+            {"stone", "stone"},
+            {"metal", "bar"},
+            {"ore", "ore"},
+            {"gemstone", "gemstone"},
+            {"sand", "pile"},
+            {"fiber", "bunch"},
+            {"ice", "block"},
+            {"glass", "sheet"}
+        };
+
+                            var currentRecipe = Recipes[RecipeIndex];
+                            var currentRecipeMaterials = currentRecipe.Item2
+                                .Distinct()
+                                .Select(mat => materialToObjectMap[mat])
+                                .ToList();
+
+                            List<Object> relevantItems = MostRecentPartyTurnArchitect.Inventory
+                                .Where(obj => currentRecipeMaterials.Contains(obj.Type))
+                                .ToList();
+
                             if (KeysNewlyPressed.Contains(Keys.Up) || KeysNewlyPressed.Contains(Keys.NumPad8))
                             {
                                 InventoryCraftingIndex--;
 
                                 if (InventoryCraftingIndex < 0)
                                 {
-                                    InventoryCraftingIndex = Recipes.Count - 1;
+                                    InventoryCraftingIndex = relevantItems.Count - 1;
                                 }
                             }
                             else if (KeysNewlyPressed.Contains(Keys.Down) || KeysNewlyPressed.Contains(Keys.NumPad2))
                             {
                                 InventoryCraftingIndex++;
 
-                                if (InventoryCraftingIndex > Recipes.Count - 1)
+                                if (InventoryCraftingIndex > relevantItems.Count - 1)
                                 {
                                     InventoryCraftingIndex = 0;
                                 }
@@ -7341,45 +7414,25 @@ namespace Lightrealm
 
                             if (KeysNewlyPressed.Contains(Keys.Enter))
                             {
-                                // Prepare to check inventory items against the selected recipe
-                                var currentRecipe = Recipes[RecipeIndex];
-                                bool hasAllIngredients = true;
                                 List<Material> allUsedMaterials = new List<Material>();  // List to store all used materials
-
-                                // Dictionary to map material types to object types
-                                Dictionary<string, string> materialToObjectMap = new Dictionary<string, string>
-                                {
-                                    {"cloth", "bolt"},
-                                    {"wood", "log"},
-                                    {"stone", "stone"},
-                                    {"metal", "bar"},
-                                    {"gemstone", "gemstone"},
-                                    {"sand", "pile"},
-                                    {"fiber", "bunch"},
-                                    {"ice", "block"},
-                                    {"glass", "sheet"}
-                                };
-
-                                // Count needed items from the recipe
                                 var requiredItems = currentRecipe.Item2
                                     .GroupBy(x => x)
                                     .ToDictionary(g => g.Key, g => g.Count());
 
-                                // Check if the player has all the required items in the inventory
+                                bool hasAllIngredients = true;
                                 foreach (var requiredItem in requiredItems)
                                 {
                                     string requiredType = requiredItem.Key;
                                     int requiredCount = requiredItem.Value;
-                                    string requiredObject = materialToObjectMap[requiredType];
 
-                                    // Count how many items of the required type and object the player has
-                                    int countFound = MostRecentPartyTurnArchitect.Inventory
-                                        .Count(obj => obj.Type == requiredObject && obj.Materials[0].Type == requiredType);
+                                    // Count the selected items of the required type
+                                    int selectedCount = IndexesForResources
+                                        .Select(index => relevantItems[index])
+                                        .Count(obj => obj.Type == materialToObjectMap[requiredType]);
 
-                                    if (countFound < requiredCount)
+                                    if (selectedCount < requiredCount)
                                     {
                                         hasAllIngredients = false;
-                                        break;
                                     }
                                 }
 
@@ -7395,39 +7448,43 @@ namespace Lightrealm
                                         // Initialize a counter for how many materials have been added
                                         int materialsAdded = 0;
 
-                                        // Find and remove the required number of items from inventory
-                                        var itemsToRemove = MostRecentPartyTurnArchitect.Inventory
-                                            .Where(obj => obj.Type == requiredObject && obj.Materials[0].Type == requiredType)
-                                            .ToList();
-
-                                        foreach (var item in itemsToRemove)
+                                        // Find and remove the required number of items from selected indexes in inventory
+                                        foreach (var index in IndexesForResources.ToList())
                                         {
-                                            foreach (var material in item.Materials)
+                                            var item = relevantItems[index];
+                                            if (item.Type == requiredObject)
                                             {
-                                                if (material.Type == requiredType && materialsAdded < requiredCount)
+                                                foreach (var material in item.Materials)
                                                 {
-                                                    allUsedMaterials.Add(material); // Add the material of the consumed item
-                                                    materialsAdded++;
+                                                    // Check if a material with the same name already exists in allUsedMaterials
+                                                    if (!allUsedMaterials.Any(m => m.Name == material.Name))
+                                                    {
+                                                        allUsedMaterials.Add(material); // Add the material of the consumed item if it's not already added
+                                                    }
+                                                    materialsAdded++; // Increment materialsAdded in either case
                                                 }
-                                            }
-                                            MostRecentPartyTurnArchitect.Inventory.Remove(item);
 
-                                            // Break out of the loop if the required amount of materials has been added
-                                            if (materialsAdded >= requiredCount)
-                                                break;
+                                                MostRecentPartyTurnArchitect.Inventory.Remove(item);
+                                                IndexesForResources.Remove(index); // Remove the index from selected resources
+
+                                                // Break out of the loop if the required amount of materials has been added
+                                                if (materialsAdded >= requiredCount)
+                                                    break;
+                                            }
                                         }
                                     }
 
+                                    ItemPickupGuiLines.Clear();
 
                                     // Add the crafted item to the inventory
                                     Object o = new Object("", currentRecipe.Item1, allUsedMaterials, MostRecentPartyTurnArchitect);
                                     o.Name = GameWorld.GenerateUniqueName("1S" + r.Next(2, 5) + "sw", o);
                                     MostRecentPartyTurnArchitect.Inventory.Add(o);
 
-                                    MakeObservation(MostRecentPartyTurnArchitect.Name + " has created " + o.Name + ".", Color.Coral, new List<Entity>() {MostRecentPartyTurnArchitect, o});
+                                    MakeObservation(MostRecentPartyTurnArchitect.Name + " has created " + o.Name + ".", Color.Coral, new List<Entity>() { MostRecentPartyTurnArchitect, o });
                                     GameState = "otherturn";
 
-                                    if (o.Imbuements.Count > 1 || o.IsWeapon || o.Name != null)
+                                    if (o.Imbuements.Count > 0 || o.IsWeapon || o.Name != null)
                                     {
                                         IsInGui = true;
 
@@ -7468,7 +7525,6 @@ namespace Lightrealm
                             }
                         }
                     }
-
 
                 }
             }
@@ -7544,7 +7600,7 @@ namespace Lightrealm
 
                         if ((GameState == "travelmenu" || GameState == "etherealrupture") && !GameWorld.WorldMap[index].Explored)
                         {
-                            continue; // Skip drawing unexplored tiles in travelmode
+                            continue; // Skip drawing unexplored tiles in travel mode
                         }
 
                         // Draw cursor or tile
@@ -7552,7 +7608,7 @@ namespace Lightrealm
                         {
                             _spriteBatch.Draw(CursorT, tileRect, Color.White);
                         }
-                        else if (GamePlayerParty != null && GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width]) && FlashTick < 50)
+                        else if (GamePlayerParty != null && GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
                         {
                             _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
                         }
@@ -7595,7 +7651,7 @@ namespace Lightrealm
                         int index = x + z * GameWorld.Width;
                         Rectangle tileRect = GameWorld.WorldMap[index].BoundingBox();
 
-                        // Check if the region and the location (if it exists) are both explored
+                        // Check if the region is explored or game state is not travel menu
                         if (GameWorld.WorldMap[index].Explored || GameState != "travelmenu")
                         {
                             // Draw Ownership
@@ -7617,6 +7673,7 @@ namespace Lightrealm
                             {
                                 var location = GameWorld.WorldMap[index].MyLocation;
 
+                                // Draw the location normally
                                 if (GameWorld.ProcgenStructures.Contains(location.Type))
                                 {
                                     _spriteBatch.Draw(
@@ -7633,14 +7690,19 @@ namespace Lightrealm
                                         Color.White
                                     );
                                 }
+
+                                // Draw the party-highlighted green cursor if applicable
+                                if (GamePlayerParty != null && GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
+                                {
+                                    _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
+                                }
                             }
                         }
                     }
                 }
 
-                //trade lines
-
-                if(GameState == "generatehistory")
+                // Draw trade lines in generate history mode
+                if (GameState == "generatehistory")
                 {
                     foreach (Group g in GameWorld.Groups)
                     {
@@ -7662,9 +7724,9 @@ namespace Lightrealm
                             DrawLine(_spriteBatch, start, end, Color.SaddleBrown);
                         }
                     }
-
                 }
 
+                // Highlight regions with interactable events within radius
                 for (int x = 0; x < GameWorld.Width; x++)
                 {
                     for (int z = 0; z < GameWorld.Length; z++)
@@ -7727,6 +7789,8 @@ namespace Lightrealm
                 _spriteBatch.End();
                 _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
             }
+
+
 
             void DrawCenteredText(SpriteBatch spriteBatch, string text, int yPosition, SpriteFont Font, Color color)
             {
@@ -8176,7 +8240,11 @@ namespace Lightrealm
                                 }
 
                                 Color drawColor = o.DyedColor != "none" ? ColorConverter[o.DyedColor] : ColorConverter[o.Materials[0].Color];
-                                _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
+
+                                if(CharacterAtlas.ContainsKey(s))
+                                {
+                                    _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
+                                }
                             }
                         }
                     }
@@ -8433,8 +8501,111 @@ namespace Lightrealm
                 }
             }
 
-            //tips
+            void DrawAnnouncements()
+            {
+                Rectangle ScaleRectangle(Rectangle rect, float scaleX, float scaleY)
+                {
+                    return new Rectangle(
+                        (int)(rect.X * scaleX),
+                        (int)(rect.Y * scaleY),
+                        (int)(rect.Width * scaleX),
+                        (int)(rect.Height * scaleY)
+                    );
+                }
 
+                int MaxLines = 26;  // Set the maximum number of lines you want to display
+                int MaxLength = 800; // Adjusted MaxLength for smaller font size
+
+                int screenHeight = 1440;
+                int lineHeight = 20; // Adjusted line height for smaller font size
+                int yPos = screenHeight - 400; // Initial Y position at the bottom
+
+                int totalLinesDisplayed = 0;  // Track the total number of lines displayed
+
+                // Convert the reversed announcements to a list
+                List<TextStorage> reversedAnnouncements = new List<TextStorage>(Announcements);
+                reversedAnnouncements.Reverse();
+
+                foreach (TextStorage announcement in reversedAnnouncements)
+                {
+                    List<string> lines = new List<string>();
+
+                    if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
+                    {
+                        // Split announcement into lines if it exceeds MaxLength
+                        string[] words = announcement.Data.Split(' ');
+                        string currentLine = "";
+
+                        foreach (var word in words)
+                        {
+                            if (BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
+                            {
+                                lines.Add(currentLine.TrimEnd());
+                                currentLine = word + " ";
+                            }
+                            else
+                            {
+                                currentLine += word + " ";
+                            }
+                        }
+
+                        lines.Add(currentLine.TrimEnd());
+                    }
+                    else
+                    {
+                        lines.Add(announcement.Data);
+                    }
+
+                    // Draw lines in reverse order
+                    for (int i = lines.Count - 1; i >= 0; i--)
+                    {
+                        if (totalLinesDisplayed < MaxLines)
+                        {
+                            DrawAnnouncementLine(lines[i], yPos, announcement.Color, announcement.Entities);
+                            yPos -= lineHeight;
+                            totalLinesDisplayed++;
+                        }
+                        else
+                        {
+                            break;  // Exit the loop if the maximum number of lines is reached
+                        }
+                    }
+
+                    if (totalLinesDisplayed >= MaxLines)
+                    {
+                        break;  // Exit the outer loop if the maximum number of lines is reached
+                    }
+                }
+
+                // Helper function to draw each announcement line and create hitboxes for entity names
+                void DrawAnnouncementLine(string text, int yPosition, Color color, List<Entity> entities)
+                {
+                    _spriteBatch.DrawString(BabyShibafont, text, new Vector2(50, yPosition), color);
+
+                    // Create hitboxes for the longest entity names
+                    foreach (var entity in entities)
+                    {
+                        string longestName = entity.ReferredToNames.OrderByDescending(name => name.Length).FirstOrDefault(name => text.Contains(name));
+
+                        if (!string.IsNullOrEmpty(longestName))
+                        {
+                            int index = text.IndexOf(longestName);
+                            if (index != -1)
+                            {
+                                string substringBeforeName = text.Substring(0, index);
+                                Vector2 sizeBeforeName = BabyShibafont.MeasureString(substringBeforeName);
+                                Vector2 positionOfName = new Vector2(50 + sizeBeforeName.X, yPosition);
+
+                                // Measure the length of the text up to the longest name
+                                Vector2 sizeOfName = BabyShibafont.MeasureString(longestName);
+                                Rectangle hitbox = new Rectangle(positionOfName.ToPoint(), sizeOfName.ToPoint());
+                                hitbox = ScaleRectangle(hitbox, scaleX, scaleY);
+                                EntityHitboxes.Add((hitbox, entity));
+                            }
+                        }
+                    }
+                }
+            }
 
             if (GameState == "generatehistory" || GameState == "choosepreferences")
             {
@@ -8755,7 +8926,7 @@ namespace Lightrealm
                 _spriteBatch.DrawString(BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1750, 1200), Color.White);
 
                 // Keeping other text draws as they are since they're not dependent on cycle conversion
-                _spriteBatch.DrawString(BabyShibafont, "Architects, Total: " + GameWorld.TotalArchitects + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1750, 1320), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Architects, Total: " + GameWorld.AllArchitects.Count + ", Living: " + GameWorld.LivingArchitects + ", Dead: " + GameWorld.DeadArchitects, new Vector2(1750, 1320), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + GameWorld.Groups.Count, new Vector2(1750, 1360), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "Cultural Works: " + GameWorld.WorksOfCulture, new Vector2(1750, 1400), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "Crafts Practiced: " + GameWorld.TotalCrafts, new Vector2(2000, 1400), Color.White);
@@ -9063,7 +9234,7 @@ namespace Lightrealm
                     EntityHitboxes.Add((new Rectangle(locationPosition.ToPoint(), Shibafont.MeasureString(locationText).ToPoint()), MostRecentPartyTurnArchitect.Location));
 
                     // Draw the district
-                    string districtText = "D: " + MostRecentPartyTurnArchitect.District.Name;
+                    string districtText = "D: " + MostRecentPartyTurnArchitect.District.Name + " (" + MostRecentPartyTurnArchitect.Block.X + ", " + MostRecentPartyTurnArchitect.Block.Z + ")";
                     Vector2 districtPosition = new Vector2(70, 180);
                     _spriteBatch.DrawString(Shibafont, districtText, districtPosition, Color.White);
                     EntityHitboxes.Add((new Rectangle(districtPosition.ToPoint(), Shibafont.MeasureString(districtText).ToPoint()), MostRecentPartyTurnArchitect.District));
@@ -9327,11 +9498,11 @@ namespace Lightrealm
                                         case "archaix":
                                             BuildingColor = new Color(150, 150, 150);
                                             break;
-                                        case "isofractal":
-                                            BuildingColor = new Color(50, 150, 255);
-                                            break;
                                         case "photonexus":
-                                            BuildingColor = ColorConverter[MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].FakePhotonexusColor];
+                                            BuildingColor = new Color(200, 200, 255);
+                                            break;
+                                        case "isofractal":
+                                            BuildingColor = ColorConverter[MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].FakeIsofractalColor];
                                             break;
                                         case "shade":
                                             BuildingColor = Color.White;
@@ -9412,112 +9583,9 @@ namespace Lightrealm
                         _spriteBatch.DrawString(Shibafont, "Owes you: " + MostRecentPartyTurnArchitect.Structure.MarketDebt, new Vector2(220, 1400), c);
                     }
 
-                    int MaxLines = 26;  // Set the maximum number of lines you want to display
-                    int MaxLength = 800; // Adjusted MaxLength for smaller font size
-
-                    int screenHeight = 1440;
-                    int lineHeight = 20; // Adjusted line height for smaller font size
-                    int yPos = screenHeight - 400; // Initial Y position at the bottom
-
-                    int totalLinesDisplayed = 0;  // Track the total number of lines displayed
-
-                    // Convert the reversed announcements to a list
-                    List<TextStorage> reversedAnnouncements = new List<TextStorage>(Announcements);
-                    reversedAnnouncements.Reverse();
-
-                    foreach (TextStorage announcement in reversedAnnouncements)
-                    {
-                        List<string> lines = new List<string>();
-
-                        if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
-                        {
-                            // Split announcement into lines if it exceeds MaxLength
-                            string[] words = announcement.Data.Split(' ');
-                            string currentLine = "";
-
-                            foreach (var word in words)
-                            {
-                                if (BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
-                                {
-                                    lines.Add(currentLine.TrimEnd());
-                                    currentLine = word + " ";
-                                }
-                                else
-                                {
-                                    currentLine += word + " ";
-                                }
-                            }
-
-                            lines.Add(currentLine.TrimEnd());
-                        }
-                        else
-                        {
-                            lines.Add(announcement.Data);
-                        }
-
-                        // Draw lines in reverse order
-                        for (int i = lines.Count - 1; i >= 0; i--)
-                        {
-                            if (totalLinesDisplayed < MaxLines)
-                            {
-                                DrawAnnouncementLine(lines[i], yPos, announcement.Color, announcement.Entities);
-                                yPos -= lineHeight;
-                                totalLinesDisplayed++;
-                            }
-                            else
-                            {
-                                break;  // Exit the loop if the maximum number of lines is reached
-                            }
-                        }
-
-                        if (totalLinesDisplayed >= MaxLines)
-                        {
-                            break;  // Exit the outer loop if the maximum number of lines is reached
-                        }
-                    }
-
-                    // Helper function to draw each announcement line and create hitboxes for entity names
-                    void DrawAnnouncementLine(string text, int yPosition, Color color, List<Entity> entities)
-                    {
-                        _spriteBatch.DrawString(BabyShibafont, text, new Vector2(50, yPosition), color);
-
-                        // Create hitboxes for the longest entity names
-                        foreach (var entity in entities)
-                        {
-                            string longestName = entity.ReferredToNames.OrderByDescending(name => name.Length).FirstOrDefault(name => text.Contains(name));
-
-                            if (!string.IsNullOrEmpty(longestName))
-                            {
-                                int index = text.IndexOf(longestName);
-                                if (index != -1)
-                                {
-                                    string substringBeforeName = text.Substring(0, index);
-                                    Vector2 sizeBeforeName = BabyShibafont.MeasureString(substringBeforeName);
-                                    Vector2 positionOfName = new Vector2(50 + sizeBeforeName.X, yPosition);
-
-                                    // Measure the length of the text up to the longest name
-                                    Vector2 sizeOfName = BabyShibafont.MeasureString(longestName);
-                                    Rectangle hitbox = new Rectangle(positionOfName.ToPoint(), sizeOfName.ToPoint());
-                                    hitbox = ScaleRectangle(hitbox, scaleX, scaleY);
-                                    EntityHitboxes.Add((hitbox, entity));
-                                }
-                            }
-                        }
-                    }
+                    DrawAnnouncements();
 
 
-
-
-                    // Helper function to scale a rectangle
-                    Rectangle ScaleRectangle(Rectangle rect, float scaleX, float scaleY)
-                    {
-                        return new Rectangle(
-                            (int)(rect.X * scaleX),
-                            (int)(rect.Y * scaleY),
-                            (int)(rect.Width * scaleX),
-                            (int)(rect.Height * scaleY)
-                        );
-                    }
 
                     // Determine the source collection of objects based on the condition
                     var sourceObjects = MostRecentPartyTurnArchitect.Structure != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects;
@@ -9637,54 +9705,67 @@ namespace Lightrealm
 
                     if (GameState == "reaction")
                     {
-                        _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
-
-                        // Calculate the success chances for the MostRecentPartyTurnArchitect
-                        var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttacks[0], GameWorld.ReactionModifierInt, StoredAttacks[0].Attacker, StoredAttacks[0].Attacker.GetProficiency(StoredAttacks[0].Weapon.DamageType));
-
-                        int y = 600;
-                        int d = 30;
-                        DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.ReferredToNames[0] + " is aiming a " + StoredAttacks[0].Verb, y, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "at your " + StoredAttacks[0].Target.Type + " with their " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, Shibafont, Color.White);
-
-                        int RoundToNearestFive(int value)
+                        if(Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
                         {
-                            return ((value + 2) / 5) * 5;
+                            _spriteBatch.Draw(ReactionGUIHelpT, new Rectangle(320, 180, 1920, 1080), Color.White);
                         }
-
-
-                        DrawCenteredText(_spriteBatch, "[S] Sustain (" + RoundToNearestFive(successChances.sustain) + "% evs.?)", y + d * 2, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[D] Duck (" + RoundToNearestFive(successChances.duck) + "% evs.?)", y + d * 3, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[J] Jump (" + RoundToNearestFive(successChances.jump) + "% evs.?)", y + d * 4, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[R] Roll (" + RoundToNearestFive(successChances.roll) + "% evs.?)", y + d * 5, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[N] Disarm (" + RoundToNearestFive(successChances.disarm) + "% evs.?)", y + d * 6, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[C] Redirect (" + RoundToNearestFive(successChances.redirect) + "% evs.?)", y + d * 7, Shibafont, Color.White);
-
-                        if ((MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.IsWeapon) || (MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.IsWeapon))
+                        else
                         {
-                            DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + RoundToNearestFive(successChances.parry) + "%?)", y + d * 8, Shibafont, Color.White);
-                        }
-                        if ((MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.Type == "shield") || (MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.Type == "shield"))
-                        {
-                            DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + RoundToNearestFive(successChances.block) + "%?)", y + d * 9, Shibafont, Color.White);
-                        }
+                            _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
 
-                        DrawCenteredText(_spriteBatch, "Chances calculated with Agility, items carried/Endurance,", y + d * 10, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "your/opponent skills, attack type, etc.", y + d * 11, Shibafont, Color.White);
+                            // Calculate the success chances for the MostRecentPartyTurnArchitect
+                            var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttacks[0], GameWorld.ReactionModifierInt, StoredAttacks[0].Attacker, StoredAttacks[0].Attacker.GetProficiency(StoredAttacks[0].Weapon.DamageType));
 
+                            int y = 600;
+                            int d = 30;
+
+                            string Exposed = "";
+
+                            if (StoredAttacks[0].Target.Exposure > 49)
+                            {
+                                Exposed = "exposed ";
+                            }
+
+                            DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.ReferredToNames[0] + " is aiming a " + StoredAttacks[0].Verb, y, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "at your " + Exposed + StoredAttacks[0].Target.Type + " with their " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, Shibafont, Color.White);
+
+                            int RoundToNearestFive(int value)
+                            {
+                                return ((value + 2) / 5) * 5;
+                            }
+
+
+                            DrawCenteredText(_spriteBatch, "[S] Sustain (" + RoundToNearestFive(successChances.sustain) + "% evs.?)", y + d * 2, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[D] Duck (" + RoundToNearestFive(successChances.duck) + "% evs.?)", y + d * 3, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[J] Jump (" + RoundToNearestFive(successChances.jump) + "% evs.?)", y + d * 4, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[R] Roll (" + RoundToNearestFive(successChances.roll) + "% evs.?)", y + d * 5, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[N] Disarm (" + RoundToNearestFive(successChances.disarm) + "% evs.?)", y + d * 6, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[C] Redirect (" + RoundToNearestFive(successChances.redirect) + "% evs.?)", y + d * 7, Shibafont, Color.White);
+
+                            if ((MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.IsWeapon) || (MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.IsWeapon))
+                            {
+                                DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + RoundToNearestFive(successChances.parry) + "%?)", y + d * 8, Shibafont, Color.White);
+                            }
+                            if ((MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.Type == "shield") || (MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.Type == "shield"))
+                            {
+                                DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + RoundToNearestFive(successChances.block) + "%?)", y + d * 9, Shibafont, Color.White);
+                            }
+
+                            DrawCenteredText(_spriteBatch, "Press ? for detailed info.", y + d * 10, Shibafont, Color.White);
+                        }
                     }
                     else if (GameState == "trypickup")
                     {
                         int GetHalfCount(string itemType)
                         {
-                            int totalCount = MostRecentPartyTurnArchitect.Room.Objects
+                            int totalCount = (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
                                 .Count(item => item.Type == itemType);
                             return (int)Math.Ceiling(totalCount / 2.0);
                         }
 
                         int GetFullCount(string itemType)
                         {
-                            return MostRecentPartyTurnArchitect.Room.Objects
+                            return (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
                                 .Count(item => item.Type == itemType);
                         }
 
@@ -9841,7 +9922,6 @@ namespace Lightrealm
                         {
                             int yPositionLeft = startY; // Starting Y position for the left column
                             int yPositionRight = startY; // Starting Y position for the right column
-                            int entitiesPerColumn = 10; // 10 entities per column
                             int startIndex = CurrentCommandBuilderPage * 20; // Calculate start index based on the current page
 
                             // Draw subjects
@@ -9953,16 +10033,6 @@ namespace Lightrealm
                     }
 
 
-                    Color InterpolateColor(Color start, Color end, float amount)
-                    {
-                        return new Color(
-                            (byte)(start.R + (end.R - start.R) * amount),
-                            (byte)(start.G + (end.G - start.G) * amount),
-                            (byte)(start.B + (end.B - start.B) * amount),
-                            (byte)(start.A + (end.A - start.A) * amount)
-                        );
-                    }
-
                     if (Keyboard.GetState().IsKeyDown(Keys.F2) && StoredPortrait != null)
                     {
                         DrawCharacter(StoredPortrait, 40, 600, 0.2);
@@ -9983,6 +10053,7 @@ namespace Lightrealm
                                                     "FOC: " + MostRecentPartyTurnArchitect.Focus,
                                                     110, BabyShibafont, Color.White);
                     DrawCenteredText(_spriteBatch, "Use \"remember skills\" or \"remember spells\" to list spell or skill information.", 140, BabyShibafont, Color.White);
+                    DrawCenteredText(_spriteBatch, "Use tilde (~) and a specific key to get path information.", 170, BabyShibafont, Color.White);
 
                     int line = 0;
 
@@ -10093,6 +10164,7 @@ namespace Lightrealm
                         string text = pathLevel > 0 ? $"{pathName} Level {pathLevel}" : $"{pathName} (not activated)";
                         DrawCenteredText(_spriteBatch, text, Y, babyShibaFont, pathLevel > 0 ? color : new Color(40, 40, 40));
                     }
+
                     if (MostRecentPartyTurnArchitect.SpendableLevels > 0)
                     {
                         int newWidth = 1919 + 200; // Increase width by 200
@@ -10177,667 +10249,716 @@ namespace Lightrealm
 
                         DrawPathLevels(GamePlayerParty, _spriteBatch, BabyShibafont);
 
-                        if (!Keyboard.GetState().IsKeyDown(Keys.LeftControl))
-                        {
-                            if (Keyboard.GetState().IsKeyDown(Keys.X))
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                DrawCenteredText(_spriteBatch, "PATH OF SHADOW", position, BabyShibafont, Color.MidnightBlue);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 1) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Become harder to see and target.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 2) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 3) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Become invisible at the cost of energy with \"become one with shadow\"", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 4) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 5) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Your possessions become invisible with you.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 6) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 7) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Invisibilty no longer causes energy loss.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 8) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 9: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 9) ? Color.MidnightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL X TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                            }
-
-                            if (Keyboard.GetState().IsKeyDown(Keys.L)) // Assuming 'L' is the key for Path of Life
-                            {
-                                _spriteBatch.Draw(ReactionGUIT, new Rectangle((2560 - newWidth) / 2, (1440 - newHeight) / 2, newWidth, newHeight), Color.White);
-
-                                int position = startingPosition;
-
-                                // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF LIFE", position, BabyShibafont, Color.ForestGreen);
-                                position += spacing;
-
-                                // Display abilities with conditional coloring based on the level
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 1) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                DrawCenteredText(_spriteBatch, "LVL 2: Gain a constant regeneration buff.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 2) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 3) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                DrawCenteredText(_spriteBatch, "LVL 4: Full communication with all creatures.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 4) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 5) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Pacify/Tame animals, add to party. Max of Path LVL animals.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 6) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 7) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                DrawCenteredText(_spriteBatch, "LVL 8: Buff/augment your animals with \"augument\".", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 8) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                DrawCenteredText(_spriteBatch, "LVL 9: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 9) ? Color.ForestGreen : new Color(40, 40, 40));
-                                position += spacing;
-
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + L TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                            }
-                            else if (Keyboard.GetState().IsKeyDown(Keys.D))
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF DEATH", position, BabyShibafont, Color.DarkRed);
-                                position += spacing;
-                                // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 1 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Raise ((LVL/2) rounded down) weakened undead servants.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 2 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 3 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Fire spectral bolts.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 4 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 5 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Foes slain by bolts may become undead.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 6 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 7 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Return to life with 20 energy once a week.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 8 ? Color.DarkRed : new Color(40, 40, 40));
-                                position += spacing;
-                                // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.A)) // Assuming 'A' is the key for Path of Stars
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF STARS", position, BabyShibafont, Color.Gold);
-                                position += spacing;
-                                // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 1 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Summon a falling star on strike.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 2 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 3 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Starmarked creatures ignite.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 4 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 5 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Fire stars from your hands with \"starstrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 6 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 7 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Open a portal to a star.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 8 ? Color.Gold : new Color(40, 40, 40));
-                                position += spacing;
-                                // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + A TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.H)) // Assuming 'H' is the key for Path of Heat
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF HEAT", position, BabyShibafont, Color.OrangeRed);
-                                position += spacing;
-                                // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 1 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure and throw waves of heat.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 2 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 3 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Control heat of objects you touch.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 4 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 5 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Conjure larger waves of heat.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 6 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 7 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Set self on fire at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 8 ? Color.OrangeRed : new Color(40, 40, 40));
-                                position += spacing;
-                                // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF BODY", position, BabyShibafont, Color.SandyBrown);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased unarmed melee capabilities.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Move your body in any physically imaginable way.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF LIGHT", position, BabyShibafont, Color.Yellow);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure photons to create a spark.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Sparks fire radiant beams at enemies.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Use sparks to heal nearby creatures.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Create a Photonexus, loyal to you.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD G FOR PATH DETAILS. CTRL+G TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF REALITY", position, BabyShibafont, Color.IndianRed);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Alter object properties.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Change state of matter by touch.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Remove objects from reality.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            /*
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.I)) // For Path of Illusions
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF ILLUSIONS", position, BabyShibafont, Color.Magenta);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 1 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Summon an incorporeal immobile duplicate of yourself or an object.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 2 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 3 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Summon a duplicate of an animate object. Your duplicates move on their own", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 4 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 5 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Control all clones you create.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 6 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 7 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.T))
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title
-                                DrawCenteredText(_spriteBatch, "PATH OF TIME", position, BabyShibafont, Color.SkyBlue);
-                                position += spacing;
-                                // Abilities
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                // Leveling up instruction
-                                DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.E)) // For Path of Ethereality
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF ETHEREALITY", position, BabyShibafont, Color.LightBlue);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 1 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Take less damage, generally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 2 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 3 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Enter the ethereal plane briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 4 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 5 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Send objects to the ethereal plane.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 6 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 7 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Instantaneous travel anywhere.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 8 ? Color.LightBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD E FOR PATH DETAILS. CTRL+E TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.V)) // For Path of Void
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF VOID", position, BabyShibafont, Color.DarkSlateBlue);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 1 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Create voids that you can store items for later usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 2 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 3 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Fire matter projectiles from voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 4 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 5 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Compel creatures into voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 6 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 7 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Voids last forever and are interconnected.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 8 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD V FOR PATH DETAILS. CTRL+V TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.S)) // For Path of Storms
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF STORMS", position, BabyShibafont, Color.Cyan);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 1 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Energy strike on foes.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 2 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 3 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Flow with uncontrollable energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 4 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 5 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Direct energy into objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 6 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 7 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Gain flight and powerful energy manipulation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 8 ? Color.Cyan : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD S FOR PATH DETAILS. CTRL+S TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.F)) // For Path of Forge
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF FORGE", position, BabyShibafont, Color.DarkOrange);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 1 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Craft any weapon at a forge with the right materials.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 2 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 3 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Weapons you make have an extra imbuement.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 4 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 5 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Your imbuements have more effectiveness.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 6 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 7 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Touch objects to give them three extra imbuements.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 8 ? Color.DarkOrange : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD F FOR PATH DETAILS. CTRL+F TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.K)) // For Path of Lore
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF LORE", position, BabyShibafont, Color.SeaGreen);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 1 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Access lore from other lorepathers, containing secrets.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 2 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 3 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Trade knowledge with people mentally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 4 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 5 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Increase max path level by 4.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 6 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 7 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Access a wellspring of history at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 8 ? Color.SeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD K FOR PATH DETAILS. CTRL+K TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.M)) // For Path of Mind
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF MIND", position, BabyShibafont, Color.LightSeaGreen);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 1 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Enhanced magical power.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 2 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 3 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Decreased magical energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 4 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 5 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Option to double spell effects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 6 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 7 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Triple Spell effects and reduced energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 8 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.U)) // For Path of Soul
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF SOUL", position, BabyShibafont, Color.MediumPurple);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 1 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all nonphysical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 2 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 3 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased energy generation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 4 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 5 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Exit your body, moving through walls.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 6 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 7 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-
-                            else if (Keyboard.GetState().IsKeyDown(Keys.P)) // For Path of Space
-                            {
-                                _spriteBatch.Draw(
-                                    ReactionGUIT,
-                                    new Rectangle(
-                                        (2560 - newWidth) / 2, // Centered X
-                                        (1440 - newHeight) / 2, // Centered Y
-                                        newWidth,
-                                        newHeight),
-                                    Color.White);
-
-                                int position = startingPosition;
-
-                                // Title and Abilities
-                                DrawCenteredText(_spriteBatch, "PATH OF SPACE", position, BabyShibafont, Color.DarkOrchid);
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 1 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 2: Open a portal for travel.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 2 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 3 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 4: Telekinesis for small objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 4 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 5 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 6: Telekinesis for heavier objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 6 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 7 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                DrawCenteredText(_spriteBatch, "LVL 8: Telekinesis without limits, including self for flight.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 8 ? Color.DarkOrchid : new Color(40, 40, 40));
-                                position += spacing;
-                                // Instruction for leveling up
-                                DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", position, BabyShibafont, Color.White);
-                            }
-                            */
-
-                        }
+                        
                     }
+
+
+                    if (!Keyboard.GetState().IsKeyDown(Keys.LeftControl) && (MostRecentPartyTurnArchitect.SpendableLevels > 0 || Keyboard.GetState().IsKeyDown(Keys.OemTilde)))
+                    {
+                        int newWidth = 1919 + 200; // Increase width by 200
+                        int newHeight = 1080 + 200; // Increase height by 200
+
+                        _spriteBatch.Draw(
+                            ReactionGUIT,
+                            new Rectangle(
+                                (2560 - newWidth) / 2, // Centered X
+                                (1440 - newHeight) / 2, // Centered Y
+                                newWidth,
+                                newHeight),
+                            Color.White);
+
+                        int boxX = (2560 - newWidth) / 2;
+                        int boxY = (1440 - newHeight) / 2;
+
+                        int startingPosition = 500;
+                        int spacing = 30;
+
+                        int position = 500;
+
+                        // Each path's drawing code:
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[X] Path of Shadow", MostRecentPartyTurnArchitect.PathOfShadowLevel, position, Color.MidnightBlue);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[L] Path of Life", MostRecentPartyTurnArchitect.PathOfLifeLevel, position, Color.ForestGreen);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[D] Path of Death", MostRecentPartyTurnArchitect.PathOfDeathLevel, position, Color.DarkRed);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[A] Path of Stars", MostRecentPartyTurnArchitect.PathOfStarsLevel, position, Color.Gold);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[H] Path of Heat", MostRecentPartyTurnArchitect.PathOfHeatLevel, position, Color.OrangeRed);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
+                        position += spacing;
+
+                        DrawPathLevel(_spriteBatch, BabyShibafont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
+                        position += spacing;
+
+                        if (Keyboard.GetState().IsKeyDown(Keys.X))
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            DrawCenteredText(_spriteBatch, "PATH OF SHADOW", position, BabyShibafont, Color.MidnightBlue);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 1) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Become harder to see and target.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 2) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 3) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Become invisible at the cost of energy over time with \"become one with shadow\"", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 4) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 5) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Your possessions become invisible with you.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 6) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 7) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Invisibilty no longer causes energy loss.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 8) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 9: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 9) ? Color.MidnightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "PRESS CTRL X TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                        }
+
+                        if (Keyboard.GetState().IsKeyDown(Keys.L)) // Assuming 'L' is the key for Path of Life
+                        {
+                            _spriteBatch.Draw(ReactionGUIT, new Rectangle((2560 - newWidth) / 2, (1440 - newHeight) / 2, newWidth, newHeight), Color.White);
+
+                            position = startingPosition;
+
+                            // Title
+                            DrawCenteredText(_spriteBatch, "PATH OF LIFE", position, BabyShibafont, Color.ForestGreen);
+                            position += spacing;
+
+                            // Display abilities with conditional coloring based on the level
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 1) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+
+                            DrawCenteredText(_spriteBatch, "LVL 2: Gain a constant regeneration buff.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 2) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 3) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+
+                            DrawCenteredText(_spriteBatch, "LVL 4: Full communication with all creatures.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 4) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 5) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Pacify/Tame animals, add to party. Max of Path LVL animals. Use \"pacify ~\"", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 6) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 7) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+
+                            DrawCenteredText(_spriteBatch, "LVL 8: Buff/augment your animals with \"augument ~\".", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 8) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+
+                            DrawCenteredText(_spriteBatch, "LVL 9: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 9) ? Color.ForestGreen : new Color(40, 40, 40));
+                            position += spacing;
+
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "PRESS CTRL + L TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                        }
+                        else if (Keyboard.GetState().IsKeyDown(Keys.D))
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            // Title
+                            DrawCenteredText(_spriteBatch, "PATH OF DEATH", position, BabyShibafont, Color.DarkRed);
+                            position += spacing;
+                            // Abilities
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 1 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Raise ((LVL/2) rounded down) weakened undead servants with \"raise ~\"", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 2 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 3 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Fire spectral bolts.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 4 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 5 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Foes slain by bolts may become undead.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 6 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 7 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Return to life with 20 energy once a week.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 8 ? Color.DarkRed : new Color(40, 40, 40));
+                            position += spacing;
+                            // Leveling up instruction
+                            DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.A)) // Assuming 'A' is the key for Path of Stars
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            // Title
+                            DrawCenteredText(_spriteBatch, "PATH OF STARS", position, BabyShibafont, Color.Gold);
+                            position += spacing;
+                            // Abilities
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 1 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Summon a falling star on strike.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 2 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 3 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Starstruck creatures ignite.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 4 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 5 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Fire stars from your hands with \"starstrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 6 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 7 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Open a portal to a star and fire a laser with \"starsmite ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 8 ? Color.Gold : new Color(40, 40, 40));
+                            position += spacing;
+                            // Leveling up instruction
+                            DrawCenteredText(_spriteBatch, "PRESS CTRL + A TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.H)) // Assuming 'H' is the key for Path of Heat
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            // Title
+                            DrawCenteredText(_spriteBatch, "PATH OF HEAT", position, BabyShibafont, Color.OrangeRed);
+                            position += spacing;
+                            // Abilities
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 1 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Conjure and throw waves of heat with \"flamestrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 2 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 3 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Control heat of objects you touch, with \"heat ~\" to increase damage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 4 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 5 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Conjure larger waves of heat.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 6 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 7 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Set self on fire at will with \"inflame\". Increases fire abliities.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 8 ? Color.OrangeRed : new Color(40, 40, 40));
+                            position += spacing;
+                            // Leveling up instruction
+                            DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF BODY", position, BabyShibafont, Color.SandyBrown);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased unarmed melee capabilities.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Gain a massive boost to speed.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF LIGHT", position, BabyShibafont, Color.Yellow);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Conjure photons to create a spark.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Sparks fire radiant beams at enemies.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Use sparks to heal nearby creatures.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Create a Photonexus, loyal to you.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD G FOR PATH DETAILS. CTRL+G TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF REALITY", position, BabyShibafont, Color.IndianRed);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Alter object properties.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Change state of matter by touch.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Remove objects from reality.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        /*
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.I)) // For Path of Illusions
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF ILLUSIONS", position, BabyShibafont, Color.Magenta);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 1 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Summon an incorporeal immobile duplicate of yourself or an object.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 2 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 3 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Summon a duplicate of an animate object. Your duplicates move on their own", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 4 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 5 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Control all clones you create.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 6 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 7 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.T))
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title
+                            DrawCenteredText(_spriteBatch, "PATH OF TIME", position, BabyShibafont, Color.SkyBlue);
+                            position += spacing;
+                            // Abilities
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            // Leveling up instruction
+                            DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.E)) // For Path of Ethereality
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF ETHEREALITY", position, BabyShibafont, Color.LightBlue);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 1 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Take less damage, generally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 2 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 3 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Enter the ethereal plane briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 4 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 5 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Send objects to the ethereal plane.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 6 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 7 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Instantaneous travel anywhere.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 8 ? Color.LightBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD E FOR PATH DETAILS. CTRL+E TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.V)) // For Path of Void
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF VOID", position, BabyShibafont, Color.DarkSlateBlue);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 1 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Create voids that you can store items for later usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 2 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 3 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Fire matter projectiles from voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 4 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 5 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Compel creatures into voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 6 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 7 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Voids last forever and are interconnected.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 8 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD V FOR PATH DETAILS. CTRL+V TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.S)) // For Path of Storms
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF STORMS", position, BabyShibafont, Color.Cyan);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 1 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Energy strike on foes.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 2 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 3 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Flow with uncontrollable energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 4 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 5 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Direct energy into objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 6 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 7 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Gain flight and powerful energy manipulation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 8 ? Color.Cyan : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD S FOR PATH DETAILS. CTRL+S TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.F)) // For Path of Forge
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF FORGE", position, BabyShibafont, Color.DarkOrange);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 1 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Craft any weapon at a forge with the right materials.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 2 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 3 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Weapons you make have an extra imbuement.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 4 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 5 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Your imbuements have more effectiveness.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 6 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 7 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Touch objects to give them three extra imbuements.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 8 ? Color.DarkOrange : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD F FOR PATH DETAILS. CTRL+F TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.K)) // For Path of Lore
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF LORE", position, BabyShibafont, Color.SeaGreen);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 1 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Access lore from other lorepathers, containing secrets.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 2 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 3 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Trade knowledge with people mentally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 4 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 5 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Increase max path level by 4.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 6 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 7 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Access a wellspring of history at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 8 ? Color.SeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD K FOR PATH DETAILS. CTRL+K TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.M)) // For Path of Mind
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF MIND", position, BabyShibafont, Color.LightSeaGreen);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 1 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Enhanced magical power.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 2 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 3 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Decreased magical energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 4 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 5 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Option to double spell effects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 6 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 7 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Triple Spell effects and reduced energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 8 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.U)) // For Path of Soul
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF SOUL", position, BabyShibafont, Color.MediumPurple);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 1 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Increases to all nonphysical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 2 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 3 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased energy generation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 4 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 5 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Exit your body, moving through walls.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 6 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 7 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+
+                        else if (Keyboard.GetState().IsKeyDown(Keys.P)) // For Path of Space
+                        {
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int position = startingPosition;
+
+                            // Title and Abilities
+                            DrawCenteredText(_spriteBatch, "PATH OF SPACE", position, BabyShibafont, Color.DarkOrchid);
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 1 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 2: Open a portal for travel.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 2 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 3 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 4: Telekinesis for small objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 4 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 5 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 6: Telekinesis for heavier objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 6 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 7 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            DrawCenteredText(_spriteBatch, "LVL 8: Telekinesis without limits, including self for flight.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 8 ? Color.DarkOrchid : new Color(40, 40, 40));
+                            position += spacing;
+                            // Instruction for leveling up
+                            DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", position, BabyShibafont, Color.White);
+                        }
+                        */
+
+                    }
+
 
                     //character
                     DrawCharacter(MostRecentPartyTurnArchitect, 500, 1200, 0.2);
@@ -10951,7 +11072,7 @@ namespace Lightrealm
                             .ToList();
 
                         int yOffset = 20;
-                        bool isTopLine = true; // Flag to check if it's the topmost line being drawn
+
                         for (int i = 0; i < matchingCommands.Count; i++)
                         {
                             string displayCommand = matchingCommands[i];
@@ -10993,7 +11114,6 @@ namespace Lightrealm
 
                             // Reset X position for next command and update top line flag
                             StartX = 50 + sizeOfInitialText.X;
-                            isTopLine = false; // Only the first line gets magenta
                         }
                     }
 
@@ -11041,6 +11161,7 @@ namespace Lightrealm
                 DrawCenteredText(_spriteBatch, "All members of your party have perished. You have lost influence in the world.", 400, Shibafont, Color.White);
                 DrawCenteredText(_spriteBatch, "Press SPACE to return to the title screen.", 450, Shibafont, Color.White);
 
+                DrawAnnouncements();
             }
             else if (GameState == "travelmenu")
             {
@@ -11114,34 +11235,56 @@ namespace Lightrealm
 
                                 int DistrictLine = 0;
 
+                                _spriteBatch.DrawString(BabyShibafont, "Districts", new Vector2(DrawX + 900, (DrawY-30) + DistrictLine * 20), Color.White);
+                                DistrictLine++;
+                                _spriteBatch.DrawString(BabyShibafont, "(select with < and >)", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
+
+                                DistrictLine += 2;
+
                                 foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts)
                                 {
-                                    //REDRAW THE DISTRICT NAMES AND IF TYEYRE DONED DO THE SHIBA CARAT
+                                    // Check if MyLocation.Type is in SettlementTypes
+                                    bool isSettlementType = GameWorld.SettlementTypes.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type);
 
-                                    if (DistrictLine == GamePlayerParty.MapCursorDistrict)
+                                    // REDRAW THE DISTRICT NAMES AND IF THEY'RE DONE DO THE SHIBA CARAT
+                                    if (DistrictLine == GamePlayerParty.MapCursorDistrict + 3)
                                     {
-                                        if (d.Industry.Length > 4)
+                                        if (isSettlementType)
                                         {
-                                            _spriteBatch.DrawString(Shibafont, ">" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
+                                            if (d.Industry.Length > 4)
+                                            {
+                                                _spriteBatch.DrawString(BabyShibafont, "[>]" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
+                                            }
+                                            else
+                                            {
+                                                _spriteBatch.DrawString(BabyShibafont, "[>]" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
+                                            }
                                         }
                                         else
                                         {
-                                            _spriteBatch.DrawString(Shibafont, ">" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
+                                            _spriteBatch.DrawString(BabyShibafont, "[>]" + d.Name, new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
                                         }
                                     }
                                     else
                                     {
-                                        if (d.Industry.Length > 4)
+                                        if (isSettlementType)
                                         {
-                                            _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
+                                            if (d.Industry.Length > 4)
+                                            {
+                                                _spriteBatch.DrawString(BabyShibafont, "[ ]" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
+                                            }
+                                            else
+                                            {
+                                                _spriteBatch.DrawString(BabyShibafont, "[ ]" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
+                                            }
                                         }
                                         else
                                         {
-                                            _spriteBatch.DrawString(Shibafont, " " + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, 1100 + DistrictLine * 30), Color.White);
+                                            _spriteBatch.DrawString(BabyShibafont, "[ ]" + d.Name, new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
                                         }
                                     }
-                                    DistrictLine++;
 
+                                    DistrictLine++;
 
                                     foreach (Group g in GameWorld.Groups)
                                     {
@@ -11164,6 +11307,8 @@ namespace Lightrealm
                                         }
                                     }
                                 }
+
+
 
                                 _spriteBatch.DrawString(BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX + 500, DrawY + 60), Color.White);
 
@@ -11319,11 +11464,11 @@ namespace Lightrealm
                     }
 
                     Dictionary<string, string> materialToObjectMap = new Dictionary<string, string>
-                    {
-                        {"cloth", "bolt"}, {"wood", "log"}, {"stone", "stone"},
-                        {"metal", "bar"}, {"gemstone", "gemstone"}, {"sand", "pile"},
-                        {"fiber", "bunch"}, {"ice", "block"}, {"glass", "sheet"}
-                    };
+        {
+            {"cloth", "bolt"}, {"wood", "log"}, {"stone", "stone"}, {"ore", "ore"},
+            {"metal", "bar"}, {"gemstone", "gemstone"}, {"sand", "pile"},
+            {"fiber", "bunch"}, {"ice", "block"}, {"glass", "sheet"}
+        };
 
                     var currentRecipeMaterials = Recipes[RecipeIndex].Item2
                         .Distinct()
@@ -11353,10 +11498,41 @@ namespace Lightrealm
                             _spriteBatch.DrawString(Shibafont, prefix + relevantItems[i].Materials[0].Name + " " + relevantItems[i].Type, position, color);
                         }
                     }
+
+                    // Display required materials and the count of selected materials
+                    var requiredItems = Recipes[RecipeIndex].Item2
+                        .GroupBy(x => x)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    Vector2 requirementPosition = new Vector2(1600, 100);
+                    bool hasAllIngredients = true;
+                    foreach (var requiredItem in requiredItems)
+                    {
+                        string requiredType = requiredItem.Key;
+                        int requiredCount = requiredItem.Value;
+
+                        // Count the selected items of the required type
+                        int selectedCount = IndexesForResources
+                            .Select(index => relevantItems[index])
+                            .Count(obj => obj.Type == requiredType);
+
+                        if (selectedCount < requiredCount)
+                        {
+                            hasAllIngredients = false;
+                        }
+
+                        Color textColor = selectedCount >= requiredCount ? Color.Green : Color.Red;
+                        string requirementText = $"{requiredType}: {selectedCount}/{requiredCount}";
+                        _spriteBatch.DrawString(Shibafont, requirementText, requirementPosition, textColor);
+                        requirementPosition.Y += 30;
+                    }
+
+                    // Display crafting readiness
+                    string readinessText = hasAllIngredients ? "Ready to craft. Press Enter." : "Select More Materials.";
+                    Color readinessColor = hasAllIngredients ? Color.Green : Color.Red;
+                    _spriteBatch.DrawString(Shibafont, readinessText, new Vector2(1600, requirementPosition.Y + 30), readinessColor);
                 }
             }
-
-
 
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
             {
@@ -11374,11 +11550,14 @@ namespace Lightrealm
                 }
             }
 
-
-            if (FrameCounter.RenderFps)
+            if(FrameCounter != null)
             {
-                FrameCounter.Render(_spriteBatch, Shibafont);
+                if (FrameCounter.RenderFps)
+                {
+                    FrameCounter.Render(_spriteBatch, Shibafont);
+                }
             }
+            
 
 
             if (SplitMode)
@@ -11635,6 +11814,8 @@ namespace Lightrealm
                 }
 
             }
+
+            _spriteBatch.Draw(BetterCursorT, new Rectangle(Mouse.GetState().X - 8, Mouse.GetState().Y - 8, 16, 16), Color.White);
 
             _spriteBatch.End();
 

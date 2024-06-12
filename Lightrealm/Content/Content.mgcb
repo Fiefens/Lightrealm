@@ -1051,6 +1051,18 @@
 /processorParam:TextureFormat=Color
 /build:gui/messageGUI.png
 
+#begin gui/reaction gui help.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:gui/reaction gui help.png
+
 #begin gui/reaction gui.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -1626,6 +1638,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:other/celestrioris.png
+
+#begin other/cursor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:other/cursor.png
 
 #begin other/pixel.png
 /importer:TextureImporter

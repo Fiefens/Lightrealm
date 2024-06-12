@@ -8,125 +8,151 @@ namespace Lightrealm
     public class Composition : Entity
     {
         public string Type;
-        public string PrimaryDomain;
+        public Entity Subject;
         public List<Section> Sections;
 
-        public Composition(string type, Architect Author, string Domain)
+        public Composition(string type, Architect Author, Entity ChosenEntity)
         {
             Type = type;
-            if (Domain == "")
+            if (Game1.r.NextDouble() < 0.5)
             {
-                PrimaryDomain = Game1.Domains[Game1.r.Next(Game1.Domains.Count)];
+                // 50% chance to write about a general domain
+                Subject = ChosenEntity ?? new Entity(Game1.Domains[Game1.r.Next(Game1.Domains.Count)]);
+                Name = GenerateName(type, Subject.ReferredToNames[0]);
+                Sections = GenerateSections(type, Author);
             }
             else
             {
-                PrimaryDomain = Domain;
+                // 50% chance to write about a specific subject
+                Subject = ChosenEntity ?? GenerateRandomSubject();
+                Name = GenerateName(type, Subject.ReferredToNames[0]);
+                Sections = GenerateSectionsFromSubject(type, Author, Subject);
             }
-            Name = GenerateName(type, this.PrimaryDomain);
-            Sections = GenerateSections(type, Author);
         }
 
-        public string getDescription(int index)
-        {
-            if (index < 0 || index >= Sections.Count)
-            {
-                return "Invalid section index.";
-            }
-            var section = Sections[index];
-            return $"Section {index + 1}: {section.Tone} tone, discussing {string.Join(", ", section.Domains)} with a {section.Perspectives} perspective.";
-        }
-
-        public string getCompleteWorkDescription()
+        public string GetCompleteWorkDescription()
         {
             var averageQuality = Sections.Average(s => s.Quality);
             string qualityDescription = GetQualityDescription(averageQuality);
 
-            return $"Title: {Name}\n" +
-                   $"Summary: This {Type} is considered {qualityDescription} with an average section quality of {averageQuality:N2}.\n" +
-                   $"Sections:\n" + string.Join("\n", Sections.Select((s, i) => $"Section {i + 1}: {s.Tone} tone, discussing {string.Join(", ", s.Domains)} with a {s.Perspectives} perspective."));
+            var descriptions = Sections.Select((s, i) => s.Description).ToList();
+            string sectionType = Type switch
+            {
+                "book" => "Chapter",
+                "poem" => "Stanza",
+                _ => "Section"
+            };
+            return $"The work is a {qualityDescription} {Type}, primarily on {Subject.ReferredToNames[0]}, with {Sections.Count} {sectionType.ToLower()}s. " +
+                   string.Join(" ", descriptions);
         }
 
         private string GetQualityDescription(double quality)
         {
             int roundedQuality = (int)Math.Round(quality);
-            switch (roundedQuality)
+            return roundedQuality switch
             {
-                case 0: return "disastrous";
-                case 1: return "unbearable";
-                case 2: return "painful";
-                case 3: return "troublesome";
-                case 4: return "mediocre";
-                case 5: return "ordinary";
-                case 6: return "decent";
-                case 7: return "good";
-                case 8: return "excellent";
-                case 9: return "remarkable";
-                case 10: return "extraordinary";
-                case 11: return "masterful";
-                case 12: return "awe-inspiring";
-                case 13: return "transcendent";
-                case 14: return "ethereal";
-                case 15: return "celestial";
-                default: return "supernatural";
-            }
+                0 => "disastrous",
+                1 => "unbearable",
+                2 => "painful",
+                3 => "troublesome",
+                4 => "mediocre",
+                5 => "ordinary",
+                6 => "decent",
+                7 => "good",
+                8 => "excellent",
+                9 => "remarkable",
+                10 => "extraordinary",
+                11 => "masterful",
+                12 => "awe-inspiring",
+                13 => "transcendent",
+                14 => "ethereal",
+                15 => "celestial",
+                _ => "supernatural"
+            };
         }
 
         private string GenerateName(string type, string domain)
         {
-            // Random titles for each type
-            List<string> songTitles = new List<string>
+            List<string> adjectives = new List<string>
             {
-                $"Echoes of {domain}",
-                $"Ballad of the {domain}",
-                $"Rhythms and {domain}",
-                $"Harmonies in {domain}",
-                $"Ode to {domain}",
-                $"Serenade of {domain}",
-                $"Whispers from {domain}",
-                $"Crescendo on {domain}",
-                $"Melody amidst {domain}",
-                $"Chorus for {domain}"
+                "somber",
+                "inquisitive",
+                "mysterious",
+                "joyful",
+                "melancholic",
+                "serene",
+                "vibrant",
+                "epic",
+                "wistful",
+                "enchanting"
             };
 
-            List<string> poemTitles = new List<string>
+            List<string> songNouns = new List<string>
             {
-                $"A Quill on {domain}",
-                $"Sonnets of {domain}",
-                $"Glimpses into {domain}",
-                $"Rhymes across {domain}",
-                $"Verses beneath {domain}",
-                $"Reflections on {domain}",
-                $"Contours of {domain}",
-                $"Echoes around {domain}",
-                $"Whispers of {domain}",
-                $"Stanzas for {domain}"
+                "melody",
+                "harmony",
+                "rhythm",
+                "serenade",
+                "ballad",
+                "chorus",
+                "lullaby",
+                "symphony",
+                "refrain",
+                "cantata"
             };
 
-            List<string> bookTitles = new List<string>
+            List<string> poemNouns = new List<string>
             {
-                $"Tales from {domain}",
-                $"Explorations in {domain}",
-                $"Dialogues on {domain}",
-                $"The {domain} Chronicles",
-                $"Insights into {domain}",
-                $"Journeys through {domain}",
-                $"Narratives of {domain}",
-                $"Pages from {domain}",
-                $"Studies on {domain}",
-                $"Mythos of {domain}"
+                "sonnet",
+                "verse",
+                "stanza",
+                "rhyme",
+                "elegy",
+                "couplet",
+                "whisper"
             };
 
-            switch (type)
+            List<string> bookNouns = new List<string>
             {
-                case "song":
-                    return songTitles[Game1.r.Next(songTitles.Count)];
-                case "poem":
-                    return poemTitles[Game1.r.Next(poemTitles.Count)];
-                case "book":
-                    return bookTitles[Game1.r.Next(bookTitles.Count)];
-                default:
-                    throw new ArgumentException("Invalid type specified");
-            }
+                "tale",
+                "chronicle",
+                "narrative",
+                "story",
+                "journey",
+                "myth",
+                "legend",
+                "account",
+                "fable",
+                "saga"
+            };
+
+            string adjective = Game1.Capitalize(adjectives[Game1.r.Next(adjectives.Count)]);
+            string noun = Game1.Capitalize(type switch
+            {
+                "song" => songNouns[Game1.r.Next(songNouns.Count)],
+                "poem" => poemNouns[Game1.r.Next(poemNouns.Count)],
+                "book" => bookNouns[Game1.r.Next(bookNouns.Count)],
+                _ => throw new ArgumentException("Invalid type specified")
+            });
+
+            domain = Game1.Capitalize(domain);
+
+            List<string> formats = new List<string>
+            {
+                $"{adjective} {noun} of {domain}",
+                $"{adjective} {domain} {noun}",
+                $"The {adjective} {noun} in {domain}",
+                $"{noun} of the {adjective} {domain}",
+                $"{domain}: A {adjective} {noun}",
+                $"The {noun} of {adjective} {domain}",
+                $"{adjective} {domain}: {noun}",
+                $"A {noun} of {adjective} {domain}",
+                $"{domain}'s {adjective} {noun}",
+                $"{noun} from the {adjective} {domain}"
+            };
+
+            string format = formats[Game1.r.Next(formats.Count)];
+            return format.Replace("{adjective}", adjective).Replace("{noun}", noun).Replace("{domain}", domain);
         }
 
         private List<Section> GenerateSections(string type, Architect Author)
@@ -134,13 +160,131 @@ namespace Lightrealm
             List<Section> sections = new List<Section>();
             int numberSections = type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12);
 
-            for (int i = 0; i < numberSections; i++)
+            if (type == "song")
             {
-                sections.Add(new Section(type, this, Author.Creativity));
+                List<string> sectionTypes = new List<string> { "Verse" };
+                bool hasChorus = false;
+                bool hasBridge = false;
+
+                for (int i = 0; i < numberSections; i++)
+                {
+                    string sectionType;
+                    if (i == 0)
+                    {
+                        sectionType = "Verse";
+                    }
+                    else if (!hasChorus && Game1.r.NextDouble() < 0.5)
+                    {
+                        sectionType = "Chorus";
+                        hasChorus = true;
+                    }
+                    else if (hasChorus && !hasBridge && i > 1 && Game1.r.NextDouble() < 0.3)
+                    {
+                        sectionType = "Bridge";
+                        hasBridge = true;
+                    }
+                    else
+                    {
+                        sectionType = "Verse";
+                    }
+                    sections.Add(new Section(type, this, Author.Creativity, sectionType));
+                }
+            }
+            else
+            {
+                for (int i = 0; i < numberSections; i++)
+                {
+                    sections.Add(new Section(type, this, Author.Creativity));
+                }
             }
 
             return sections;
         }
+
+        private List<Section> GenerateSectionsFromSubject(string type, Architect Author, Entity subject)
+        {
+            List<Section> sections = new List<Section>();
+            var events = GetEventsForSubject(subject);
+            int numberSections = Math.Min(type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12), events.Count);
+
+            if (type == "song")
+            {
+                List<string> sectionTypes = new List<string> { "Verse" };
+                bool hasChorus = false;
+                bool hasBridge = false;
+
+                for (int i = 0; i < numberSections; i++)
+                {
+                    string sectionType;
+                    if (i == 0)
+                    {
+                        sectionType = "Verse";
+                    }
+                    else if (!hasChorus && Game1.r.NextDouble() < 0.5)
+                    {
+                        sectionType = "Chorus";
+                        hasChorus = true;
+                    }
+                    else if (hasChorus && !hasBridge && i > 1 && Game1.r.NextDouble() < 0.3)
+                    {
+                        sectionType = "Bridge";
+                        hasBridge = true;
+                    }
+                    else
+                    {
+                        sectionType = "Verse";
+                    }
+                    sections.Add(new Section(type, this, Author.Creativity, events[i], sectionType));
+                }
+            }
+            else
+            {
+                for (int i = 0; i < numberSections; i++)
+                {
+                    sections.Add(new Section(type, this, Author.Creativity, events[i]));
+                }
+            }
+
+            return sections;
+        }
+
+        private Entity GenerateRandomSubject()
+        {
+            var random = new Random();
+            List<Entity> subjects = new List<Entity>();
+
+            subjects.AddRange(Game1.GameWorld.AllArchitects);
+            subjects.AddRange(Game1.GameWorld.AllLocations);
+            subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures));
+            subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
+
+            return subjects[random.Next(subjects.Count)];
+        }
+
+        private List<string> GetEventsForSubject(Entity subject)
+        {
+            string subjectName = subject.ReferredToNames[0];
+
+            var events = Game1.GameWorld.HistoricalEvents
+                .Where(e => e.Contains(subjectName))
+                .Select(e =>
+                {
+                    // Extract the year and day from the event string
+                    int yearStart = e.IndexOf("(") + 1;
+                    int yearEnd = e.IndexOf(")", yearStart);
+                    string yearAndDay = e.Substring(yearStart, yearEnd - yearStart);
+
+                    // Extract the event description after the year and day part
+                    int descriptionStart = e.IndexOf(") ") + 2;
+                    string processedEvent = e.Substring(descriptionStart);
+
+                    return $"In {yearAndDay}, {processedEvent}";
+                })
+                .ToList();
+
+            return events;
+        }
+
     }
 
     [Serializable]
@@ -152,71 +296,140 @@ namespace Lightrealm
         public string Tone;
         public int Quality;
         public string Type;
-        public Composition Parent;  // Assuming this is properly initialized elsewhere
+        public string Description;
+        public Composition Parent;
 
-        public Section(string compositionType, Composition parent, int QualityMod)
+        public Section(string compositionType, Composition parent, int QualityMod, string sectionType = "none")
         {
             this.Parent = parent;
 
             this.Quality = Game1.r.Next(0, 8) + QualityMod;
 
-            // Expanded list of tones
             List<string> tones = new List<string>
             {
-                "Passionate", "Depressed", "Indignant", "Joyful", "Sombre", "Optimistic", "Angry",
-                "Serene", "Excited", "Pensive", "Skeptical", "Amused", "Anxious", "Hopeful"
+                "passionate", "depressed", "indignant", "joyful", "sombre", "optimistic", "angry",
+                "serene", "excited", "pensive", "skeptical", "amused", "anxious", "hopeful"
             };
 
-            // Expanded list of perspectives
             List<string> perspectives = new List<string>
             {
-                "Admiration", "Criticism", "Neutral", "Nostalgia", "Skepticism", "Affection",
-                "Disdain", "Curiosity", "Enthusiasm", "Contempt"
+                "admirable", "criticizing", "neutral", "nostalgic", "skeptical", "affectionate",
+                "disdainful", "curious", "enthusiastic", "contemptuous"
             };
 
             this.Tone = tones[Game1.r.Next(tones.Count)];
             this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };
-
-            // Initialize the Domains with the new domain generation method
             this.Domains = GenerateDomains();
 
-            // Set Length and Type based on the composition type
-            if (compositionType == "song")
+            this.Type = sectionType;
+
+            if (compositionType == "song" && sectionType == "none")
             {
-                this.Length = Game1.r.Next(1, 5);  // Lines in a verse
                 this.Type = new List<string> { "verse", "chorus", "bridge" }[Game1.r.Next(3)];
             }
             else if (compositionType == "poem")
             {
-                this.Length = Game1.r.Next(4, 10);  // Syllables in a line
-                this.Type = "none";
+                this.Length = Game1.r.Next(4, 10);
+                this.Type = "Stanza";
             }
             else if (compositionType == "book")
             {
-                this.Length = Game1.r.Next(5, 50);  // Pages in a chapter
-                this.Type = "none";
+                this.Length = Game1.r.Next(5, 50);
+                this.Type = "Chapter";
             }
+
+            GenerateDescription();
+        }
+
+        public Section(string compositionType, Composition parent, int QualityMod, string eventDescription, string sectionType = "none")
+        {
+            this.Parent = parent;
+
+            this.Quality = Game1.r.Next(0, 8) + QualityMod;
+
+            List<string> tones = new List<string>
+            {
+                "passionate", "depressed", "indignant", "joyful", "sombre", "optimistic", "angry",
+                "serene", "excited", "pensive", "skeptical", "amused", "anxious", "hopeful"
+            };
+
+            List<string> perspectives = new List<string>
+            {
+                "admirable", "criticizing", "neutral", "nostalgic", "skeptical", "affectionate",
+                "disdainful", "curious", "enthusiastic", "contemptuous"
+            };
+
+            this.Tone = tones[Game1.r.Next(tones.Count)];
+            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };
+            this.Domains = new List<string> { Parent.Subject.ReferredToNames[0] };
+
+            this.Type = sectionType;
+
+            if (compositionType == "song" && sectionType == "none")
+            {
+                this.Type = new List<string> { "verse", "chorus", "bridge" }[Game1.r.Next(3)];
+            }
+            else if (compositionType == "poem")
+            {
+                this.Length = Game1.r.Next(4, 10);
+                this.Type = "Stanza";
+            }
+            else if (compositionType == "book")
+            {
+                this.Length = Game1.r.Next(5, 50);
+                this.Type = "Chapter";
+            }
+
+            GenerateDescription(eventDescription);
+        }
+
+        private void GenerateDescription()
+        {
+            List<string> formats = new List<string>
+            {
+                $"In this {Type}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
+                $"This {Type} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, this {Type} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
+                $"This {Type} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
+                $"The {Tone} tone of this {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
+            };
+
+            string format = formats[Game1.r.Next(formats.Count)];
+            Description = format;
+        }
+
+        private void GenerateDescription(string eventDescription)
+        {
+            List<string> formats = new List<string>
+            {
+                $"In this {Type}, the {Tone} tone is evident as it recounts when {eventDescription}, from a {Game1.FormatList(Perspectives)} perspective.",
+                $"This {Type} delves into when {eventDescription} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, this {Type} covers when {eventDescription} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
+                $"This {Type} sets a {Tone} mood while discussing when {eventDescription} through a {Game1.FormatList(Perspectives)} lens.",
+                $"The {Tone} tone of this {Type} illuminates when {eventDescription}, viewed from a {Game1.FormatList(Perspectives)} angle."
+            };
+
+            string format = formats[Game1.r.Next(formats.Count)];
+            Description = format;
         }
 
         private List<string> GenerateDomains()
         {
             List<string> generatedDomains = new List<string>();
 
-            // 80% chance to add the primary domain
             if (Game1.r.NextDouble() < 0.8)
             {
-                generatedDomains.Add(this.Parent.PrimaryDomain);
+                generatedDomains.Add(this.Parent.Subject.ReferredToNames[0]);
             }
 
-            // Additional domains with diminishing returns
-            double chanceToAddAdditionalDomain = 0.5;  // Start with 50% chance for the first additional domain
+            double chanceToAddAdditionalDomain = 0.5;
             while (Game1.r.NextDouble() < chanceToAddAdditionalDomain)
             {
                 string potentialDomain = Game1.Domains[Game1.r.Next(Game1.Domains.Count)];
-                if (!generatedDomains.Contains(potentialDomain))  // Ensure no duplicates
+                if (!generatedDomains.Contains(potentialDomain))
                 {
                     generatedDomains.Add(potentialDomain);
-                    chanceToAddAdditionalDomain *= 0.5;  // Diminish the chance by half for the next potential domain
+                    chanceToAddAdditionalDomain *= 0.5;
                 }
             }
 

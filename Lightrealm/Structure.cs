@@ -16,7 +16,7 @@ namespace Lightrealm
         public string GUID { get; set; }
         public Entity Owner { get; set; } = null;
 
-        public string FakePhotonexusColor;
+        public string FakeIsofractalColor;
 
         public List<Room> Rooms { get; set; } = new List<Room>();
 
@@ -44,11 +44,11 @@ namespace Lightrealm
 
             if(type != "core")
             {
-                FakePhotonexusColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+                FakeIsofractalColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
             }
             else
             {
-                FakePhotonexusColor = "white";
+                FakeIsofractalColor = "white";
             }
 
             GUID = Guid.NewGuid().ToString();

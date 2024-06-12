@@ -14,9 +14,7 @@ namespace Lightrealm.Diagnostics
         private int calls;
         private TimeSpan elapsed;
 
-
         public Vector2 Location = new Vector2(0, 50);
-        public SpriteFont font;
 
         public Keys Key { get; set; }
         public bool RenderFps { get; set; }

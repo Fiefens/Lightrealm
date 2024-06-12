@@ -109,7 +109,7 @@ namespace Lightrealm
                 o.Room = this; o.Block = this.Structure.Block;
                 Objects.Add(o);
             }
-            
+
             if (Structure.Type == "spire")
             {
                 Material m = Structure.Block.District.Location.PrimaryRace == Game1.GameWorld.GetRace("nightfell") ? Game1.GameWorld.Darkstone : Game1.GameWorld.Illuminite;
@@ -147,14 +147,60 @@ namespace Lightrealm
                     Structure.Rooms[Position - 1].Objects.Add(upStaircase);
                 }
 
-                if(Position == Structure.Rooms.Count - 1)
+                if (Position == Structure.Rooms.Count - 1)
                 {
                     Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("magictreasure78"));
                 }
 
-                if(Game1.r.Next(1,4) == 1)
+                if (Game1.r.Next(1, 4) == 1)
                 {
                     Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("general"));
+                }
+            }
+            else if (Structure.Type == "tower")
+            {
+                if (Structure.Type == "spire")
+                {
+                    Material m = Game1.GameWorld.Stones[Game1.r.Next(Game1.GameWorld.Stones.Count)];
+                    int Position = Structure.Rooms.IndexOf(this);
+
+                    // Add exit door if it's the first room
+                    if (Position == 0)
+                        AddObject("exit door", m);
+
+                    // Add random number of bookcases
+                    for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                        AddObject("bookcase", m);
+
+                    // Add random number of tables
+                    for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                        AddObject("table", m);
+
+                    // Add random number of chairs
+                    for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                        AddObject("chair", m);
+
+                    // Add doors to connect with other rooms, if applicable
+                    if (Position != 0)
+                    {
+                        // Logic to create and add doors to connect this room with the previous room
+                        // For example, downward and upward spiral staircases as doors
+                        Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "downward spiral staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(downStaircase);
+
+                        Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "upward spiral staircase", new List<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
+                        Structure.Rooms[Position - 1].Objects.Add(upStaircase);
+                    }
+
+                    if (Position == Structure.Rooms.Count - 1)
+                    {
+                        Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("magictreasure56"));
+                    }
+
+                    if (Game1.r.Next(1, 3) == 1)
+                    {
+                        Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("general"));
+                    }
                 }
             }
 
@@ -292,36 +338,57 @@ namespace Lightrealm
                     // Add entrance door
                     AddObject("exit door", m);
 
-                    // Add staircase up to the central room
-                    Door staircaseUp = new Door(this, Structure.Rooms[Position + 1], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(staircaseUp);
+                    // Add staircase up to the central room, if it exists
+                    if (Position + 1 < Structure.Rooms.Count)
+                    {
+                        Door staircaseUp = new Door(this, Structure.Rooms[Position + 1], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(staircaseUp);
+                    }
                 }
                 // Central room
                 else if (Position == 1)
                 {
-                    // Doors to north, east, south, and west rooms
-                    Door northDoor = new Door(this, Structure.Rooms[Position + 1], "north", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door eastDoor = new Door(this, Structure.Rooms[Position + 2], "east", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                     Door southDoor = new Door(this, Structure.Rooms[Position + 3], "south", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Door westDoor = new Door(this, Structure.Rooms[Position + 4], "west", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(northDoor);
-                    Objects.Add(eastDoor);
-                    Objects.Add(southDoor);
-                    Objects.Add(westDoor);
+                    // Doors to north, east, south, and west rooms, if they exist
+                    if (Position + 1 < Structure.Rooms.Count)
+                    {
+                        Door northDoor = new Door(this, Structure.Rooms[Position + 1], "north", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(northDoor);
+                    }
+                    if (Position + 2 < Structure.Rooms.Count)
+                    {
+                        Door eastDoor = new Door(this, Structure.Rooms[Position + 2], "east", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(eastDoor);
+                    }
+                    if (Position + 3 < Structure.Rooms.Count)
+                    {
+                        Door southDoor = new Door(this, Structure.Rooms[Position + 3], "south", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(southDoor);
+                    }
+                    if (Position + 4 < Structure.Rooms.Count)
+                    {
+                        Door westDoor = new Door(this, Structure.Rooms[Position + 4], "west", null, "door", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(westDoor);
+                    }
                 }
                 // North, East, South, and West rooms
                 else if (Position >= 2 && Position <= 5)
                 {
-                    // Add staircase up to the room directly above
-                    Door staircaseUp = new Door(this, Structure.Rooms[Position + 4], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(staircaseUp);
+                    // Add staircase up to the room directly above, if it exists
+                    if (Position + 4 < Structure.Rooms.Count)
+                    {
+                        Door staircaseUp = new Door(this, Structure.Rooms[Position + 4], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(staircaseUp);
+                    }
                 }
                 // Remaining rooms stacked on top of the upper center room
                 else
                 {
-                    // Add staircase up to the next room
-                    Door staircaseUp = new Door(this, Structure.Rooms[Position + 1], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(staircaseUp);
+                    // Add staircase up to the next room, if it exists
+                    if (Position + 1 < Structure.Rooms.Count)
+                    {
+                        Door staircaseUp = new Door(this, Structure.Rooms[Position + 1], "up", null, "staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Objects.Add(staircaseUp);
+                    }
                 }
 
                 // Add staircase down from previous room, except for the entrance room
@@ -331,6 +398,7 @@ namespace Lightrealm
                     Structure.Rooms[Position - 1].Objects.Add(staircaseDown);
                 }
             }
+
             else if (Structure.Type == "core" || Structure.Type == "heart")
             {
                 Material m;
@@ -1394,6 +1462,17 @@ namespace Lightrealm
             }
             else if (Structure.Type == "outpost")
             {
+
+                // Add common loot to each room
+                Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
+
+                // Add a small chance for magical loot in some rooms
+
+                if (Game1.r.Next(1, 6) == 1)
+                {
+                    Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
+                }
+
                 List<string> Roomtypes = new List<string>()
 {
     "armory",
@@ -2034,27 +2113,27 @@ namespace Lightrealm
                 }
 
                 // Add military equipment
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.r.Next(1, 5) == 1)
                 {
                     AddObject("shortsword", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.r.Next(1, 5) == 1)
                 {
                     AddObject("shield", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.r.Next(1, 5) == 1)
                 {
                     AddObject("helmet", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.r.Next(1, 5) == 1)
                 {
                     AddObject("chestplate", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.r.Next(1, 5) == 1)
                 {
                     AddObject("leggings", m);
                 }

@@ -28,9 +28,17 @@ namespace Lightrealm
                     {
                         return new List<string> { Game1.FormatMaterialList(((Object)this).Materials) + " " + ((Object)this).Type };
                     }
-                    else
+                    else if (Name != null)
                     {
                         return new List<string> { Name };
+                    }
+                    else if (Metadata != null)
+                    {
+                        return new List<string> { Metadata };
+                    }
+                    else
+                    {
+                        return new List<string>();
                     }
                 }
                 return _referredToNames;

@@ -11,6 +11,9 @@
 		<ApplicationManifest>app1.manifest</ApplicationManifest>
 	</PropertyGroup>
 	<ItemGroup>
+		<None Update="Content\data\recipes.txt">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="Content\vosk-model-en-us-0.22\am\final.mdl">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>

@@ -500,6 +500,7 @@ namespace Lightrealm
 
 
         public Block BlockLastCycle = null;
+        public Room RoomLastCycle = null;
 
         public int BarrierStacks = 0;
 
@@ -1057,7 +1058,7 @@ namespace Lightrealm
         public int WetCycles { get; set; } = 0;
         public int BlindCycles { get; set; } = 0;
         public int DestabilizedCycles { get; set; } = 0;
-        public int ConcussionCycles { get; set; } = 0;
+        public int UnconsciousCycles { get; set; } = 0;
         public int RadiantCycles { get; set; } = 0;
         public int CloakCycles { get; set; } = 0;
         public int FractalCycles = 0;
@@ -1293,40 +1294,6 @@ namespace Lightrealm
             return (0);
         }
 
-        public void UpdateChildrenLocationsOnDeath()
-        {
-            if (this.IsCalamity)
-            {
-                // Iterate through all Architects in the Calamity list
-                foreach (Architect a in Game1.GameWorld.Calamity)
-                {
-                    // Check if the current Architect is a direct subordinate of this
-                    if (a.Master == this)
-                    {
-                        // Update the location of all direct and indirect subordinates
-                        UpdateSubordinatesMigrationLocation(a, this.Master);
-                    }
-                }
-            }
-        }
-
-        // Recursive function to update the migration location for all subordinates
-        private void UpdateSubordinatesMigrationLocation(Architect architect, Architect newMaster)
-        {
-            // Set the migration location to the new master's location
-            architect.NextMigrationLocation = newMaster.Location;
-
-            // Recursively update for all direct subordinates
-            foreach (Architect a in Game1.GameWorld.Calamity)
-            {
-                if (a.Master == architect)
-                {
-                    UpdateSubordinatesMigrationLocation(a, architect);
-                }
-            }
-        }
-
-
 
 
         public void KitOutArchitect(string Type)
@@ -1353,7 +1320,7 @@ namespace Lightrealm
                 int chanceToGetArmor = baseChance + (powerLevel * chancePerPowerLevel);
 
                 // Create a weapon
-                Material weaponMaterial = Location.HomeCivilization.CulturalMetal;
+                Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
                 Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
 
@@ -1369,7 +1336,7 @@ namespace Lightrealm
 
                 // List of possible armor types to create
                 List<string> armorTypes = new List<string> { "helmet", "chestplate", "gauntlet", "leggings", "boot" };
-                Material armorMaterial = Location.HomeCivilization.CulturalMetal; // Material for the armor
+                Material armorMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, powerLevel * 2); // Material for the armor
 
                 // Random chance generator
                 Random r = new Random();
@@ -1592,7 +1559,7 @@ namespace Lightrealm
                 for (int i = 0; i < numberOfWeapons; i++)
                 {
                     string weaponType = possibleWeapons[Game1.r.Next(possibleWeapons.Count)];
-                    Material weaponMaterial = Location.HomeCivilization.CulturalMetal; // Assuming all weapons are made of the civilization's cultural metal
+                    Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2); ; // Assuming all weapons are made of the civilization's cultural metal
                     Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
 
                     // For the first weapon, assign it to the right hand if right-handed, otherwise add to inventory
@@ -1678,7 +1645,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "spy")
             {
                 // A dagger for close, silent attacks or utility
-                Material daggerMaterial = Location.HomeCivilization.CulturalMetal;
+                Material daggerMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object dagger = new Object(null, "dagger", new List<Material>() { daggerMaterial }, null);
                 RightHandObject = dagger;
 
@@ -1691,7 +1658,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "artificer")
             {
                 // Equipping with a multi-tool device
-                Material toolMaterial = Location.HomeCivilization.CulturalMetal;
+                Material toolMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
@@ -1706,7 +1673,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "archartificer")
             {
                 // Equipping with a multi-tool device
-                Material toolMaterial = Location.HomeCivilization.CulturalMetal;
+                Material toolMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
@@ -1732,7 +1699,7 @@ namespace Lightrealm
                 Agility = 12; // Assuming modification of stats is permissible here for emphasis
 
                 // Equipping with a masterfully crafted rapier or sword
-                Material weaponMaterial = Location.HomeCivilization.CulturalMetal;
+                Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object weapon = new Object(null, "rapier", new List<Material>() { weaponMaterial }, null);
                 weapon.Rarity = "epic";
                 weapon.ApplyImbuements(3); // For superior finesse and damage
@@ -1792,7 +1759,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "diplomancer")
             {
                 // Bearing a medallion that signifies their diplomatic status
-                Material medallionMaterial = Location.HomeCivilization.CulturalMetal;
+                Material medallionMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object medallion = new Object(null, "amulet", new List<Material>() { medallionMaterial }, null);
                 medallion.Rarity = "uncommon";
                 Inventory.Add(medallion);
@@ -1827,7 +1794,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "hunter")
             {
                 // Equipped with a knife for skinning and close combat
-                Material knifeMaterial = Location.HomeCivilization.CulturalMetal;
+                Material knifeMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object knife = new Object(null, "knife", new List<Material>() { knifeMaterial }, null);
                 knife.Rarity = "common";
                 Inventory.Add(knife);
@@ -1842,13 +1809,13 @@ namespace Lightrealm
             else if (Type.ToLower() == "knight")
             {
                 // Equipped with a sword, the knight's primary weapon
-                Material swordMaterial = Location.HomeCivilization.CulturalMetal;
+                Material swordMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object sword = new Object(null, "shortsword", new List<Material>() { swordMaterial }, null);
                 sword.Rarity = "common";
                 RightHandObject = sword;
 
                 // Wearing a full set of armor for protection
-                Material armorMaterial = Location.HomeCivilization.CulturalMetal;
+                Material armorMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 List<string> armorPieces = new List<string> { "helmet", "chestplate", "left gauntlet", "right gauntlet", "leggings" };
                 foreach (var piece in armorPieces)
                 {
@@ -1875,7 +1842,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "mercenary")
             {
                 // Equipped with a versatile weapon, such as a sword or axe
-                Material weaponMaterial = Location.HomeCivilization.CulturalMetal;
+                Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object weapon = new Object(null, "shortsword", new List<Material>() { weaponMaterial }, null); // "shortsword" can be replaced with "axe" or another weapon based on preference
                 weapon.Rarity = "common";
                 RightHandObject = weapon;
@@ -1913,7 +1880,7 @@ namespace Lightrealm
             else if (Type.ToLower() == "scout")
             {
                 // Carrying a short sword or dagger for self-defense
-                Material weaponMaterial = Location.HomeCivilization.CulturalMetal;
+                Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object weapon = new Object(null, "dagger", new List<Material>() { weaponMaterial }, null);
                 weapon.Rarity = "common";
                 RightHandObject = weapon;
@@ -1951,14 +1918,14 @@ namespace Lightrealm
             else if (Type.ToLower() == "thief")
             {
                 // Equipping with a multi-tool device
-                Material toolMaterial = Location.HomeCivilization.CulturalMetal;
+                Material toolMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
                 RightHandObject = multiTool;
 
                 // Equipped with a small dagger for self-defense and utility
-                Material daggerMaterial = Location.HomeCivilization.CulturalMetal;
+                Material daggerMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object dagger = new Object(null, "dagger", new List<Material>() { daggerMaterial }, null);
                 dagger.Rarity = "common";
                 RightHandObject = dagger;
@@ -2027,17 +1994,6 @@ namespace Lightrealm
 
                 }
 
-                Location L;
-
-                if(Location != null)
-                {
-                    L = Location;
-                }
-                else if (Game1.GameWorld.AllLocations.Count > 0)
-                {
-                    L = Game1.GameWorld.AllLocations[Game1.r.Next(Game1.GameWorld.AllLocations.Count)];
-                }
-
                 if (Location != null)
                 {
                     AddCulturalClothing(Location.HomeCivilization.CulturalHeadwear, Location.HomeCivilization.CulturalCloth);
@@ -2046,6 +2002,20 @@ namespace Lightrealm
                     AddCulturalClothing(Location.HomeCivilization.CulturalLegwear, Location.HomeCivilization.CulturalCloth);
                     AddCulturalClothing(Location.HomeCivilization.CulturalHandwear, Location.HomeCivilization.CulturalCloth);
                     AddCulturalClothing(Location.HomeCivilization.CulturalFootwear, Location.HomeCivilization.CulturalCloth);
+                }
+                else
+                {
+                    Location L = Game1.GameWorld.AllLocations.Where(location => location.HomeCivilization != null).OrderBy(x => Guid.NewGuid()).FirstOrDefault();
+
+                    if (L != null)
+                    {
+                        AddCulturalClothing(L.HomeCivilization.CulturalHeadwear, L.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(L.HomeCivilization.CulturalNeckwear, L.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(L.HomeCivilization.CulturalBodywear, L.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(L.HomeCivilization.CulturalLegwear, L.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(L.HomeCivilization.CulturalHandwear, L.HomeCivilization.CulturalCloth);
+                        AddCulturalClothing(L.HomeCivilization.CulturalFootwear, L.HomeCivilization.CulturalCloth);
+                    }
                 }
 
                 // Define a list of general clothing items that can be added
@@ -2497,6 +2467,40 @@ namespace Lightrealm
 
 
 
+        public void UpdateChildrenLocationsOnOneChildDeath()
+        {
+            if (this.IsCalamity)
+            {
+                // Iterate through all Architects in the Calamity list
+                foreach (Architect a in Game1.GameWorld.Calamity)
+                {
+                    // Check if the current Architect is a direct subordinate of this
+                    if (a.Master == this && a.IsAlive)
+                    {
+                        // Update the location of all direct and indirect subordinates
+                        UpdateSubordinatesMigrationLocation(a, this);
+                    }
+                }
+            }
+        }
+
+        // Recursive function to update the migration location for all subordinates
+        public void UpdateSubordinatesMigrationLocation(Architect architect, Architect newMaster)
+        {
+            // Set the migration location to the new master's location
+            architect.NextMigrationLocation = newMaster.Location;
+
+            // Recursively update for all direct subordinates
+            foreach (Architect a in Game1.GameWorld.Calamity)
+            {
+                if (a.Master == architect)
+                {
+                    UpdateSubordinatesMigrationLocation(a, newMaster);
+                }
+            }
+        }
+
+
 
 
 
@@ -2582,6 +2586,24 @@ namespace Lightrealm
             }
 
 
+
+            if(Pain > 100)
+            {
+                this.UnconsciousCycles = 500;
+
+                this.Pain = 50;
+
+                AnnounceToParty(this.ReferredToNames[0] + " goes unconscious in pain.", Color.DarkRed, new List<Entity>() { this });
+            }
+            else if (Game1.r.Next(1,1000) < (Pain - Focus*10))
+            {
+                AnnounceToParty(this.ReferredToNames[0] + " falters in pain!", Color.DarkRed, new List<Entity>() { this });
+                CooldownCycles += 5;
+            }
+
+            Pain -= 1;
+
+
             if (!BroadcastedDeathMessage && IsAlive == false && DeathCause != "")
             {
                 int Month = ((int)Math.Round((decimal)(Location.Region.World.Cycle / 24192000)) % 12) + 1;
@@ -2663,6 +2685,7 @@ namespace Lightrealm
                         AnnounceToParty(this.Name + " has fallen. ", Color.PaleGoldenrod, new List<Entity>() { this });
                         if (Master != null)
                         {
+                            
                             switch (new Random().Next(1, 6)) // Randomly selects one of the messages
                             {
                                 case 1:
@@ -2690,10 +2713,11 @@ namespace Lightrealm
                                 if (a.District == District)
                                 {
                                     a.Intrigue.Add((Name + " said something about " + Master.Name + ".", Master));
+                                    a.Intrigue.Add(("Perhaps someone can tell me more.", Master));
                                 }
                             }
 
-                            Master.UpdateChildrenLocationsOnDeath();
+                            Master.UpdateChildrenLocationsOnOneChildDeath();
                         }
                         else if (this == Game1.GameWorld.Calamity[0])
                         {
@@ -3224,9 +3248,9 @@ namespace Lightrealm
             {
                 DestabilizedCycles--;
             }
-            if (ConcussionCycles > 0)
+            if (UnconsciousCycles > 0)
             {
-                ConcussionCycles--;
+                UnconsciousCycles--;
             }
             if (RadiantCycles > 0)
             {
@@ -3265,10 +3289,210 @@ namespace Lightrealm
             IEnumerable<Architect> architects = (Room == null) ? Block.Architects : Room.Architects;
 
 
+            if((IsAlive && !Game1.GamePlayerParty.Architects.Contains(this) && UnconsciousCycles == 0 && HoldCycles == 0))
+            {
+                // Clamp function to ensure a value stays within a specified range
+                int Clamp(int value, int min, int max)
+                {
+                    return Math.Max(min, Math.Min(max, value));
+                }
+
+                // Respond to messages
+                foreach (Message m in MessagesNotRespondedTo)
+                {
+                    if (messageDatabase.ContainsKey(m.MessageContent))
+                    {
+                        // Message has been seen before, respond with the same response
+                        AnnounceToParty(ReferredToNames[0] + ": " + responseDatabase[m.MessageContent], new Color(0, 255, 0), new List<Entity> { this }.Union(m.Subjects).ToList());
+                        continue;
+                    }
+
+                    if (CombatCycles > 0)
+                    {
+                        AnnounceToParty(ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { this });
+                        continue;
+                    }
+
+                    // Apply the same conditions as for sending messages
+                    bool canReceiveMessage = true;
+
+                    // Condition for receiver
+                    if (this.PathOfLifeLevel < 4 &&
+                        (!Game1.GameWorld.HumanoidRaces.Contains(m.Sender.Race) &&
+                         !Game1.GameWorld.ExtraRaces.Contains(m.Sender.Race)))
+                    {
+                        canReceiveMessage = false;
+                    }
+
+                    // Condition for sender
+                    if (Game1.GameWorld.ExtraRaces.Contains(m.Sender.Race) && this.PathOfLifeLevel < 2)
+                    {
+                        canReceiveMessage = false;
+                    }
+
+                    if (!canReceiveMessage)
+                    {
+                        // Respond with the IgnorantResponse if conditions are not met
+                        AnnounceToParty(ReferredToNames[0] + ": " + m.IgnorantResponse, new Color(255, 0, 0), new List<Entity>() { this });
+                        Game1.MessageWorldEdit(m.Sender, this, m.MessageType, m.Subjects, m.IgnorantResponse, m.StoredRevealLocations);
+                        continue;
+                    }
+
+                    int senderOpinion = GetOpinion(m.Sender);
+                    int baseChanceToTruth = 50;
+                    int baseChanceToMakeUp = 30;
+                    int baseChanceToClaimIgnorance = 10;
+                    int baseChanceToDerail = 5;
+                    int baseChanceToFlatter = 5;
+
+                    if (m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender) || m.MessageContent.StartsWith("Would you tell me where I can find"))
+                    {
+                        // Always respond truthfully if the sender is in ArchitectsIWillTellTruthTo or if its a Request for Directions
+                        baseChanceToTruth = 100;
+                        baseChanceToMakeUp = 0;
+                        baseChanceToClaimIgnorance = 0;
+                        baseChanceToDerail = 0;
+                        baseChanceToFlatter = 0;
+                    }
+                    else
+                    {
+                        if (senderOpinion > 50)
+                        {
+                            baseChanceToTruth += (senderOpinion - 50) / 2;
+                            baseChanceToMakeUp -= (senderOpinion - 50) / 4;
+                            baseChanceToClaimIgnorance -= (senderOpinion - 50) / 8;
+                        }
+                        else if (senderOpinion < -50)
+                        {
+                            baseChanceToTruth -= (-senderOpinion - 50) / 2;
+                            baseChanceToMakeUp += (-senderOpinion - 50) / 4;
+                            baseChanceToClaimIgnorance += (-senderOpinion - 50) / 8;
+                        }
+                        else if (senderOpinion == 0)
+                        {
+                            baseChanceToMakeUp = 5; // Adjust the chance to make up a lie to 5% when the opinion is 0
+                        }
+
+                        int focus = m.Receiver.Focus;
+                        int charisma = m.Receiver.Charisma;
+
+                        baseChanceToDerail -= (7 - focus) * 2;
+                        baseChanceToFlatter += charisma;
+
+                        baseChanceToTruth = Clamp(baseChanceToTruth, 0, 100);
+                        baseChanceToMakeUp = Clamp(baseChanceToMakeUp, 0, 100);
+                        baseChanceToClaimIgnorance = Clamp(baseChanceToClaimIgnorance, 0, 100);
+                        baseChanceToDerail = Clamp(baseChanceToDerail, 0, 100);
+                        baseChanceToFlatter = Clamp(baseChanceToFlatter, 0, 100);
+                    }
+
+                    // Specific conditions based on message content
+                    bool conditionMet = true;
+                    switch (m.MessageContent)
+                    {
+                        case "ask_them_join":
+                            if (m.Receiver.Group != null)
+                            {
+                                conditionMet = false;
+                                baseChanceToTruth = 0;
+                                baseChanceToClaimIgnorance = 100;
+                            }
+                            break;
+
+                        case "demand_item":
+                            var demandedItem = m.Subjects[0] as Object;
+                            if (demandedItem == null ||
+                                (!m.Receiver.Inventory.Contains(demandedItem) &&
+                                 !m.Receiver.Clothing.Contains(demandedItem) &&
+                                 m.Receiver.LeftHandObject != demandedItem &&
+                                 m.Receiver.RightHandObject != demandedItem))
+                            {
+                                conditionMet = false;
+                                baseChanceToTruth = 0;
+                                baseChanceToClaimIgnorance = 100;
+                            }
+                            else if (m.Receiver.ArchitectsWhoSurrenderedToMe != null && m.Receiver.ArchitectsWhoSurrenderedToMe.Contains(m.Sender))
+                            {
+                                baseChanceToClaimIgnorance = 0;
+                                baseChanceToTruth = 100;
+                            }
+                            break;
+
+                        case "ask_ruler":
+                            if (m.Sender.Location.Government == null)
+                            {
+                                conditionMet = false;
+                                baseChanceToTruth = 0;
+                                baseChanceToClaimIgnorance = 100;
+                            }
+                            break;
+
+                        case "ask_trade":
+                            var nearestMarket = m.Sender.Block.FindNearestThing("market");
+                            if (nearestMarket.Item2 != m.Receiver.Location)
+                            {
+                                conditionMet = false;
+                                baseChanceToTruth = 0;
+                                baseChanceToClaimIgnorance = 100;
+                            }
+                            break;
+
+                        default:
+                            // Other specific conditions can be added here
+                            break;
+                    }
+
+                    if (!conditionMet)
+                    {
+                        // Respond with the IgnorantResponse if conditions are not met
+                        AnnounceToParty(ReferredToNames[0] + ": " + m.IgnorantResponse, new Color(255, 0, 0), new List<Entity>() { this });
+                        Game1.MessageWorldEdit(m.Sender, this, m.MessageType, m.Subjects, m.IgnorantResponse, m.StoredRevealLocations);
+                        continue;
+                    }
+
+                    int randomNumber = Game1.r.Next(1, 101);
+                    string response;
+                    Color ResponseColor = Game1.GamePlayerParty.Architects.Contains(m.Sender) ? new Color(0, 255, 0) : new Color(0, 75, 0);
+
+                    if (randomNumber <= baseChanceToTruth)
+                    {
+                        response = m.PositiveResponse;
+                    }
+                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp)
+                    {
+                        response = m.DirectRefusalResponse;
+                    }
+                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance)
+                    {
+                        response = m.IgnorantResponse;
+                    }
+                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance + baseChanceToDerail)
+                    {
+                        response = m.DerailingResponse;
+                    }
+                    else
+                    {
+                        response = m.FlatteringResponse;
+                    }
+
+                    AnnounceToParty(ReferredToNames[0] + ": " + response, ResponseColor, new List<Entity> { this }.Union(m.Subjects).ToList());
+
+                    // Store the message and response
+                    messageDatabase[m.MessageContent] = m.Subjects;
+                    responseDatabase[m.MessageContent] = response;
+
+                    Game1.MessageWorldEdit(m.Sender, m.Receiver, m.MessageContent, m.Subjects, response, m.StoredRevealLocations);
+
+                    CooldownCycles += (int)Math.Round(30 / Speed());
+                }
+
+
+                MessagesNotRespondedTo.Clear();
+            }
 
             //actions
 
-            if (IsAlive && CooldownCycles == 0 && !Game1.GamePlayerParty.Architects.Contains(this) && ConcussionCycles == 0 && HoldCycles == 0 && Race != Game1.GameWorld.GetRace("moari"))
+            if (IsAlive && CooldownCycles == 0 && !Game1.GamePlayerParty.Architects.Contains(this) && UnconsciousCycles == 0 && HoldCycles == 0 && Race != Game1.GameWorld.GetRace("moari"))
             {
                 //opinions
 
@@ -3361,199 +3585,6 @@ namespace Lightrealm
                     AnnounceToParty(ReferredToNames[0] + " gets back up.", Color.Cyan, new List<Entity>() { this });
                 }
 
-
-                //respond to messages
-                foreach (Message m in MessagesNotRespondedTo)
-                {
-                    if (messageDatabase.ContainsKey(m.MessageContent))
-                    {
-                        // Message has been seen before, respond with the same response
-                        AnnounceToParty(ReferredToNames[0] + ": " + responseDatabase[m.MessageContent], new Color(0, 255, 0), new List<Entity> { this }.Union(m.Subjects).ToList());
-                        continue;
-                    }
-
-                    if (CombatCycles > 0)
-                    {
-                        AnnounceToParty(ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { this });
-                        continue;
-                    }
-
-                    // Apply the same conditions as for sending messages
-                    bool canReceiveMessage = true;
-
-                    // Condition for receiver
-                    if (this.PathOfLifeLevel < 4 &&
-                        (!Game1.GameWorld.HumanoidRaces.Contains(m.Sender.Race) &&
-                         !Game1.GameWorld.ExtraRaces.Contains(m.Sender.Race)))
-                    {
-                        canReceiveMessage = false;
-                    }
-
-                    // Condition for sender
-                    if (Game1.GameWorld.ExtraRaces.Contains(m.Sender.Race) && this.PathOfLifeLevel < 2)
-                    {
-                        canReceiveMessage = false;
-                    }
-
-                    if (!canReceiveMessage)
-                    {
-                        // Respond with the IgnorantResponse if conditions are not met
-                        AnnounceToParty(ReferredToNames[0] + ": " + m.IgnorantResponse, new Color(255, 0, 0), new List<Entity>() { this });
-                        Game1.MessageWorldEdit(m.Sender, this, m.MessageType, m.Subjects, m.IgnorantResponse);
-                        continue;
-                    }
-
-                    int senderOpinion = GetOpinion(m.Sender);
-                    int baseChanceToTruth = 50;
-                    int baseChanceToMakeUp = 30;
-                    int baseChanceToClaimIgnorance = 10;
-                    int baseChanceToDerail = 5;
-                    int baseChanceToFlatter = 5;
-
-                    if (m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender) || m.MessageContent.StartsWith("Would you tell me where I can find"))
-                    {
-                        // Always respond truthfully if the sender is in ArchitectsIWillTellTruthTo or if its a Request for Directions
-                        baseChanceToTruth = 100;
-                        baseChanceToMakeUp = 0;
-                        baseChanceToClaimIgnorance = 0;
-                        baseChanceToDerail = 0;
-                        baseChanceToFlatter = 0;
-                    }
-                    else
-                    {
-                        if (senderOpinion > 50)
-                        {
-                            baseChanceToTruth += (senderOpinion - 50) / 2;
-                            baseChanceToMakeUp -= (senderOpinion - 50) / 4;
-                            baseChanceToClaimIgnorance -= (senderOpinion - 50) / 8;
-                        }
-                        else if (senderOpinion < -50)
-                        {
-                            baseChanceToTruth -= (-senderOpinion - 50) / 2;
-                            baseChanceToMakeUp += (-senderOpinion - 50) / 4;
-                            baseChanceToClaimIgnorance += (-senderOpinion - 50) / 8;
-                        }
-
-                        int focus = m.Receiver.Focus;
-                        int charisma = m.Receiver.Charisma;
-
-                        baseChanceToDerail -= (7 - focus) * 2;
-                        baseChanceToFlatter += charisma;
-
-                        baseChanceToTruth = Clamp(baseChanceToTruth, 0, 100);
-                        baseChanceToMakeUp = Clamp(baseChanceToMakeUp, 0, 100);
-                        baseChanceToClaimIgnorance = Clamp(baseChanceToClaimIgnorance, 0, 100);
-                        baseChanceToDerail = Clamp(baseChanceToDerail, 0, 100);
-                        baseChanceToFlatter = Clamp(baseChanceToFlatter, 0, 100);
-                    }
-
-                    // Specific conditions based on message content
-                    bool conditionMet = true;
-                    switch (m.MessageContent)
-                    {
-                        case "ask_them_join":
-                            if (m.Receiver.Group != null)
-                            {
-                                conditionMet = false;
-                                baseChanceToTruth = 0;
-                                baseChanceToClaimIgnorance = 100;
-                            }
-                            break;
-
-                        case "demand_item":
-                            var demandedItem = m.Subjects[0] as Object;
-                            if (demandedItem == null ||
-                                (!m.Receiver.Inventory.Contains(demandedItem) &&
-                                 !m.Receiver.Clothing.Contains(demandedItem) &&
-                                 m.Receiver.LeftHandObject != demandedItem &&
-                                 m.Receiver.RightHandObject != demandedItem))
-                            {
-                                conditionMet = false;
-                                baseChanceToTruth = 0;
-                                baseChanceToClaimIgnorance = 100;
-                            }
-                            else if (m.Receiver.ArchitectsWhoSurrenderedToMe != null && m.Receiver.ArchitectsWhoSurrenderedToMe.Contains(m.Sender))
-                            {
-                                baseChanceToClaimIgnorance = 0;
-                                baseChanceToTruth = 100;
-                            }
-                            break;
-
-                        case "ask_ruler":
-                            if (m.Sender.Location.Government == null)
-                            {
-                                conditionMet = false;
-                                baseChanceToTruth = 0;
-                                baseChanceToClaimIgnorance = 100;
-                            }
-                            break;
-
-                        case "ask_trade":
-                            var nearestMarket = m.Sender.Block.FindNearestThing("market");
-                            if (nearestMarket.Item2 != m.Receiver.Location)
-                            {
-                                conditionMet = false;
-                                baseChanceToTruth = 0;
-                                baseChanceToClaimIgnorance = 100;
-                            }
-                            break;
-
-                        default:
-                            // Other specific conditions can be added here
-                            break;
-                    }
-
-                    if (!conditionMet)
-                    {
-                        // Respond with the IgnorantResponse if conditions are not met
-                        AnnounceToParty(ReferredToNames[0] + ": " + m.IgnorantResponse, new Color(255, 0, 0), new List<Entity>() { this });
-                        Game1.MessageWorldEdit(m.Sender, this, m.MessageType, m.Subjects, m.IgnorantResponse);
-                        continue;
-                    }
-
-                    int randomNumber = Game1.r.Next(1, 101);
-                    string response;
-                    Color ResponseColor = Game1.GamePlayerParty.Architects.Contains(m.Sender) ? new Color(0, 255, 0) : new Color(0, 75, 0);
-
-                    if (randomNumber <= baseChanceToTruth)
-                    {
-                        response = m.PositiveResponse;
-                    }
-                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp)
-                    {
-                        response = m.DirectRefusalResponse;
-                    }
-                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance)
-                    {
-                        response = m.IgnorantResponse;
-                    }
-                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance + baseChanceToDerail)
-                    {
-                        response = m.DerailingResponse;
-                    }
-                    else
-                    {
-                        response = m.FlatteringResponse;
-                    }
-
-                    AnnounceToParty(ReferredToNames[0] + ": " + response, ResponseColor, new List<Entity> { this }.Union(m.Subjects).ToList());
-
-                    // Store the message and response
-                    messageDatabase[m.MessageContent] = m.Subjects;
-                    responseDatabase[m.MessageContent] = response;
-
-                    Game1.MessageWorldEdit(m.Sender, m.Receiver, m.MessageContent, m.Subjects, response);
-
-                    CooldownCycles += (int)Math.Round(30 / Speed());
-                }
-
-                MessagesNotRespondedTo.Clear();
-
-                // Clamp function to ensure a value stays within a specified range
-                int Clamp(int value, int min, int max)
-                {
-                    return Math.Max(min, Math.Min(max, value));
-                }
 
                 //send messages of your own
                 if (Game1.r.Next(1, 15) < Charisma && this.Task != "killtarget" && this.Task != "disabletarget" && MessageCooldown == 0)
@@ -3898,10 +3929,6 @@ namespace Lightrealm
                 {
                     //update the targetting system so you go to where they are naturally
                     Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Structure, "");
-                    if (Profession == "merchant")
-                    {
-                        int shibe = 1;
-                    }
                 }
                 if (Task == "disabletarget" && TargetArchitect != null)
                 {
@@ -4157,7 +4184,31 @@ namespace Lightrealm
                                     if (Weapon.WeaponMaximumRange >= GetDistance(TargetArchitect))
                                     {
                                         string attackVerb = DetermineAttackVerb(Weapon.DamageType);
-                                        Attacks.Add(new Attack(attackVerb, this, TargetArchitect.BodyParts[Game1.r.Next(TargetArchitect.BodyParts.Count)], Weapon));
+
+                                        // Define base likelihood for each body part
+                                        int baseLikelihood = 25;
+
+                                        // Calculate total likelihood for all body parts
+                                        int totalLikelihood = TargetArchitect.BodyParts.Sum(bp => baseLikelihood + bp.Exposure);
+
+                                        // Generate a random value between 0 and totalLikelihood
+                                        int randomValue = Game1.r.Next(totalLikelihood);
+
+                                        // Determine the selected body part based on the random value
+                                        int cumulativeLikelihood = 0;
+                                        Object targetBodyPart = TargetArchitect.BodyParts.First(); // Default to the first body part
+
+                                        foreach (var bodyPart in TargetArchitect.BodyParts)
+                                        {
+                                            cumulativeLikelihood += baseLikelihood + bodyPart.Exposure;
+                                            if (randomValue < cumulativeLikelihood)
+                                            {
+                                                targetBodyPart = bodyPart;
+                                                break;
+                                            }
+                                        }
+
+                                        Attacks.Add(new Attack(attackVerb, this, targetBodyPart, Weapon));
                                     }
                                     else // If neither spell nor weapon attack is possible, approach the target
                                     {
@@ -4167,6 +4218,7 @@ namespace Lightrealm
                                         AnnounceToParty(ReferredToNames[0] + " gets closer to " + TargetArchitect.ReferredToNames[0] + "!", Color.DarkMagenta, new List<Entity>() { this, TargetArchitect });
                                     }
                                 }
+
                             }
                         }
                         else
@@ -4286,12 +4338,12 @@ namespace Lightrealm
                             ChangeInZ = 1;
                         }
                     }
-                    else if (Block != null && Structure != null && Target.Item5 == null)
+                    else if ((Room != null && Target.Item5 == null) || (Room != null && Target.Item5 != Structure))
                     {
                         //leave the structure
                         AlternateMove = "leavebuilding";
                     }
-                    else if (Block != null && Target.Item4 != null && Block != Target.Item4)
+                    else if (Target.Item4 != null && Block != Target.Item4)
                     {
                         // Calculate differences in X and Z, and the normalized angle in degrees
 
@@ -4362,15 +4414,10 @@ namespace Lightrealm
                         // The program will handle the rest of the movement
                         // ...
                     }
-                    else if (Block != null && Structure == null && Target.Item5 != null)
+                    else if (Block != null && Structure == null && Target.Item5 != null && Block.Structures.Contains(Target.Item5))
                     {
                         //by this point, were in the right block. we just need to enter the structure.
                         AlternateMove = Target.Item5.Name;
-
-                        if (Profession == "merchant")
-                        {
-                            int shibe = 1;
-                        }
                     }
                     else
                     {
@@ -4418,6 +4465,11 @@ namespace Lightrealm
                                     Block = null;
                                     Location = Target.Item2;
                                     District = Target.Item3;
+
+                                    foreach (Object o in BodyParts)
+                                    {
+                                        o.UpdateExposure(-9999);
+                                    }
 
                                     if (Game1.LoadedArchitects.Contains(this))
                                     {
@@ -4470,17 +4522,21 @@ namespace Lightrealm
                             AnnounceToParty(ReferredToNames[0] + " failed to escape!", Color.Red, new List<Entity>() { this });
                         }
                     }
+
+
+                }
+                else if (AlternateMove == "leavebuilding")
+                {
+                    Room.Architects.Remove(this);
+                    CooldownCycles += (int)(Math.Round(25 / Speed()));
+                    Room = null;
+                    Block.Architects.Add(this);
                 }
                 else if (AlternateMove != "")
                 {
                     if (Target.Item5 != null && Target.Item5.Name == AlternateMove)
                     {
-                        if (Profession == "merchant")
-                        {
-                            int shibe = 1;
-                        }
                         Block.Architects.Remove(this);
-                        Structure = Target.Item5;
                         CooldownCycles += (int)(Math.Round(25 / Speed()));
                         Room = Target.Item5.Rooms[0];
                         Room.Architects.Add(this);
@@ -4495,7 +4551,7 @@ namespace Lightrealm
 
 
 
-            if (BlockLastCycle != Block)
+            if (BlockLastCycle != Block || RoomLastCycle != Room)
             {
                 CyclesSinceMoved = 0;
             }
@@ -4521,6 +4577,7 @@ namespace Lightrealm
             }
 
             BlockLastCycle = Block;
+            RoomLastCycle = Room;
 
             //lose track of invisible targets
 
