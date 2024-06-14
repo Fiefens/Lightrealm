@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -50,11 +51,6 @@ namespace Lightrealm
                 // We'll use a dictionary to map the resource types to their corresponding properties.
 
 
-
-
-
-
-
                 /*
                 var resources = new Dictionary<string, Material>
                 {
@@ -78,6 +74,15 @@ namespace Lightrealm
                 }d
                 */
 
+
+                List<Material> M = new List<Material>() { Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Game1.GameWorld.ConvertLevelToToughness(a.Level)) };
+
+                for (int i = Game1.r.Next(5, 10); i != 0; i--)
+                {
+                    a.Inventory.Add(new Object(null, "dagger", M, null));
+                }
+
+
                 List<Material> m = new List<Material>() { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)] };
                 
                 if (a.RightHanded)
@@ -95,6 +100,14 @@ namespace Lightrealm
                 a.Inventory.Add(new Object(null, "axe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
                 a.Inventory.Add(new Object(null, "shovel", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
                 */
+
+                int Count = Game1.r.Next(10, 21);
+
+                for (int i = 0; i < Count; i++)
+                {
+                    a.Inventory.Add(new Object(null, "fragment", new List<Material>() { Game1.GameWorld.Vitalium }, null));
+                }
+
 
                 for (int i = 0; i < 3; i++)
                 {

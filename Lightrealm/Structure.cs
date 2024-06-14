@@ -100,7 +100,7 @@ namespace Lightrealm
             {
                 int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "bighouse");
 
-                ReferredToNames.Add("house " + (count + 1).ToString());
+                AddReferredToName("house " + (count + 1).ToString());
             }
 
             //determine smells

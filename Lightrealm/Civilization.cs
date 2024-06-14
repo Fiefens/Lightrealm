@@ -60,6 +60,16 @@ namespace Lightrealm
             StartX = Startx;
             StartZ = Startz;
 
+            if(type == "druid")
+            {
+                CulturalHeadwear = "none";
+                CulturalNeckwear = "none";
+                CulturalBodywear = "straps/left wristwrap/right wristwrap";
+                CulturalLegwear = "none";
+                CulturalHandwear = "none";
+                CulturalFootwear = "none";
+            }
+
             Type = type;
             WarType = (type == "luminarch" || type == "nightfell") ? "civilized" : type;
 

@@ -21,7 +21,7 @@ namespace Lightrealm
             Type = type;
             Toughness = toughness;
             Rarity = rarity;
-            ReferredToNames.Add(Name);
+            AddReferredToName(Name);
             Color = color;
         }
         public Material()

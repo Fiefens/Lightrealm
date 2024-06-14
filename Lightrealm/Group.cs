@@ -126,7 +126,7 @@ namespace Lightrealm
             CourageValue = leader.CourageValue;
             CreativityValue = leader.CreativityValue;
 
-            ReferredToNames.Add(Name);
+            AddReferredToName(Name);
         }
         public Group()
         {

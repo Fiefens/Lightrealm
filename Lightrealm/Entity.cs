@@ -81,7 +81,7 @@ namespace Lightrealm
         {
             Metadata = metadata;
             Name = metadata;
-            ReferredToNames.Add(Name);
+            AddReferredToName(Name);
         }
     }
 }

@@ -60,9 +60,9 @@ namespace Lightrealm
             return (false, "");
         }
 
-        public (Region, Location, District, Block, Structure, string) FindNearestThing(string thing)
+        public (Region, Location, District, Block, Room, string) FindNearestThing(string thing)
         {
-            (Region, Location, District, Block, Structure, string) DeterminedLocation = (null, null, null, null, null, "");
+            (Region, Location, District, Block, Room, string) DeterminedLocation = (null, null, null, null, null, "");
 
             int CalculateDistance(Block block1, Block block2)
             {
@@ -94,7 +94,7 @@ namespace Lightrealm
                     {
                         foreach (Block block in district.DistrictMap)
                         {
-                            if ((thing == "well" && block.HasWell()))
+                            if (thing == "well" && block.HasWell())
                             {
                                 int distance = CalculateDistance(this, block);
                                 if (distance < minDistance)
@@ -103,34 +103,66 @@ namespace Lightrealm
                                     DeterminedLocation = (r, r.MyLocation, district, block, null, "well");
                                 }
                             }
+                            else if (thing == "structure")
+                            {
+                                foreach (Structure s in block.Structures)
+                                {
+                                    int distance = CalculateDistance(this, block);
+                                    if (distance < minDistance)
+                                    {
+                                        if (s.Block.District.IsLoaded)
+                                        {
+                                            minDistance = distance;
+                                            Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count)];
+                                            DeterminedLocation = (r, r.MyLocation, district, block, randomRoom, s.Name);
+                                        }
+                                        else
+                                        {
+                                            minDistance = distance;
+                                            DeterminedLocation = (r, r.MyLocation, district, block, null, s.Name);
+                                        }
+                                    }
+                                }
+                            }
                             else if (Game1.StructureTypes.Contains(thing))
                             {
-                                foreach(Structure s in block.Structures)
+                                foreach (Structure s in block.Structures)
                                 {
-                                    if(s.Type == thing)
+                                    if (s.Type == thing)
                                     {
                                         int distance = CalculateDistance(this, block);
                                         if (distance < minDistance)
                                         {
-                                            minDistance = distance;
-                                            DeterminedLocation = (r, r.MyLocation, district, block, s, s.Name);
+                                            if (s.Block.District.IsLoaded)
+                                            {
+                                                minDistance = distance;
+                                                Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count)];
+                                                DeterminedLocation = (r, r.MyLocation, district, block, randomRoom, s.Name);
+                                            }
+                                            else
+                                            {
+                                                minDistance = distance;
+                                                DeterminedLocation = (r, r.MyLocation, district, block, null, s.Name);
+                                            }
                                         }
                                     }
                                 }
                             }
                             else if (District.Location.Region.World.SubjectCatalogue.ContainsKey(thing))
                             {
-                                if (District.Location.Region.World.SubjectCatalogue[thing] is Object)
+                                // Handle finding Object, Architect, or Group from SubjectCatalogue if necessary
+                                var subject = District.Location.Region.World.SubjectCatalogue[thing];
+                                if (subject is Object obj)
                                 {
-
+                                    // Handle object-specific logic
                                 }
-                                else if (District.Location.Region.World.SubjectCatalogue[thing] is Architect)
+                                else if (subject is Architect architect)
                                 {
-
+                                    // Handle architect-specific logic
                                 }
-                                else if (District.Location.Region.World.SubjectCatalogue[thing] is Group)
+                                else if (subject is Group group)
                                 {
-
+                                    // Handle group-specific logic
                                 }
                             }
                         }
@@ -140,5 +172,7 @@ namespace Lightrealm
 
             return DeterminedLocation;
         }
+
+
     }
 }

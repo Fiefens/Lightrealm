@@ -14,21 +14,11 @@ namespace Lightrealm
         public Composition(string type, Architect Author, Entity ChosenEntity)
         {
             Type = type;
-            if (Game1.r.NextDouble() < 0.5)
-            {
-                // 50% chance to write about a general domain
-                Subject = ChosenEntity ?? new Entity(Game1.Domains[Game1.r.Next(Game1.Domains.Count)]);
-                Name = GenerateName(type, Subject.ReferredToNames[0]);
-                Sections = GenerateSections(type, Author);
-            }
-            else
-            {
-                // 50% chance to write about a specific subject
-                Subject = ChosenEntity ?? GenerateRandomSubject();
-                Name = GenerateName(type, Subject.ReferredToNames[0]);
-                Sections = GenerateSectionsFromSubject(type, Author, Subject);
-            }
+            Subject = ChosenEntity;
+            Name = GenerateName(type, Subject.ReferredToNames[0]);
+            Sections = GenerateSectionsFromSubject(type, Author, Subject);
         }
+
 
         public string GetCompleteWorkDescription()
         {
@@ -187,14 +177,14 @@ namespace Lightrealm
                     {
                         sectionType = "Verse";
                     }
-                    sections.Add(new Section(type, this, Author.Creativity, sectionType));
+                    sections.Add(new Section(type, this, Author.Creativity, i+1, sectionType));
                 }
             }
             else
             {
                 for (int i = 0; i < numberSections; i++)
                 {
-                    sections.Add(new Section(type, this, Author.Creativity));
+                    sections.Add(new Section(type, this, Author.Creativity, i+1));
                 }
             }
 
@@ -298,10 +288,13 @@ namespace Lightrealm
         public string Type;
         public string Description;
         public Composition Parent;
+        public int Number = 0;
 
-        public Section(string compositionType, Composition parent, int QualityMod, string sectionType = "none")
+        public Section(string compositionType, Composition parent, int QualityMod, int number, string sectionType = "none")
         {
             this.Parent = parent;
+
+            this.Number = number;
 
             this.Quality = Game1.r.Next(0, 8) + QualityMod;
 
@@ -402,11 +395,11 @@ namespace Lightrealm
         {
             List<string> formats = new List<string>
             {
-                $"In this {Type}, the {Tone} tone is evident as it recounts when {eventDescription}, from a {Game1.FormatList(Perspectives)} perspective.",
-                $"This {Type} delves into when {eventDescription} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
-                $"With a {Tone} tone, this {Type} covers when {eventDescription} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
-                $"This {Type} sets a {Tone} mood while discussing when {eventDescription} through a {Game1.FormatList(Perspectives)} lens.",
-                $"The {Tone} tone of this {Type} illuminates when {eventDescription}, viewed from a {Game1.FormatList(Perspectives)} angle."
+                $"In {Type} {Number}, the {Tone} tone is evident as it recounts when {eventDescription}, from a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into when {eventDescription} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers when {eventDescription} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing when {eventDescription} through a {Game1.FormatList(Perspectives)} lens.",
+                $"The {Tone} tone of {Type} {Number} illuminates when {eventDescription}, viewed from a {Game1.FormatList(Perspectives)} angle."
             };
 
             string format = formats[Game1.r.Next(formats.Count)];

@@ -258,187 +258,268 @@ namespace Lightrealm
 
         public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
+            List<TextStorage> Announcements = new List<TextStorage>();
+
             if (IsBodyPart)
             {
                 UpdateExposure(-(15 * ((Architect)Owner).Dexterity));
-            }
-
-            // Base damage values
-            double basePain = 10;
-            double baseIntegrityLoss = 10;
-            double baseBleeding = 1;
-            double baseEnergyLoss = 5;
-
-            // Modifiers based on weapon type
-            double painModifier = 1;
-            double integrityModifier = 1;
-            double bleedingModifier = 1;
-            double energyLossModifier = 1;
-
-            // Adjust modifiers based on weapon type
-            switch (o.DamageType)
-            {
-                case "piercing":
-                    integrityModifier = 1.5;
-                    bleedingModifier = 0.5;
-                    energyLossModifier = 1.2;
-                    break;
-                case "slashing":
-                    bleedingModifier = 1.5;
-                    integrityModifier = 0.8;
-                    painModifier = 1.2;
-                    break;
-                case "bashing":
-                    integrityModifier = 1.2;
-                    painModifier = 1.1;
-                    energyLossModifier = 1.3;
-                    bleedingModifier = 0.3;
-                    break;
-                case "scourging":
-                    bleedingModifier = 2;
-                    painModifier = 1.5;
-                    integrityModifier = 0.5;
-                    break;
-            }
-
-            // Proficiency factor
-            double efficiencyFactor = 1 + (WielderProficiency * 0.05) + (o.FindObjectGenericStrength() * 0.05);
-
-            // Combat intensity factor (example dynamic adjustment)
-            double combatIntensityMultiplier = 2; // This value should be dynamically adjusted based on combat conditions
-
-            // Calculate damage outcomes
-            int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1) * (((Architect)Owner).Focus)));
-            int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * efficiencyFactor * combatIntensityMultiplier);
-            int Bleeding = (int)(baseBleeding * bleedingModifier * efficiencyFactor * combatIntensityMultiplier);
-            int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * efficiencyFactor * combatIntensityMultiplier);
 
 
-            List<TextStorage> Announcements = new List<TextStorage>();
+                // Base damage values
+                double basePain = 10;
+                double baseIntegrityLoss = 10;
+                double baseBleeding = 1;
+                double baseEnergyLoss = 5;
 
-            //heat damage
-            if (o.HeatInCelsius > 50)
-            {
-                Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new List<Entity>()));
-                EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
-            }
+                // Modifiers based on weapon type
+                double painModifier = 1;
+                double integrityModifier = 1;
+                double bleedingModifier = 1;
+                double energyLossModifier = 1;
 
-            // Determine if the attack gets blocked by coverage or armor
-            double coverageMissChance = (Coverage / 22.5) * 75;
-            if (Game1.r.Next(100) < coverageMissChance)
-            {
-                Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green, new List<Entity>()));
-                return Announcements;
-            }
-
-            if (Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
-            {
-                Announcements.Add(new TextStorage("The attack breaks through and damages " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
-                ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
-            }
-            else if (((Architect)Owner).NaturalArmor > 0)
-            {
-                Announcements.Add(new TextStorage("The attack damages, but does not pierce " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
-                ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1));
-                return Announcements;
-            }
-
-
-            // Apply damage to integrity
-
-            Integrity = Math.Max(0, o.Integrity - IntegrityDamage);
-
-            if (IntegrityDamage > 0)
-            {
-                Announcements.Add(new TextStorage("The attack damages " + ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { this }));
-            }
-            else
-            {
-                Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red, new List<Entity>() { this }));
-            }
-
-            if (Bleeding > 5)
-            {
-                Announcements.Add(new TextStorage("The attack pierces multiple membranes, causing heavy bleeding!", Color.Green, new List<Entity>()));
-            }
-            else if (Bleeding > 3)
-            {
-                Announcements.Add(new TextStorage("The attack pierces a membrane, causing bleeding!", Color.Green, new List<Entity>()));
-            }
-            else if (Bleeding > 1)
-            {
-                Announcements.Add(new TextStorage("The attack draws a small amount of blood!", Color.Green, new List<Entity>()));
-            }
-
-            if (Pain > 10)
-            {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
-            }
-            else if (Pain > 7)
-            {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
-            }
-            else if (Pain > 5)
-            {
-                Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new List<Entity>() { ((Architect)Creator) }));
-            }
-
-            ((Architect)Owner).Bleeding += Bleeding;
-            ((Architect)Owner).Pain += Pain;
-
-            ((Architect)Owner).Energy -= EnergyLoss;
-            if (((Architect)Owner).Energy <= 0)
-            {
-                if (MeleeAttacker != null)
+                // Adjust modifiers based on weapon type
+                switch (o.DamageType)
                 {
-                    if (DescriptiveVerb.EndsWith("e"))
-                    {
-                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "d to death by " + MeleeAttacker.Name;
-                    }
-                    else
-                    {
-                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "ed to death by " + MeleeAttacker.Name;
-                    }
+                    case "piercing":
+                        integrityModifier = 1.5;
+                        bleedingModifier = 0.5;
+                        energyLossModifier = 1.2;
+                        break;
+                    case "slashing":
+                        bleedingModifier = 1.5;
+                        integrityModifier = 0.8;
+                        painModifier = 1.2;
+                        break;
+                    case "bashing":
+                        integrityModifier = 1.2;
+                        painModifier = 1.1;
+                        energyLossModifier = 1.3;
+                        bleedingModifier = 0.3;
+                        break;
+                    case "scourging":
+                        bleedingModifier = 2;
+                        painModifier = 1.5;
+                        integrityModifier = 0.5;
+                        break;
                 }
-                else if (o.Thrower != null)
+
+                // Proficiency factor
+                double efficiencyFactor = 1 + (WielderProficiency * 0.05) + (o.FindObjectGenericStrength() * 0.05);
+
+                // Combat intensity factor (example dynamic adjustment)
+                double combatIntensityMultiplier = 2; // This value should be dynamically adjusted based on combat conditions
+
+                // Calculate damage outcomes
+                int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1) * (((Architect)Owner).Focus)));
+                int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * efficiencyFactor * combatIntensityMultiplier);
+                int Bleeding = (int)(baseBleeding * bleedingModifier * efficiencyFactor * combatIntensityMultiplier);
+                int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * efficiencyFactor * combatIntensityMultiplier);
+
+
+                //heat damage
+                if (o.HeatInCelsius > 50)
                 {
-                    ((Architect)Owner).DeathCause = "was brought down by a " + o.Type + " thrown by " + o.Thrower.Name;
+                    Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new List<Entity>()));
+                    EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
                 }
-                else if (!string.IsNullOrEmpty(DescriptiveVerb))
+
+                // Determine if the attack gets blocked by coverage or armor
+                double coverageMissChance = (Coverage / 22.5) * 75;
+                if (Game1.r.Next(100) < coverageMissChance)
                 {
-                    if (DescriptiveVerb.EndsWith("e"))
-                    {
-                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "d to death";
-                    }
-                    else
-                    {
-                        ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "ed to death";
-                    }
+                    Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green, new List<Entity>()));
+                    return Announcements;
+                }
+
+                if (Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
+                {
+                    Announcements.Add(new TextStorage("The attack breaks through and damages " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
+                    ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
+                }
+                else if (((Architect)Owner).NaturalArmor > 0)
+                {
+                    Announcements.Add(new TextStorage("The attack damages, but does not pierce " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
+                    ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
+                    return Announcements;
+                }
+
+
+                // Apply damage to integrity
+
+                Integrity = Math.Max(0, o.Integrity - IntegrityDamage);
+
+                if (IntegrityDamage > 0)
+                {
+                    Announcements.Add(new TextStorage("The attack damages " + ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { this }));
                 }
                 else
                 {
-                    ((Architect)Owner).DeathCause = "died mysteriously";
+                    Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red, new List<Entity>() { this }));
                 }
-            }
 
-            if (((Architect)Owner).Energy < 1 && MeleeAttacker != null && MeleeAttacker.FinaleReady)
-            {
-                MeleeAttacker.FinaleReady = false;
-                Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
-
-                List<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
-                foreach (Architect a in nearbyPeoples)
+                if (Bleeding > 5)
                 {
-                    if (a.TargetArchitect == MeleeAttacker ||
-    (Game1.GamePlayerParty.Architects.Contains(MeleeAttacker) &&
-     Game1.GamePlayerParty.Architects.Any(architect =>
-         architect.TargetArchitect == a &&
-         (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
+                    Announcements.Add(new TextStorage("The attack pierces multiple membranes, causing heavy bleeding!", Color.Green, new List<Entity>()));
+                }
+                else if (Bleeding > 3)
+                {
+                    Announcements.Add(new TextStorage("The attack pierces a membrane, causing bleeding!", Color.Green, new List<Entity>()));
+                }
+                else if (Bleeding > 1)
+                {
+                    Announcements.Add(new TextStorage("The attack draws a small amount of blood!", Color.Green, new List<Entity>()));
+                }
+
+                if (Pain > 10)
+                {
+                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
+                }
+                else if (Pain > 7)
+                {
+                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
+                }
+                else if (Pain > 5)
+                {
+                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new List<Entity>() { ((Architect)Creator) }));
+                }
+
+            ((Architect)Owner).Bleeding += Bleeding;
+                ((Architect)Owner).Pain += Pain;
+
+                ((Architect)Owner).Energy -= EnergyLoss;
+                if (((Architect)Owner).Energy <= 0)
+                {
+                    if (MeleeAttacker != null)
                     {
-                        a.Energy -= 30;
-                        Announcements.Add(new TextStorage(a.ReferredToNames[0] + " looks drained!", Color.Green, new List<Entity>() { a }));
+                        if (DescriptiveVerb.EndsWith("e"))
+                        {
+                            ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "d to death by " + MeleeAttacker.Name;
+                        }
+                        else
+                        {
+                            ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "ed to death by " + MeleeAttacker.Name;
+                        }
+                    }
+                    else if (o.Thrower != null)
+                    {
+                        ((Architect)Owner).DeathCause = "was brought down by a " + o.Type + " thrown by " + o.Thrower.Name;
+                    }
+                    else if (!string.IsNullOrEmpty(DescriptiveVerb))
+                    {
+                        if (DescriptiveVerb.EndsWith("e"))
+                        {
+                            ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "d to death";
+                        }
+                        else
+                        {
+                            ((Architect)Owner).DeathCause = "was " + DescriptiveVerb + "ed to death";
+                        }
+                    }
+                    else
+                    {
+                        ((Architect)Owner).DeathCause = "died mysteriously";
                     }
                 }
+
+                if (((Architect)Owner).Energy < 1 && MeleeAttacker != null && MeleeAttacker.FinaleReady)
+                {
+                    MeleeAttacker.FinaleReady = false;
+                    Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
+
+                    List<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
+                    foreach (Architect a in nearbyPeoples)
+                    {
+                        if (a.TargetArchitect == MeleeAttacker ||
+        (Game1.GamePlayerParty.Architects.Contains(MeleeAttacker) &&
+         Game1.GamePlayerParty.Architects.Any(architect =>
+             architect.TargetArchitect == a &&
+             (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
+                        {
+                            a.Energy -= 30;
+                            Announcements.Add(new TextStorage(a.ReferredToNames[0] + " looks drained!", Color.Green, new List<Entity>() { a }));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Calculate toughness for both the throwing object and the target
+                int throwingObjectToughness = o.Materials.Max(material => material.Toughness) / 2 + 5;
+                int targetToughness = this.Materials.Max(material => material.Toughness) / 2 + 5;
+
+                // Base integrity loss calculation
+                double throwingObjectIntegrityLoss = 0;
+                double targetIntegrityLoss = 0;
+
+                foreach (var material in o.Materials)
+                {
+                    throwingObjectIntegrityLoss += material.Toughness;
+                }
+
+                foreach (var material in this.Materials)
+                {
+                    targetIntegrityLoss += material.Toughness;
+                }
+
+                // Adjust integrity loss based on airborne power
+                throwingObjectIntegrityLoss += o.AirbornePower * 0.4;
+                targetIntegrityLoss += o.AirbornePower;
+
+                // Apply general reduction
+                throwingObjectIntegrityLoss *= 0.6;
+                targetIntegrityLoss *= 1.0;
+
+                // Apply projectile aerodynamic reduction
+                if (o.ProjectileAerodynamic)
+                {
+                    throwingObjectIntegrityLoss *= 0.2;
+                }
+
+                // Ensure minimum integrity loss is 0
+                throwingObjectIntegrityLoss = Math.Max(throwingObjectIntegrityLoss, 0);
+                targetIntegrityLoss = Math.Max(targetIntegrityLoss, 0);
+
+                // Round the integrity loss
+                int roundedThrowingObjectIntegrityLoss = (int)Math.Round(throwingObjectIntegrityLoss);
+                int roundedTargetIntegrityLoss = (int)Math.Round(targetIntegrityLoss);
+
+                // Announce damage for throwing object
+                AnnounceDamage(o, roundedThrowingObjectIntegrityLoss);
+
+                // Announce damage for target (this)
+                AnnounceDamage(this, roundedTargetIntegrityLoss);
+
+                // Apply integrity loss
+                o.Integrity -= roundedThrowingObjectIntegrityLoss;
+                this.Integrity -= roundedTargetIntegrityLoss;
+
+                // Ensure integrity doesn't go below 0
+                o.Integrity = Math.Max(o.Integrity, 0);
+                this.Integrity = Math.Max(this.Integrity, 0);
+            }
+
+            void AnnounceDamage(Object obj, int damage)
+            {
+                string severity;
+                if (damage < 10)
+                {
+                    severity = "minor";
+                }
+                else if (damage < 25)
+                {
+                    severity = "moderate";
+                }
+                else if (damage < 50)
+                {
+                    severity = "considerable";
+                }
+                else
+                {
+                    severity = "heavy";
+                }
+
+                string message = $"{obj.ReferredToNames[0]} takes {severity} damage!";
+                Announcements.Add(new TextStorage(message, Color.Orange, new List<Entity> { obj }));
             }
 
             return Announcements;
@@ -544,9 +625,8 @@ namespace Lightrealm
                 {
                     string firstName = ReferredToNames[0];
                     ClearReferredToNames();
-                    ReferredToNames.Add($"{firstName} ({ID})");
-                    ReferredToNames.Add(firstName);
-                    ReferredToNames.Add(ID.ToString());
+                    AddReferredToName($"{firstName} ({ID})");
+                    AddReferredToName(firstName);
                 }
             }
 
@@ -555,6 +635,8 @@ namespace Lightrealm
                 string quickestName = ReferredToNames[0] + "*";
                 ReferredToNames.Insert(0, quickestName);
             }
+
+            AddReferredToName(ID.ToString());
         }
 
 
@@ -720,7 +802,7 @@ namespace Lightrealm
                     Weight = 10000; // e.g., in grams
                     Description = "An ingot used to efficiently store /m.";
                     break;
-                case "falling star":
+                case "star":
                     Weight = 10000; // e.g., in grams
                     Description = "A bright concentration of energy. It seems highly unstable.";
                     break;
@@ -1113,7 +1195,7 @@ namespace Lightrealm
                     Description = "A versatile tool used for cutting, or as a weapon.";
                     break;
                 case "dagger":
-                    Weight = 300;
+                    Weight = 150;
                     IsWeapon = true;
                     DamageType = "piercing";
                     Description = "An aerodynamic weapon often used for throwing or stabbing.";
@@ -1233,6 +1315,12 @@ namespace Lightrealm
                     IsWeapon = true;
                     DamageType = "piercing";
                     Description = "A small projectile fired from an enchanted object.";
+                    break;
+                case "wave":
+                    Weight = 10;
+                    IsWeapon = true;
+                    DamageType = "bashing";
+                    Description = "A wave of /m energy.";
                     break;
                 case "spark":
                     Weight = 10;
@@ -1508,12 +1596,14 @@ namespace Lightrealm
                     Weight = 300; // Approximate weight for a mug-sized liquid in grams
                     IsContainer = false; // Assuming the object is just the liquid, not the container
                     Description = "An average portion of /m.";
+                    IsConsumable = true;
                     break;
 
                 case "cube":
                     Weight = 10; // Approximate weight for a small cube, like an ice cube, in grams
                     IsContainer = false; // This is a solid object, not a container
                     Description = "A small cube of /m.";
+                    IsConsumable = true;
                     break;
                 case "block":
                     Weight = 1000; // Approximate weight for a small cube, like an ice cube, in grams

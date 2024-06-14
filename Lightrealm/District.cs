@@ -7,6 +7,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -38,7 +39,7 @@ namespace Lightrealm
 
         public List<Object> GeneralItemsWeHave { get; set; } = new List<Object>();
 
-        public bool IsLoaded { get; set; }
+        public bool IsLoaded { get; set; } = false;
         public bool HasBeenLoadedEver { get; set; } = false;
 
 
@@ -52,7 +53,7 @@ namespace Lightrealm
         {
             Location = l;
             Name = Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 4) - 1) + "s", this);
-            ReferredToNames.Add(Name);
+            AddReferredToName(Name);
             IsPrimary = isPrimary;
 
             string dockside = Location.Dockside;
@@ -69,65 +70,78 @@ namespace Lightrealm
                     }
                     else if (Location.Type == "cove")
                     {
-                        if (dockside == "north" && DistrictZ < 2)
+                        if (dockside == "north")
                         {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
-                        }
-                        else if (dockside == "north" && DistrictZ < 4)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
-                        }
-                        else if (dockside == "north")
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
-                        }
-                        else if (dockside == "south" && DistrictZ >= 5)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
-                        }
-                        else if (dockside == "south" && DistrictZ >= 3)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            if (DistrictZ < 2)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                            }
+                            else if (DistrictZ < 4)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                            }
+                            else
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            }
                         }
                         else if (dockside == "south")
                         {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
-                        }
-                        else if (dockside == "west" && DistrictX < 2)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
-                        }
-                        else if (dockside == "west" && DistrictX < 4)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            if (DistrictZ >= 5)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                            }
+                            else if (DistrictZ >= 3)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                            }
+                            else
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            }
                         }
                         else if (dockside == "west")
                         {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
-                        }
-                        else if (dockside == "east" && DistrictX >= 5)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
-                        }
-                        else if (dockside == "east" && DistrictX >= 3)
-                        {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            if (DistrictX < 2)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                            }
+                            else if (DistrictX < 4)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                            }
+                            else
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            }
                         }
                         else if (dockside == "east")
                         {
-                            DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                            if (DistrictX >= 5)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "desert";
+                            }
+                            else if (DistrictX >= 3)
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = Game1.r.Next(2) == 0 ? "desert" : "ocean";
+                            }
+                            else
+                            {
+                                DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
+                            }
                         }
                         else
                         {
                             DistrictMap[DistrictX + DistrictZ * 7].Biome = "ocean";
                         }
-                    } 
+                    }
                 }
             }
 
             UnplacedPopulation = unplacedPopulation;
             Industry = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
         }
+
 
 
         public District()
@@ -459,43 +473,35 @@ namespace Lightrealm
 
             List<Architect> allArchitects = new List<Architect>();
             allArchitects.AddRange(Architects);
-            List<Structure> structures = new List<Structure>();
+
+
+            HashSet<Structure> allDistrictStructures = new HashSet<Structure>();
 
             for (int x = 0; x < 7; x++)
             {
                 for (int z = 0; z < 7; z++)
                 {
-                    structures.AddRange(DistrictMap[x + z * 7].Structures);
+                    allDistrictStructures.UnionWith(DistrictMap[x + z * 7].Structures);
                 }
             }
 
+            foreach (Structure s in Location.AllStructures)
+            {
+                if (s.Block.District == this && !allDistrictStructures.Contains(s))
+                {
+                    allDistrictStructures.Add(s);
+                }
+            }
+
+            if (Location.Prism != null)
+            {
+                allDistrictStructures.Add(Location.Prism);
+            }
+
+
+
             if (!HasBeenLoadedEver)
             {
-                List<Structure> allDistrictStructures = new List<Structure>();
-
-                for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                {
-                    for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                    {
-                        allDistrictStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures);
-                    }
-                }
-
-                foreach (Structure s in Location.AllStructures)
-                {
-                    if (s.Block.District == this && !allDistrictStructures.Contains(s))
-                    {
-                        allDistrictStructures.Add(s);
-                    }
-                }
-
-                if (!allDistrictStructures.Contains(Location.Prism) && Location.Prism != null)
-                {
-                    //idk how this is happenign btu whaverver
-
-                    allDistrictStructures.Add(Location.Prism);
-                }
-
                 foreach (Structure s in allDistrictStructures)
                 {
                     Room coreRoom = new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>());
@@ -512,8 +518,8 @@ namespace Lightrealm
                     {
                         "house" or "ship" or "cove" or "mound" or "monastery" => Game1.r.Next(0, 4),
                         "spire" or "archway" or "hallway" or "fortress" or "monument" or "toroid" or "towers" or "outpost" or "pyramid" or "sanctum" => Game1.r.Next(10, 20),
-                        "keep" => Game1.r.Next(3, 7),
-                        "core" or "heart" or "stronghold" => Game1.r.Next(20, 30),
+                        "keep" => Game1.r.Next(1, 4),
+                        "core" or "heart" or "stronghold" => 20,
                         "tower" or "commune" => Game1.r.Next(10, 13),
                         _ => 2,
                     };
@@ -546,6 +552,7 @@ namespace Lightrealm
                         Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Location.Region.World.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new List<Object>(), Location, this, Location.Market.Block, "", 4);
                         a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                         a.HomeStructure = Location.Market;
+                        a.Block = Location.Market.Block;
                         Location.DebtShibas.Add(a);
                         Game1.LoadedArchitects.Add(a);
                     }
@@ -597,7 +604,6 @@ namespace Lightrealm
                     }
                 }
 
-
                 string destiny = Game1.r.Next(1, 5000) switch
                 {
                     < 3 => "wizard",
@@ -633,12 +639,12 @@ namespace Lightrealm
 
             foreach (Architect a in allArchitects)
             {
-                if (!Game1.GamePlayerParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a))
+                if (!Game1.GamePlayerParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
                 {
                     a.Loaded = true;
                     a.UpdateNames();
 
-                    List<Structure> possibleStructures = a.Bound
+                    List<Structure> possibleStructures = (a.Bound && this.Location.AllStructures.Count > 0)
                         ? new List<Structure> { this.Location.AllStructures.FirstOrDefault(s => s.Block.District == this) }
                         : GetPossibleStructures(a);
 
@@ -668,14 +674,17 @@ namespace Lightrealm
                     a.District = this;
                     a.UpdateNames();
                     Game1.LoadedArchitects.Add(a);
+
+                    // Assign a task if possible
+                    AssignInitialTask(a);
                 }
 
                 bool isCoolProfession = a.Profession == "artist" ||
-                             a.Profession == "curator" ||
-                             a.Profession == "perfectionist" ||
-                             a.Profession == "manager" ||
-                             a.Profession == "brute" ||
-                             a.Profession == "cluster";
+                                 a.Profession == "curator" ||
+                                 a.Profession == "perfectionist" ||
+                                 a.Profession == "manager" ||
+                                 a.Profession == "brute" ||
+                                 a.Profession == "cluster";
 
                 if (!isCoolProfession)
                 {
@@ -693,7 +702,6 @@ namespace Lightrealm
                     }
                 }
             }
-
 
             if (Location.Districts.Count == 1 && Location.AllStructures.Count == 1)
             {
@@ -719,19 +727,14 @@ namespace Lightrealm
                 }
             }
 
-
             foreach (Object o in GeneralItemsWeHave)
             {
-                Room targetRoom = Location.Market != null && Location.Market.Block.District == this && Game1.r.Next(1, 3) == 1 ? Location.Market.Rooms[0] : GetRandomRoom(structures);
+                Room targetRoom = Location.Market != null && Location.Market.Block.District == this && Game1.r.Next(1, 3) == 1 ? Location.Market.Rooms[0] : GetRandomRoom(allDistrictStructures.ToList());
                 targetRoom.Objects.Add(o);
                 o.UpdateNames();
             }
 
             Game1.LoadedArchitects.AddRange(Game1.GamePlayerParty.Architects);
-
-
-            //go over everything and fix the object jstuff so that its properly assigned to wherev er the hell its supposed to go.
-
 
             bool EverythingBelongsToTheQueen = false;
 
@@ -784,7 +787,7 @@ namespace Lightrealm
 
             foreach (Architect a in Game1.LoadedArchitects)
             {
-                if (a.Profession == "soverign" || a.Profession == "heart")
+                if (a.Profession == "sovereign" || a.Profession == "heart")
                 {
                     a.Task = "sentinel";
                     a.CyclesLeftInTask = 99999;
@@ -801,44 +804,134 @@ namespace Lightrealm
                 }
             }
 
-
-
             Architects.Clear();
             HasBeenLoadedEver = true;
             Game1.TicksSinceLoad = 0;
 
-
-            //purge the duplicates
-
             Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
+        }
 
-
-            List<Structure> GetPossibleStructures(Architect a)
+        void AssignInitialTask(Architect architect)
+        {
+            if(!(Game1.GameWorld.HumanoidRaces.Contains(architect.Race)))
             {
-                List<Structure> possibleStructures = new List<Structure>();
-                for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                {
-                    for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                    {
-                        if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
-                        {
-                            possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures.Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]));
-                        }
-                        else
-                        {
-                            possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures);
-                        }
-                    }
-                }
-                return possibleStructures;
+                return;
             }
 
-            Room GetRandomRoom(List<Structure> structures)
+            if (architect.Room == null)
             {
-                Structure randomStructure = structures[Game1.r.Next(structures.Count)];
-                return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
+                if(Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
+                {
+                    if (architect.Block.Architects.Count == 1)
+                    {
+                        architect.Task = "contemplate";
+                    }
+                    else
+                    {
+                        architect.Task = "socializing";
+                    }
+
+                    architect.CyclesLeftInTask = Game1.r.Next(1, 500);
+                }
+
+                return;
+            }
+
+            string roomType = architect.Room.Structure.Type;
+            List<string> possibleTasks = new List<string>();
+
+            // Determine possible tasks based on room type
+            switch (roomType)
+            {
+                case "house":
+                case "ship":
+                case "cove":
+                case "mound":
+                case "monastery":
+                    possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing" });
+                    break;
+                case "spire":
+                case "archway":
+                case "hallway":
+                case "fortress":
+                case "monument":
+                case "toroid":
+                case "towers":
+                case "outpost":
+                case "pyramid":
+                case "sanctum":
+                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                    break;
+                case "keep":
+                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
+                    break;
+                case "core":
+                case "heart":
+                case "stronghold":
+                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
+                    break;
+                case "tower":
+                case "commune":
+                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                    break;
+                default:
+                    possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
+                    break;
+            }
+
+            if (possibleTasks.Count > 0)
+            {
+                architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count)];
+                int maxCycles = architect.Task switch
+                {
+                    "sleeping" => 350000,
+                    "eating" => 500,
+                    "drinking" => 500,
+                    "socializing" => 500,
+                    "drinkingcaffeine" => 500,
+                    "discussion" => 500,
+                    "study" => 500,
+                    "performmusic" => 500,
+                    "performpoetry" => 500,
+                    "performdance" => 500,
+                    "cook" => 500,
+                    "industry" => 500,
+                    "contemplate" => 500,
+                    _ => 500
+                };
+
+                architect.CyclesLeftInTask = Game1.r.Next(1, maxCycles);
             }
         }
+
+
+
+        List<Structure> GetPossibleStructures(Architect a)
+        {
+            List<Structure> possibleStructures = new List<Structure>();
+            for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+            {
+                for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                {
+                    if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
+                    {
+                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures.Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]));
+                    }
+                    else
+                    {
+                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures);
+                    }
+                }
+            }
+            return possibleStructures;
+        }
+
+        Room GetRandomRoom(List<Structure> structures)
+        {
+            Structure randomStructure = structures[Game1.r.Next(structures.Count)];
+            return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
+        }
+
 
 
 
@@ -846,6 +939,15 @@ namespace Lightrealm
         {
             IsLoaded = false;
             int TotalArchitects = 0;
+
+            //take off tasks
+
+            foreach (Architect a in Game1.LoadedArchitects)
+            {
+                a.Task = "";
+                a.CooldownCycles = 0;
+                a.CyclesLeftInTask = 0;
+            }
 
             // Remove architects and round up the population
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
@@ -960,6 +1062,7 @@ namespace Lightrealm
                     }
                 }
             }
+
 
             Game1.LoadedArchitects.Clear();
         }

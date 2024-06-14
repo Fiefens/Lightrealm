@@ -111,7 +111,7 @@ namespace Lightrealm
                 Name = r.World.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
             }
 
-            ReferredToNames.Add(Name);
+            AddReferredToName(Name);
 
             PrimaryRace = primaryrace;
             Wealth = wealth;

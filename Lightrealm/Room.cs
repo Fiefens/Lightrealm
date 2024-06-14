@@ -93,6 +93,60 @@ namespace Lightrealm
             return null; // No path to exit room found
         }
 
+        public Door FindQuickestDoorToRoom(Room targetRoom)
+        {
+            if (Structure == null || Structure.Rooms == null || Structure.Rooms.Count == 0 || targetRoom == null)
+            {
+                return null;
+            }
+
+            if (this == targetRoom)
+            {
+                return null; // Already in the target room
+            }
+
+            // Use BFS to find the shortest path to the target room
+            Queue<Room> queue = new Queue<Room>();
+            Dictionary<Room, Door> cameFrom = new Dictionary<Room, Door>();
+            HashSet<Room> visited = new HashSet<Room>();
+
+            queue.Enqueue(this);
+            visited.Add(this);
+
+            while (queue.Count > 0)
+            {
+                Room currentRoom = queue.Dequeue();
+
+                foreach (Object obj in currentRoom.Objects)
+                {
+                    if (obj is Door door)
+                    {
+                        Room nextRoom = door.DestinationRoom;
+                        if (!visited.Contains(nextRoom))
+                        {
+                            visited.Add(nextRoom);
+                            queue.Enqueue(nextRoom);
+                            cameFrom[nextRoom] = door;
+
+                            if (nextRoom == targetRoom)
+                            {
+                                // Backtrack to find the first door in the path
+                                Door quickestDoor = door;
+                                while (cameFrom.ContainsKey(currentRoom) && cameFrom[currentRoom] != null)
+                                {
+                                    quickestDoor = cameFrom[currentRoom];
+                                    currentRoom = quickestDoor.SourceRoom;
+                                }
+                                return quickestDoor;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null; // No path to target room found
+        }
+
         public Room()
         {
 

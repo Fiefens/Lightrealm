@@ -40,7 +40,7 @@ namespace Lightrealm
                 Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers).ToList();
             }
 
-            ReferredToNames.Add(Name);
+            AddReferredToName(Name);
 
             Description = GenerateDescription();
         }
@@ -55,17 +55,21 @@ namespace Lightrealm
                 "isofractal" => "A glass icosahedron surrounded by several glass shards, manipulating fractal energy to bring perfection to the universe.",
                 "photonexus" => "A core surrounded by six spheres, driven to create a perfect society and destroy anyone who threatens it.",
                 "shade" => "A small, chaotic creature made of shadowy substance manipulated to destroy the entire world.",
-                "cnidriarch" => "A floating, colossal bell-shaped creature.",
-                "wyrm" => "A colossally long snake that flies through the air.",
+                "cnidriarch" => "A floating, colossal bell-shaped creature with many tentacles.",
+                "wyrm" => "An unfathomably long snake that flies through the air.",
                 "quetzal" => "A colossal bird whose flapping makes the earth shake.",
-                "serpent" => "A colossal serpent with a hideous roar.",
+                "serpent" => "A colossal dragon-like creature with a hideous roar.",
                 "shobe" => "A colossal, fluffy four-legged beast with a seemingly friendly complexion.",
                 "shiba" => "A fluffy, four-legged creature with a friendly complexion and unfathomable charisma.",
                 "debtshiba" => "A fluffy, four-legged creature with an unrivaled desire for capitalistic righteousness.",
-                _ => "A " + Size + " wilderness creature of some sort."
+                "hypernexus" => "A very large photonexus bearing no imperfection.",
+                "shadeheart" => "A colossal beating heart. It beats inconsistently, spreading a foul poison throughout its many veins.",
+                "icosidodecahedron" => "An 80-sided rotating rainbow prism. A glorious expressive light accompanies its presence.",
+                _ => "A " + Size + " creature of some sort."
             };
 
-            if(Name.EndsWith("guardian"))
+
+            if (Name.EndsWith("guardian"))
             {
                 baseDescription = "A guardian construct, built from pure " + BodyParts[0].Item2.Name + ", dedicated to an unknown purpose.";
             }

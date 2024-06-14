@@ -118,43 +118,36 @@ namespace Lightrealm
 
         public List<Object> AllWrittenContent = new List<Object>();
 
-        const int CYCLES_PER_SECOND = 10;
-        const int CYCLES_PER_MINUTE = 600;
-        const int CYCLES_PER_HOUR = 36000;
-        const int CYCLES_PER_DAY = 864000;
-        const int CYCLES_PER_WEEK = 6048000;
-        const int CYCLES_PER_MONTH = 24192000;
-        const int CYCLES_PER_YEAR = 290304000;
-
         public string GetFormattedDateTime()
         {
             long totalCycles = (long)Cycle;
 
             // Calculate the year
-            int year = (int)(totalCycles / CYCLES_PER_YEAR);
-            totalCycles %= CYCLES_PER_YEAR;
+            int year = (int)(totalCycles / 290304000);
+            totalCycles %= 290304000;
 
             // Calculate the month
-            int month = (int)(totalCycles / CYCLES_PER_MONTH) + 1;
-            totalCycles %= CYCLES_PER_MONTH;
+            int month = (int)(totalCycles / 24192000) + 1;
+            totalCycles %= 24192000;
 
             // Calculate the day
-            int day = (int)(totalCycles / CYCLES_PER_DAY) + 1;
-            totalCycles %= CYCLES_PER_DAY;
+            int day = (int)(totalCycles / 864000) + 1;
+            totalCycles %= 864000;
 
             // Calculate the hour
-            int hour = (int)(totalCycles / CYCLES_PER_HOUR);
-            totalCycles %= CYCLES_PER_HOUR;
+            int hour = (int)(totalCycles / 36000);
+            totalCycles %= 36000;
 
             // Calculate the minute
-            int minute = (int)(totalCycles / CYCLES_PER_MINUTE);
-            totalCycles %= CYCLES_PER_MINUTE;
+            int minute = (int)(totalCycles / 600);
+            totalCycles %= 600;
 
             // Calculate the second
-            int second = (int)(totalCycles / CYCLES_PER_SECOND);
+            int second = (int)(totalCycles / 10);
 
             return $"{month}/{day}/{year} {hour:D2}:{minute:D2}:{second:D2}";
         }
+
 
         public void ProgressToNextMorning()
         {
@@ -175,7 +168,7 @@ namespace Lightrealm
                 hoursUntilNext8AM = 32 - currentHour; // 24 hours to next day + 8 hours
             }
 
-            long cyclesToNext8AM = hoursUntilNext8AM * CYCLES_PER_HOUR;
+            long cyclesToNext8AM = hoursUntilNext8AM * 36000;
             Cycle += cyclesToNext8AM;
         }
 
@@ -631,22 +624,52 @@ namespace Lightrealm
                 "bottle",
                 "jar",
                 "small mug",
-                "big mug",
                 "small bowl",
-                "big bowl",
                 "small cup",
-                "big cup",
                 "knife",
                 "chain",
                 "candle",
                 "scroll",
                 "small chalice",
-                "big chalice",
                 "left gauntlet",
-                "right gauntlet"
+                "right gauntlet",
+                "orb",
+            };
+
+            Dictionary<string, List<string>> itemCommonNouns = new Dictionary<string, List<string>>
+            {
+                { "amulet", new List<string> { "charm", "talisman", "pendant" } },
+                { "bottle", new List<string> { "flask", "vial", "decanter" } },
+                { "jar", new List<string> { "canister", "urn", "container" } },
+                { "small mug", new List<string> { "tankard", "cup", "stein" } },
+                { "small bowl", new List<string> { "basin", "dish", "plate" } },
+                { "small cup", new List<string> { "goblet", "chalice", "beaker" } },
+                { "knife", new List<string> { "blade", "dagger", "stiletto" } },
+                { "chain", new List<string> { "links", "shackle", "cord" } },
+                { "candle", new List<string> { "beacon", "light", "flame" } },
+                { "scroll", new List<string> { "parchment", "manuscript", "folio" } },
+                { "small chalice", new List<string> { "cup", "goblet", "vessel" } },
+                { "left gauntlet", new List<string> { "glove", "hand", "fist" } },
+                { "right gauntlet", new List<string> { "glove", "hand", "fist" } },
+                { "orb", new List<string> { "sphere", "globe", "crystal" } },
             };
 
             string ChosenItem = potentialMagicalItems[Game1.r.Next(potentialMagicalItems.Count)];
+            List<string> commonNouns = itemCommonNouns[ChosenItem];
+            string ChosenCommonNoun = Game1.Capitalize(commonNouns[Game1.r.Next(commonNouns.Count)]);
+            string Subject = Game1.Capitalize(Game1.Words[Game1.r.Next(Game1.Words.Count)]);
+
+            List<string> namingFormats = new List<string>
+            {
+                "The {0} of {1}",
+                "{1} {0}",
+                "{0} of {1}",
+                "The {1}'s {0}",
+                "{1}'s {0}",
+            };
+
+            string format = namingFormats[Game1.r.Next(namingFormats.Count)];
+            string name = string.Format(format, ChosenCommonNoun, Subject);
 
             List<Material> Materials = new List<Material>
             {
@@ -677,6 +700,8 @@ namespace Lightrealm
             }
 
             Object o = new Object(null, ChosenItem, Materials, null);
+            o.Name = name;
+
             o.Rarity = GenerateItemRarity(Level);
             o.IsMagical = true;
             o.ApplyImbuements(1);
@@ -707,7 +732,7 @@ namespace Lightrealm
                 {
                     List<Material> m = new List<Material>() { GetRandomMaterialByStrength(Metals, ConvertLevelToToughness(Level)) };
 
-                    for (int i = Game1.r.Next(10, 30); i != 0; i--)
+                    for (int i = Game1.r.Next(3, 9); i != 0; i--)
                     {
                         list.Add(new Object(null, "dagger", m, null));
                     }
@@ -1179,8 +1204,8 @@ namespace Lightrealm
             string baseName = GenerateUniqueName("1S" + Game1.r.Next(5) + "s", this);
 
             Name = "The Continent of " + baseName;
-            ReferredToNames.Add(Name);
-            ReferredToNames.Add(baseName);
+            AddReferredToName(Name);
+            AddReferredToName(baseName);
             Purity = new Blight(this);
 
             LockedInThreat = dedicatedThreat;
@@ -1406,9 +1431,11 @@ namespace Lightrealm
                 ("sludge", ShadeSludge)
             };
 
-            Races.Add(new Race("icosidodecahedron", "huge", IcosidodecahedronParts, "gray", new List<string>() { "core" }, new List<string>() { "allevil" }, 110));
-            Races.Add(new Race("hypernexus", "huge", HypernexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { "allunalike" }, 125));
-            Races.Add(new Race("shadeheart", "huge", ShadeheartBodyParts, "black", new List<string>() { "sludge" }, new List<string>() { "alllife" }, 80));
+            //WE ARENT GIVING THEM OPPOSITION TAGS BECUASE THEY HAVE SPECIAL ATTACK CONDITIONS
+
+            Races.Add(new Race("icosidodecahedron", "huge", IcosidodecahedronParts, "white", new List<string>() { "core" }, new List<string>() { }, 110));
+            Races.Add(new Race("hypernexus", "huge", HypernexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { }, 125));
+            Races.Add(new Race("shadeheart", "huge", ShadeheartBodyParts, "black", new List<string>() { "sludge" }, new List<string>() { }, 80));
 
             Races.Add(new Race("shadebeast", "large", ShadeBodyParts, "black", new List<string>() { "sludge" }, new List<string>(){ "alllife" }, 30));
 
@@ -1820,6 +1847,8 @@ namespace Lightrealm
                     l.IsCapitol = true;
                     c.Capitol = l;
                     ClaimSwathOfTerritory(c, l.X, l.Z, 2);
+
+                    HistoricalEvents.Add(Date + " " + c.Name + " sprung forth into the world as a united culture, manifesting in their capitol " + l.Name + ".");
 
                     Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
                     Structure Prism = new Structure("prism", new List<Object>(), new List<Room>(), chosenBlock, new List<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)] }, Game1.r.Next(0, 5), Game1.r.Next(0,4));
@@ -2871,7 +2900,7 @@ namespace Lightrealm
                                     }
                                     else if (CalamityIdeologicalObsession == "kidnapper")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 7 * MonthToDayConstant) == 1)
+                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 9 * MonthToDayConstant) == 1)
                                         {
                                             int InitialPop = ChosenDistrict.UnplacedPopulation;
 
@@ -2901,7 +2930,7 @@ namespace Lightrealm
                                                 }
                                             }
                                         }
-                                        else if (ChosenDistrict.Architects.Count > 0 && r.Next(1, 7 * MonthToDayConstant) == 1)
+                                        else if (ChosenDistrict.Architects.Count > 0 && r.Next(1, 9 * MonthToDayConstant) == 1)
                                         {
                                             for (int i = r.Next(1, 3 * MonthToDayConstant); i != 0; i--)
                                             {
@@ -3023,59 +3052,62 @@ namespace Lightrealm
                                     }
                                     else if (CalamityIdeologicalObsession == "power")
                                     {
-                                        if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3 * MonthToDayConstant) == 1)
+                                        if(r.Next(1,20*MonthToDayConstant) == 1)
                                         {
-                                            int InitialPop = ChosenDistrict.UnplacedPopulation;
-                                            ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
+                                            if (ChosenDistrict.UnplacedPopulation > 0 && r.Next(1, 3) == 1)
+                                            {
+                                                int InitialPop = ChosenDistrict.UnplacedPopulation;
+                                                ChosenDistrict.UnplacedPopulation = Math.Max(0, ChosenDistrict.UnplacedPopulation - 1);
 
-                                            LogEvent(Calamitizer.Name + " killed " + (InitialPop - ChosenDistrict.UnplacedPopulation).ToString() + " people in " + Calamitizer.InteractionLocation.Name + ", and harvested their energy.");
+                                                LogEvent(Calamitizer.Name + " killed " + (InitialPop - ChosenDistrict.UnplacedPopulation).ToString() + " people in " + Calamitizer.InteractionLocation.Name + ", and harvested their energy.");
 
-                                            int DecideAge = r.Next(1, 6);
-                                            if (DecideAge == 1)
-                                            {
-                                                Calamitizer.KilledChildren += (InitialPop - ChosenDistrict.UnplacedPopulation);
-                                            }
-                                            else if (DecideAge < 4)
-                                            {
-                                                Calamitizer.KilledMen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
-                                            }
-                                            else
-                                            {
-                                                Calamitizer.KilledWomen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
-                                            }
-                                            foreach (Architect a in ChosenDistrict.Architects)
-                                            {
-                                                if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
+                                                int DecideAge = r.Next(1, 6);
+                                                if (DecideAge == 1)
                                                 {
-                                                    a.Grievances.Add((Calamitizer, " harvested energy, causing the death of many in " + a.PossessivePronoun + " town, " + Calamitizer.InteractionLocation.Name + ""));
-                                                    Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
+                                                    Calamitizer.KilledChildren += (InitialPop - ChosenDistrict.UnplacedPopulation);
                                                 }
-                                            }
-                                        }
-                                        if (ChosenDistrict.Architects.Count > 0)
-                                        {
-                                            for (int i = r.Next(0, 3); i != 0; i--)
-                                            {
-                                                int Index = r.Next(ChosenDistrict.Architects.Count);
-
-                                                Architect affectedArchitect = ChosenDistrict.Architects[Index];
-
-                                                if (affectedArchitect == Calamitizer)
+                                                else if (DecideAge < 4)
                                                 {
-                                                    continue;
+                                                    Calamitizer.KilledMen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
                                                 }
-
-                                                ChosenDistrict.ArchitectsToRemove.Add(affectedArchitect);
-
-                                                LogEvent(Calamitizer.Name + " assassinated " + affectedArchitect.Name + " in " + Calamitizer.InteractionLocation.Name + ", and harvested his energy.");
-
-                                                Calamitizer.KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
+                                                else
+                                                {
+                                                    Calamitizer.KilledWomen -= (InitialPop - ChosenDistrict.UnplacedPopulation);
+                                                }
                                                 foreach (Architect a in ChosenDistrict.Architects)
                                                 {
-                                                    if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
+                                                    if (r.Next(GrievanceChance) == 1 && a != Calamitizer)
                                                     {
-                                                        a.Grievances.Add((Calamitizer, " murdered and harvested energy from " + affectedArchitect.Name + ", a good friend of theirs"));
+                                                        a.Grievances.Add((Calamitizer, " harvested energy, causing the death of many in " + a.PossessivePronoun + " town, " + Calamitizer.InteractionLocation.Name + ""));
                                                         Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
+                                                    }
+                                                }
+                                            }
+                                            if (ChosenDistrict.Architects.Count > 0)
+                                            {
+                                                for (int i = r.Next(0, 3); i != 0; i--)
+                                                {
+                                                    int Index = r.Next(ChosenDistrict.Architects.Count);
+
+                                                    Architect affectedArchitect = ChosenDistrict.Architects[Index];
+
+                                                    if (affectedArchitect == Calamitizer)
+                                                    {
+                                                        continue;
+                                                    }
+
+                                                    ChosenDistrict.ArchitectsToRemove.Add(affectedArchitect);
+
+                                                    LogEvent(Calamitizer.Name + " assassinated " + affectedArchitect.Name + " in " + Calamitizer.InteractionLocation.Name + ", and harvested his energy.");
+
+                                                    Calamitizer.KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
+                                                    foreach (Architect a in ChosenDistrict.Architects)
+                                                    {
+                                                        if (r.Next(GrievanceChance) == 1 && a != affectedArchitect)
+                                                        {
+                                                            a.Grievances.Add((Calamitizer, " murdered and harvested energy from " + affectedArchitect.Name + ", a good friend of theirs"));
+                                                            Calamitizer.InteractionLocation.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
+                                                        }
                                                     }
                                                 }
                                             }
@@ -3083,6 +3115,7 @@ namespace Lightrealm
                                         if (Calamitizer.KilledChildren + Calamitizer.KilledMen + Calamitizer.KilledWomen + Calamitizer.KilledPeopleWhoActuallyMatter.Count > 500 && Calamitizer.SpellsKnown.Count < 3)
                                         {
                                             Calamitizer.SpellsKnown = Game1.AllSpells.Union(Game1.AllLegendarySpells).ToList();
+                                            Calamitizer.Focus = 15;
                                             LogEvent("After harvesting enough energy and renouncing the deities of the land, " + Calamitizer.Name + " became infused with unfathomable power from an unknown origin, but continued on to tempt the universe further.");
                                         }
                                     }
@@ -4998,7 +5031,7 @@ namespace Lightrealm
                                 }
 
                                 // Mage scholars learn spells, each can only discover one in their lifetime, but can learn more from others.
-                                if ((a.ScholarType == "mage" || a.ScholarType == "artificer" || a.ScholarType == "luminary" || a.ScholarType == "bard" || a.ScholarType == "archmage" || a.ScholarType == "archartificer" || a.ScholarType == "archluminary" || a.ScholarType == "archbard") && !a.DiscoveredASpell && UndiscoveredSpells.Count > 0 && a.MagicStudyPoints > 1800)
+                                if ((a.ScholarType == "mage" || a.ScholarType == "artificer" || a.ScholarType == "luminary" || a.ScholarType == "bard" || a.ScholarType == "archmage" || a.ScholarType == "archartificer" || a.ScholarType == "archluminary" || a.ScholarType == "archbard") && !a.DiscoveredASpell && UndiscoveredSpells.Count > 0 && a.MagicStudyPoints > 200)
                                 {
                                     int SpellID = Game1.r.Next(UndiscoveredSpells.Count);
                                     a.SpellsKnown.Add(UndiscoveredSpells[SpellID]);
@@ -6267,6 +6300,8 @@ namespace Lightrealm
                         int SZ = Game1.r.Next(2, 5);
 
                         Structure s = new Structure("sanctum", l.Artifacts, new List<Room>(), NewLocation.Districts[0].DistrictMap[SX + SZ * 7], new List<Material>() { Archaeon }, new List<string>(), new List<string> { "crystals" }, 3, 999);
+
+                        ((Architect)l.Government).HomeLocation = NewLocation;
 
                         NewLocation.Districts[0].DistrictMap[SX + SZ * 7].Structures.Add(s);
                     }
