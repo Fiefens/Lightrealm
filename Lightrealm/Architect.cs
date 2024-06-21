@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Text;
 using Color = Microsoft.Xna.Framework.Color;
@@ -156,6 +157,7 @@ namespace Lightrealm
         public List<Location> ExploredLocations = new List<Location>();
 
         public List<Architect> ArchitectsWhoSurrenderedToMe = new List<Architect>();
+        public List<Architect> ArchitectsWhoIAttemptedToSurrenderTo = new List<Architect>();
         public List<Architect> ArchitectsIWillTellTruthTo = new List<Architect>();
 
         public bool Bound;
@@ -526,7 +528,16 @@ namespace Lightrealm
             }
         }
 
-        public int Age { get; set; }
+        public double BirthdayCycle { get; set; } = 0;
+
+        public int Age
+        {
+            get
+            {
+                double ageInCycles = (double)((Game1.GameWorld != null ? Game1.GameWorld.Cycle : 0) - BirthdayCycle);
+                return (int)Math.Round(ageInCycles / 290304000);
+            }
+        }
 
         public List<Architect> MeldedShibas = new List<Architect>();
 
@@ -694,6 +705,8 @@ namespace Lightrealm
 
             return description.ToString();
         }
+
+
 
 
         public List<Object> Inventory { get; set; }
@@ -1980,12 +1993,33 @@ namespace Lightrealm
             Name = name;
             Sex = sex;
 
+            if (Location != null)
+            {
+                if (Location.Library != null)
+                {
+                    Random random = new Random();
+                    var validBooks = Location.Library.HistoricalObjects
+                        .Where(o => o.CompositionContent != null)
+                        .ToList();
+
+                    if (validBooks.Any())
+                    {
+                        FavoriteBook = validBooks[random.Next(validBooks.Count)];
+                    }
+                    else
+                    {
+                        FavoriteBook = null;
+                    }
+                }
+            }
+
+
 
             if (Game1.GameWorld.HumanoidRaces.Contains(race))
             {
                 Material Cloth;
 
-                if (HomeLocation != null)
+                if (HomeLocation != null && HomeLocation.HomeCivilization != null)
                 {
                     Cloth = HomeLocation.HomeCivilization.CulturalCloth;
                 }
@@ -1999,7 +2033,7 @@ namespace Lightrealm
 
                 if (Sex == "female")
                 {
-                    Clothing.Add(new Object(null, "uppergarment", new List<Material>() { Cloth }, null));
+                    Clothing.Add(new Object(null, "brassiere", new List<Material>() { Cloth }, null));
                     ApplyDye(Clothing[1]);
 
                 }
@@ -2039,7 +2073,7 @@ namespace Lightrealm
     };
 
                 // Remove items that cannot be added
-                generalClothingItems.RemoveAll(item => item == "undergarment" || item == "uppergarment" || item.StartsWith("left") || item.StartsWith("right"));
+                generalClothingItems.RemoveAll(item => item == "undergarment" || item == "brassiere" || item.StartsWith("left") || item.StartsWith("right"));
 
                 // Add 0-1 or semirarely 2 random general clothing items
                 int numberOfItemsToAdd = Game1.r.NextDouble() < 0.2 ? 2 : Game1.r.Next(2);
@@ -2140,7 +2174,7 @@ namespace Lightrealm
                     {
                         colorToApply = "green";
                     }
-                    else if (decider < 60 || clothingItem.Type == "undergarment" || clothingItem.Type == "uppergarment")
+                    else if (decider < 60 || clothingItem.Type == "undergarment" || clothingItem.Type == "brassiere")
                     {
                         // 60% chance to dye with the HomeCivilization color
                         colorToApply = HomeLocation.HomeCivilization.Color;
@@ -2182,7 +2216,7 @@ namespace Lightrealm
             NaturalArmor = race.NaturalArmor;
             OppositionTags.AddRange(Race.OppositionTags);
 
-            Age = age;
+            BirthdayCycle = Math.Round(Game1.GameWorld != null ? Game1.GameWorld.Cycle : 0 - age * 290304000.0);
 
             if (inventory == null)
             {
@@ -2220,18 +2254,41 @@ namespace Lightrealm
             FavoriteCloth = Game1.GameWorld.Cloths[Game1.r.Next(Game1.GameWorld.Cloths.Count)];
 
             DestinyArrivalYear = Game1.r.Next(18, 45);
-
             if (Game1.GameWorld.HumanoidRaces.Contains(Race))
             {
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.r.Next(1, 5) == 1)
                 {
                     DoIDieOfOldAge = false;
-                    TerminalAge = Game1.r.Next(Age, 120);
+                    // Modified system for not dying of old age with logarithmic distribution
+                    double rand = Game1.r.NextDouble();
+                    TerminalAge = (int)(Age + 2 + Math.Pow(rand, 4) * (120 - Age - 2)); // Increased power to 4 for better skew towards higher ages
+
+                    // Ensure the values are capped properly in case of any boundary issues
+                    if (TerminalAge > 120)
+                    {
+                        TerminalAge = 120;
+                    }
+                    else if (TerminalAge < Age + 2)
+                    {
+                        TerminalAge = Age + 2;
+                    }
                 }
                 else
                 {
                     DoIDieOfOldAge = true;
-                    TerminalAge = Game1.r.Next(Age, 120);
+                    // Generate terminal age with even higher probability for higher values
+                    double rand = Game1.r.NextDouble();
+                    TerminalAge = (int)(80 + Math.Pow(rand, 20) * (120 - 80)); // Increased power to 20 for more skew towards higher ages
+
+                    // Ensure the values are capped properly in case of any boundary issues
+                    if (TerminalAge > 120)
+                    {
+                        TerminalAge = 120;
+                    }
+                    else if (TerminalAge < 80)
+                    {
+                        TerminalAge = 80;
+                    }
                 }
             }
             else
@@ -2239,7 +2296,6 @@ namespace Lightrealm
                 DoIDieOfOldAge = false;
                 TerminalAge = 13371337;
             }
-
 
             if (Profession == "scholar")
             {
@@ -2302,10 +2358,13 @@ namespace Lightrealm
 
         public void DropInventory()
         {
+            List<Object> filteredClothing = Clothing.Where(o => o.Type != "brassiere" && o.Type != "undergarment").ToList();
+
             if (Room != null)
             {
                 Room.Objects.AddRange(Inventory);
-                Room.Objects.AddRange(Clothing);
+                Room.Objects.AddRange(filteredClothing);
+
                 if (RightHandObject != null)
                 {
                     Room.Objects.Add(RightHandObject);
@@ -2325,7 +2384,7 @@ namespace Lightrealm
             else if (Block != null)
             {
                 Block.Objects.AddRange(Inventory);
-                Block.Objects.AddRange(Clothing);
+                Block.Objects.AddRange(filteredClothing);
 
                 if (RightHandObject != null)
                 {
@@ -2342,7 +2401,11 @@ namespace Lightrealm
                     o.Block = Block;
                 }
             }
+
+            Clothing = Clothing.Where(o => o.Type == "brassiere" || o.Type == "undergarment").ToList();
+            Inventory.Clear();
         }
+
 
         public void RaiseFromTheDead(Architect executor, string referredToName, int pathOfDeathLevel, int minPathOfDeathLevel)
         {
@@ -2808,7 +2871,7 @@ namespace Lightrealm
                                 if (a.District == District)
                                 {
                                     a.Intrigue.Add((Name + " said something about " + Master.Name + ".", Master));
-                                    a.Intrigue.Add(("Perhaps someone can tell me more.", Master));
+                                    a.Intrigue.Add(("Perhaps someone can tell us more.", Master));
                                 }
                             }
 
@@ -3005,28 +3068,21 @@ namespace Lightrealm
 
             double GetMaterialCoverageMultiplier(Material material)
             {
-                double baseMultiplier = 1.0; // Default multiplier
-                switch (material.Type)
+                switch (material.Type.ToLower())
                 {
-                    case "wood":
-                        baseMultiplier = 1.1;
-                        break;
-                    case "cloth":
-                        baseMultiplier = 1.0; // Assuming cloth is the baseline
-                        break;
-                    case "stone":
-                        baseMultiplier = 1.3;
-                        break;
                     case "metal":
-                        baseMultiplier = 1.5;
-                        break;
+                        return 1.0;
+                    case "cloth":
+                        return 0.9;
+                    case "wood":
+                        return 0.8;
+                    case "stone":
+                        return 0.7;
                     case "glass":
-                        baseMultiplier = 0.8; // Glass might be fragile
-                        break;
+                        return 0.5;
                     default:
-                        break;
+                        return 1.0; // Default multiplier
                 }
-                return baseMultiplier * (1 + (0.2 * material.Toughness)); // Example formula
             }
 
             // Assuming each BodyPart object has a CoverageName property to store the name of the clothing item providing the most coverage
@@ -3043,7 +3099,14 @@ namespace Lightrealm
                 foreach (var (bodyPart, coverage) in clothingItem.CoverageValues)
                 {
                     double materialMultiplier = GetMaterialCoverageMultiplier(strongestMaterial);
-                    int adjustedCoverage = (int)(coverage * materialMultiplier);
+                    int adjustedCoverage = (int)((strongestMaterial.Toughness / 2.0) * materialMultiplier * coverage);
+
+                    if(adjustedCoverage > 80)
+                    {
+                        //my formula didn't work right apparenty
+
+                        int shibe = 1;
+                    }
 
                     if (highestCoverageByItem.ContainsKey(bodyPart))
                     {
@@ -3067,6 +3130,7 @@ namespace Lightrealm
                     bodyPart.CoverageName = highestCoverage.itemName; // Assign the name of the item providing the highest coverage
                 }
             }
+
 
             if (CombatCycles > 0)
             {
@@ -3395,7 +3459,7 @@ namespace Lightrealm
                 // Respond to messages
                 foreach (Message m in MessagesNotRespondedTo)
                 {
-                    if (messageDatabase.ContainsKey(m.MessageContent))
+                    if (messageDatabase.ContainsKey(m.MessageContent) && m.MessageType == "question")
                     {
                         // Message has been seen before, respond with the same response
                         AnnounceToParty(ReferredToNames[0] + ": " + responseDatabase[m.MessageContent], new Color(0, 255, 0), new List<Entity> { this }.Union(m.Subjects).ToList());
@@ -3410,7 +3474,7 @@ namespace Lightrealm
 
                     bool canReceiveMessage = bothAreSapient || this.PathOfLifeLevel >= 4 || m.Sender.PathOfLifeLevel >= 4;
 
-                    if (CombatCycles > 0 || !canReceiveMessage)
+                    if ((CombatCycles > 0 && !(m.MessageID == "surrender" || m.MessageID == "demand_surrender")) || !canReceiveMessage)
                     {
                         AnnounceToParty(ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { this });
                         continue;
@@ -3426,9 +3490,9 @@ namespace Lightrealm
                     // Adjust baseChanceToTruth by Sender.Charisma
                     baseChanceToTruth += m.Sender.Charisma * 3;
 
-                    if (m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender) || m.MessageContent.StartsWith("Would you tell me where I can find"))
+                    if (m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender) || m.Sender.ArchitectsWhoSurrenderedToMe.Contains(m.Receiver) || m.MessageContent.StartsWith("Would you tell me where I can find"))
                     {
-                        // Always respond truthfully if the sender is in ArchitectsIWillTellTruthTo or if it's a request for directions
+                        // Always respond truthfully if the sender is in ArchitectsIWillTellTruthTo or if it's a request for directions, or if theyre surrendered always comply.
                         baseChanceToTruth = 100;
                         baseChanceToMakeUp = 0;
                         baseChanceToClaimIgnorance = 0;
@@ -3602,7 +3666,7 @@ namespace Lightrealm
 
                 foreach (Architect a in architects)
                 {
-                    if (GetOpinion(a) == 0 && a != this && !(Game1.r.Next(0, 100) < a.ExtraStealth))
+                    if (GetOpinion(a) == 0 && a != this && !(Game1.r.Next(0, 100) < a.ExtraStealth && !a.ArchitectsWhoSurrenderedToMe.Contains(this)))
                     {
                         int FinalOpinion = 0;
                         bool isOpposed = false;
@@ -3637,7 +3701,7 @@ namespace Lightrealm
                             isOpposed = true;
                         }
 
-                        if (OppositionTags.Contains("intruders") && a.HomeLocation != Location)
+                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(this) && !Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(a))))
                         {
                             FinalOpinion = Math.Min(FinalOpinion, -247);
                             isOpposed = true;
@@ -3684,6 +3748,44 @@ namespace Lightrealm
                     OnGround = false;
                     CooldownCycles += (int)Math.Round((20 - Agility) * Speed());
                     AnnounceToParty(ReferredToNames[0] + " gets back up.", Color.Cyan, new List<Entity>() { this });
+                }
+
+
+                //attempt to surrender
+
+                if (CourageValue < 50 && Energy < 40 && CombatCycles > 0 && (Task == "killtarget" || Task == "disabletarget") && TargetArchitect != null && TargetArchitect.Block == this.Block && TargetArchitect.Room == this.Room && !ArchitectsWhoIAttemptedToSurrenderTo.Contains(TargetArchitect))
+                {
+                    ArchitectsWhoIAttemptedToSurrenderTo.Add(TargetArchitect);
+
+                    bool canSendMessage = true;
+
+                    // Both parties are in Talker category
+                    if ((Game1.GameWorld.HumanoidRaces.Contains(this.Race) || Game1.GameWorld.ExtraRaces.Contains(this.Race)) &&
+                        (Game1.GameWorld.HumanoidRaces.Contains(TargetArchitect.Race) || Game1.GameWorld.ExtraRaces.Contains(TargetArchitect.Race)))
+                    {
+                        canSendMessage = true;
+                    }
+                    // One party is not in Talker category
+                    else if ((Game1.GameWorld.HumanoidRaces.Contains(this.Race) || Game1.GameWorld.ExtraRaces.Contains(this.Race)) &&
+                             (!Game1.GameWorld.HumanoidRaces.Contains(TargetArchitect.Race) && !Game1.GameWorld.ExtraRaces.Contains(TargetArchitect.Race)) ||
+                             (!Game1.GameWorld.HumanoidRaces.Contains(this.Race) && !Game1.GameWorld.ExtraRaces.Contains(this.Race)) &&
+                             (Game1.GameWorld.HumanoidRaces.Contains(TargetArchitect.Race) || Game1.GameWorld.ExtraRaces.Contains(TargetArchitect.Race)))
+                    {
+                        if (this.PathOfLifeLevel < 4 && TargetArchitect.PathOfLifeLevel < 4)
+                        {
+                            canSendMessage = false;
+                        }
+                    }
+                    // Both parties are in Silent category
+                    else
+                    {
+                        canSendMessage = false;
+                    }
+
+                    if (canSendMessage)
+                    {
+                        CommandProcessor.SendMessage("surrender", this, TargetArchitect, new List<Entity> { }, Game1.GameWorld);
+                    }
                 }
 
 
@@ -5630,10 +5732,14 @@ namespace Lightrealm
                                 o.Room = null;
                             }
                         }
-                        foreach (Object o in s.HistoricalObjects)
+
+                        if(s.Block.District.IsLoaded)
                         {
-                            s.Block.Objects.Add(o);
-                            o.Room = null;
+                            foreach (Object o in s.HistoricalObjects)
+                            {
+                                s.Block.Objects.Add(o);
+                                o.Room = null;
+                            }
                         }
                     }
                     else if (CurrentTarget is World)

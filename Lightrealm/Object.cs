@@ -831,6 +831,11 @@ namespace Lightrealm
                     Weight = 300;
                     Description = "A bunch of /m";
                     break;
+                case "bolt":
+                    Weight = 300;
+                    Description = "A bolt of cloth, made of /m";
+                    break;
+
 
                 //writables, make sure you implement content afterward if using this!!!
                 case "scroll":
@@ -970,7 +975,7 @@ namespace Lightrealm
                     Description = "An upper body garment made of /m.";
                     CoverageValues.Add(("torso", 8));
                     break;
-                case "uppergarment":
+                case "brassiere":
                     Weight = 0;
                     IsWearable = true;
                     Description = "An undergarment for the upper body made of /m.";
@@ -1095,51 +1100,61 @@ namespace Lightrealm
                     Weight = 1000;
                     IsGeneralGood = true;
                     Description = "A small decorative urn made of /m.";
+                    IsContainer = true;
                     break;
                 case "big urn":
                     Weight = 1000;
                     IsGeneralGood = true;
                     Description = "A large decorative urn made of /m.";
+                    IsContainer = true;
                     break;
                 case "small pot":
                     Weight = 1000;
                     IsGeneralGood = true;
                     Description = "A small cooking pot made of /m.";
+                    IsContainer = true;
                     break;
                 case "big pot":
                     Weight = 1000;
                     IsGeneralGood = true;
                     Description = "A large cooking pot made of /m.";
+                    IsContainer = true;
                     break;
                 case "small mug":
                     Weight = 300;
                     IsGeneralGood = true;
                     Description = "A small mug made of /m.";
+                    IsContainer = true;
                     break;
                 case "big mug":
                     Weight = 300;
                     IsGeneralGood = true;
                     Description = "A large mug made of /m.";
+                    IsContainer = true;
                     break;
                 case "small bowl":
                     Weight = 300;
                     IsGeneralGood = true;
                     Description = "A small bowl made of /m.";
+                    IsContainer = true;
                     break;
                 case "big bowl":
                     Weight = 300;
                     IsGeneralGood = true;
                     Description = "A large bowl made of /m.";
+                    IsContainer = true;
                     break;
                 case "small cup":
                     Weight = 300;
                     IsGeneralGood = true;
                     Description = "A small cup made of /m.";
+                    IsContainer = true;
                     break;
                 case "big cup":
                     Weight = 300;
                     IsGeneralGood = true;
                     Description = "A large cup made of /m.";
+                    IsContainer = true;
                     break;
                 case "tablet":
                     Weight = 500;

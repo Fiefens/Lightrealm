@@ -15,6 +15,9 @@ namespace Lightrealm
         public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
         public string Type { get; set; }
 
+        public double CycleLastTraded { get; set; } = 0;
+        public double CycleLastMoved { get; set; } = 0;
+
         public int Stability { get; set; } = 50; //100 is a very solid group. 0 is cause for disbandment.
         public int Reputation { get; set; } = 0; //The better a group is, the more likely it will attack and destroy bad groups, the less likely it will be attacked regardless of its evil reputation, and the more stable it is.
 
@@ -54,7 +57,7 @@ namespace Lightrealm
 
         public List<Location> TradeRoute = new List<Location>();
         public int MaxTradeRouteLength = Game1.r.Next(3, 10);
-        public bool TradeCooldown = false;
+        public bool WaitingForCooldownToTrade = false;
 
         public int MoralCompass = 0;
         public int StabilityCompass = 0;

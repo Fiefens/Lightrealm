@@ -193,7 +193,7 @@ namespace Lightrealm
 
             List<string> entitiesToAdd = new List<string>
             {
-                "tavern", "prism", "well", "shrine", "library", "watchtower", "market",
+                "tavern", "prism", "well", "shrine", "library", "watchtower", "forge", "market",
                 "north", "south", "east", "west", "up", "down", "southeast", "southwest",
                 "northeast", "northwest", "shadow storage", "relationships", "mining",
                 "combat", "crafting", "trading", "stealth", "alchemy", "cooking", "fishing",
@@ -409,6 +409,7 @@ namespace Lightrealm
         public static Architect MostRecentPartyTurnArchitect = null;
 
         public static string GrievanceReason = "";
+        public static string GrievanceDoer = "";
 
         public List<string> AllEnteredGameStates = new List<string>();
 
@@ -884,7 +885,7 @@ namespace Lightrealm
                 { "surrender", new List<string> { "Stay put and do", "I surrender too", "Surrender to my looks?" } },
                 { "demand_surrender", new List<string> { "I yield", "Okay! But only to you" } },
                 { "ask_name", new List<string> { "My name is" } },
-                { "demand_item", new List<string> { "Okay! I’ll", "I’ll drop it, but" } }
+                { "demand_item", new List<string> { "Okay! I'll", "I'll drop it, but" } }
             };
 
             if (triggers.ContainsKey(MessageID))
@@ -1003,8 +1004,15 @@ namespace Lightrealm
                                 // Add the sender to the receiver's list of those who surrendered to them
                                 Reciever.ArchitectsWhoSurrenderedToMe.Add(Sender);
 
-                                // Placeholder effect: Create a shield token
-                                // CreateShieldToken(Sender, Reciever);
+                                Sender.TargetArchitect = null;
+                                Sender.Task = "";
+                                Sender.CyclesLeftInTask = 0;
+                                Sender.SetOpinion(Reciever, -30);
+
+                                Reciever.TargetArchitect = null;
+                                Reciever.Task = "";
+                                Reciever.CyclesLeftInTask = 0;
+                                Reciever.SetOpinion(Sender, -30);
                             }
                             break;
 
@@ -1020,24 +1028,23 @@ namespace Lightrealm
                                 // Add the receiver to the sender's list of those who surrendered to them
                                 Sender.ArchitectsWhoSurrenderedToMe.Add(Reciever);
 
-                                // Placeholder effect: Handle surrender
-                                // HandleSurrender(Sender, Reciever);
+                                Sender.TargetArchitect = null;
+                                Sender.Task = "";
+                                Sender.CyclesLeftInTask = 0;
+                                Sender.SetOpinion(Reciever, -30);
+
+                                Reciever.TargetArchitect = null;
+                                Reciever.Task = "";
+                                Reciever.CyclesLeftInTask = 0;
+                                Reciever.SetOpinion(Sender, -30);
                             }
                             break;
-                        case "greet":
-                            if (triggers["greet"].Any(trigger => Response.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)))
+                        
+                        case "ask_name":
+                            if (triggers["ask_name"].Any(trigger => Response.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)))
                             {
-                                // Ensure the list is initialized
-                                if (Sender.KnownArchitects == null)
-                                {
-                                    Sender.KnownArchitects = new List<Architect>();
-                                }
-
-                                // Add the receiver to the sender's list of those who surrendered to them
                                 Sender.KnownArchitects.Add(Reciever);
-
-                                // Placeholder effect: Handle surrender
-                                // HandleSurrender(Sender, Reciever);
+                                Reciever.KnownArchitects.Add(Sender);
                             }
                             break;
 
@@ -2283,7 +2290,7 @@ namespace Lightrealm
         public static List<string> ArchitectProfessions = new List<string>() { "commander", "craftsman", "mercenary", "musician", "elder", "prophet", "trader", "anarchist", "political figure", "scholar" };
         public static List<string> Sexes = new List<string>() { "male", "female" };
 
-        public static List<string> DeathCauses = new List<string>() { " fell to their death ", " drowned ", " died of cancer ", " burned ", " misoperated dangerous equipment ", " died of sickness ", " starved to death ", " dehydrated ", " choked to death ", " was killed by a wild animal ", " bled to death " };
+        public static List<string> DeathCauses = new List<string>() { "fell to their death", "drowned", "burned to death", "starved to death", "dehydrated", "choked to death", "was killed by a wild animal", "bled to death" };
 
         public static List<string> Industries = new List<string>() { "textiles", "spices", "metal", "jewelry", "tools", "military", "tea", "coffee", "wood", "ceramics", "glassmaking", "dye", "waspkeeping", "fuel", "masonry", "healing" };
 
@@ -2311,7 +2318,7 @@ namespace Lightrealm
 
         public static List<string> MagicSchools = new List<string>() { "conjuration", "perception", "spatial", "fractal", "necromantic" };
         public static List<string> CultureSchools = new List<string>() { "music", "artistry", "choreography", "theater", "literature" };
-        public static List<string> ScienceSchools = new List<string>() { "engineering", "mathematics", "biology", "chemistry", "physical" };
+        public static List<string> ScienceSchools = new List<string>() { "engineering", "mathematics", "biology", "chemistry", "physics" };
 
         public static List<string> WrittenObjectTypes = new List<string>() { "scroll", "book", "scroll", "book", "scroll", "book", "waxtablet", "sheet" };
 
@@ -2976,7 +2983,7 @@ namespace Lightrealm
             RecognizedCommands.Add("insult", (new List<string> { "insult ~", "defame ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("surrender", (new List<string> { "surrender to ~", "yield to ~", "give up to ~", "concede to ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("demand_surrender", (new List<string> { "demand ~ surrender", "demand ~ to surrender", "request ~ surrender", "ask ~ to surrender" }, new List<string> { "nearby_architect" }));
-            RecognizedCommands.Add("demand_item", (new List<string> { "demand from ~ ~ ", "demand from ~ a ~" }, new List<string> { "nearby_architect", "inventory" }));
+            RecognizedCommands.Add("demand_item", (new List<string> { "demand from ~ a ~", "demand ~ drop ~", "demand ~ to drop ~" }, new List<string> { "nearby_architect", "inventory" }));
 
             // Add all the above ones to RecognizedMessages
 
@@ -3034,7 +3041,7 @@ namespace Lightrealm
 
             RecognizedCommands.Add("become_invisible", (new List<string> { "become one with shadow", "become one with the shadow" }, new List<string> { "none" }));
             RecognizedCommands.Add("exit_invisibility", (new List<string> { "exit the shadows", "exit the darkness", "return from the shadows", "return from the shadow", "return from shadow" }, new List<string> { "none" }));
-            RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
+            //RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
             RecognizedCommands.Add("engage_target", (new List<string> { "engage ~", "engage with ~", "confront ~", "focus ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("approach_target", (new List<string> { "approach ~", "move closer to ~", "advance towards ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("distance_from_target", (new List<string> { "distance from ~", "move away from ~", "retreat from ~" }, new List<string> { "nearby_architect" }));
@@ -3060,7 +3067,7 @@ namespace Lightrealm
             RecognizedCommands.Add("consume", (new List<string> { "consume ~", "apply ~", "eat ~", "drink ~" }, new List<string> { "inventory" }));
 
             RecognizedCommands.Add("recall_information", (new List<string> { "remember ~", "list ~", "list all ~" }, new List<string> { "rememberance" }));
-            RecognizedCommands.Add("ditch_inventory", (new List<string> { "strip", "ditch my inventory", "drop everything" }, new List<string> { "none" }));
+            RecognizedCommands.Add("ditch_inventory", (new List<string> { "ditch my inventory", "drop everything" }, new List<string> { "none" }));
             RecognizedCommands.Add("read_object", (new List<string> { "read ~" }, new List<string> { "inventory" }));
             RecognizedCommands.Add("perform_composition", (new List<string> { "recite ~", "sing ~", "perform ~" }, new List<string> { "known_compositions" }));
             RecognizedCommands.Add("write_composition", (new List<string> { "write ~", "write a ~", "write an ~", "compose ~", "compose a ~", "compose an ~" }, new List<string> { "composition_types" }));
@@ -3340,7 +3347,7 @@ namespace Lightrealm
                 {"anarchist", "from the chaos you've sown"},
                 {"craftsman", "by selling shiba statues"},
                 {"musician", "courtesy of ecstatic tavernkeepers"},
-                {"scholar", "by sharing your studies"},
+                {"scholar", "from sharing your studies"},
                 {"sorcerer", "from the deity of light"},
                 {"warlock", "from the deity of shadow"},
                 {"alpha", "from taxes"},
@@ -3499,6 +3506,7 @@ namespace Lightrealm
                 {"eating", "eating"},
                 {"industry", "working"},
                 {"contemplate", "contemplating"},
+                {"sentinel", "sentinel"},
                 {"bound", "bound"},
                 {"study", "studying"},
                 {"", "idle"}
@@ -3575,7 +3583,7 @@ namespace Lightrealm
             InvertDoorDirection.Add("up", "down");
             InvertDoorDirection.Add("down", "up");
 
-            Console.WriteLine("Initialization complete. Do not close this window.");
+            Console.WriteLine("Initialization complete. Do not close this window until you have closed Lightrealm.");
 
             FrameCounter = new FrameCounter();
             GameInput = new GameInput();
@@ -3864,7 +3872,7 @@ namespace Lightrealm
             CharacterAtlas["small hat"] = SmallHatT = Content.Load<Texture2D>("character art/small hat");
             CharacterAtlas["straps"] = StrapsT = Content.Load<Texture2D>("character art/straps");
             CharacterAtlas["undergarment"] = UndergarmentT = Content.Load<Texture2D>("character art/undergarment");
-            CharacterAtlas["uppergarment"] = UpperGarmentT = Content.Load<Texture2D>("character art/uppergarment");
+            CharacterAtlas["brassiere"] = UpperGarmentT = Content.Load<Texture2D>("character art/uppergarment");
             CharacterAtlas["uppershirt female"] = UpperShirtFemaleT = Content.Load<Texture2D>("character art/uppershirt female");
             CharacterAtlas["uppershirt male"] = UpperShirtMaleT = Content.Load<Texture2D>("character art/uppershirt male");
             CharacterAtlas["wraps"] = WrapsT = Content.Load<Texture2D>("character art/wraps");
@@ -5244,7 +5252,10 @@ namespace Lightrealm
                                     a.Grievances.Any(g => GameWorld.Calamity.Contains(g.Item1)))
                                 {
                                     // Store the string of the grievance
-                                    GrievanceReason = a.Grievances.First(g => GameWorld.Calamity.Contains(g.Item1)).Item2;
+                                    var grievance = a.Grievances.First(g => GameWorld.Calamity.Contains(g.Item1));
+                                    GrievanceDoer = grievance.Item1.Name;
+                                    GrievanceReason = grievance.Item2;
+
 
                                     // Additional logic here
                                     // For example, compare histories or ages
@@ -5355,19 +5366,19 @@ namespace Lightrealm
 
                             if (GamePlayerParty.Architects[0].ScienceStudyPoints == 0 && GamePlayerParty.Architects[0].CultureStudyPoints == 0 && GamePlayerParty.Architects[0].MagicStudyPoints == 0)
                             {
-                                Exposition.Add(new TextStorage(Capitalize(GamePlayerParty.Architects[0].Name + " finds " + GamePlayerParty.Architects[0].FavoriteScienceField + " science, " + GamePlayerParty.Architects[0].FavoriteCultureField + " culture, and " + GamePlayerParty.Architects[0].FavoriteMagicField + " magic very intriguing."), Color.Orange, new List<Entity>()));
+                                Exposition.Add(new TextStorage(Capitalize(GamePlayerParty.Architects[0].Name + " finds " + GamePlayerParty.Architects[0].FavoriteScienceField + ", " + GamePlayerParty.Architects[0].FavoriteCultureField + ", and " + GamePlayerParty.Architects[0].FavoriteMagicField + " magic very intriguing."), Color.Orange, new List<Entity>()));
                             }
                             if (GamePlayerParty.Architects[0].ScienceStudyPoints > 0)
                             {
-                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " likes " + GamePlayerParty.Architects[0].FavoriteScienceField + ", and studies it avidly.", Color.Orange, new List<Entity>()));
+                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " studies " + GamePlayerParty.Architects[0].FavoriteScienceField + " very avidly.", Color.Orange, new List<Entity>()));
                             }
                             if (GamePlayerParty.Architects[0].CultureStudyPoints > 0)
                             {
-                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " likes " + GamePlayerParty.Architects[0].FavoriteCultureField + ", and explores it relentlessly.", Color.Orange, new List<Entity>()));
+                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " composes " + GamePlayerParty.Architects[0].FavoriteCultureField + ", and explores it relentlessly.", Color.Orange, new List<Entity>()));
                             }
                             if (GamePlayerParty.Architects[0].MagicStudyPoints > 0)
                             {
-                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " likes " + GamePlayerParty.Architects[0].FavoriteMagicField + ", and dedicates much research to it's pursuit.", Color.Orange, new List<Entity>()));
+                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " practices " + GamePlayerParty.Architects[0].FavoriteMagicField + " magic, and dedicates much research to it's pursuit.", Color.Orange, new List<Entity>()));
                             }
 
                             GamePlayerParty.Architects[0].Strength = StoredStr;
@@ -5396,14 +5407,13 @@ namespace Lightrealm
 
                             if (GamePlayerParty.Architects[0].FavoriteBook == null)
                             {
-                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " does not particularly enjoy reading.", Color.Yellow, new List<Entity>()));
+                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " has been taught to read, but never found any interesting books.", Color.Yellow, new List<Entity>()));
                             }
                             else
                             {
-                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + "'s favorite book is " + GamePlayerParty.Architects[0].FavoriteBook.Name + ", a book on " + GamePlayerParty.Architects[0].FavoriteBook.Subject + ".", Color.Yellow, new List<Entity>()));
+                                Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + "'s favorite book is " + GamePlayerParty.Architects[0].FavoriteBook.Name + ", a book primarily on the subject of " + GamePlayerParty.Architects[0].FavoriteBook.CompositionContent.Subject.Name + ".", Color.Yellow, new List<Entity>()));
                             }
 
-                            Exposition.Add(new TextStorage(GamePlayerParty.Architects[0].Name + " has no living family " + GamePlayerParty.Architects[0].Pronoun + " knows of.", Color.Green, new List<Entity>()));
                             Exposition.Add(new TextStorage("", Color.Green, new List<Entity>()));
                             Exposition.Add(new TextStorage("", Color.Green, new List<Entity>()));
                             Exposition.Add(new TextStorage("", Color.Green, new List<Entity>()));
@@ -5414,12 +5424,14 @@ namespace Lightrealm
                             GameWorld.Calamity[0].Name + " and " + GameWorld.Calamity[0].PossessivePronoun +
                             " gang of " + CalamityIdeologicalObsessionMapping[GameWorld.CalamityIdeologicalObsession] +
                             " have plagued " + GameWorld.Name + " for decades, but you cannot stand another second. " +
-                            "It has been a long time since " + GameWorld.Calamity[0].Name + " " + GrievanceReason +
-                            ", but the memory continues to burden you. Your revenge will be difficult without proper experience and equipment, though. " +
-                            "You've saved up a bit of money " + ConvertProfessionToCareerDescription[GamePlayerParty.Architects[0].Profession] +
+                            "It has been a long time since " + GrievanceDoer + GrievanceReason +
+                            ", but as you hear more about the threat of the organization behind them, the memory continues to burden you. " +
+                            "Regardless of your passion, your journey will be quite difficult without proper experience and equipment. " +
+                            "You've saved up a bit of fragments " + ConvertProfessionToCareerDescription[GamePlayerParty.Architects[0].Profession] +
                             ", but the merchants from " + GamePlayerParty.Architects[0].Location.TradersAtThisLocation[0].Base.Name +
                             " won't be here forever. Perhaps they can assist you in getting some supplies before you embark on your journey. " +
                             "Do not displease them or their debtshibas, and your quest will be glorious and fortunate.";
+
 
                             int maxLength = expositionText.Length / 6; // Calculate approximate length for each line
 
@@ -5446,6 +5458,8 @@ namespace Lightrealm
                                 Exposition.Add(new TextStorage(line, Color.Aquamarine, new List<Entity>()));
                             }
 
+                            Exposition.Add(new TextStorage("", Color.White, new List<Entity>()));
+                            Exposition.Add(new TextStorage("Or maybe, " + GamePlayerParty.Architects[0].Name + " can move on, and find a different path.", Color.Magenta, new List<Entity>()));
                             Exposition.Add(new TextStorage("", Color.White, new List<Entity>()));
                             Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White, new List<Entity>()));
 
@@ -6121,6 +6135,13 @@ namespace Lightrealm
                                             // Collect all subjects
                                             AllSubjects = CollectAllSubjects(MostRecentPartyTurnArchitect, Modifier);
 
+                                            // body parts pls
+
+                                            foreach (Object o in MostRecentPartyTurnArchitect.BodyParts)
+                                            {
+                                                o.ReferredToNames.Add("my " + o.Type);
+                                            }
+
                                             if (commandParts.Length > 0)
                                             {
                                                 // Collect all subjects before processing the command
@@ -6294,6 +6315,11 @@ namespace Lightrealm
 
                             foreach (var attack in newAttacks)
                             {
+                                if(attack.Attacker.IsAlive == false)
+                                {
+                                    continue;
+                                }
+
                                 if (GamePlayerParty.Architects.Any(a => a.BodyParts.Contains(attack.Target)))
                                 {
                                     GameState = "reaction";
@@ -6996,11 +7022,11 @@ namespace Lightrealm
                         if (GamePlayerParty.CurrentEvent != null)
                         {
                             Exposition = new List<TextStorage>
-                            {
-                                new TextStorage(GamePlayerParty.CurrentEvent.Info, Color.White, new List<Entity>()),
-                                new TextStorage("[Y] Approach cautiously.", Color.Yellow, new List<Entity>()),
-                                new TextStorage("[N] Avoid the encounter.", Color.Yellow, new List<Entity>())
-                            };
+    {
+        new TextStorage(GamePlayerParty.CurrentEvent.Info, Color.White, new List<Entity>()),
+        new TextStorage("[Y] Approach cautiously.", Color.Yellow, new List<Entity>()),
+        new TextStorage("[N] Avoid the encounter.", Color.Yellow, new List<Entity>())
+    };
 
                             if (KeysNewlyPressed.Contains(Keys.Y))
                             {
@@ -7009,17 +7035,27 @@ namespace Lightrealm
 
                                 // Define the blocks on the outskirts of a 7x7 district grid
                                 List<int> outskirtsBlockIndexes = new List<int>
+        {
+            // Top row and bottom row
+            0, 1, 2, 3, 4, 5, 6, 42, 43, 44, 45, 46, 47, 48,
+            // Left column and right column, excluding corners already included
+            7, 14, 21, 28, 35, 13, 20, 27, 34, 41
+        };
+
+                                // Define the blocks that are not on the outskirts
+                                List<int> nonOutskirtsBlockIndexes = new List<int>();
+                                for (int i = 0; i < 49; i++)
                                 {
-                                    // Top row and bottom row
-                                    0, 1, 2, 3, 4, 5, 6, 42, 43, 44, 45, 46, 47, 48,
-                                    // Left column and right column, excluding corners already included
-                                    7, 14, 21, 28, 35, 13, 20, 27, 34, 41
-                                };
+                                    if (!outskirtsBlockIndexes.Contains(i))
+                                    {
+                                        nonOutskirtsBlockIndexes.Add(i);
+                                    }
+                                }
 
                                 // Randomly pick one block from the outskirts
                                 Random r = new Random();
-                                int randomBlockIndex = outskirtsBlockIndexes[r.Next(outskirtsBlockIndexes.Count)];
-                                Block arrivalBlock = newDistrict.DistrictMap[randomBlockIndex];
+                                int randomOutskirtsBlockIndex = outskirtsBlockIndexes[r.Next(outskirtsBlockIndexes.Count)];
+                                Block arrivalBlock = newDistrict.DistrictMap[randomOutskirtsBlockIndex];
 
                                 newDistrict.Load();
 
@@ -7030,7 +7066,7 @@ namespace Lightrealm
                                 {
                                     architect.Location = newLocation;
                                     architect.District = newDistrict;
-                                    architect.Block = arrivalBlock;  // Set all architects to the randomly selected outskirts block
+                                    architect.Block = arrivalBlock;  // Set all party architects to the randomly selected outskirts block
                                     architect.TryingToTravel = false;  // Reset travel intent
                                     arrivalBlock.Architects.Add(architect);
                                 }
@@ -7040,15 +7076,18 @@ namespace Lightrealm
                                 {
                                     a.Location = newLocation;
                                     a.District = newDistrict;
-                                    a.Block = arrivalBlock;  // Set all architects to the randomly selected outskirts block
+                                    // Randomly pick one block from the non-outskirts blocks
+                                    int randomNonOutskirtsBlockIndex = nonOutskirtsBlockIndexes[r.Next(nonOutskirtsBlockIndexes.Count)];
+                                    Block randomBlock = newDistrict.DistrictMap[randomNonOutskirtsBlockIndex];
+                                    a.Block = randomBlock;  // Set the architect to a randomly selected non-outskirts block
                                     a.TryingToTravel = false;  // Reset travel intent
-                                    arrivalBlock.Architects.Add(a);
+                                    randomBlock.Architects.Add(a);
                                     LoadedArchitects.Add(a);
                                 }
 
-                                foreach(Architect a in GamePlayerParty.Architects)
+                                foreach (Architect a in GamePlayerParty.Architects)
                                 {
-                                    if(!LoadedArchitects.Contains(a))
+                                    if (!LoadedArchitects.Contains(a))
                                     {
                                         LoadedArchitects.Add(a);
                                     }
@@ -7064,6 +7103,7 @@ namespace Lightrealm
                                 GamePlayerParty.ClearSkillData();
                             }
                         }
+
                         else
                         {
                             if (KeysNewlyPressed.Contains(Keys.Space))
@@ -7379,6 +7419,7 @@ namespace Lightrealm
                             if (KeysNewlyPressed.Contains(Keys.Enter))
                             {
                                 CraftingPhase = "selectingredients";
+                                InventoryCraftingIndex = 0;
                                 IndexesForResources = new List<int>();  // Clear the previous selection
                             }
                         }
@@ -7764,7 +7805,7 @@ namespace Lightrealm
                     for (int z = 0; z < GameWorld.Length; z++)
                     {
                         // Define the radius of the detection sphere
-                        int radius = 2; // Example: radius of 2 tiles. Adjust this value as needed.
+                        int radius = 1; // Example: radius of 2 tiles. Adjust this value as needed.
 
                         // Function to check if a given tile is within the specified radius of the cursor
                         bool IsWithinRadius(int centerX, int centerZ, int checkX, int checkZ, int radius)
@@ -8231,7 +8272,7 @@ namespace Lightrealm
                 var drawOrder = new List<string[]>
                 {
                     new string[] { "body" },
-                    new string[] { "undergarment", "uppergarment" },
+                    new string[] { "undergarment", "brassiere" },
                     new string[] { "flair" },  // Draw flair before anything that ends with "shirt"
                     new string[] { "leggings", "pants" },  // Always draw these first within this category
                     new string[] { "otherClothing" },
@@ -8243,7 +8284,7 @@ namespace Lightrealm
 
                 // Define armor and clothing categories
                 var armorItems = new HashSet<string> { "chestplate", "helmet", "left boot", "right boot", "left gauntlet", "right gauntlet", "leggings" };
-                var clothingItems = new HashSet<string> { "undergarment", "uppergarment", "robe", "shirt", "pants", "leggings", "skirt", "kilt", "hat", "flair" };
+                var clothingItems = new HashSet<string> { "undergarment", "brassiere", "robe", "shirt", "pants", "leggings", "skirt", "kilt", "hat", "flair" };
 
                 // Group items by their type
                 var groupedItems = new Dictionary<string, List<Object>>();
@@ -8752,13 +8793,12 @@ namespace Lightrealm
 
                 if (ViewMessageForCustom)
                 {
-                    _spriteBatch.DrawString(Shibafont, "Some custom settings are not guarranteed to produce a playable world.", new Vector2(200, 300), Color.OrangeRed);
+                    _spriteBatch.DrawString(Shibafont, "Some custom settings are not guaranteed to produce a playable world.", new Vector2(200, 300), Color.OrangeRed);
                 }
 
                 if (CurrentlySelectedWorldAge == 10000)
                 {
                     _spriteBatch.DrawString(Shibafont, "(Q/A) World Age: Until Cancelled. (Stack Overflow Inevitable Unless Calamity Eats Your World)", new Vector2(200, 500), Color.Orange);
-
                 }
                 else
                 {
@@ -8776,23 +8816,27 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, displayText, new Vector2(200, 500), Color.Orange);
                 }
 
-                if (ThreatTypes[CurrentlySelectedGrievanceType] == "random")
-                {
-                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Calamity: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (This could produce a world-simplifying threat. If complexity sounds more fun, choose non-cataclysmic)", new Vector2(200, 550), Color.Magenta);
-                }
-                else if (ThreatTypes[CurrentlySelectedGrievanceType] == "disease")
-                {
-                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Calamity: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (Warning: This threat will make many settlements rather desolate.)", new Vector2(200, 550), Color.Magenta);
-                }
-                else if (ThreatTypes[CurrentlySelectedGrievanceType] == "purifier")
-                {
-                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Calamity: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]) + " (Warning: This threat will rip apart your continent and history.)", new Vector2(200, 550), Color.Magenta);
-                }
-                else
-                {
-                    _spriteBatch.DrawString(Shibafont, "(W/S) Choose Calamity: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
-                }
+                _spriteBatch.DrawString(Shibafont, "(W/S) Choose Calamity: " + Capitalize(ThreatTypes[CurrentlySelectedGrievanceType]), new Vector2(200, 550), Color.Magenta);
 
+                Dictionary<string, string> threatDescriptions = new Dictionary<string, string>
+    {
+        { "non-cataclysmic", "Choose a random, morally-questionable threat, but with a goal that does not bring the destruction of the entire world. (recommended)" },
+        { "random", "Choose a completely random threat from all options. May destroy/desolate your entire world." },
+        { "dominator", "An organization bent on unjustly taking over the world will inhabit your continent." },
+        { "purifier", "A force of purity will try to erase the entire world into indistinguishable matter." },
+        { "disease", "A dark plague will come upon your land, and be manipulated for its destruction." },
+        { "killer", "A gang of criminal assassins will try to exterminate as much of life as possible." },
+        { "kidnapper", "For one reason or another, countless people will be taken from their homes." },
+        { "corruptor", "A depressed individual will ravage the morality and stability of thousands of minds." },
+        { "diplomancer", "A manipulative individual will try to turn the entire world to evil." },
+        { "inciter", "A powerful persuader will attempt to drive the world into an eternal conflict." },
+        { "power", "An ancient harvester will attempt to concentrate the energy of countless slain individuals." }
+    };
+
+                if (threatDescriptions.ContainsKey(ThreatTypes[CurrentlySelectedGrievanceType]))
+                {
+                    _spriteBatch.DrawString(Shibafont, threatDescriptions[ThreatTypes[CurrentlySelectedGrievanceType]], new Vector2(200, 600), Color.Magenta);
+                }
 
                 string numberOfCivilizationsText = "(E/D) Number of Civilizations: " + NumberOfCivilizations;
 
@@ -8805,8 +8849,7 @@ namespace Lightrealm
                     numberOfCivilizationsText += " (minimum)";
                 }
 
-                _spriteBatch.DrawString(Shibafont, numberOfCivilizationsText, new Vector2(200, 600), Color.Red);
-
+                _spriteBatch.DrawString(Shibafont, numberOfCivilizationsText, new Vector2(200, 650), Color.Red);
 
                 double roundedProsperityMultiplier = Math.Round(ProsperityMultiplier, 1);
                 string prosperityMultiplierText = roundedProsperityMultiplier.ToString("0.0");
@@ -8820,15 +8863,16 @@ namespace Lightrealm
                     prosperityMultiplierText += "        Warning: This may make world generation highly unstable.";
                 }
 
-                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + prosperityMultiplierText, new Vector2(200, 650), Color.Cyan);
+                _spriteBatch.DrawString(Shibafont, "(R/F) Prosperity Multiplier (affects civ growth rate): " + prosperityMultiplierText, new Vector2(200, 700), Color.Cyan);
 
                 /*
-                _spriteBatch.DrawString(Shibafont, "(T/G) [BROKEN] World Width (in region tiles, east/west, max 128): " + CurrentlySelectedWorldWidth, new Vector2(200, 700), Color.LimeGreen);
-                _spriteBatch.DrawString(Shibafont, "(Y/H) [BROKEN] World Length (in region tiles, north/south, max 128): " + CurrentlySelectedWorldLength, new Vector2(200, 750), Color.Cyan);
+                _spriteBatch.DrawString(Shibafont, "(T/G) [BROKEN] World Width (in region tiles, east/west, max 128): " + CurrentlySelectedWorldWidth, new Vector2(200, 750), Color.LimeGreen);
+                _spriteBatch.DrawString(Shibafont, "(Y/H) [BROKEN] World Length (in region tiles, north/south, max 128): " + CurrentlySelectedWorldLength, new Vector2(200, 800), Color.Cyan);
                 */
 
                 _spriteBatch.DrawString(Shibafont, "Press ENTER to begin world generation.", new Vector2(200, 950), Color.White);
             }
+
 
             else if (GameState == "savinggame")
             {
@@ -8901,6 +8945,7 @@ namespace Lightrealm
             {
                 int Line = 0;
                 bool foundMatchingHistory = false;
+                bool foundVisibleMatchingHistory = false;
 
                 // Draw the first 3 lines from the entire history
                 for (int i = 0; i < 3; i++)
@@ -8919,27 +8964,32 @@ namespace Lightrealm
                     if (CurrentlyViewingHistory[i].Contains(HistoryPrompt, StringComparison.OrdinalIgnoreCase))
                     {
                         filteredHistory.Add(CurrentlyViewingHistory[i]);
+                        foundMatchingHistory = true; // Track if any matching history is found
                     }
                 }
 
                 // Draw up to 50 lines from the filtered history that match the HistoryPrompt, respecting scrolling
                 for (int i = HistoricalScrollValue; i < HistoricalScrollValue + 50; i++)
                 {
-                    if (filteredHistory.Count > i - HistoricalScrollValue)
+                    if (filteredHistory.Count > i - HistoricalScrollValue && filteredHistory.Count > i)
                     {
                         _spriteBatch.DrawString(BabyShibafont, filteredHistory[i], new Vector2(50, 50 + (Line * 30)), Color.White);
                         Line++;
-                        foundMatchingHistory = true;
+                        foundVisibleMatchingHistory = true; // Track if any visible matching history is found
                     }
                 }
 
-                // If no matching history found, display a message
+                // Display messages based on the presence of matching history
                 if (!foundMatchingHistory)
                 {
-                    _spriteBatch.DrawString(BabyShibafont, "Nothing related to " + HistoryPrompt + " happened here.", new Vector2(50, 50 + (Line * 30)), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "Nothing related to \"" + HistoryPrompt + "\" happened here.", new Vector2(50, 50 + (Line * 30)), Color.White);
                     Line++;
                 }
-
+                else if (!foundVisibleMatchingHistory)
+                {
+                    _spriteBatch.DrawString(BabyShibafont, "Looks like you scrolled too far. This empty space is still for you to write...", new Vector2(50, 50 + (Line * 30)), Color.White);
+                    Line++;
+                }
 
                 // Draw the search prompt
                 _spriteBatch.DrawString(BabyShibafont, "Use scroll to go through events. CTRL + Scroll to scroll faster.", new Vector2(1600, 50), Color.White);
@@ -11062,162 +11112,299 @@ namespace Lightrealm
                     DrawCharacter(MostRecentPartyTurnArchitect, 500, 1200, 0.2);
 
                 }
-
-                //draw the prompt regardless of anything, unless you are in the help menu
+                string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that", "his", "their", "himself", "herself", "themself", "themselves" };
 
                 if (!((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion)))
                 {
-                    List<string> ParseInputIntoParts(string command, string typedText)
+                    // Define colors for different parts
+                    Color infrastructureColor = new Color(255, 0, 255); // Pink
+                    Color subjectColor = new Color(0, 255, 0); // Green
+                    Color completePronounColor = new Color(0, 255, 255); // Cyan
+                    Color incompletePronounColor = new Color(0, 0, 139); // Dark blue
+                    Color defaultColor = new Color(75, 75, 75); // Gray
+
+                    List<(string part, string type, bool isComplete)> ParseIntoParts(string command, string input)
                     {
                         var commandParts = command.Split(' ');
-                        var inputParts = new List<string>();
-                        var typedWords = typedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        var inputParts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+                        var parsedParts = new List<(string part, string type, bool isComplete)>();
 
+                        // Merge adjacent non-unique parts in the command
+                        var mergedCommandParts = new List<string>();
+                        for (int i = 0; i < commandParts.Length; i++)
+                        {
+                            if (commandParts[i] == "~" || commandParts[i] == "/p")
+                            {
+                                mergedCommandParts.Add(commandParts[i]);
+                            }
+                            else
+                            {
+                                string mergedPart = commandParts[i];
+                                while (i + 1 < commandParts.Length && commandParts[i + 1] != "~" && commandParts[i + 1] != "/p")
+                                {
+                                    mergedPart += " " + commandParts[++i];
+                                }
+                                mergedCommandParts.Add(mergedPart);
+                            }
+                        }
+
+                        // Tagging parts
+                        var taggedInputParts = inputParts.Select(part =>
+                            (part, isUnique: pronouns.Any(p => part.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || mergedCommandParts.Any(cp => cp.Equals(part, StringComparison.OrdinalIgnoreCase))))
+                            .ToList();
+
+                        // Merge adjacent non-unique parts in the input
+                        var mergedInputParts = new List<string>();
+                        for (int i = 0; i < taggedInputParts.Count; i++)
+                        {
+                            if (!taggedInputParts[i].isUnique)
+                            {
+                                string mergedPart = taggedInputParts[i].part;
+                                while (i + 1 < taggedInputParts.Count && !taggedInputParts[i + 1].isUnique)
+                                {
+                                    mergedPart += " " + taggedInputParts[++i].part;
+                                }
+                                mergedInputParts.Add(mergedPart);
+                            }
+                            else
+                            {
+                                mergedInputParts.Add(taggedInputParts[i].part);
+                            }
+                        }
+
+                        // Parsing logic to align with GetMatchScore's merged logic
                         int j = 0;
-                        for (int i = 0; i < commandParts.Length; i++)
+                        bool firstPartChecked = false;
+                        for (int i = 0; i < mergedCommandParts.Count; i++)
                         {
-                            if (commandParts[i] == "~")
+                            if (mergedCommandParts[i] == "~")
                             {
-                                string subject = "";
-                                while (j < typedWords.Length && (i + 1 >= commandParts.Length || !commandParts[i + 1].StartsWith(typedWords[j], StringComparison.OrdinalIgnoreCase)))
+                                if (j < mergedInputParts.Count)
                                 {
-                                    subject += typedWords[j] + " ";
+                                    parsedParts.Add((mergedInputParts[j], "subject", true));
                                     j++;
                                 }
-                                if (subject.Length > 0)
+                                else
                                 {
-                                    inputParts.Add(subject.Trim());
+                                    parsedParts.Add(("~", "default", false));
+                                }
+                            }
+                            else if (mergedCommandParts[i] == "/p")
+                            {
+                                if (j < mergedInputParts.Count)
+                                {
+                                    string currentInput = mergedInputParts[j].ToLower();
+                                    if (pronouns.Contains(currentInput))
+                                    {
+                                        parsedParts.Add((mergedInputParts[j], "completePronoun", true));
+                                    }
+                                    else
+                                    {
+                                        // Check if the current input is a prefix of any pronoun
+                                        bool isIncompletePronoun = pronouns.Any(p => p.StartsWith(currentInput));
+                                        if (isIncompletePronoun)
+                                        {
+                                            parsedParts.Add((mergedInputParts[j], "incompletePronoun", false));
+                                        }
+                                        else
+                                        {
+                                            parsedParts.Add((mergedInputParts[j], "default", false));
+                                        }
+                                    }
+                                    j++;
+                                }
+                                else
+                                {
+                                    parsedParts.Add(("/p", "default", false));
                                 }
                             }
                             else
                             {
-                                if (j < typedWords.Length && commandParts[i].StartsWith(typedWords[j], StringComparison.OrdinalIgnoreCase))
+                                bool isComplete = j < mergedInputParts.Count && mergedCommandParts[i].Equals(mergedInputParts[j], StringComparison.OrdinalIgnoreCase);
+                                if (i == 0 || !firstPartChecked) // Special case for the first part of the command
                                 {
-                                    inputParts.Add(typedWords[j]);
+                                    firstPartChecked = true;
+                                    parsedParts.Add((mergedCommandParts[i], "infrastructure", isComplete));
+                                    j++;
+                                }
+                                else if (isComplete)
+                                {
+                                    parsedParts.Add((mergedCommandParts[i], "infrastructure", true));
+                                    j++;
+                                }
+                                else
+                                {
+                                    parsedParts.Add((mergedCommandParts[i], "incompleteInfrastructure", false));
+                                    if (!firstPartChecked)
+                                    {
+                                        firstPartChecked = true;
+                                    }
                                     j++;
                                 }
                             }
                         }
-                        return inputParts;
+
+                        // Handle remaining input parts
+                        while (j < mergedInputParts.Count)
+                        {
+                            parsedParts.Add((mergedInputParts[j], "default", false));
+                            j++;
+                        }
+
+                        return parsedParts;
                     }
 
-                    (int matchScore, bool isMatch, bool isPartialMatch) GetMatchScoreAndValidity(string command, List<string> inputParts)
+
+
+
+                    (int score, bool isMatch, bool isPartialMatch) GetMatchScore(string command, string input)
                     {
                         var commandParts = command.Split(' ');
-                        int matchScore = 0;
-                        int j = 0; // Index for inputParts
+                        var inputParts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        int score = 0;
+                        int infrastructureScore = 0;
+                        bool isPartial = false;
 
+                        // Merge adjacent non-unique parts in the command
+                        var mergedCommandParts = new List<string>();
                         for (int i = 0; i < commandParts.Length; i++)
                         {
-                            if (commandParts[i] == "~")
+                            if (commandParts[i] == "~" || commandParts[i] == "/p")
                             {
-                                if (j < inputParts.Count)
-                                {
-                                    matchScore++; // Wildcard matches, increase score
-                                    j++;
-                                }
+                                mergedCommandParts.Add(commandParts[i]);
                             }
                             else
                             {
-                                if (j >= inputParts.Count)
+                                string mergedPart = commandParts[i];
+                                while (i + 1 < commandParts.Length && commandParts[i + 1] != "~" && commandParts[i + 1] != "/p")
                                 {
-                                    return (matchScore, false, true); // If out of input parts, return partial match
+                                    mergedPart += " " + commandParts[++i];
                                 }
-                                if (!commandParts[i].StartsWith(inputParts[j], StringComparison.OrdinalIgnoreCase))
-                                {
-                                    return (matchScore, false, false); // If it fails to match, return false
-                                }
-                                j++;
-                                matchScore++; // Increase score for exact part match
+                                mergedCommandParts.Add(mergedPart);
                             }
                         }
 
-                        // Ensure all input parts were used, implying full command structure was respected
-                        if (j < inputParts.Count) return (0, false, false);
+                        // Tagging parts
+                        var taggedInputParts = inputParts.Select(part =>
+                            (part, isUnique: pronouns.Any(p => part.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || mergedCommandParts.Any(cp => cp.Equals(part, StringComparison.OrdinalIgnoreCase))))
+                            .ToList();
 
-                        return (matchScore, true, false);
+                        // Merge adjacent non-unique parts in the input
+                        var mergedInputParts = new List<string>();
+                        for (int i = 0; i < taggedInputParts.Count; i++)
+                        {
+                            if (!taggedInputParts[i].isUnique)
+                            {
+                                string mergedPart = taggedInputParts[i].part;
+                                while (i + 1 < taggedInputParts.Count && !taggedInputParts[i + 1].isUnique)
+                                {
+                                    mergedPart += " " + taggedInputParts[++i].part;
+                                }
+                                mergedInputParts.Add(mergedPart);
+                            }
+                            else
+                            {
+                                mergedInputParts.Add(taggedInputParts[i].part);
+                            }
+                        }
+
+                        // Matching logic
+                        for (int i = 0; i < mergedCommandParts.Count && i < mergedInputParts.Count; i++)
+                        {
+                            if (mergedCommandParts[i] == "~" || mergedCommandParts[i] == "/p")
+                            {
+                                score++;
+                            }
+                            else if (mergedCommandParts[i].Equals(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
+                            {
+                                score++;
+                                infrastructureScore++;
+                            }
+                            else if (mergedCommandParts[i].StartsWith(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
+                            {
+                                score++;
+                                infrastructureScore++;
+                            }
+                            else
+                            {
+                                return (score + infrastructureScore, false, isPartial);
+                            }
+
+                            if (i == mergedInputParts.Count - 1 && !mergedCommandParts[i].Equals(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
+                            {
+                                isPartial = true;
+                            }
+                        }
+
+                        return (score + infrastructureScore, true, isPartial);
                     }
 
-                    Color GetPartColor(string part, string inputPart, bool isCommandPart, bool isSubject, bool isFullyTyped)
+                    // Function to get color for each part
+                    Color GetColor(string partType, bool isComplete)
                     {
-                        if (isSubject)
+                        return partType switch
                         {
-                            return new Color(0, 255, 0); // Green for subjects
-                        }
-                        if (isCommandPart && isFullyTyped)
-                        {
-                            return new Color(255, 0, 255); // Pink for fully typed command parts
-                        }
-                        if (isCommandPart)
-                        {
-                            return new Color(75, 75, 75); // Gray for incomplete command parts
-                        }
-                        return new Color(75, 75, 75); // Gray for others
+                            "infrastructure" => isComplete ? infrastructureColor : defaultColor, // Pink or Gray
+                            "subject" => subjectColor, // Green
+                            "completePronoun" => completePronounColor, // Cyan
+                            "incompletePronoun" => incompletePronounColor, // Dark blue
+                            _ => defaultColor, // Gray
+                        };
                     }
 
-                    if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
+                    // Function to draw suggestions
+                    void DrawSuggestions(string prompt, List<string> suggestions)
                     {
                         string initialText = "Enter a command. Press F5 For Info: \"I ";
                         Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
                         float StartX = 50 + sizeOfInitialText.X;
-
-                        var matchingCommands = SuggestibleCommands
-                            .Select(cmd => new { Command = cmd, MatchData = GetMatchScoreAndValidity(cmd, ParseInputIntoParts(cmd, MostRecentPartyTurnArchitect.Prompt)) })
-                            .Where(x => x.MatchData.isMatch || x.MatchData.isPartialMatch)
-                            .OrderByDescending(x => x.MatchData.matchScore)
-                            .Take(5)
-                            .Select(x => x.Command)
-                            .ToList();
-
                         int yOffset = 20;
 
-                        for (int i = 0; i < matchingCommands.Count; i++)
+                        for (int i = 0; i < suggestions.Count; i++)
                         {
-                            string displayCommand = matchingCommands[i];
-                            var commandParts = displayCommand.Split(' ');
-                            var inputParts = ParseInputIntoParts(displayCommand, MostRecentPartyTurnArchitect.Prompt);
+                            string suggestion = suggestions[i];
+                            var parts = ParseIntoParts(suggestion, prompt);
 
-                            int l = 0; // Input parts index
-                            for (int k = 0; k < commandParts.Length; k++)
+                            foreach (var (part, type, isComplete) in parts)
                             {
-                                string partToDraw = commandParts[k];
-                                bool isWildcard = partToDraw == "~";
-                                bool isSubject = false;
-                                bool isCommandPart = !isWildcard;
-                                bool isFullyTyped = l < inputParts.Count && !isWildcard && commandParts[k].Equals(inputParts[l], StringComparison.OrdinalIgnoreCase);
-
-                                if (isWildcard && l < inputParts.Count)
-                                {
-                                    var subjectParts = inputParts.Skip(l).TakeWhile(ip => !commandParts.Skip(k + 1).Any(cp => cp.StartsWith(ip, StringComparison.OrdinalIgnoreCase))).ToList();
-                                    partToDraw = string.Join(" ", subjectParts);
-                                    l += subjectParts.Count; // Adjust index by the number of words matched by wildcard
-                                    isSubject = true;
-                                    isCommandPart = false;
-                                }
-
-                                // Determine the color for each part
-                                Color partColor = GetPartColor(commandParts[k], l < inputParts.Count ? inputParts[l] : "", isCommandPart, isSubject, isFullyTyped);
-
-                                _spriteBatch.DrawString(Shibafont, partToDraw, new Vector2(StartX, 1200 + (i + 1) * yOffset), partColor);
-
-                                // Only increment input index if it's a non-wildcard
-                                if (!isWildcard && l < inputParts.Count && commandParts[k].StartsWith(inputParts[l], StringComparison.OrdinalIgnoreCase))
-                                {
-                                    l++;
-                                }
-
-                                // Adjust X coordinate for next part
-                                StartX += Shibafont.MeasureString(partToDraw).X + 5; // Added 5 pixels for spacing between words
+                                Color color = GetColor(type, isComplete);
+                                _spriteBatch.DrawString(Shibafont, part, new Vector2(StartX, 1200 + (i + 1) * yOffset), color);
+                                StartX += Shibafont.MeasureString(part).X + 5;
                             }
 
-                            // Reset X position for next command and update top line flag
                             StartX = 50 + sizeOfInitialText.X;
                         }
                     }
 
+                    if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
+                    {
+                        var commandsWithMatchData = RecognizedCommands
+                            .SelectMany(cmd => cmd.Value.Item1.Select(command => new
+                            {
+                                Command = command,
+                                MatchData = GetMatchScore(command, MostRecentPartyTurnArchitect.Prompt)
+                            }))
+                            .ToList();
+
+                        var matchedCommands = commandsWithMatchData
+                            .Where(x => x.MatchData.isMatch || x.MatchData.isPartialMatch)
+                            .ToList();
+
+                        var orderedCommands = matchedCommands
+                            .OrderByDescending(x => x.MatchData.score)
+                            .Take(4)
+                            .ToList();
+
+                        var matchingCommands = orderedCommands
+                            .Select(x => x.Command)
+                            .ToList();
+
+                        DrawSuggestions(MostRecentPartyTurnArchitect.Prompt, matchingCommands);
+                    }
+
                     _spriteBatch.DrawString(Shibafont, "Enter a command. Press F5 For Help: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
 
-
+                    // Display movement description
                     string MovementDescription = "";
 
                     if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
@@ -11233,21 +11420,19 @@ namespace Lightrealm
                         MovementDescription = "You are not moving right now.";
                     }
 
-
                     if (MostRecentPartyTurnArchitect.OnGround)
                     {
-                        MovementDescription += (" You are currently prone.");
+                        MovementDescription += " You are currently prone.";
                     }
                     else
                     {
-                        MovementDescription += (" You are currently standing.");
+                        MovementDescription += " You are currently standing.";
                     }
 
                     _spriteBatch.DrawString(Shibafont, MovementDescription, new Vector2(50, 1150), Color.White);
                 }
 
                 //cmd help
-
                 if (Keyboard.GetState().IsKeyDown(Keys.F5))
                 {
                     _spriteBatch.Draw(CmdHelpT, new Rectangle(0, 0, 2560, 1440), Color.White);
@@ -11349,14 +11534,7 @@ namespace Lightrealm
                                     {
                                         if (isSettlementType)
                                         {
-                                            if (d.Industry.Length > 4)
-                                            {
-                                                _spriteBatch.DrawString(BabyShibafont, "[>]" + d.Name + " (" + d.Industry.Substring(0, 4) + ".)", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
-                                            }
-                                            else
-                                            {
-                                                _spriteBatch.DrawString(BabyShibafont, "[>]" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
-                                            }
+                                            _spriteBatch.DrawString(BabyShibafont, "[>]" + d.Name + " (" + d.Industry + ")", new Vector2(DrawX + 900, (DrawY - 30) + DistrictLine * 20), Color.White);
                                         }
                                         else
                                         {
@@ -11421,6 +11599,9 @@ namespace Lightrealm
 
                                 _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX + 500, DrawY + 120), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count, new Vector2(DrawX + 500, DrawY + 150), Color.White);
+
+
+                                _spriteBatch.DrawString(BabyShibafont, "Press ENTER to travel to the selected district.", new Vector2(DrawX + 500, DrawY + 210), Color.White);
                             }
                         }
                     }
@@ -11543,7 +11724,23 @@ namespace Lightrealm
                         string prefix = (i == RecipeIndex) ? "(X) " : "( ) ";
                         Color color = (i == RecipeIndex) ? Color.Yellow : Color.White;
                         Vector2 position = new Vector2(10, 30 * (i - startIndex) + 100);
-                        _spriteBatch.DrawString(Shibafont, prefix + Recipes[i].Item1, position, color);
+
+                        string Display = Recipes[i].Item1;
+
+                        if(Display == "bolt")
+                        {
+                            Display = "bolt of cloth";
+                        }
+                        else if (Display == "sheet")
+                        {
+                            Display = "sheet of glass";
+                        }
+                        else if (Display == "bar")
+                        {
+                            Display = "bar of metal";
+                        }
+
+                        _spriteBatch.DrawString(Shibafont, prefix + Display, position, color);
                     }
                 }
                 else if (CraftingPhase == "selectingredients")
@@ -11553,7 +11750,23 @@ namespace Lightrealm
                         string prefix = (i == RecipeIndex) ? "(X) " : "( ) ";
                         Color color = (i == RecipeIndex) ? Color.Yellow : Color.White;
                         Vector2 position = new Vector2(10, 30 * (i - startIndex) + 100);
-                        _spriteBatch.DrawString(Shibafont, prefix + Recipes[i].Item1, position, color);
+
+                        string Display = Recipes[i].Item1;
+
+                        if (Display == "bolt")
+                        {
+                            Display = "bolt of cloth";
+                        }
+                        else if (Display == "sheet")
+                        {
+                            Display = "sheet of glass";
+                        }
+                        else if (Display == "bar")
+                        {
+                            Display = "bar of metal";
+                        }
+
+                        _spriteBatch.DrawString(Shibafont, prefix + Display, position, color);
                     }
 
                     Dictionary<string, string> materialToObjectMap = new Dictionary<string, string>
@@ -11607,7 +11820,7 @@ namespace Lightrealm
                         // Count the selected items of the required type
                         int selectedCount = IndexesForResources
                             .Select(index => relevantItems[index])
-                            .Count(obj => obj.Type == requiredType);
+                            .Count(obj => obj.Type == materialToObjectMap[requiredType]);
 
                         if (selectedCount < requiredCount)
                         {

@@ -51,7 +51,6 @@ namespace Lightrealm
                 // We'll use a dictionary to map the resource types to their corresponding properties.
 
 
-                /*
                 var resources = new Dictionary<string, Material>
                 {
                     {"log", region.HarvestableWood},
@@ -66,21 +65,25 @@ namespace Lightrealm
                 {
                     if (resource.Value != null)  // Check if the resource exists in the region.
                     {
-                        for (int i = 0; i < 5; i++)  // Add 5 of each resource.
+                        for (int i = 0; i < 20; i++)  
                         {
                             a.Inventory.Add(new Object(null, resource.Key, new List<Material>() { resource.Value }, null));
                         }
                     }
-                }d
-                */
-
+                }
 
                 List<Material> M = new List<Material>() { Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Game1.GameWorld.ConvertLevelToToughness(a.Level)) };
 
+                /*
                 for (int i = Game1.r.Next(5, 10); i != 0; i--)
                 {
                     a.Inventory.Add(new Object(null, "dagger", M, null));
                 }
+                */
+
+                Object o = new Object(null, "small cup", new List<Material>() { a.Location.HomeCivilization.CulturalStone }, null);
+                o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { Game1.GameWorld.Coffee }, null));
+                a.Inventory.Add(o);
 
 
                 List<Material> m = new List<Material>() { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)] };
@@ -108,28 +111,23 @@ namespace Lightrealm
                     a.Inventory.Add(new Object(null, "fragment", new List<Material>() { Game1.GameWorld.Vitalium }, null));
                 }
 
+                int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
 
-                for (int i = 0; i < 3; i++)
+                switch (healingItem)
                 {
-                    int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
-
-                    switch (healingItem)
-                    {
-                        case 1:
-                            // Adding a salve
-                            a.Inventory.Add(new Object(null, "salve", new List<Material>() { a.Location.Region.HarvestableFiber }, null));
-                            break;
-                        case 2:
-                            // Adding a bandage
-                            a.Inventory.Add(new Object(null, "bandage", new List<Material>() { a.Location.HomeCivilization.CulturalCloth }, null));
-                            break;
-                        case 3:
-                            // Adding a vitality vial
-                            a.Inventory.Add(new Object(null, "vial", new List<Material>() { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
-                            break;
-                    }
+                    case 1:
+                        // Adding a salve
+                        a.Inventory.Add(new Object(null, "salve", new List<Material>() { a.Location.Region.HarvestableFiber }, null));
+                        break;
+                    case 2:
+                        // Adding a bandage
+                        a.Inventory.Add(new Object(null, "bandage", new List<Material>() { a.Location.HomeCivilization.CulturalCloth }, null));
+                        break;
+                    case 3:
+                        // Adding a vitality vial
+                        a.Inventory.Add(new Object(null, "vial", new List<Material>() { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
+                        break;
                 }
-
             }
         }
     }

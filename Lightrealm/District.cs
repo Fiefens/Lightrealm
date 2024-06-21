@@ -465,6 +465,128 @@ namespace Lightrealm
         }
 
 
+        void AssignInitialTask(Architect architect)
+        {
+            if(!(Game1.GameWorld.HumanoidRaces.Contains(architect.Race)))
+            {
+                return;
+            }
+
+            if (architect.Room == null)
+            {
+                if(Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
+                {
+                    if (architect.Block.Architects.Count == 1)
+                    {
+                        architect.Task = "contemplate";
+                    }
+                    else
+                    {
+                        architect.Task = "socializing";
+                    }
+
+                    architect.CyclesLeftInTask = Game1.r.Next(1, 500);
+                }
+
+                return;
+            }
+
+            string roomType = architect.Room.Structure.Type;
+            List<string> possibleTasks = new List<string>();
+
+            // Determine possible tasks based on room type
+            switch (roomType)
+            {
+                case "house":
+                case "ship":
+                case "cove":
+                case "mound":
+                case "monastery":
+                    possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing" });
+                    break;
+                case "spire":
+                case "archway":
+                case "hallway":
+                case "fortress":
+                case "monument":
+                case "toroid":
+                case "towers":
+                case "outpost":
+                case "pyramid":
+                case "sanctum":
+                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                    break;
+                case "keep":
+                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
+                    break;
+                case "core":
+                case "heart":
+                case "stronghold":
+                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
+                    break;
+                case "tower":
+                case "commune":
+                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                    break;
+                default:
+                    possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
+                    break;
+            }
+
+            if (possibleTasks.Count > 0)
+            {
+                architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count)];
+                int maxCycles = architect.Task switch
+                {
+                    "sleeping" => 350000,
+                    "eating" => 500,
+                    "drinking" => 500,
+                    "socializing" => 500,
+                    "drinkingcaffeine" => 500,
+                    "discussion" => 500,
+                    "study" => 500,
+                    "performmusic" => 500,
+                    "performpoetry" => 500,
+                    "performdance" => 500,
+                    "cook" => 500,
+                    "industry" => 500,
+                    "contemplate" => 500,
+                    _ => 500
+                };
+
+                architect.CyclesLeftInTask = Game1.r.Next(1, maxCycles);
+            }
+        }
+
+
+
+        List<Structure> GetPossibleStructures(Architect a)
+        {
+            List<Structure> possibleStructures = new List<Structure>();
+            for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+            {
+                for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                {
+                    if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
+                    {
+                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures.Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]));
+                    }
+                    else
+                    {
+                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures);
+                    }
+                }
+            }
+            return possibleStructures;
+        }
+
+        Room GetRandomRoom(List<Structure> structures)
+        {
+            Structure randomStructure = structures[Game1.r.Next(structures.Count)];
+            return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
+        }
+
+
         public void Load()
         {
             IsLoaded = true;
@@ -811,128 +933,6 @@ namespace Lightrealm
             Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
         }
 
-        void AssignInitialTask(Architect architect)
-        {
-            if(!(Game1.GameWorld.HumanoidRaces.Contains(architect.Race)))
-            {
-                return;
-            }
-
-            if (architect.Room == null)
-            {
-                if(Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
-                {
-                    if (architect.Block.Architects.Count == 1)
-                    {
-                        architect.Task = "contemplate";
-                    }
-                    else
-                    {
-                        architect.Task = "socializing";
-                    }
-
-                    architect.CyclesLeftInTask = Game1.r.Next(1, 500);
-                }
-
-                return;
-            }
-
-            string roomType = architect.Room.Structure.Type;
-            List<string> possibleTasks = new List<string>();
-
-            // Determine possible tasks based on room type
-            switch (roomType)
-            {
-                case "house":
-                case "ship":
-                case "cove":
-                case "mound":
-                case "monastery":
-                    possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing" });
-                    break;
-                case "spire":
-                case "archway":
-                case "hallway":
-                case "fortress":
-                case "monument":
-                case "toroid":
-                case "towers":
-                case "outpost":
-                case "pyramid":
-                case "sanctum":
-                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
-                    break;
-                case "keep":
-                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
-                    break;
-                case "core":
-                case "heart":
-                case "stronghold":
-                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
-                    break;
-                case "tower":
-                case "commune":
-                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
-                    break;
-                default:
-                    possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
-                    break;
-            }
-
-            if (possibleTasks.Count > 0)
-            {
-                architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count)];
-                int maxCycles = architect.Task switch
-                {
-                    "sleeping" => 350000,
-                    "eating" => 500,
-                    "drinking" => 500,
-                    "socializing" => 500,
-                    "drinkingcaffeine" => 500,
-                    "discussion" => 500,
-                    "study" => 500,
-                    "performmusic" => 500,
-                    "performpoetry" => 500,
-                    "performdance" => 500,
-                    "cook" => 500,
-                    "industry" => 500,
-                    "contemplate" => 500,
-                    _ => 500
-                };
-
-                architect.CyclesLeftInTask = Game1.r.Next(1, maxCycles);
-            }
-        }
-
-
-
-        List<Structure> GetPossibleStructures(Architect a)
-        {
-            List<Structure> possibleStructures = new List<Structure>();
-            for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-            {
-                for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                {
-                    if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
-                    {
-                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures.Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]));
-                    }
-                    else
-                    {
-                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures);
-                    }
-                }
-            }
-            return possibleStructures;
-        }
-
-        Room GetRandomRoom(List<Structure> structures)
-        {
-            Structure randomStructure = structures[Game1.r.Next(structures.Count)];
-            return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
-        }
-
-
 
 
         public void Unload()
@@ -982,9 +982,18 @@ namespace Lightrealm
                     }
                     DistrictMap[DistrictX + DistrictZ * 7].Architects.Clear();
 
-                    // Handle objects
+                    // Create a list to hold the objects to remove
+                    List<Object> objectsToRemove = new List<Object>();
+
                     foreach (Object o in DistrictMap[DistrictX + DistrictZ * 7].Objects)
                     {
+                        if (o.Type == "shadow storage" || o.Type == "well")
+                        {
+                            continue;
+                        }
+
+                        objectsToRemove.Add(o);
+
                         if (o.IsGeneralGood)
                         {
                             if (o.Owner is Group && ((Group)o.Owner).Type == "trade")
@@ -1002,13 +1011,19 @@ namespace Lightrealm
                             {
                                 Location.Prism.HistoricalObjects.Add(o);
                             }
-                            else if(Location.AllStructures.Count > 0)
+                            else if (Location.AllStructures.Count > 0)
                             {
                                 Location.AllStructures[0].HistoricalObjects.Add(o);
                             }
                         }
                     }
-                    DistrictMap[DistrictX + DistrictZ * 7].Objects.Clear();
+
+                    // Remove the collected objects from the DistrictMap
+                    foreach (Object o in objectsToRemove)
+                    {
+                        DistrictMap[DistrictX + DistrictZ * 7].Objects.Remove(o);
+                    }
+
 
                     // Handle structures and rooms
                     foreach (Structure s in DistrictMap[DistrictX + DistrictZ * 7].Structures)

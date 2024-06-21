@@ -124,7 +124,7 @@ namespace Lightrealm
                     // Code for shadebeast
                     break;
                 case "construct":
-                    Info = new List<string>() { "Some sort of mechanical creature stands before you. It seems to be guarding something.", "Some magical, metallic construct marches through the area. It seems to have some kind of task.", "Before you is a mysterious construct, silently watching over its domain." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "Some sort of powerful mechanical creature stands before you. It seems to be guarding something.", "Some magical, powerful, mysterious construct marches through the area. It seems to have some kind of task.", "Before you is a mysterious construct, silently watching over its domain. It looks incredibly powerful." }[Game1.r.Next(0, 3)];
                     // Code for construct
                     break;
                 case "wildcreatures":
@@ -136,7 +136,7 @@ namespace Lightrealm
                     // Code for traders
                     break;
                 case "vagabond":
-                    Info = new List<string>() { "A lonely traveller seems to be headed somewhere. Perhaps he can help you somehow.", "A vagabond walks alone, his intentions unknown to you.", "Before you is a solitary wanderer. He at least appears harmless..." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A lonely traveller seems to be headed somewhere. Perhaps they can help you somehow.", "A vagabond walks alone, his intentions unknown to you.", "Before you is a solitary wanderer. They at least appears harmless..." }[Game1.r.Next(0, 3)];
                     // Code for vagabond
                     break;
                 case "adventurer":
@@ -144,7 +144,7 @@ namespace Lightrealm
                     // Code for adventurer
                     break;
                 case "priest":
-                    Info = new List<string>() { "A lone traveller in religious clothing appears. He appears to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A lone traveller in religious clothing appears. They appear to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.r.Next(0, 3)];
                     break;
                 // Code for priest
                 case "colossal": 

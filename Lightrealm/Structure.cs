@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
+using NAudio.Codecs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,7 +28,17 @@ namespace Lightrealm
         public List<string> LightingMethods { get; set; } = new List<string>();
         public int LightLevelOf5 { get; set; } = 0;
         public int Windows { get; set; }
-        public double AgeInYears { get; set; } = 0;
+
+        public int ConstructionYear { get; set; } = 0;
+
+        public int Age
+        {
+            get
+            {
+                int currentYear = (int)Math.Round(Game1.GameWorld.Cycle / 290304000);
+                return currentYear - ConstructionYear;
+            }
+        }
 
         public int MarketDebt = 0;
 
@@ -38,7 +49,7 @@ namespace Lightrealm
         public int XInDistrict { get; set; }
         public int ZInDistrict { get; set; }
 
-        public Structure(string type, List<Object> Objects, List<Room> rooms, Block block, List<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows)
+        public Structure(string type, List<Object> Objects, List<Room> rooms, Block block, List<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
         {
             Type = type;
 
@@ -54,6 +65,8 @@ namespace Lightrealm
             GUID = Guid.NewGuid().ToString();
             Rooms = rooms;
             Block = block;
+
+            ConstructionYear = constructionYear;
 
             Block.District.Location.AllStructures.Add(this);
 
@@ -266,22 +279,27 @@ namespace Lightrealm
             string lightingDescription = LightingMethods.Count > 0 ? $"lit by {String.Join(", ", LightingMethods)}" : "";
 
             // Describe age
-            string ageDescription = "";
-            if (AgeInYears < 10)
+            string ageDescription;
+
+            if (Age < 10)
             {
-                ageDescription = "It appears recently made";
+                ageDescription = Game1.r.Next(2) == 0 ? "It appears very recently made" : "It looks recently constructed";
             }
-            else if (AgeInYears < 50)
+            else if (Age < 50)
             {
-                ageDescription = "It has a few signs of wear";
+                ageDescription = Game1.r.Next(2) == 0 ? "The structure bears few signs of age" : "It shows minimal signs of wear";
             }
-            else if (AgeInYears < 100)
+            else if (Age < 75)
             {
-                ageDescription = "It appears rather worn";
+                ageDescription = Game1.r.Next(2) == 0 ? "It looks like it was built long ago" : "It must have been built quite some time ago";
+            }
+            else if (Age < 100)
+            {
+                ageDescription = Game1.r.Next(2) == 0 ? "It must have been built very far in the past" : "The structure shows wear from a distant past";
             }
             else
             {
-                ageDescription = "It is ancient, bearing the marks of ages";
+                ageDescription = Game1.r.Next(2) == 0 ? "It is ancient, bearing the marks of ages" : "It is extremely worn, from passage of countless years";
             }
 
             // Combine descriptions with a 50% chance to alter their order
