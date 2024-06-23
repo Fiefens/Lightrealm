@@ -37,6 +37,8 @@ namespace Lightrealm
 
         public int NextUniqueID = 0;
 
+        public Dictionary<string, Material> Materials = new Dictionary<string, Material>();
+        public List<string> DupeMats = new List<string>();
 
         Dictionary <string, string> groupTypes = new Dictionary<string, string>
                     {
@@ -80,29 +82,27 @@ namespace Lightrealm
             {"pirate", "civilized"}
         };
 
-
         public Dictionary<string, List<Material>> MaterialsFromColors = new Dictionary<string, List<Material>>
         {
             { "maroon", new List<Material>{ new Material("mahogany", "wood", 1, 1, "maroon"), new Material("beetle", "insect", 1, 1, "maroon"), new Material("rust", "metal", 1, 1, "maroon") } },
-            { "red", new List<Material>{ new Material("rose", "plant", 1, 1, "red"), new Material("tulip", "plant", 1, 1, "red"), new Material("clay", "sediment", 1, 1, "red") } },
-            { "orange", new List<Material>{ new Material("citrus", "plant", 1, 1, "orange"), new Material("amber", "plant", 1, 1, "orange"), new Material("copper", "metal", 1, 1, "orange") } },
-            { "yellow", new List<Material>{ new Material("emberflare", "plant", 1, 1, "yellow"), new Material("honey", "plant", 1, 1, "yellow"), new Material("lemon", "plant", 1, 1, "yellow") } },
+            { "red", new List<Material>{ new Material("rose", "plant", 1, 1, "red"), new Material("tulip", "plant", 1, 1, "red"), new Material("red coral", "sediment", 1, 1, "red") } },
+            { "orange", new List<Material>{ new Material("citrus", "plant", 1, 1, "orange"), new Material("amber", "plant", 1, 1, "orange"), new Material("brimstone", "stone", 1, 1, "orange") } },
+            { "yellow", new List<Material>{ new Material("emberflare", "plant", 1, 1, "yellow"), new Material("dandelion", "plant", 1, 1, "yellow"), new Material("lemon", "plant", 1, 1, "yellow") } },
             { "limegreen", new List<Material>{ new Material("lime", "plant", 1, 1, "limegreen"), new Material("emerald grass", "plant", 1, 1, "limegreen"), new Material("verdant wing feather", "feather", 1, 1, "limegreen") } },
             { "green", new List<Material>{ new Material("lichen", "plant", 1, 1, "green"), new Material("cactus", "plant", 1, 1, "green"), new Material("moss", "plant", 1, 1, "green") } },
-            { "lightblue", new List<Material>{ new Material("feather", "feather", 1, 1, "lightblue"), new Material("slush", "stone", 1, 1, "lightblue"), new Material("aquamarine", "gemstone", 1, 1, "lightblue") } },
-            { "cyan", new List<Material>{ new Material("algae", "plant", 1, 1, "cyan"), new Material("turquoise", "gemstone", 1, 1, "cyan"), new Material("electric eel skin", "leather", 1, 1, "cyan") } },
-            { "blue", new List<Material>{ new Material("blueberry juice", "fruit", 1, 1, "blue"), new Material("sapphire gem", "gem", 1, 1, "blue"), new Material("deep ocean silt", "sediment", 1, 1, "blue") } },
-            { "purple", new List<Material>{ new Material("royal grapes", "fruit", 1, 1, "purple"), new Material("amethyst crystal", "gem", 1, 1, "purple"), new Material("mystic flower", "plant", 1, 1, "purple") } },
-            { "magenta", new List<Material>{ new Material("wild berry blend", "fruit", 1, 1, "magenta"), new Material("pink petals", "plant", 1, 1, "magenta"), new Material("rose quartz", "gem", 1, 1, "magenta") } },
-            { "coral", new List<Material>{ new Material("coral branch", "coral", 1, 1, "coral"), new Material("sea anemone", "animal", 1, 1, "coral"), new Material("tropical shell", "shell", 1, 1, "coral") } },
+            { "lightblue", new List<Material>{ new Material("feather", "feather", 1, 1, "lightblue"), new Material("slush", "stone", 1, 1, "lightblue"), new Material("orchid", "gemstone", 1, 1, "lightblue") } },
+            { "cyan", new List<Material>{ new Material("algae", "plant", 1, 1, "cyan"), new Material("fish oil", "gemstone", 1, 1, "cyan"), new Material("eel skin", "leather", 1, 1, "cyan") } },
+            { "blue", new List<Material>{ new Material("blueberry juice", "fruit", 1, 1, "blue"), new Material("crystalline", "gem", 1, 1, "blue"), new Material("ocean silt", "sediment", 1, 1, "blue") } },
+            { "purple", new List<Material>{ new Material("royal grapes", "fruit", 1, 1, "purple"), new Material("shattered amethyst", "gem", 1, 1, "purple"), new Material("mystic flower", "plant", 1, 1, "purple") } },
+            { "magenta", new List<Material>{ new Material("wild berry", "fruit", 1, 1, "magenta"), new Material("pink petals", "plant", 1, 1, "magenta"), new Material("rose quartz", "gem", 1, 1, "magenta") } },
+            { "coral", new List<Material>{ new Material("pink coral", "coral", 1, 1, "coral"), new Material("sea anemone", "animal", 1, 1, "coral"), new Material("tropical shell", "shell", 1, 1, "coral") } },
             { "white", new List<Material>{ new Material("pure snowflake", "ice", 1, 1, "white"), new Material("moonstone", "gem", 1, 1, "white"), new Material("cloud feathers", "feather", 1, 1, "white") } },
             { "gray", new List<Material>{ new Material("ashen soil", "sediment", 1, 1, "gray"), new Material("smoky quartz", "gem", 1, 1, "gray"), new Material("stormy cloud", "cloud", 1, 1, "gray") } },
-            { "black", new List<Material>{ new Material("obsidian rock", "rock", 1, 1, "black"), new Material("midnight rose", "plant", 1, 1, "black"), new Material("shadowy silk", "fabric", 1, 1, "black") } },
-            { "brown", new List<Material>{ new Material("earthy bark", "wood", 1, 1, "brown"), new Material("cocoa beans", "plant", 1, 1, "brown"), new Material("hazel nuts", "nut", 1, 1, "brown") } }
+            { "black", new List<Material>{ new Material("ground obsidian", "rock", 1, 1, "black"), new Material("midnight rose", "plant", 1, 1, "black"), new Material("nightsilk", "fabric", 1, 1, "black") } },
+            { "brown", new List<Material>{ new Material("tree bark", "wood", 1, 1, "brown"), new Material("cocoa bean", "plant", 1, 1, "brown"), new Material("hazel nut", "nut", 1, 1, "brown") } }
 
             //fix this later but I don't want to right now
         };
-
 
         public bool LostPlaced = false;
         public bool FirstNewCivPlaced = false;
@@ -1107,6 +1107,10 @@ namespace Lightrealm
         public Material Coffee { get; set; } = new Material("coffee", "plant", 1, 1, "brown");
         public Material Tea { get; set; } = new Material("tea", "plant", 1, 1, "green");
         public Material Vitalium { get; set; } = new Material("vitalium", "rock", 1, 1, "magenta");
+        public Material Paprika { get; set; } = new Material("paprika", "plant", 1, 1, "maroon");
+        public Material Salt { get; set; } = new Material("salt", "rock", 1, 1, "white");
+        public Material Pepper { get; set; } = new Material("pepper", "plant", 1, 1, "black");
+        public Material Isodust { get; set; } = new Material("isodust", "sediment", 1, 1, "magenta");
         public Material Spectre { get; set; } = new Material("spectre", "metaphysic", 1, 1, "cyan");
         public Material Energy { get; set; } = new Material("energy", "metaphysic", 1, 1, "white");
         public Material Flame { get; set; } = new Material("flame", "metaphysic", 1, 1, "orange");
@@ -1259,7 +1263,6 @@ namespace Lightrealm
                 Cloths.Add(new Material("wool", "cloth", 3, 4, "white"));
                 Cloths.Add(new Material("leather", "cloth", 3, 4, "brown"));
                 Cloths.Add(new Material("hemp", "cloth", 3, 4, "brown"));
-                Cloths.Add(new Material("flax", "cloth", 3, 4, "brown"));
                 Cloths.Add(new Material("jute", "cloth", 3, 4, "brown"));
 
                 Sheets.Add(new Material("parchment", "cloth", 3, 4, "white"));
@@ -1283,9 +1286,9 @@ namespace Lightrealm
                 Sands.Add(new Material("sand", "sand", 3, 4, "yellow"));
                 Sands.Add(new Material("rocky sand", "sand", 3, 4, "brown"));
 
-                Fibers.Add(new Material("hemp", "fiber", 3, 4, "brown"));
+                Fibers.Add(new Material("raw hemp", "fiber", 3, 4, "brown"));
                 Fibers.Add(new Material("flax", "fiber", 3, 4, "brown"));
-                Fibers.Add(new Material("jute", "fiber", 3, 4, "brown"));
+                Fibers.Add(new Material("raw jute", "fiber", 3, 4, "brown"));
 
                 Ices.Add(new Material("blue ice", "ice", 3, 4, "lightblue"));
                 Ices.Add(new Material("crystal ice", "ice", 3, 4, "white"));
@@ -1380,21 +1383,21 @@ namespace Lightrealm
                 ("core", Metals[15])
             };
 
-            Races.Add(new Race("", "average", new List<(string, Material)>(), "white", new List<string>() { }, new List<string>() { }, 0));
+            Races.Add(new Race("", "average", new List<(string, Material)>(), "white", new List<string>() { }, new List<string>() { }, 0, "", ""));
 
-            Races.Add(new Race("luminarch", "average", LuminarchBodyParts, "white", new List<string>() {"head", "torso", "neck"}, new List<string>() { "allevil" }, 0));
-            Races.Add(new Race("nightfell", "average", NightfellBodyParts, "black", new List<string>() { "head", "torso", "neck" }, new List<string>() { "allevil" }, 0));
-            Races.Add(new Race("archaix", "average", LostBodyParts, "gray", new List<string>() { "head", "torso", "neck" }, new List<string>() { "allevil" }, 0));
+            Races.Add(new Race("luminarch", "average", LuminarchBodyParts, "white", new List<string>() {"head", "torso", "neck"}, new List<string>() { "allevil" }, 0, "right hand", "left hand"));
+            Races.Add(new Race("nightfell", "average", NightfellBodyParts, "black", new List<string>() { "head", "torso", "neck" }, new List<string>() { "allevil" }, 0, "right hand", "left hand"));
+            Races.Add(new Race("archaix", "average", LostBodyParts, "gray", new List<string>() { "head", "torso", "neck" }, new List<string>() { "allevil" }, 0, "right hand", "left hand"));
             HumanoidRaces.AddRange(new List<Race>() { Races[1], Races[2], Races[3] });
 
-            Races.Add(new Race("moari", "large", MoariBodyParts, "white", new List<string>() { "head", "torso", "neck" }, new List<string>() {}, 30));
-            Races.Add(new Race("cassartrae", "smaller", CassartraeBodyParts, "black", new List<string>() { "core" }, new List<string>() { "allevil" }, 30));
-            Races.Add(new Race("debtshiba", "medium", ShibaBodyParts, "orange", new List<string>() { "head", "torso" }, new List<string>() { "indebted" }, 1337));
-            Races.Add(new Race("shiba", "medium", ShibaBodyParts, "orange", new List<string>() { "head", "torso" }, new List<string>() { "allevil" }, 1337));
+            Races.Add(new Race("moari", "large", MoariBodyParts, "white", new List<string>() { "head", "torso", "neck" }, new List<string>() {}, 30, "right front leg", "left front leg"));
+            Races.Add(new Race("cassartrae", "smaller", CassartraeBodyParts, "black", new List<string>() { "core" }, new List<string>() { "allevil" }, 30, "core", "core"));
+            Races.Add(new Race("debtshiba", "medium", ShibaBodyParts, "orange", new List<string>() { "head", "torso" }, new List<string>() { "indebted" }, 1337, "right front leg", "left front leg"));
+            Races.Add(new Race("shiba", "medium", ShibaBodyParts, "orange", new List<string>() { "head", "torso" }, new List<string>() { "allevil" }, 1337, "right front leg", "left front leg"));
 
-            Races.Add(new Race("isofractal", "average", IsofractalBodyParts, "gray", new List<string>() { "core" }, new List<string>() { "allevil" }, 15));
-            Races.Add(new Race("photonexus", "small", PhotonexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { "allunalike" }, 25));
-            Races.Add(new Race("shade", "average", ShadeBodyParts, "black", new List<string>() { "sludge" }, new List<string>(){ "alllife" }, 5));
+            Races.Add(new Race("isofractal", "average", IsofractalBodyParts, "gray", new List<string>() { "core" }, new List<string>() { "allevil" }, 15, "shard", "shard"));
+            Races.Add(new Race("photonexus", "small", PhotonexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { "allunalike" }, 25, "sphere", "sphere"));
+            Races.Add(new Race("shade", "average", ShadeBodyParts, "black", new List<string>() { "sludge" }, new List<string>(){ "alllife" }, 5, "sludge", "sludge"));
             ExtraRaces.Add(GetRace("isofractal"));
             ExtraRaces.Add(GetRace("photonexus"));
             ExtraRaces.Add(GetRace("shade"));
@@ -1424,11 +1427,11 @@ namespace Lightrealm
 
             //WE ARENT GIVING THEM OPPOSITION TAGS BECUASE THEY HAVE SPECIAL ATTACK CONDITIONS
 
-            Races.Add(new Race("icosidodecahedron", "huge", IcosidodecahedronParts, "white", new List<string>() { "core" }, new List<string>() { }, 110));
-            Races.Add(new Race("hypernexus", "huge", HypernexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { }, 125));
-            Races.Add(new Race("shadeheart", "huge", ShadeheartBodyParts, "black", new List<string>() { "sludge" }, new List<string>() { }, 80));
+            Races.Add(new Race("icosidodecahedron", "huge", IcosidodecahedronParts, "white", new List<string>() { "core" }, new List<string>() { }, 110, "shard", "shard"));
+            Races.Add(new Race("hypernexus", "huge", HypernexusBodyParts, "gray", new List<string>() { "core" }, new List<string>() { }, 125, "sphere", "sphere"));
+            Races.Add(new Race("shadeheart", "huge", ShadeheartBodyParts, "black", new List<string>() { "sludge" }, new List<string>() { }, 80, "sludge", "sludge"));
 
-            Races.Add(new Race("shadebeast", "large", ShadeBodyParts, "black", new List<string>() { "sludge" }, new List<string>(){ "alllife" }, 30));
+            Races.Add(new Race("shadebeast", "large", ShadeBodyParts, "black", new List<string>() { "sludge" }, new List<string>(){ "alllife" }, 30, "sludge", "sludge"));
 
             var mechanicalParts = new List<string>
             {
@@ -1487,18 +1490,18 @@ namespace Lightrealm
                     }
                 }
 
-                Race r = new Race("guardian", new List<string> { "medium", "average", "large" }[Game1.r.Next(3)], selectedParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string> { "intruders" }, 50);
+                Race r = new Race("guardian", new List<string> { "medium", "average", "large" }[Game1.r.Next(3)], selectedParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string> { "intruders" }, 50, (selectedParts[Game1.r.Next(selectedParts.Count)].Item1), (selectedParts[Game1.r.Next(selectedParts.Count)].Item1));
                 r.Name = GenerateUniqueName(Game1.r.Next(1, 6) + "s", r) + " guardian";
                 Races.Add(r);
                 ConstructRaces.Add(r);
             }
 
 
-            ColossalTypes.Add(new Race("quetzal", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left wing", Membrane), ("right wing", Membrane), ("tail", Membrane), ("left leg", Biocrystal), ("right leg", Biocrystal) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 50));
-            ColossalTypes.Add(new Race("wyrm", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("front left fin", Membrane), ("front right fin", Membrane), ("back left fin", Membrane), ("back right fin", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 60));
-            ColossalTypes.Add(new Race("serpent", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 70));
-            ColossalTypes.Add(new Race("shobe", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 80));
-            ColossalTypes.Add(new Race("cnidriarch", "colossal", new List<(string, Material)>() { ("bell", Membrane), ("mantle", Membrane) }.Concat(Enumerable.Range(1, 12).Select(i => ($"tentacle{i}", Membrane))).ToList(), Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "bell", "mantle" }, new List<string>() { "allunalike" }, 50));
+            ColossalTypes.Add(new Race("quetzal", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left wing", Membrane), ("right wing", Membrane), ("tail", Membrane), ("left leg", Biocrystal), ("right leg", Biocrystal) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 50, "right leg", "left leg"));
+            ColossalTypes.Add(new Race("wyrm", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("front left fin", Membrane), ("front right fin", Membrane), ("back left fin", Membrane), ("back right fin", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 60, "front right fin", "front left fin"));
+            ColossalTypes.Add(new Race("serpent", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 70, "right front leg", "left front leg"));
+            ColossalTypes.Add(new Race("shobe", "colossal", new List<(string, Material)>() { ("head", Membrane), ("body", Membrane), ("left front leg", Membrane), ("right front leg", Membrane), ("left back leg", Membrane), ("right back leg", Membrane), ("tail", Membrane) }, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "head", "body" }, new List<string>() { "allunalike" }, 80, "right front leg", "left front leg"));
+            ColossalTypes.Add(new Race("cnidriarch", "colossal", new List<(string, Material)>() { ("bell", Membrane), ("mantle", Membrane) }.Concat(Enumerable.Range(1, 12).Select(i => ($"tentacle{i}", Membrane))).ToList(), Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string>() { "bell", "mantle" }, new List<string>() { "allunalike" }, 50, "tentacle1", "tentacle2"));
             Races.AddRange(ColossalTypes);
 
             //generate random animal races
@@ -1572,7 +1575,7 @@ namespace Lightrealm
                     BodyParts.Add(("tooth", Membrane));
 
                 // Add to list (assuming GenerateUniqueName and Race constructor are defined elsewhere)
-                Race r = new Race("", Size, BodyParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string>() { "allunalike" }, Game1.r.Next(0,6));
+                Race r = new Race("", Size, BodyParts, Game1.Colors[Game1.r.Next(Game1.Colors.Count)], new List<string> { "head", "body" }, new List<string>() { "allunalike" }, Game1.r.Next(0,6), BodyParts[Game1.r.Next(BodyParts.Count)].Item1, BodyParts[Game1.r.Next(BodyParts.Count)].Item1);
                 r.Name = GenerateUniqueName("1S" + Game1.r.Next(5) + "s", r);
                 WildRaces.Add(r);
             }
@@ -1825,6 +1828,16 @@ namespace Lightrealm
             // Handle the first month
             if (Cycle == 0)
             {
+                foreach(Material m in Game1.MaterialsToAddToWorld)
+                {
+                    bool Added = Materials.TryAdd(m.Name, m);
+
+                    if(!Added)
+                    {
+                        DupeMats.Add(m.Name);
+                    }
+                }
+
                 Unknown = new Architect("Someone lost to time", null, GetRace(""), 0, null, null, null, null, null, null, 0);
                 SubjectCatalogue.Add("Someone lost to time", Unknown);
 
@@ -3931,12 +3944,18 @@ namespace Lightrealm
                                 Group TradingGroup = TradingGroups[r.Next(TradingGroups.Count)];
                                 GuarranteedArch = TradingGroup.Architects; //updates if the group updates\
                                 break;
-                            case int decider when decider < 8:
+                            case int decider when decider < 7:
                                 DecidedType = "vagabond";
                                 Architect VB = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(13, 39), "vagabond", new List<Object>(), null, null, null, "", 3);
                                 VB.KitOutArchitect("vagabond");
                                 VB.Name = Game1.GameWorld.GenerateUniqueArchitectName(VB);
                                 GuarranteedArch.Add(VB);
+                                break;
+                            case int decider when decider < 8:
+                                DecidedType = "shiba";
+                                Architect SI = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shiba"), r.Next(13, 39), "shiba", new List<Object>(), null, null, null, "", 3);
+                                SI.Name = Game1.GameWorld.GenerateUniqueArchitectName(SI);
+                                GuarranteedArch.Add(SI);
                                 break;
                             case int decider when decider < 9:
                                 DecidedType = "adventurer";
@@ -4011,22 +4030,21 @@ namespace Lightrealm
                                     {
                                         availableCaravanItems.Remove(tradeItem.CaravanItem);
                                         availableLocationItems.Add(tradeItem.CaravanItem);
-                                        tradeItem.CaravanItem.Owner = null;
 
                                         availableLocationItems.Remove(tradeItem.LocationItem);
                                         availableCaravanItems.Add(tradeItem.LocationItem);
-                                        tradeItem.LocationItem.Owner = g;
 
-                                        if (!ItemTypesInCirculation.Contains(tradeItem.CaravanItem.Type))
-                                        {
-                                            ItemTypesInCirculation.Add(tradeItem.CaravanItem.Type);
-                                        }
-                                        if (!ItemTypesInCirculation.Contains(tradeItem.LocationItem.Type))
-                                        {
-                                            ItemTypesInCirculation.Add(tradeItem.LocationItem.Type);
-                                        }
+                                        var caravanItemType = tradeItem.CaravanItem.Split(',')[0];
+                                        var locationItemType = tradeItem.LocationItem.Split(',')[0];
 
-                                        g.StoredVitalium += r.Next(10, 30);
+                                        if (!ItemTypesInCirculation.Contains(caravanItemType))
+                                        {
+                                            ItemTypesInCirculation.Add(caravanItemType);
+                                        }
+                                        if (!ItemTypesInCirculation.Contains(locationItemType))
+                                        {
+                                            ItemTypesInCirculation.Add(locationItemType);
+                                        }
                                     });
 
                                     g.CycleLastTraded = currentCycle;
@@ -4626,6 +4644,15 @@ namespace Lightrealm
                     {
                         int DistrictMaxPopulation = 0;
 
+
+                        foreach(Structure s in location.AllStructures)
+                        {
+                            if(s.Block.District == d && s.Type.EndsWith("house"))
+                            {
+                                DistrictMaxPopulation += 4;
+                            }
+                        }
+
                         //Handle population increase in the district
 
 
@@ -4863,21 +4890,21 @@ namespace Lightrealm
                                                     location.GroupsAtThisLocation.Add(g);
                                                     if (g.Type == "trade")
                                                     {
-                                                        for (int i = r.Next(10, 20); i != 0; i--)
-                                                        {
-                                                            Object bar = new Object(null, "bar", new List<Material> { location.HomeCivilization.CulturalMetal }, Unknown);
-                                                            bar.Owner = g;
-                                                            g.CaravanItems.Add(bar);
-                                                        }
+                                                        // Add a single new item with a random count between 10 and 20
+                                                        int itemCount = r.Next(10, 20);
+                                                        string itemString = $"bar,{itemCount},{location.HomeCivilization.CulturalMetal.Name}";
+
+                                                        g.CaravanItems.Add(itemString);
+
                                                         location.TradersAtThisLocation.Add(g);
                                                         g.TradeRoute.Add(location);
                                                         TradingGroups.Add(g);
                                                     }
 
-                                                    HistoricalEvents.Add(string.Concat(Date, " ", a.Name, " founded ", g.Name, ", a ", g.Type, " group, in ", location.Name));
+                                                    HistoricalEvents.Add($"{Date} {a.Name} founded {g.Name}, a {g.Type} group, in {location.Name}");
 
                                                     a.GroupLoyalty = 5;
-                                                    location.LocationHistoricalEvents.Add(string.Concat(Date, " ", a.Name, " founded ", g.Name, ", a ", g.Type, " group, in ", location.Name));
+                                                    location.LocationHistoricalEvents.Add($"{Date} {a.Name} founded {g.Name}, a {g.Type} group, in {location.Name}");
                                                 }
                                             }
                                         }
@@ -5999,6 +6026,7 @@ namespace Lightrealm
                                 { "anarchist", "commune" },
                                 { "scavenger", "hoard" }
                             };
+
                     string OutcastCivType = "";
 
                     foreach (var kvp in OutcastCivToStructure)
@@ -6027,7 +6055,7 @@ namespace Lightrealm
                                 List<Architect> PossibleArch = new List<Architect>();
                                 foreach (Architect a in AllArchitects)
                                 {
-                                    if (a.Group == null && !Calamity.Contains(a) && a.IsAlive)
+                                    if (a.Group == null && !Calamity.Contains(a) && a.IsAlive && a.Location != null && a.Location.HomeCivilization != null)
                                     {
                                         PossibleArch.Add(a);
                                     }
@@ -6040,6 +6068,24 @@ namespace Lightrealm
 
                                     HistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
                                     location.LocationHistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
+
+                                    if(OutcastCivType == "druid")
+                                    {
+                                        Migrator.Clothing.Clear();
+
+                                        if(Migrator.Sex == "female")
+                                        {
+                                            Migrator.Clothing.Add(new Object(null, "brassiere", new List<Material>() { Fibers[r.Next(Fibers.Count)] }, null));
+                                        }
+                                        Migrator.Clothing.Add(new Object(null, "undergarment", new List<Material>() { Fibers[r.Next(Fibers.Count)] }, null));
+
+                                        Migrator.AddCulturalClothing(Migrator.Location.HomeCivilization.CulturalHeadwear, Fibers[r.Next(Fibers.Count)]);
+                                        Migrator.AddCulturalClothing(Migrator.Location.HomeCivilization.CulturalNeckwear, Fibers[r.Next(Fibers.Count)]);
+                                        Migrator.AddCulturalClothing(Migrator.Location.HomeCivilization.CulturalBodywear, Fibers[r.Next(Fibers.Count)]);
+                                        Migrator.AddCulturalClothing(Migrator.Location.HomeCivilization.CulturalLegwear, Fibers[r.Next(Fibers.Count)]);
+                                        Migrator.AddCulturalClothing(Migrator.Location.HomeCivilization.CulturalHandwear, Fibers[r.Next(Fibers.Count)]);
+                                        Migrator.AddCulturalClothing(Migrator.Location.HomeCivilization.CulturalFootwear, Fibers[r.Next(Fibers.Count)]);
+                                    }
                                 }
                             }
                         }

@@ -52,8 +52,7 @@ namespace Lightrealm
         public List<Architect> Enemies { get; set; } = new List<Architect>();
         public List<Architect> ArchitectsWhoDeclined { get; set; } = new List<Architect>();
 
-        public List<Object> CaravanItems { get; set; } = new List<Object>();
-        public int StoredVitalium { get; set; } = 0;
+        public List<string> CaravanItems { get; set; } = new List<string>();
 
         public List<Location> TradeRoute = new List<Location>();
         public int MaxTradeRouteLength = Game1.r.Next(3, 10);
@@ -80,17 +79,19 @@ namespace Lightrealm
             Dictionary<string, int> itemCounts = new Dictionary<string, int>();
 
             // Count the occurrences of each type
-            foreach (Object item in CaravanItems)
+            foreach (string item in CaravanItems)
             {
-                string itemTypeString = item.Type;
+                string[] itemParts = item.Split(',');
+                string itemTypeString = itemParts[0];
+                int itemCount = int.Parse(itemParts[1]);
 
                 if (itemCounts.ContainsKey(itemTypeString))
                 {
-                    itemCounts[itemTypeString]++;
+                    itemCounts[itemTypeString] += itemCount;
                 }
                 else
                 {
-                    itemCounts[itemTypeString] = 1;
+                    itemCounts[itemTypeString] = itemCount;
                 }
             }
 
@@ -101,7 +102,7 @@ namespace Lightrealm
                 catalogueBuilder.Append($"{pair.Key} {pair.Value} ");
             }
 
-            return catalogueBuilder.ToString();
+            return catalogueBuilder.ToString().Trim();
         }
 
         // groups with both a good and bad reputation can fall more easily...

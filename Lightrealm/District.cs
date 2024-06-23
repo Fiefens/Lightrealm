@@ -37,7 +37,7 @@ namespace Lightrealm
         public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
         public List<Architect> ArchitectsToAdd { get; set; } = new List<Architect>();
 
-        public List<Object> GeneralItemsWeHave { get; set; } = new List<Object>();
+        public List<string> GeneralItemsWeHave { get; set; } = new List<string>();
 
         public bool IsLoaded { get; set; } = false;
         public bool HasBeenLoadedEver { get; set; } = false;
@@ -170,7 +170,12 @@ namespace Lightrealm
                 DecidedProduction = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
             }
 
-            List<Object> itemsToBeAdded = GenerateItems(DecidedProduction, Intensity);
+            if(Industry == "spices" || Industry == "coffee")
+            {
+                int shibe = 1;
+            }
+
+            List<string> itemsToBeAdded = GenerateItems(DecidedProduction, Intensity);
 
             // Adding items and increasing crafts within the same method
             foreach (var item in itemsToBeAdded)
@@ -188,139 +193,185 @@ namespace Lightrealm
             Location.HomeCivilization.World.TotalCrafts += itemsToBeAdded.Count;
         }
 
-
-        public List<Object> GenerateItems(string industry, int intensity)
+        public List<string> GenerateItems(string industry, int intensity)
         {
-            List<Object> Objects = new List<Object>();
+            Dictionary<string, int> itemDict = new Dictionary<string, int>();
 
-            for(int x = 0; x < intensity; x++)
+            void AddOrUpdateItem(string itemType, List<string> materials, int count, string containedItems = "")
+            {
+                // Format the base key with type and materials
+                string baseKey = $"{itemType},{string.Join(",", materials)}";
+
+                // If contained items exist, add them to the key
+                string key = baseKey;
+                if (!string.IsNullOrEmpty(containedItems))
+                {
+                    key += $"&cont({containedItems})&";
+                }
+
+                // Check if the item already exists in the dictionary
+                if (itemDict.TryGetValue(key, out int existingCount))
+                {
+                    // Update the count by adding the new count
+                    itemDict[key] = existingCount + count;
+                }
+                else
+                {
+                    // Add the new item with the count
+                    itemDict[key] = count;
+                }
+            }
+
+
+            string GenerateContainedItems(List<string> items)
+            {
+                var containedDict = new Dictionary<string, (int Count, string Material)>();
+
+                foreach (var item in items)
+                {
+                    // Split the item string to extract the type and count
+                    string[] itemParts = item.Split(',');
+                    string itemType = itemParts[0];
+                    int itemCount = int.Parse(itemParts[1]);
+                    string itemMaterial = itemParts[2];
+
+                    // Create a key without the count
+                    string key = $"{itemType},{itemMaterial}";
+
+                    // Check if the item already exists in the dictionary
+                    if (containedDict.ContainsKey(key))
+                    {
+                        // Update the count by adding the new count
+                        containedDict[key] = (containedDict[key].Count + itemCount, itemMaterial);
+                    }
+                    else
+                    {
+                        // Add the new item with the count
+                        containedDict[key] = (itemCount, itemMaterial);
+                    }
+                }
+
+                // Format the contained items correctly with count as the second argument
+                return string.Join(",", containedDict.Select(kvp => $"{kvp.Key.Split(',')[0]},{kvp.Value.Count},{kvp.Value.Material}"));
+            }
+
+
+            for (int x = 0; x < intensity; x++)
             {
                 switch (industry)
                 {
                     case "textiles":
-                        if (Game1.r.Next(0, 30) == 0) // General chance for any clothing item
+                        if (Game1.r.Next(0, 30) == 0)
                         {
-                            // Instead of directly adding objects, we'll decide which to add based on a random selection
-                            int clothingPiece = Game1.r.Next(1, 10); // Adjust the range based on the number of clothing pieces available
+                            int clothingPiece = Game1.r.Next(1, 10);
+                            List<string> materials = new List<string> { Location.HomeCivilization.CulturalCloth.Name };
 
                             switch (clothingPiece)
                             {
                                 case 1:
-                                    // Adding a shirt with sleeves, could be short or long based on additional randomness
-                                    Objects.Add(new Object(null, Game1.r.Next(0, 2) == 0 ? "shortsleeve shirt" : "longsleeve shirt", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("shortsleeve shirt", materials, 1);
                                     break;
                                 case 2:
-                                    // Pants
-                                    Objects.Add(new Object(null, "pants", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("pants", materials, 1);
                                     break;
                                 case 3:
-                                    // Skirt
-                                    Objects.Add(new Object(null, "skirt", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("skirt", materials, 1);
                                     break;
                                 case 4:
-                                    // Gloves, considering handedness
-                                    Objects.Add(new Object(null, "left glove", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
-                                    Objects.Add(new Object(null, "right glove", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("left glove", materials, 1);
+                                    AddOrUpdateItem("right glove", materials, 1);
                                     break;
                                 case 5:
-                                    // Boots, considering handedness
-                                    Objects.Add(new Object(null, "left boot", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
-                                    Objects.Add(new Object(null, "right boot", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("left boot", materials, 1);
+                                    AddOrUpdateItem("right boot", materials, 1);
                                     break;
                                 case 6:
-                                    // Hood
-                                    Objects.Add(new Object(null, "hood", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("hood", materials, 1);
                                     break;
                                 case 7:
-                                    // Cape
-                                    Objects.Add(new Object(null, "cape", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("cape", materials, 1);
                                     break;
                                 case 8:
-                                    // Amulet, as a decorative item
-                                    Objects.Add(new Object(null, "amulet", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("amulet", materials, 1);
                                     break;
                                 case 9:
-                                    // Flair, another decorative item
-                                    Objects.Add(new Object(null, "flair", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("flair", materials, 1);
                                     break;
                                 case > 19:
-                                    // A cloth roll.
-                                    Objects.Add(new Object(null, "bolt", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("bolt", materials, 1);
                                     break;
-                                    // Add cases for any other specific clothing items listed
                             }
                         }
                         break;
 
                     case "spices":
+                        List<string> spiceMaterials = new List<string> { Location.HomeCivilization.CulturalCloth.Name };
+
+                        void AddSpicePouch(string spiceType, string spiceMaterial)
+                        {
+                            List<string> containedItems = new List<string> { $"{spiceType},{Game1.r.Next(10, 20)},{spiceMaterial}" };
+                            string contained = GenerateContainedItems(containedItems);
+                            AddOrUpdateItem($"{spiceMaterial} pouch", spiceMaterials, 1, contained);
+                        }
+
                         if (Game1.r.Next(0, 3) == 0)
                         {
-                            Object saltPouch = new Object(null, "salt pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                            saltPouch.ContainedObjects.Add(new Object(null, "stone", new List<Material>() { new Material("salt", "stone", 1, 1, "white") }, null));
-                            Objects.Add(saltPouch);
+                            AddSpicePouch("spice", "salt");
                         }
                         if (Game1.r.Next(0, 3) == 0)
                         {
-                            Object pepperPouch = new Object(null, "pepper pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                            pepperPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("pepper", "plant", 1, 1, "black") }, null));
-                            Objects.Add(pepperPouch);
+                            AddSpicePouch("spice", "pepper");
                         }
                         if (Game1.r.Next(0, 3) == 0)
                         {
-                            Object paprikaPouch = new Object(null, "paprika pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                            paprikaPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("paprika", "plant", 1, 1, "maroon") }, null));
-                            Objects.Add(paprikaPouch);
+                            AddSpicePouch("spice", "paprika");
                         }
                         if (Game1.r.Next(0, 3) == 0)
                         {
-                            Object isodustPouch = new Object(null, "isodust pouch", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null);
-                            isodustPouch.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { new Material("isodust", "plant", 1, 1, "purple") }, null));
-                            Objects.Add(isodustPouch);
+                            AddSpicePouch("spice", "isodust");
                         }
                         break;
 
                     case "metal":
                         if (Game1.r.Next(0, 2) == 0)
-                            Objects.Add(new Object(null, "bar", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                            AddOrUpdateItem("bar", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         break;
 
                     case "jewelry":
                         if (Game1.r.Next(0, 3) == 0)
-                            Objects.Add(new Object(null, "gem", new List<Material>() { Location.HomeCivilization.CulturalGemstone }, null));
+                            AddOrUpdateItem("cut gem", new List<string> { Location.HomeCivilization.CulturalGemstone.Name }, 1);
                         break;
 
                     case "tools":
                         if (Game1.r.Next(0, 5) == 0)
-                            Objects.Add(new Object(null, "pickaxe", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                            AddOrUpdateItem("pickaxe", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         if (Game1.r.Next(0, 5) == 0)
-                            Objects.Add(new Object(null, "scythe", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                            AddOrUpdateItem("scythe", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         if (Game1.r.Next(0, 5) == 0)
-                            Objects.Add(new Object(null, "axe", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                            AddOrUpdateItem("axe", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         if (Game1.r.Next(0, 5) == 0)
-                            Objects.Add(new Object(null, "shovel", new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                            AddOrUpdateItem("shovel", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         break;
 
                     case "military":
                         string[] weaponTypes = { "shortsword", "greatsword", "battle axe", "greataxe", "rapier", "spear", "pike", "mace", "hammer", "shield", "whip", "scourge" };
                         foreach (string weapon in weaponTypes)
-                            if (Game1.r.Next(0, 12) == 0) // Random chance to add a weapon
-                                Objects.Add(new Object(null, weapon, new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                            if (Game1.r.Next(0, 12) == 0)
+                                AddOrUpdateItem(weapon, new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
 
                         string[] armorTypes = { "helmet", "chestplate", "gauntlet", "leggings", "boot" };
                         foreach (string armor in armorTypes)
                         {
-                            if (Game1.r.Next(0, 12) == 0) // Random chance to add armor
+                            if (Game1.r.Next(0, 12) == 0)
                             {
                                 if (armor == "gauntlet" || armor == "boot")
                                 {
-                                    // Create and add left and right variants for gauntlets or boots
-                                    Objects.Add(new Object(null, "left " + armor, new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
-                                    Objects.Add(new Object(null, "right " + armor, new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                                    AddOrUpdateItem($"left {armor}", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
+                                    AddOrUpdateItem($"right {armor}", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                                 }
                                 else
                                 {
-                                    // For other armor types, just create and add one object
-                                    Objects.Add(new Object(null, armor, new List<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                                    AddOrUpdateItem(armor, new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                                 }
                             }
                         }
@@ -329,122 +380,115 @@ namespace Lightrealm
                     case "coffee":
                         for (int i = Game1.r.Next(0, 3); i != 0; i--)
                         {
-                            Object coffeeCrate = new Object(null, "coffee crate", new List<Material>() { Location.HomeCivilization.CulturalWood }, null);
-                            for (int j = Game1.r.Next(10, 15); j != 0; j--)
-                                coffeeCrate.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { Location.Region.World.Coffee }, null));
-                            Objects.Add(coffeeCrate);
+                            List<string> materials = new List<string> { Location.HomeCivilization.CulturalWood.Name };
+                            List<string> containedItems = new List<string> { $"spice,{Game1.r.Next(10, 15)},coffee" };
+                            string contained = GenerateContainedItems(containedItems);
+                            AddOrUpdateItem("coffee crate", materials, 1, contained);
                         }
                         break;
 
                     case "tea":
                         for (int i = Game1.r.Next(0, 3); i != 0; i--)
                         {
-                            Object teaCrate = new Object(null, "tea crate", new List<Material>() { Location.HomeCivilization.CulturalWood }, null);
-                            for (int j = Game1.r.Next(10, 15); j != 0; j--)
-                                teaCrate.ContainedObjects.Add(new Object(null, "spice", new List<Material>() { Location.Region.World.Tea }, null));
-                            Objects.Add(teaCrate);
+                            List<string> materials = new List<string> { Location.HomeCivilization.CulturalWood.Name };
+                            List<string> containedItems = new List<string> { $"spice,{Game1.r.Next(10, 15)},tea" };
+                            string contained = GenerateContainedItems(containedItems);
+                            AddOrUpdateItem("tea crate", materials, 1, contained);
                         }
                         break;
 
                     case "wood":
-                        for (int i = Game1.r.Next(0, 4); i != 0; i--)
-                            Objects.Add(new Object(null, "log", new List<Material> { Location.HomeCivilization.CulturalWood }, null));
+                        AddOrUpdateItem("log", new List<string> { Location.HomeCivilization.CulturalWood.Name }, Game1.r.Next(1, 4));
                         break;
 
                     case "ceramics":
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small urn", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("small urn", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big urn", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("big urn", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small pot", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("small pot", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big pot", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("big pot", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small mug", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("small mug", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big mug", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("big mug", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small bowl", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("small bowl", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big bowl", new List<Material>() { Game1.GameWorld.Clay }, null));
+                            AddOrUpdateItem("big bowl", new List<string> { Game1.GameWorld.Clay.Name }, 1);
                         break;
 
                     case "glassmaking":
                         if (Game1.r.Next(0, 2) == 0)
-                            Objects.Add(new Object(null, "sheet", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("sheet", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small mug", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("small mug", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big mug", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("big mug", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small chalice", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("small chalice", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big chalice", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("big chalice", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small bowl", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("small bowl", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big bowl", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("big bowl", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "small cup", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("small cup", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "big cup", new List<Material>() { Game1.GameWorld.Glass }, null));
+                            AddOrUpdateItem("big cup", new List<string> { Game1.GameWorld.Glass.Name }, 1);
                         break;
 
                     case "dye":
                         if (Game1.r.Next(0, 2) == 0)
                         {
                             string DyeColor = Game1.GetFamilyColors(Location.HomeCivilization.Color)[Game1.r.Next(3)];
-                            Object dyeBottle = new Object(null, "bottle", new List<Material>() { Game1.GameWorld.Glass }, null);
-                            dyeBottle.ContainedObjects.Add(new Object(null, "dye", new List<Material>() { Game1.GameWorld.MaterialsFromColors[DyeColor][Game1.r.Next(3)] }, null));
-                            Objects.Add(dyeBottle);
+                            List<string> materials = new List<string> { Game1.GameWorld.Glass.Name };
+                            string contained = $"dye,1,{Game1.GameWorld.MaterialsFromColors[DyeColor][Game1.r.Next(3)].Name}";
+                            AddOrUpdateItem("bottle", materials, 1, contained);
                         }
                         break;
 
                     case "waspkeeping":
                         if (Game1.r.Next(0, 3) == 0)
                         {
-                            Object honeyJar = new Object(null, "jar", new List<Material>() { Game1.GameWorld.Glass }, null);
-                            honeyJar.ContainedObjects.Add(new Object(null, "portion", new List<Material>() { Game1.GameWorld.Honey }, null));
-                            Objects.Add(honeyJar);
+                            List<string> materials = new List<string> { Game1.GameWorld.Glass.Name };
+                            string contained = $"portion,1,honey";
+                            AddOrUpdateItem("jar", materials, 1, contained);
                         }
                         if (Game1.r.Next(0, 10) == 0)
-                            Objects.Add(new Object(null, "tablet", new List<Material>() { Game1.GameWorld.Waspwax }, null));
+                            AddOrUpdateItem("tablet", new List<string> { Game1.GameWorld.Waspwax.Name }, 1);
                         if (Game1.r.Next(0, 5) == 0)
-                            Objects.Add(new Object(null, "candle", new List<Material>() { Game1.GameWorld.Waspwax }, null));
+                            AddOrUpdateItem("candle", new List<string> { Game1.GameWorld.Waspwax.Name }, 1);
                         if (Game1.r.Next(0, 2) == 0)
-                            Objects.Add(new Object(null, "cube", new List<Material>() { Game1.GameWorld.Waspwax }, null));
+                            AddOrUpdateItem("cube", new List<string> { Game1.GameWorld.Waspwax.Name }, 1);
                         break;
 
                     case "fuel":
-                        for (int i = Game1.r.Next(0, 9); i != 0; i--)
-                            Objects.Add(new Object(null, "fragment", new List<Material> { Game1.GameWorld.Vitalium }, null));
+                        AddOrUpdateItem("fragment", new List<string> { Game1.GameWorld.Vitalium.Name }, Game1.r.Next(1, 9));
                         break;
 
                     case "masonry":
-                        for (int i = Game1.r.Next(0, 6); i != 0; i--)
-                            Objects.Add(new Object(null, "brick", new List<Material> { Location.HomeCivilization.CulturalStone }, null));
+                        AddOrUpdateItem("brick", new List<string> { Location.HomeCivilization.CulturalStone.Name }, Game1.r.Next(1, 6));
                         break;
 
                     case "healing":
-                        if (Game1.r.Next(0, 5) == 0) // General chance for any healing item
+                        if (Game1.r.Next(0, 5) == 0)
                         {
-                            // Instead of directly adding objects, we'll decide which to add based on a random selection
-                            int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
+                            int healingItem = Game1.r.Next(1, 4);
 
                             switch (healingItem)
                             {
                                 case 1:
-                                    // Adding a salve
-                                    Objects.Add(new Object(null, "salve", new List<Material>() { Location.Region.HarvestableFiber }, null));
+                                    AddOrUpdateItem("salve", new List<string> { Location.Region.HarvestableFiber.Name }, 1);
                                     break;
                                 case 2:
-                                    // Adding a bandage
-                                    Objects.Add(new Object(null, "bandage", new List<Material>() { Location.HomeCivilization.CulturalCloth }, null));
+                                    AddOrUpdateItem("bandage", new List<string> { Location.HomeCivilization.CulturalCloth.Name }, 1);
                                     break;
                                 case 3:
-                                    // Adding a vitality vial
-                                    Objects.Add(new Object(null, "vial", new List<Material>() { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
+                                    AddOrUpdateItem("vial", new List<string> { Game1.GameWorld.Glass.Name, Game1.GameWorld.Vitalium.Name }, 1);
                                     break;
                             }
                         }
@@ -456,13 +500,34 @@ namespace Lightrealm
                 }
             }
 
-            foreach (Object o in Objects)
+            // Construct the final string list with the correct counts
+            var finalItems = new List<string>();
+            foreach (var kvp in itemDict)
             {
-                o.IsGeneralGood = true;
+                string itemTypeAndMaterials = kvp.Key;
+                int count = kvp.Value;
+
+                // Add the count in the correct position
+                var parts = itemTypeAndMaterials.Split('&');
+                string mainPart = parts[0];
+                string containedPart = parts.Length > 1 ? parts[1] : "";
+
+                string[] mainParts = mainPart.Split(',');
+                string itemType = mainParts[0];
+                string materials = string.Join(",", mainParts.Skip(1));
+
+                string finalString = $"{itemType},{count},{materials}";
+                if (!string.IsNullOrEmpty(containedPart))
+                {
+                    finalString += $"&{containedPart}";
+                }
+
+                finalItems.Add(finalString);
             }
 
-            return Objects;
+            return finalItems;
         }
+
 
 
         void AssignInitialTask(Architect architect)
@@ -596,7 +661,6 @@ namespace Lightrealm
             List<Architect> allArchitects = new List<Architect>();
             allArchitects.AddRange(Architects);
 
-
             HashSet<Structure> allDistrictStructures = new HashSet<Structure>();
 
             for (int x = 0; x < 7; x++)
@@ -619,8 +683,6 @@ namespace Lightrealm
             {
                 allDistrictStructures.Add(Location.Prism);
             }
-
-
 
             if (!HasBeenLoadedEver)
             {
@@ -849,12 +911,25 @@ namespace Lightrealm
                 }
             }
 
-            foreach (Object o in GeneralItemsWeHave)
+            // Load General Items
+            List<Object> itemsToAdd = new List<Object>();
+            foreach (string itemString in GeneralItemsWeHave)
             {
-                Room targetRoom = Location.Market != null && Location.Market.Block.District == this && Game1.r.Next(1, 3) == 1 ? Location.Market.Rooms[0] : GetRandomRoom(allDistrictStructures.ToList());
-                targetRoom.Objects.Add(o);
-                o.UpdateNames();
+                List<Object> items = Game1.ConvertStringToObjects(itemString);
+                itemsToAdd.AddRange(items);
             }
+
+            // Determine the target room for each item
+            foreach (Object item in itemsToAdd)
+            {
+                Room targetRoom = Location.Market != null && Location.Market.Block.District == this && Game1.r.Next(1, 3) == 1
+                    ? Location.Market.Rooms[0]
+                    : GetRandomRoom(allDistrictStructures.ToList());
+
+                targetRoom.Objects.Add(item);
+                item.UpdateNames();
+            }
+
 
             Game1.LoadedArchitects.AddRange(Game1.GamePlayerParty.Architects);
 
@@ -933,6 +1008,30 @@ namespace Lightrealm
             Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
         }
 
+        void AddOrUpdateItemString(List<string> itemList, string itemString)
+        {
+            string[] itemParts = itemString.Split(new[] { ',' }, 3);
+            string itemType = itemParts[0];
+            int itemCount = int.Parse(itemParts[1]);
+            string itemMaterialsAndContained = itemParts[2];
+
+            string existingItem = itemList.FirstOrDefault(item => item.StartsWith($"{itemType},{itemMaterialsAndContained}"));
+            if (existingItem != null)
+            {
+                string[] existingItemParts = existingItem.Split(new[] { ',' }, 3);
+                int existingItemCount = int.Parse(existingItemParts[1]);
+                int newCount = existingItemCount + itemCount;
+
+                itemList.Remove(existingItem);
+                itemList.Add($"{itemType},{newCount},{itemMaterialsAndContained}");
+            }
+            else
+            {
+                itemList.Add(itemString);
+            }
+        }
+
+
 
 
         public void Unload()
@@ -940,8 +1039,7 @@ namespace Lightrealm
             IsLoaded = false;
             int TotalArchitects = 0;
 
-            //take off tasks
-
+            // Remove tasks
             foreach (Architect a in Game1.LoadedArchitects)
             {
                 a.Task = "";
@@ -996,14 +1094,8 @@ namespace Lightrealm
 
                         if (o.IsGeneralGood)
                         {
-                            if (o.Owner is Group && ((Group)o.Owner).Type == "trade")
-                            {
-                                ((Group)o.Owner).CaravanItems.Add(o);
-                            }
-                            else
-                            {
-                                GeneralItemsWeHave.Add(o);
-                            }
+                            string itemString = Game1.ConvertObjectToString(o);
+                            AddOrUpdateItemString(GeneralItemsWeHave, itemString);
                         }
                         else
                         {
@@ -1023,7 +1115,6 @@ namespace Lightrealm
                     {
                         DistrictMap[DistrictX + DistrictZ * 7].Objects.Remove(o);
                     }
-
 
                     // Handle structures and rooms
                     foreach (Structure s in DistrictMap[DistrictX + DistrictZ * 7].Structures)
@@ -1058,14 +1149,8 @@ namespace Lightrealm
                             {
                                 if (o.IsGeneralGood)
                                 {
-                                    if (o.Owner is Group && ((Group)o.Owner).Type == "trade")
-                                    {
-                                        ((Group)o.Owner).CaravanItems.Add(o);
-                                    }
-                                    else
-                                    {
-                                        GeneralItemsWeHave.Add(o);
-                                    }
+                                    string itemString = Game1.ConvertObjectToString(o);
+                                    AddOrUpdateItemString(GeneralItemsWeHave, itemString);
                                 }
                                 else
                                 {
@@ -1079,7 +1164,20 @@ namespace Lightrealm
             }
 
 
+            bool AllArchitectsDeadOrInParty = Game1.LoadedArchitects.All(architect => !architect.IsAlive || Game1.GamePlayerParty.Architects.Contains(architect));
+
+            if (Game1.GamePlayerParty.CurrentEvent != null)
+            {
+                if (AllArchitectsDeadOrInParty)
+                {
+                    Game1.GamePlayerParty.CurrentEvent.Region.Events.Remove(Game1.GamePlayerParty.CurrentEvent);
+                }
+                Game1.GamePlayerParty.CurrentEvent = null;
+            }
+
+
             Game1.LoadedArchitects.Clear();
+
         }
     }
 }

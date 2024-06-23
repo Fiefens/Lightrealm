@@ -143,6 +143,10 @@ namespace Lightrealm
                     Info = new List<string>() { "You cross paths with someone who appears equipped for adventure.", "A well prepared traveller stands before you, flaunting his satchel. Could be useful.", "You see a traveler who appears to be well equipped for adventure." }[Game1.r.Next(0, 3)];
                     // Code for adventurer
                     break;
+                case "shiba":
+                    Info = new List<string>() { "A fluffy, four legged creature is wandering the area. Perhaps you can attach it to your face.", "A beautiful creature wanders this area, searching for someone's face to meld with.", "You see both a lovely creature and a lovely piece of headwear." }[Game1.r.Next(0, 3)];
+                    // Code for adventurer
+                    break;
                 case "priest":
                     Info = new List<string>() { "A lone traveller in religious clothing appears. They appear to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.r.Next(0, 3)];
                     break;

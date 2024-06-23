@@ -21,9 +21,10 @@ namespace Lightrealm
 
         public List<string> Powers = new List<string>();
 
+        public string MainInteractionAppendage = "";
+        public string OffInteractionAppendage = "";
 
-
-        public Race(string name, string size, List<(string, Material)> bodyParts, string color, List<string> necessaryBodyParts, List<string> oppositionTags, int naturalArmor)
+        public Race(string name, string size, List<(string, Material)> bodyParts, string color, List<string> necessaryBodyParts, List<string> oppositionTags, int naturalArmor, string mainInteractionAppendage, string offInteractionAppendage)
         {
             Name = name;
             Size = size;
@@ -32,6 +33,9 @@ namespace Lightrealm
             NecessaryBodyParts = necessaryBodyParts;
             OppositionTags = oppositionTags;
             NaturalArmor = naturalArmor;
+
+            MainInteractionAppendage = mainInteractionAppendage;
+            OffInteractionAppendage = offInteractionAppendage;
 
             if(Name.EndsWith("guardian"))
             {
@@ -65,7 +69,7 @@ namespace Lightrealm
                 "hypernexus" => "A very large photonexus bearing no imperfection.",
                 "shadeheart" => "A colossal beating heart. It beats inconsistently, spreading a foul poison throughout its many veins.",
                 "icosidodecahedron" => "An 80-sided rotating rainbow prism. A glorious expressive light accompanies its presence.",
-                _ => "A " + Size + " creature of some sort."
+                _ => "A " + Size + "-sized creature of some sort."
             };
 
 

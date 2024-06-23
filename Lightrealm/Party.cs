@@ -17,6 +17,8 @@ namespace Lightrealm
         public List<Architect> IntriguingArchitects = new List<Architect>();
         public List<Region> CurrentlyMarkedRegions = new List<Region>();
 
+        public bool ReceivedPartyAdvice = false;
+
         public Party() : base()
         {
 
@@ -50,7 +52,7 @@ namespace Lightrealm
 
                 // We'll use a dictionary to map the resource types to their corresponding properties.
 
-
+                /*
                 var resources = new Dictionary<string, Material>
                 {
                     {"log", region.HarvestableWood},
@@ -71,6 +73,7 @@ namespace Lightrealm
                         }
                     }
                 }
+                */
 
                 List<Material> M = new List<Material>() { Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Game1.GameWorld.ConvertLevelToToughness(a.Level)) };
 
@@ -85,17 +88,12 @@ namespace Lightrealm
                 o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { Game1.GameWorld.Coffee }, null));
                 a.Inventory.Add(o);
 
+                a.HairID = Game1.r.Next(0,2);
+
 
                 List<Material> m = new List<Material>() { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)] };
-                
-                if (a.RightHanded)
-                {
-                    a.RightHandObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
-                }
-                else
-                {
-                    a.LeftHandObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
-                }
+
+                a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
 
                 /*
                 a.Inventory.Add(new Object(null, "pickaxe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));

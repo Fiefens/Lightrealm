@@ -19,12 +19,21 @@ namespace Lightrealm
         public string PossessivePronoun { get; set; }
         public string ObjectivePronoun { get; set; }
 
-        public int DismissalCycles = 0;
-
         public int PulseCharge = 0;
+
+        public int HairID = Game1.r.Next(0, 10) switch
+        {
+            < 4 => 0,   // 40% chance for HairID to be 0
+            < 7 => 1,   // 30% chance for HairID to be 1
+            < 9 => 3,   // 20% chance for HairID to be 2
+            _ => 2      // 10% chance for HairID to be 3
+        };
+
 
         public List<string> RevitalizedDates = new List<string>();
         public List<string> SplitDates = new List<string>();
+
+        public string NextMoveOrder = "";
 
         public string TryDropItemType = "";
         public string TryPickUpItemType = "";
@@ -245,7 +254,9 @@ namespace Lightrealm
         public Location InteractionLocation = null;
 
         public string Prompt = "";
-        public string LastPrompt = "";
+        public List<string> PreviousPrompts = new List<string>() { "" }; // Start with an empty slate
+        public int PromptIndex = 0;
+        public string SavedPrompt = "";
 
         public bool RecievedBodyPhysicalStatIncrease = false;
         public bool RecievedBodyPhysicalStatIncreaseTwo = false;
@@ -416,7 +427,7 @@ namespace Lightrealm
 
             if (DismissalCycles > 0)
             {
-                Chance += 20;
+                Chance += 40;
             }
 
             return Math.Min(Chance, 100);
@@ -614,8 +625,8 @@ namespace Lightrealm
             }
 
             // Add right and left hand objects
-            AddItem(inventoryItemCounts, RightHandObject);
-            AddItem(inventoryItemCounts, LeftHandObject);
+            AddItem(inventoryItemCounts, MainHeldObject);
+            AddItem(inventoryItemCounts, OffHeldObject);
 
             // Add inventory items
             foreach (Object o in Inventory)
@@ -629,26 +640,34 @@ namespace Lightrealm
                 AddItem(clothingItemCounts, c);
             }
 
-            // Generate description
-            StringBuilder description = new StringBuilder();
-
             // Describe hand objects
-            string DescribeHandObject(Object handObject, string hand)
+            string DescribeAppendageObject(Object appendageObject, string appendage)
             {
-                if (handObject != null && handObject.ReferredToNames.Any())
+                if (appendageObject != null && appendageObject.ReferredToNames.Any())
                 {
-                    string article = "aeiouAEIOU".Contains(handObject.ReferredToNames[0][0]) ? "an " : "a ";
-                    return $"{Pronoun} has {article}{handObject.ReferredToNames[0]} in {PossessivePronoun} {hand} hand";
+                    string article = "aeiouAEIOU".Contains(appendageObject.ReferredToNames[0][0]) ? "an " : "a ";
+                    return $"{Pronoun} has {article}{appendageObject.ReferredToNames[0]} in {PossessivePronoun} {appendage}";
                 }
                 else
                 {
-                    return $"{PossessivePronoun} {hand} hand is empty";
+                    return $"{PossessivePronoun} {appendage} is empty";
                 }
             }
 
-            description.Append(DescribeHandObject(LeftHandObject, "left"));
+            // Get the dominant and off appendages
+            Object dominantAppendage = MainInteractionAppendage; // or whichever property refers to the dominant appendage
+            Object dominantHeldObject = MainHeldObject;
+            string dominantAppendageName = MainInteractionAppendage.Type;
+
+            Object offAppendage = OffInteractionAppendage;
+            Object offHeldObject = OffHeldObject;
+            string offAppendageName = OffInteractionAppendage.Type;
+
+            // Append the description
+            StringBuilder description = new StringBuilder();
+            description.Append(DescribeAppendageObject(dominantHeldObject, dominantAppendageName));
             description.Append(", and ");
-            description.Append(DescribeHandObject(RightHandObject, "right"));
+            description.Append(DescribeAppendageObject(offHeldObject, offAppendageName));
             description.Append(".");
 
             // Describe inventory
@@ -680,7 +699,7 @@ namespace Lightrealm
             // Describe clothing
             if (clothingItemCounts.Count > 0)
             {
-                description.Append($". {Pronoun} is wearing ");
+                description.Append($". {Game1.Capitalize(Pronoun)} is wearing ");
                 var clothingDescriptions = clothingItemCounts.Select(kvp =>
                 {
                     string itemName = kvp.Key;
@@ -703,17 +722,13 @@ namespace Lightrealm
                 }
             }
 
-            return description.ToString();
+            return description.ToString() + ".";
         }
 
 
 
 
-        public List<Object> Inventory { get; set; }
-        public Object LeftHandObject { get; set; }
-        public Object RightHandObject { get; set; }
 
-        public bool RightHanded { get; set; } = true;
         public bool HadChildren = false;
 
         public string FavoriteColor { get; set; }
@@ -807,7 +822,7 @@ namespace Lightrealm
         public (int sustain, int parry, int block, int duck, int jump, int roll, int disarm, int redirect) CalculateSuccessChances(Attack attack, int reactionModifierInt, Architect Attacker, int attackersProficiency)
         {
             // Assuming you have methods to get these values from imbuements
-            int extraDodgeChance = ExtraDodgeChance + (DismissalCycles > 0 ? 10 : 0);
+            int extraDodgeChance = ExtraDodgeChance + (DismissalCycles > 0 ? 5 : 0);
             int extraRedirectionChance = ExtraRedirectionChance;
             int extraShieldEffectiveness = ExtraShieldEffectiveness;
 
@@ -858,16 +873,16 @@ namespace Lightrealm
             int parryChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("parrying") + extraRedirectionChance, 50, 4), reactionModifierInt, 1);
             string[] parryWeaponTypes = { "shortsword", "greatsword", "battle axe", "rapier", "mace" };
             // Adjust parry chance if NOT holding parry weapons
-            bool leftHandParryWeapon = targetOwner.LeftHandObject != null && parryWeaponTypes.Contains(targetOwner.LeftHandObject.Type);
-            bool rightHandParryWeapon = targetOwner.RightHandObject != null && parryWeaponTypes.Contains(targetOwner.RightHandObject.Type);
+            bool leftHandParryWeapon = targetOwner.OffHeldObject != null && parryWeaponTypes.Contains(targetOwner.OffHeldObject.Type);
+            bool rightHandParryWeapon = targetOwner.MainHeldObject != null && parryWeaponTypes.Contains(targetOwner.MainHeldObject.Type);
 
             if (!leftHandParryWeapon) parryChance = (int)(parryChance * 0.9); // 10% reduction for not having left-hand parrying weapon
             if (!rightHandParryWeapon) parryChance = (int)(parryChance * 0.9); // 10% reduction for not having right-hand parrying weapon
 
             int blockChance = 0;
-            if (targetOwner.LeftHandObject?.Type == "shield" || targetOwner.RightHandObject?.Type == "shield")
+            if (targetOwner.OffHeldObject?.Type == "shield" || targetOwner.MainHeldObject?.Type == "shield")
             {
-                int shieldToughness = (targetOwner.LeftHandObject?.Materials?[0].Toughness ?? 0) + (targetOwner.RightHandObject?.Materials?[0].Toughness ?? 0);
+                int shieldToughness = (targetOwner.OffHeldObject?.Materials?[0].Toughness ?? 0) + (targetOwner.MainHeldObject?.Materials?[0].Toughness ?? 0);
                 blockChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("blocking") + extraShieldEffectiveness, 50 + shieldToughness, 4), reactionModifierInt, 2);
             }
 
@@ -920,8 +935,8 @@ namespace Lightrealm
 
             int totalWeight = CalculateTotalWeight(this.Inventory)
                               + CalculateTotalWeight(this.Clothing)
-                              + (this.LeftHandObject != null ? CalculateTotalWeight(new[] { this.LeftHandObject }) : 0)
-                              + (this.RightHandObject != null ? CalculateTotalWeight(new[] { this.RightHandObject }) : 0);
+                              + (this.OffHeldObject != null ? CalculateTotalWeight(new[] { this.OffHeldObject }) : 0)
+                              + (this.MainHeldObject != null ? CalculateTotalWeight(new[] { this.MainHeldObject }) : 0);
 
             float weightImpact = 1.0f - (totalWeight / 1000 * 0.02f);
             multiplier *= weightImpact;
@@ -1063,14 +1078,17 @@ namespace Lightrealm
 
         public bool DiscoveredASpell { get; set; } = false;
 
-        public int FireCycles { get; set; } = 0;
+        public int FireSeconds { get; set; } = 0;
         public int WetCycles { get; set; } = 0;
         public int BlindCycles { get; set; } = 0;
         public int DestabilizedCycles { get; set; } = 0;
         public int UnconsciousCycles { get; set; } = 0;
         public int RadiantCycles { get; set; } = 0;
         public int CloakCycles { get; set; } = 0;
-        public int FractalCycles = 0;
+        public int FractalCycles { get; set; } = 0;
+        public int HoldCycles { get; set; } = 0;
+        public int DismissalCycles { get; set; } = 0;
+
 
         public bool OnGround { get; set; } = false;
 
@@ -1079,7 +1097,6 @@ namespace Lightrealm
 
         public int YLevelInFeet { get; set; } = 0;
         public int YVelocity { get; set; } = 0;
-        public int HoldCycles { get; set; } = 0;
 
         public bool Focused { get; set; } = false;
 
@@ -1131,6 +1148,11 @@ namespace Lightrealm
         public double Pain = 0;
 
         public List<Object> BodyParts { get; set; } = new List<Object>();
+        public Object MainInteractionAppendage;
+        public Object OffInteractionAppendage;
+        public List<Object> Inventory { get; set; }
+        public Object OffHeldObject { get; set; }
+        public Object MainHeldObject { get; set; }
 
         public bool PrefersCoffeeIfTrue { get; set; } = false;
 
@@ -1148,7 +1170,6 @@ namespace Lightrealm
         public int ExtraPiercingResistance = 0;
         public int ExtraScourgingResistance = 0;
         public int ExtraStealth = 0;
-        public int ExtraHealingCapability = 0;
         public int ExtraEnergyRegen = 0;
 
         public bool IsofractalThief = false;
@@ -1239,6 +1260,93 @@ namespace Lightrealm
             }
             return level;
         }
+        // Function to add cultural clothing items
+        public void AddCulturalClothing(string culturalItems, Material material)
+        {
+            // Check if the clothing item is "straps" and the sex is female
+            bool addUpperShirt = (culturalItems.Trim().ToLower() == "straps" || culturalItems.Trim().ToLower() == "straps/cape") && this.Sex.ToLower() == "female" && (this.HomeLocation == null || this.HomeLocation.HomeCivilization.Type != "druid");
+
+            if (culturalItems != "none")
+            {
+                // Split the cultural items string into individual items
+                string[] items = culturalItems.Split('/');
+
+                // Add each item to the Clothing list
+                foreach (string item in items)
+                {
+                    Object newClothing = new Object(null, item.Trim(), new List<Material>() { material }, null);
+                    Clothing.Add(newClothing);
+
+                    // Apply dye to the newly added clothing item
+                    ApplyDye(newClothing);
+
+                    // Check for pairs and color them the same
+                    if (item.Trim().ToLower().StartsWith("left ") || item.Trim().ToLower().StartsWith("right "))
+                    {
+                        string pairItem = item.Trim().ToLower().StartsWith("left ") ? "right " + item.Trim().Substring(5) : "left " + item.Trim().Substring(6);
+                        Object pairClothing = Clothing.FirstOrDefault(c => c.Type.ToLower() == pairItem.ToLower());
+
+                        if (pairClothing != null)
+                        {
+                            pairClothing.DyedColor = newClothing.DyedColor;
+                        }
+                    }
+                }
+
+                // If addUpperShirt is true, add "uppershirt" to the Clothing list
+                if (addUpperShirt)
+                {
+                    Object upperShirt = new Object(null, "uppershirt", new List<Material>() { material }, null);
+                    Clothing.Add(upperShirt);
+
+                    // Apply dye to the upper shirt
+                    ApplyDye(upperShirt);
+                }
+            }
+
+            // Clear the imbuements for each clothing item
+            foreach (Object o in Clothing)
+            {
+                o.Imbuements.Clear();
+            }
+        }
+
+        public void ApplyDye(Object clothingItem)
+        {
+            // Assuming HomeLocation is not null and there are Colors to choose from
+
+            if (HomeLocation != null)
+            {
+                int decider = Game1.r.Next(100);
+                string colorToApply = null;
+
+                if (HomeLocation.HomeCivilization.Type == "druid")
+                {
+                    colorToApply = "green";
+                }
+                else if (decider < 60 || clothingItem.Type == "undergarment" || clothingItem.Type == "brassiere")
+                {
+                    // 60% chance to dye with the HomeCivilization color
+                    colorToApply = HomeLocation.HomeCivilization.Color;
+                }
+                else if (decider < 80)
+                {
+                    // 20% chance to dye with a related color
+                    List<string> relatedColors = Game1.GetFamilyColors(HomeLocation.HomeCivilization.Color);
+                    colorToApply = relatedColors[Game1.r.Next(relatedColors.Count)];
+                }
+                else
+                {
+                    // 20% chance to not dye at all
+                    return;
+                }
+
+                // Apply the color to the clothing item
+                clothingItem.DyedColor = colorToApply;
+            }
+        }
+
+
 
 
 
@@ -1250,28 +1358,6 @@ namespace Lightrealm
             {
                 // Update existing proficiency
                 XPValues[index] = (proficiencyName, value);
-            }
-        }
-        public Object MainHandObject()
-        {
-            if (RightHanded == true)
-            {
-                return RightHandObject;
-            }
-            else
-            {
-                return LeftHandObject;
-            }
-        }
-        public Object OffHandObject()
-        {
-            if (RightHanded == false)
-            {
-                return RightHandObject;
-            }
-            else
-            {
-                return LeftHandObject;
             }
         }
 
@@ -1349,15 +1435,7 @@ namespace Lightrealm
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
                 Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
 
-                // Assign the weapon to the appropriate hand
-                if (RightHanded)
-                {
-                    RightHandObject = weapon;
-                }
-                else
-                {
-                    LeftHandObject = weapon;
-                }
+                MainHeldObject = weapon;
 
                 // List of possible armor types to create
                 List<string> armorTypes = new List<string> { "helmet", "chestplate", "gauntlet", "leggings", "boot" };
@@ -1423,14 +1501,8 @@ namespace Lightrealm
                 Material weaponMaterial = FavoriteMetal;
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
                 Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
-                if (RightHanded)
-                {
-                    RightHandObject = weapon;
-                }
-                else
-                {
-                    LeftHandObject = weapon;
-                }
+
+                MainHeldObject = weapon;
 
                 // Inside the 'else if (Type == "adventurer")' block, when equipping with armor
                 List<string> armorTypes = new List<string> { "helmet", "chestplate", "left gauntlet", "right gauntlet", "leggings", "left boot", "right boot" };
@@ -1521,7 +1593,7 @@ namespace Lightrealm
                 Object staff = new Object(null, "staff", new List<Material>() { staffMaterial }, null);
                 staff.Rarity = "rare";
                 staff.ApplyImbuements(1); // Assuming 1 indicates a minor magical enhancement
-                RightHandObject = staff;
+                MainHeldObject = staff;
 
                 // Wearing a robe made from cultural cloth
                 Material robeMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1541,7 +1613,7 @@ namespace Lightrealm
                 // Assigning a whip as a weapon, indicating control over beasts
                 Material whipMaterial = Location.HomeCivilization.CulturalCloth; // Assuming there's a CulturalLeather not listed but logically present
                 Object whip = new Object(null, "whip", new List<Material>() { whipMaterial }, null);
-                RightHandObject = whip;
+                MainHeldObject = whip;
 
                 // Equipping boots for traversing wild terrains
                 Material bootsMaterial = Location.HomeCivilization.CulturalCloth; // Assuming again the presence of CulturalLeather
@@ -1558,7 +1630,7 @@ namespace Lightrealm
                 Object tome = new Object(null, "book", new List<Material>() { tomeMaterial }, null);
                 tome.Rarity = "rare";
                 tome.ApplyImbuements(3); // Assuming 3 indicates dark or forbidden knowledge
-                RightHandObject = tome;
+                MainHeldObject = tome;
 
                 // Equipping an amulet as a source of magical protection or power
                 Material amuletMaterial = Location.HomeCivilization.CulturalGemstone;
@@ -1586,9 +1658,14 @@ namespace Lightrealm
                     Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
 
                     // For the first weapon, assign it to the right hand if right-handed, otherwise add to inventory
-                    if (i == 0 && RightHanded)
+
+                    if (i == 0)
                     {
-                        RightHandObject = weapon;
+                        MainHeldObject = weapon;
+                    }
+                    else if (i == 1)
+                    {
+                        OffHeldObject = weapon;
                     }
                     else
                     {
@@ -1617,7 +1694,7 @@ namespace Lightrealm
                 Object orb = new Object(null, "orb", new List<Material>() { orbmat }, null);
                 orb.Rarity = "rare";
                 orb.ApplyImbuements(2); // Assuming this imbues the wand with specific magical properties
-                RightHandObject = orb;
+                MainHeldObject = orb;
 
                 // Wearing a robe made from cultural cloth, indicative of a mage's status
                 Material robeMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1640,7 +1717,7 @@ namespace Lightrealm
                 Object staff = new Object(null, "staff", new List<Material>() { staffMaterial }, null);
                 staff.Rarity = "uncommon";
                 staff.ApplyImbuements(2); // Assume this enhances magical power
-                RightHandObject = staff;
+                MainHeldObject = staff;
 
                 // Carrying a tome of spells
                 Material tomeMaterial = Location.HomeCivilization.CulturalSheet;
@@ -1670,7 +1747,7 @@ namespace Lightrealm
                 // A dagger for close, silent attacks or utility
                 Material daggerMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object dagger = new Object(null, "dagger", new List<Material>() { daggerMaterial }, null);
-                RightHandObject = dagger;
+                MainHeldObject = dagger;
 
                 // A cloak for blending into shadows
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1685,7 +1762,7 @@ namespace Lightrealm
                 Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
-                RightHandObject = multiTool;
+                MainHeldObject = multiTool;
 
                 // Carrying a blueprint or schematic for a masterpiece
                 Material schematicMaterial = Location.HomeCivilization.CulturalSheet;
@@ -1700,7 +1777,7 @@ namespace Lightrealm
                 Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
-                RightHandObject = multiTool;
+                MainHeldObject = multiTool;
 
                 // Carrying a blueprint or schematic for a masterpiece
                 Material schematicMaterial = Location.HomeCivilization.CulturalSheet;
@@ -1726,7 +1803,7 @@ namespace Lightrealm
                 Object weapon = new Object(null, "rapier", new List<Material>() { weaponMaterial }, null);
                 weapon.Rarity = "epic";
                 weapon.ApplyImbuements(3); // For superior finesse and damage
-                RightHandObject = weapon;
+                MainHeldObject = weapon;
 
                 // Carrying a talisman for luck or protection in duels
                 Material talismanMaterial = Location.HomeCivilization.CulturalGemstone;
@@ -1741,7 +1818,7 @@ namespace Lightrealm
                 Object symbol = new Object(null, "amulet", new List<Material>() { symbolMaterial }, null);
                 symbol.Rarity = "epic";
                 symbol.ApplyImbuements(2); // Signifying power or protection
-                RightHandObject = symbol;
+                MainHeldObject = symbol;
 
                 // Wearing a robe that denotes their high rank
                 Material robeMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1771,7 +1848,7 @@ namespace Lightrealm
                 Object crystal = new Object(null, "orb", new List<Material>() { crystalMaterial }, null); // "Orb" used here to represent a crystal with summoning power
                 crystal.Rarity = "rare";
                 crystal.ApplyImbuements(2); // Assume this enhances summoning power
-                RightHandObject = crystal;
+                MainHeldObject = crystal;
 
                 // Wearing a cloak that conceals their presence, aiding in summoning rituals
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1806,7 +1883,7 @@ namespace Lightrealm
                 Object fractalOrb = new Object(null, "orb", new List<Material>() { fractalOrbMaterial }, null);
                 fractalOrb.Rarity = "rare";
                 fractalOrb.ApplyImbuements(3); // Enhancing their reality-manipulating powers
-                RightHandObject = fractalOrb;
+                MainHeldObject = fractalOrb;
 
                 // Wearing attire that seems to shift and change patterns
                 Material attireMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1835,7 +1912,7 @@ namespace Lightrealm
                 Material swordMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object sword = new Object(null, "shortsword", new List<Material>() { swordMaterial }, null);
                 sword.Rarity = "common";
-                RightHandObject = sword;
+                MainHeldObject = sword;
 
                 // Wearing a full set of armor for protection
                 Material armorMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
@@ -1854,7 +1931,7 @@ namespace Lightrealm
                 Object crystal = new Object(null, "orb", new List<Material>() { crystalMaterial }, null); // "Orb" used here to represent a crystal with summoning power
                 crystal.Rarity = "uncommon";
                 crystal.ApplyImbuements(0); // Assume this enhances summoning power
-                RightHandObject = crystal;
+                MainHeldObject = crystal;
 
                 // Wearing a cloak that provides some magical protection
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1868,7 +1945,7 @@ namespace Lightrealm
                 Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object weapon = new Object(null, "shortsword", new List<Material>() { weaponMaterial }, null); // "shortsword" can be replaced with "axe" or another weapon based on preference
                 weapon.Rarity = "common";
-                RightHandObject = weapon;
+                MainHeldObject = weapon;
 
                 // Wearing durable leather armor for protection and mobility
                 Material armorMaterial = Location.HomeCivilization.CulturalCloth; // Assuming leather is represented by "Cloth" for this context
@@ -1883,7 +1960,7 @@ namespace Lightrealm
                 Object tome = new Object(null, "book", new List<Material>() { tomeMaterial }, null);
                 tome.Rarity = "rare";
                 tome.ApplyImbuements(3); // Enhances dark magic abilities
-                RightHandObject = tome;
+                MainHeldObject = tome;
 
                 // Wearing a cloak that signifies their macabre affinity
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1906,7 +1983,7 @@ namespace Lightrealm
                 Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object weapon = new Object(null, "dagger", new List<Material>() { weaponMaterial }, null);
                 weapon.Rarity = "common";
-                RightHandObject = weapon;
+                MainHeldObject = weapon;
 
                 // Equipped with light armor for mobility
                 Material armorMaterial = Location.HomeCivilization.CulturalCloth;
@@ -1945,13 +2022,13 @@ namespace Lightrealm
                 Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
-                RightHandObject = multiTool;
+                MainHeldObject = multiTool;
 
                 // Equipped with a small dagger for self-defense and utility
                 Material daggerMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 Object dagger = new Object(null, "dagger", new List<Material>() { daggerMaterial }, null);
                 dagger.Rarity = "common";
-                RightHandObject = dagger;
+                MainHeldObject = dagger;
 
                 // Wearing dark clothing for stealth
                 Material clothingMaterial = Location.HomeCivilization.CulturalCloth;
@@ -2062,31 +2139,31 @@ namespace Lightrealm
                     }
                 }
 
-                // Define a list of general clothing items that can be added
-                List<string> generalClothingItems = new List<string>
-    {
-        "small hat", "large hat", "hood", "cape", "robe", "amulet", "flair",
-        "left glove", "right glove", "left wristwrap", "right wristwrap",
-        "skirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt",
-        "straps", "pants", "shorts", "kilt", "wraps", "left boot", "right boot",
-        "left shoe", "right shoe"
-    };
-
-                // Remove items that cannot be added
-                generalClothingItems.RemoveAll(item => item == "undergarment" || item == "brassiere" || item.StartsWith("left") || item.StartsWith("right"));
-
-                // Add 0-1 or semirarely 2 random general clothing items
-                int numberOfItemsToAdd = Game1.r.NextDouble() < 0.2 ? 2 : Game1.r.Next(2);
-
-                for (int i = 0; i < numberOfItemsToAdd; i++)
+                if(Location != null && Location.HomeCivilization.Type != "druid")
                 {
-                    string randomItem;
-                    do
-                    {
-                        randomItem = generalClothingItems[Game1.r.Next(generalClothingItems.Count)];
-                    } while (Clothing.Any(c => c.Type == randomItem && randomItem != "amulet"));
 
-                    Clothing.Add(new Object(null, randomItem, new List<Material>() { Cloth }, null));
+                    // Define a list of general clothing items that can be added
+                    List<string> generalClothingItems = new List<string>
+                    {
+                        "small hat", "large hat", "hood", "cape", "robe", "amulet", "flair",
+                        "left glove", "right glove", "left wristwrap", "right wristwrap",
+                        "skirt", "shortsleeve shirt", "longsleeve shirt", "uppershirt",
+                        "straps", "pants", "shorts", "kilt", "wraps",
+                    };
+
+                    // Add 0-1 or semirarely 2 random general clothing items
+                    int numberOfItemsToAdd = Game1.r.NextDouble() < 0.2 ? 2 : Game1.r.Next(2);
+
+                    for (int i = 0; i < numberOfItemsToAdd; i++)
+                    {
+                        string randomItem;
+                        do
+                        {
+                            randomItem = generalClothingItems[Game1.r.Next(generalClothingItems.Count)];
+                        } while (Clothing.Any(c => c.Type == randomItem && randomItem != "amulet"));
+
+                        Clothing.Add(new Object(null, randomItem, new List<Material>() { Cloth }, null));
+                    }
                 }
             }
 
@@ -2110,94 +2187,7 @@ namespace Lightrealm
             //give him a ton of alligned domains.
             AlignedDomains = Game1.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)).ToList();
 
-            // Function to add cultural clothing items
-            void AddCulturalClothing(string culturalItems, Material material)
-            {
-                // Check if the clothing item is "straps" and the sex is female
-                bool addUpperShirt = (culturalItems.Trim().ToLower() == "straps" || culturalItems.Trim().ToLower() == "straps/cape") && this.Sex.ToLower() == "female" && (this.HomeLocation == null || this.HomeLocation.HomeCivilization.Type != "druid");
-
-                if (culturalItems != "none")
-                {
-                    // Split the cultural items string into individual items
-                    string[] items = culturalItems.Split('/');
-
-                    // Add each item to the Clothing list
-                    foreach (string item in items)
-                    {
-                        Object newClothing = new Object(null, item.Trim(), new List<Material>() { material }, null);
-                        Clothing.Add(newClothing);
-
-                        // Apply dye to the newly added clothing item
-                        ApplyDye(newClothing);
-
-                        // Check for pairs and color them the same
-                        if (item.Trim().ToLower().StartsWith("left ") || item.Trim().ToLower().StartsWith("right "))
-                        {
-                            string pairItem = item.Trim().ToLower().StartsWith("left ") ? "right " + item.Trim().Substring(5) : "left " + item.Trim().Substring(6);
-                            Object pairClothing = Clothing.FirstOrDefault(c => c.Type.ToLower() == pairItem.ToLower());
-
-                            if (pairClothing != null)
-                            {
-                                pairClothing.DyedColor = newClothing.DyedColor;
-                            }
-                        }
-                    }
-
-                    // If addUpperShirt is true, add "uppershirt" to the Clothing list
-                    if (addUpperShirt)
-                    {
-                        Object upperShirt = new Object(null, "uppershirt", new List<Material>() { material }, null);
-                        Clothing.Add(upperShirt);
-
-                        // Apply dye to the upper shirt
-                        ApplyDye(upperShirt);
-                    }
-                }
-
-                // Clear the imbuements for each clothing item
-                foreach (Object o in Clothing)
-                {
-                    o.Imbuements.Clear();
-                }
-            }
-
-            void ApplyDye(Object clothingItem)
-            {
-                // Assuming HomeLocation is not null and there are Colors to choose from
-
-                if (HomeLocation != null)
-                {
-                    int decider = Game1.r.Next(100);
-                    string colorToApply = null;
-
-                    if (HomeLocation.HomeCivilization.Type == "druid")
-                    {
-                        colorToApply = "green";
-                    }
-                    else if (decider < 60 || clothingItem.Type == "undergarment" || clothingItem.Type == "brassiere")
-                    {
-                        // 60% chance to dye with the HomeCivilization color
-                        colorToApply = HomeLocation.HomeCivilization.Color;
-                    }
-                    else if (decider < 80)
-                    {
-                        // 20% chance to dye with a related color
-                        List<string> relatedColors = Game1.GetFamilyColors(HomeLocation.HomeCivilization.Color);
-                        colorToApply = relatedColors[Game1.r.Next(relatedColors.Count)];
-                    }
-                    else
-                    {
-                        // 20% chance to not dye at all
-                        return;
-                    }
-
-                    // Apply the color to the clothing item
-                    clothingItem.DyedColor = colorToApply;
-                }
-            }
-
-
-
+            
 
             if (Sex == "male")
             {
@@ -2254,6 +2244,7 @@ namespace Lightrealm
             FavoriteCloth = Game1.GameWorld.Cloths[Game1.r.Next(Game1.GameWorld.Cloths.Count)];
 
             DestinyArrivalYear = Game1.r.Next(18, 45);
+
             if (Game1.GameWorld.HumanoidRaces.Contains(Race))
             {
                 if (Game1.r.Next(1, 5) == 1)
@@ -2340,6 +2331,20 @@ namespace Lightrealm
                 o.Creator = this;
             }
 
+
+            if(Game1.r.Next(1,10) == 1)
+            {
+                //reverse hands if this is true, like left handedness
+                MainInteractionAppendage = FindBodyPart(Race.OffInteractionAppendage);
+                OffInteractionAppendage = FindBodyPart(Race.MainInteractionAppendage);
+            }
+            else
+            {
+                //or jsut do this lololololol
+                MainInteractionAppendage = FindBodyPart(Race.MainInteractionAppendage);
+                OffInteractionAppendage = FindBodyPart(Race.OffInteractionAppendage);
+            }
+
             Energy = MaxEnergy();
         }
 
@@ -2356,23 +2361,31 @@ namespace Lightrealm
             }
         }
 
-        public void DropInventory()
+        public void DropInventory(bool dropUndergarments)
         {
-            List<Object> filteredClothing = Clothing.Where(o => o.Type != "brassiere" && o.Type != "undergarment").ToList();
+            List<Object> filteredClothing;
+            if (dropUndergarments)
+            {
+                filteredClothing = new List<Object>(Clothing);
+            }
+            else
+            {
+                filteredClothing = Clothing.Where(o => o.Type != "brassiere" && o.Type != "undergarment").ToList();
+            }
 
             if (Room != null)
             {
                 Room.Objects.AddRange(Inventory);
                 Room.Objects.AddRange(filteredClothing);
 
-                if (RightHandObject != null)
+                if (MainHeldObject != null)
                 {
-                    Room.Objects.Add(RightHandObject);
+                    Room.Objects.Add(MainHeldObject);
                 }
 
-                if (LeftHandObject != null)
+                if (OffHeldObject != null)
                 {
-                    Room.Objects.Add(LeftHandObject);
+                    Room.Objects.Add(OffHeldObject);
                 }
 
                 foreach (Object o in Room.Objects)
@@ -2386,14 +2399,14 @@ namespace Lightrealm
                 Block.Objects.AddRange(Inventory);
                 Block.Objects.AddRange(filteredClothing);
 
-                if (RightHandObject != null)
+                if (MainHeldObject != null)
                 {
-                    Block.Objects.Add(RightHandObject);
+                    Block.Objects.Add(MainHeldObject);
                 }
 
-                if (LeftHandObject != null)
+                if (OffHeldObject != null)
                 {
-                    Block.Objects.Add(LeftHandObject);
+                    Block.Objects.Add(OffHeldObject);
                 }
 
                 foreach (Object o in Block.Objects)
@@ -2402,10 +2415,16 @@ namespace Lightrealm
                 }
             }
 
-            Clothing = Clothing.Where(o => o.Type == "brassiere" || o.Type == "undergarment").ToList();
+            if (!dropUndergarments)
+            {
+                Clothing = Clothing.Where(o => o.Type == "brassiere" || o.Type == "undergarment").ToList();
+            }
+            else
+            {
+                Clothing.Clear();
+            }
             Inventory.Clear();
         }
-
 
         public void RaiseFromTheDead(Architect executor, string referredToName, int pathOfDeathLevel, int minPathOfDeathLevel)
         {
@@ -2542,8 +2561,8 @@ namespace Lightrealm
             {
                 o.UpdateNames();
             }
-            LeftHandObject?.UpdateNames();
-            RightHandObject?.UpdateNames();
+            OffHeldObject?.UpdateNames();
+            MainHeldObject?.UpdateNames();
 
 
 
@@ -2656,7 +2675,6 @@ namespace Lightrealm
             ExtraSlashingResistance = 0;
             ExtraScourgingResistance = 0;
             ExtraStealth = 0;
-            ExtraHealingCapability = 0;
             ExtraEnergyRegen = 0;
 
 
@@ -2832,7 +2850,7 @@ namespace Lightrealm
                 else
                 {
                     IsAlive = false;
-                    DropInventory();
+                    DropInventory(true);
 
                     if (Game1.GamePlayerParty.Architects.Contains(this))
                     {
@@ -3010,56 +3028,59 @@ namespace Lightrealm
 
             if (PathOfHeatLevel < 4)
             {
-                if (LeftHandObject != null && (LeftHandObject.FireCycles > 0 || LeftHandObject.HeatInCelsius >= 30 + (Focus * 5)))
+                if (OffHeldObject != null && (OffHeldObject.FireCycles > 0 || OffHeldObject.HeatInCelsius >= 30 + (Focus * 5)))
                 {
                     if (isSameRoomOrBlockMatch)
                     {
-                        Game1.MakeObservation("The " + LeftHandObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s left hand is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new List<Entity>() { LeftHandObject, this, this });
+                        Game1.MakeObservation("The " + OffHeldObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s " + Race.OffInteractionAppendage + " is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new List<Entity>() { OffHeldObject, this, this });
                     }
                     if (Room != null)
                     {
-                        Room.Objects.Add(LeftHandObject);
-                        LeftHandObject = null;
+                        Room.Objects.Add(OffHeldObject);
+                        OffHeldObject = null;
                     }
                     else
                     {
-                        Block.Objects.Add(LeftHandObject);
-                        LeftHandObject = null;
+                        Block.Objects.Add(OffHeldObject);
+                        OffHeldObject = null;
                     }
 
                 }
-                if (RightHandObject != null && (RightHandObject.FireCycles > 0 || RightHandObject.HeatInCelsius >= 30 + (Focus * 5)))
+                if (MainHeldObject != null && (MainHeldObject.FireCycles > 0 || MainHeldObject.HeatInCelsius >= 30 + (Focus * 5)))
                 {
                     if (isSameRoomOrBlockMatch)
                     {
-                        Game1.MakeObservation("The " + RightHandObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s right hand is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new List<Entity>() { RightHandObject, this, this });
+                        Game1.MakeObservation("The " + MainHeldObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s " + Race.MainInteractionAppendage + " is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new List<Entity>() { MainHeldObject, this, this });
                     }
                     if (Room != null)
                     {
-                        Room.Objects.Add(RightHandObject);
-                        RightHandObject = null;
+                        Room.Objects.Add(MainHeldObject);
+                        MainHeldObject = null;
                     }
                     else
                     {
-                        Block.Objects.Add(RightHandObject);
-                        RightHandObject = null;
+                        Block.Objects.Add(MainHeldObject);
+                        MainHeldObject = null;
                     }
                 }
 
-                foreach (Object clothingItem in Clothing)
+                if (Game1.GameWorld.Cycle % 10 == 0)
                 {
-                    if (clothingItem.FireCycles > 0 || clothingItem.HeatInCelsius >= 30 + (Focus * 5))
+                    foreach (Object clothingItem in Clothing)
                     {
-                        Energy -= 1;
-
-                        if (isSameRoomOrBlockMatch)
+                        if (clothingItem.FireCycles > 0 || clothingItem.HeatInCelsius >= 30 + (Focus * 5))
                         {
-                            Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singing their skin!", Color.Orange, new List<Entity>() { clothingItem, this, this });
-                        }
+                            Energy -= 1;
 
-                        if (Energy <= 0)
-                        {
-                            DeathCause = "was burned to death by their clothing";
+                            if (isSameRoomOrBlockMatch)
+                            {
+                                Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singing their skin!", Color.Orange, new List<Entity>() { clothingItem, this, this });
+                            }
+
+                            if (Energy <= 0)
+                            {
+                                DeathCause = "was burned to death by their clothing";
+                            }
                         }
                     }
                 }
@@ -3100,13 +3121,6 @@ namespace Lightrealm
                 {
                     double materialMultiplier = GetMaterialCoverageMultiplier(strongestMaterial);
                     int adjustedCoverage = (int)((strongestMaterial.Toughness / 2.0) * materialMultiplier * coverage);
-
-                    if(adjustedCoverage > 80)
-                    {
-                        //my formula didn't work right apparenty
-
-                        int shibe = 1;
-                    }
 
                     if (highestCoverageByItem.ContainsKey(bodyPart))
                     {
@@ -3171,13 +3185,13 @@ namespace Lightrealm
                 }
             }
 
-            if (LeftHandObject != null)
+            if (OffHeldObject != null)
             {
-                CurrentlyActiveImbuements.AddRange(LeftHandObject.Imbuements);
+                CurrentlyActiveImbuements.AddRange(OffHeldObject.Imbuements);
             }
-            if (RightHandObject != null)
+            if (MainHeldObject != null)
             {
-                CurrentlyActiveImbuements.AddRange(RightHandObject.Imbuements);
+                CurrentlyActiveImbuements.AddRange(MainHeldObject.Imbuements);
             }
 
             foreach (Architect a in MeldedShibas)
@@ -3186,31 +3200,31 @@ namespace Lightrealm
                 switch (attributeToIncrease)
                 {
                     case 0:
-                        ExtraShieldEffectiveness += 2;
+                        ExtraShieldEffectiveness += 1;
                         break;
                     case 1:
-                        ExtraAttackPower += 2;
+                        ExtraAttackPower += 1;
                         break;
                     case 2:
-                        ExtraDodgeChance += 2;
+                        ExtraDodgeChance += 1;
                         break;
                     case 3:
-                        ExtraRedirectionChance += 2;
+                        ExtraRedirectionChance += 1;
                         break;
                     case 4:
-                        ExtraBashingResistance += 2;
+                        ExtraBashingResistance += 1;
                         break;
                     case 5:
-                        ExtraPiercingResistance += 2;
+                        ExtraPiercingResistance += 1;
                         break;
                     case 6:
-                        ExtraSlashingResistance += 2;
+                        ExtraSlashingResistance += 1;
                         break;
                     case 7:
-                        ExtraScourgingResistance += 2;
+                        ExtraScourgingResistance += 1;
                         break;
                     case 8:
-                        ExtraStealth += 2;
+                        ExtraStealth += 1;
                         break;
                     default:
                         // Just in case of an unexpected value
@@ -3255,7 +3269,7 @@ namespace Lightrealm
                         {
                             foreach (Architect e in Room.Architects)
                             {
-                                if (e.Task == "fighting")
+                                if (Game1.GamePlayerParty.Architects.Contains(this) && Game1.GamePlayerParty.Architects.Contains(e.TargetArchitect) && (e.Task == "killtarget" || e.Task == "disabletarget"))
                                 {
                                     Quota++;
                                 }
@@ -3265,7 +3279,7 @@ namespace Lightrealm
                         {
                             foreach (Architect e in Block.Architects)
                             {
-                                if (e.Task == "fighting")
+                                if (Game1.GamePlayerParty.Architects.Contains(this) && Game1.GamePlayerParty.Architects.Contains(e.TargetArchitect) && (e.Task == "killtarget" || e.Task == "disabletarget"))
                                 {
                                     Quota++;
                                 }
@@ -3295,7 +3309,7 @@ namespace Lightrealm
                     {
                         if (Room != null)
                         {
-                            if (Room.Structure.LightLevelOf5 < 3)
+                            if (Room.Structure.LightLevelOf5 <= 3)
                             {
                                 MetCondition = true;
                             }
@@ -3310,7 +3324,7 @@ namespace Lightrealm
                     }
                     else if (i.ConditionOrTrigger == "stagnant")
                     {
-                        if (CyclesSinceMoved > 200)
+                        if (CyclesSinceMoved >= 70)
                         {
                             MetCondition = true;
                         }
@@ -3325,45 +3339,48 @@ namespace Lightrealm
 
                     if (MetCondition)
                     {
+                        i.IsSatisfied = true;
+
                         switch (i.BuffOrResult)
                         {
                             case "+attack":
-                                ExtraAttackPower += i.FirstPower; // Assuming FirstPower is the percentage increase
+                                ExtraAttackPower += i.SecondPower; 
                                 break;
                             case "+shield":
-                                ExtraShieldEffectiveness += i.FirstPower;
+                                ExtraShieldEffectiveness += i.SecondPower;
                                 break;
                             case "+dodge":
-                                ExtraDodgeChance += i.FirstPower;
+                                ExtraDodgeChance += i.SecondPower;
                                 break;
                             case "+redirection":
-                                ExtraRedirectionChance += i.FirstPower;
+                                ExtraRedirectionChance += i.SecondPower;
                                 break;
                             case "+bash":
-                                ExtraBashingResistance += i.FirstPower;
+                                ExtraBashingResistance += i.SecondPower;
                                 break;
                             case "+pierce":
-                                ExtraPiercingResistance += i.FirstPower; // Assuming you have a field for this
+                                ExtraPiercingResistance += i.SecondPower;
                                 break;
                             case "+slash":
-                                ExtraSlashingResistance += i.FirstPower;
+                                ExtraSlashingResistance += i.SecondPower;
                                 break;
                             case "+scourge":
-                                ExtraScourgingResistance += i.FirstPower;
+                                ExtraScourgingResistance += i.SecondPower;
                                 break;
                             case "+stealth":
-                                ExtraStealth += i.FirstPower; // Or some other logic for stealth
-                                break;
-                            case "+heal":
-                                ExtraHealingCapability += i.FirstPower;
+                                ExtraStealth += 5;
                                 break;
                             case "+regen":
-                                ExtraEnergyRegen += i.FirstPower; // Assuming SecondPower is the flat regen amount
+                                ExtraEnergyRegen += i.SecondPower;
                                 break;
                             default:
                                 // Handle unknown BuffOrResult
                                 break;
                         }
+                    }
+                    else
+                    {
+                        i.IsSatisfied = false;
                     }
                 }
             }
@@ -3371,29 +3388,31 @@ namespace Lightrealm
 
             //regenerate
 
-
-            Energy = Math.Min(MaxEnergy(), Energy + ExtraEnergyRegen);
+            if(Game1.GameWorld.Cycle % 10 == 0)
+            {
+                Energy = Math.Min(MaxEnergy(), Energy + ExtraEnergyRegen);
+            }
 
             //Handle A variety of On Tick Effects
 
             if (WetCycles > 0)
             {
-                FireCycles = 0;
+                FireSeconds = 0;
                 WetCycles--;
             }
-            if (FireCycles > 0)
+            if (FireSeconds > 0 && Game1.GameWorld.Cycle % 10 == 0)
             {
                 if (PathOfHeatLevel < 8)
                 {
-                    Energy -= (decimal)(0.05 * FireCycles);
+                    Energy -= FireSeconds;
 
                     if (Energy <= 0)
                     {
                         DeathCause = "burned to death";
                     }
-
-                    FireCycles--;
                 }
+
+                FireSeconds--;
             }
             if (BlindCycles > 0)
             {
@@ -3570,8 +3589,8 @@ namespace Lightrealm
                             if (demandedItem == null ||
                                 (!m.Receiver.Inventory.Contains(demandedItem) &&
                                  !m.Receiver.Clothing.Contains(demandedItem) &&
-                                 m.Receiver.LeftHandObject != demandedItem &&
-                                 m.Receiver.RightHandObject != demandedItem))
+                                 m.Receiver.OffHeldObject != demandedItem &&
+                                 m.Receiver.MainHeldObject != demandedItem))
                             {
                                 conditionMet = false;
                                 baseChanceToTruth = 0;
@@ -3701,7 +3720,7 @@ namespace Lightrealm
                             isOpposed = true;
                         }
 
-                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(this) && !Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(a))))
+                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GamePlayerParty.CurrentEvent != null && (Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(this) && !Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(a)))))
                         {
                             FinalOpinion = Math.Min(FinalOpinion, -247);
                             isOpposed = true;
@@ -3729,10 +3748,10 @@ namespace Lightrealm
                     SpellsKnown.RemoveAll(item => Game1.GameWorld.DeletedSpells.Contains(item));
                     CultureBank.RemoveAll(item => Game1.GameWorld.DeletedCompositions.Contains(item));
                     Inventory.RemoveAll(item => Game1.GameWorld.DeletedObjects.Contains(item));
-                    if (Game1.GameWorld.DeletedObjects.Contains(LeftHandObject))
-                        LeftHandObject = null;
-                    if (Game1.GameWorld.DeletedObjects.Contains(RightHandObject))
-                        RightHandObject = null;
+                    if (Game1.GameWorld.DeletedObjects.Contains(OffHeldObject))
+                        OffHeldObject = null;
+                    if (Game1.GameWorld.DeletedObjects.Contains(MainHeldObject))
+                        MainHeldObject = null;
                     if (Game1.GameWorld.DeletedRaces.Contains(this.Race))
                     {
                         Race = Game1.GameWorld.GetRace("shade");
@@ -4165,9 +4184,9 @@ namespace Lightrealm
                 //have you finished task? then reap the benefits
                 if (CyclesLeftInTask <= 0 && (Location.Region, Location, District, Block, Room, "") == Target)
                 {
-                    //CONGRAGULATIONS! youre done with your task lool, you can reap the benefits.
+                    //CONGRATULATIONS! you're done with your task, you can reap the benefits.
 
-                    //tasks not listed here don't have nebefits
+                    //tasks not listed here don't have benefits
                     switch (Task)
                     {
                         case "drinking":
@@ -4202,21 +4221,31 @@ namespace Lightrealm
                             //add cooking stuff <3
                             break;
                         case "industry":
+                            var generatedItemStrings = District.GenerateItems(District.Industry, 1);
+                            List<Object> generatedItems = new List<Object>();
+
+                            foreach (var itemString in generatedItemStrings)
+                            {
+                                generatedItems.AddRange(Game1.ConvertStringToObjects(itemString));
+                            }
+
                             if (Room != null)
                             {
-                                Room.Objects.AddRange(District.GenerateItems(District.Industry, 1));
+                                Room.Objects.AddRange(generatedItems);
                             }
                             else
                             {
-                                Block.Objects.AddRange(District.GenerateItems(District.Industry, 1));
+                                Block.Objects.AddRange(generatedItems);
                             }
                             break;
+
                         default:
                             break;
                     }
 
                     Task = "";
                 }
+
 
                 //otherwise, youre at the right place so either kill someone or finish your task
                 else if (Task != "" && (Location.Region, Location, District, Block, Room, "") == Target)
@@ -4390,8 +4419,8 @@ namespace Lightrealm
                                 else
                                 {
                                     Object Weapon;
-                                    Object mainHand = MainHandObject();
-                                    Object offHand = OffHandObject();
+                                    Object mainHand = MainHeldObject;
+                                    Object offHand = OffHeldObject;
 
                                     if (mainHand != null && mainHand.IsWeapon)
                                     {
@@ -4961,9 +4990,9 @@ namespace Lightrealm
                     }
                     else
                     {
-                        if (((Architect)CurrentTarget).FireCycles > 0)
+                        if (((Architect)CurrentTarget).FireSeconds > 0)
                         {
-                            ((Architect)CurrentTarget).FireCycles = 0;
+                            ((Architect)CurrentTarget).FireSeconds = 0;
                         }
                         foreach (Object o in ((Architect)CurrentTarget).BodyParts)
                         {
@@ -4987,13 +5016,13 @@ namespace Lightrealm
 
                     if (CurrentTarget is Object)
                     {
-                        ((Object)CurrentTarget).FireCycles += Game1.r.Next(0, 100);
+                        ((Object)CurrentTarget).FireCycles += Game1.r.Next(0, 4);
                         ((Object)CurrentTarget).DestabilizedCycles += Game1.r.Next(0, 50);
                         ((Object)CurrentTarget).Integrity = ((Object)CurrentTarget).Integrity - 50;
                     }
                     else
                     {
-                        ((Architect)CurrentTarget).FireCycles += Game1.r.Next(0, 50);
+                        ((Architect)CurrentTarget).FireSeconds += Game1.r.Next(0, 4);
                         ((Architect)CurrentTarget).DestabilizedCycles += Game1.r.Next(0, 50);
                         foreach (Object o in ((Architect)CurrentTarget).BodyParts)
                         {
@@ -5051,11 +5080,11 @@ namespace Lightrealm
 
                     if (CurrentTarget is Object)
                     {
-                        ((Object)CurrentTarget).FireCycles += Game1.r.Next(30, 60);
+                        ((Object)CurrentTarget).FireCycles += Game1.r.Next(1, 9);
                     }
                     else
                     {
-                        ((Architect)CurrentTarget).FireCycles += Game1.r.Next(50, 100);
+                        ((Architect)CurrentTarget).FireSeconds += Game1.r.Next(1, 9);
                     }
                 }
                 else if (Spell == "tremor")
@@ -5073,6 +5102,7 @@ namespace Lightrealm
                         if (!Targets.Contains(o))
                         {
                             o.DestabilizedCycles += Game1.r.Next(100, 200);
+                            Announcements.Add(new TextStorage($"{o.ReferredToNames[0]} is destabilized!", Color.Magenta, new List<Entity>() { o }));
                         }
                     }
                     foreach (Architect a in Architects)
@@ -5080,6 +5110,7 @@ namespace Lightrealm
                         if (!Targets.Contains(a))
                         {
                             a.DestabilizedCycles += Game1.r.Next(100, 200);
+                            Announcements.Add(new TextStorage($"{a.ReferredToNames[0]} is destabilized!", Color.Magenta, new List<Entity>() { a }));
                         }
                     }
                 }
@@ -5613,13 +5644,13 @@ namespace Lightrealm
                         if (a.Room != null)
                         {
                             a.Room.Architects.Remove(a);
-                            a.DropInventory();
+                            a.DropInventory(false);
                             a.Room = null;
                         }
                         else if (a.Block != null)
                         {
                             a.Block.Architects.Remove(a);
-                            a.DropInventory();
+                            a.DropInventory(false);
                             a.Block = null;
                         }
 
@@ -5686,14 +5717,14 @@ namespace Lightrealm
                                 a.Inventory.Remove((Object)CurrentTarget);
                                 break;
                             }
-                            else if (a.LeftHandObject == CurrentTarget)
+                            else if (a.OffHeldObject == CurrentTarget)
                             {
-                                a.LeftHandObject = null;
+                                a.OffHeldObject = null;
                                 break;
                             }
-                            else if (a.RightHandObject == CurrentTarget)
+                            else if (a.MainHeldObject == CurrentTarget)
                             {
-                                a.RightHandObject = null;
+                                a.MainHeldObject = null;
                                 break;
                             }
                         }
@@ -5843,8 +5874,6 @@ namespace Lightrealm
                         Clone.AirbornePower = Base.AirbornePower;
                         Clone.AirborneCyclesToHitTarget = Base.AirborneCyclesToHitTarget;
                         Clone.Creator = Base.Creator;
-                        Clone.WordCount = Base.WordCount;
-                        Clone.Subject = Base.Subject;
                         Clone.FireCycles = Base.FireCycles;
                         Clone.WetCycles = Base.WetCycles;
                         Clone.DestabilizedCycles = Base.DestabilizedCycles;
@@ -5876,7 +5905,7 @@ namespace Lightrealm
                         {
                             if (a.District.IsLoaded)
                             {
-                                if (a.LeftHandObject == Base)
+                                if (a.OffHeldObject == Base)
                                 {
                                     if (a.Room != null)
                                     {
@@ -5887,7 +5916,7 @@ namespace Lightrealm
                                         a.Block.Objects.Add(Clone);
                                     }
                                 }
-                                else if (a.RightHandObject == Base)
+                                else if (a.MainHeldObject == Base)
                                 {
                                     if (a.Room != null)
                                     {
@@ -5923,7 +5952,7 @@ namespace Lightrealm
                             else
                             {
                                 // When the location is not loaded, and you need to check if any of the conditions for holding or carrying the base object are met
-                                bool anyConditionMet = a.LeftHandObject == Base || a.RightHandObject == Base || a.Inventory.Contains(Base) || a.Clothing.Contains(Base);
+                                bool anyConditionMet = a.OffHeldObject == Base || a.MainHeldObject == Base || a.Inventory.Contains(Base) || a.Clothing.Contains(Base);
                                 if (anyConditionMet)
                                 {
                                     // Assuming we default to adding to the inventory when the location is not loaded
@@ -5946,7 +5975,7 @@ namespace Lightrealm
             {
                 if (i.IsTrigger && i.ConditionOrTrigger == "oncast")
                 {
-                    ActivatePower(i.BuffOrResult);
+                    Announcements.Add(ActivatePower(i.BuffOrResult));
                 }
             }
 
@@ -5955,66 +5984,60 @@ namespace Lightrealm
 
         public TextStorage ActivatePower(string Power)
         {
+            List<Architect> hostiles = new List<Architect>();
+            IEnumerable<Architect> architects = Room != null ? Room.Architects : Block.Architects;
+
+            foreach (Architect a in architects)
+            {
+                if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
+                {
+                    hostiles.Add(a);
+                }
+            }
+
+            hostiles.Sort((a, b) => a.GetDistance(this).CompareTo(b.GetDistance(this)));
+
             if (Power == "barrier")
             {
                 BarrierStacks++;
                 return new TextStorage(ReferredToNames[0] + " generates a barrier stack!", Color.Magenta, new List<Entity>() { this });
             }
-            else if (Power == "projectile")
+            else if (Power == "projectile" && hostiles.Count > 0)
             {
                 List<Object> objects = Room != null ? Room.Objects : Block.Objects;
-                IEnumerable<Architect> architects = Room != null ? Room.Architects : Block.Architects;
+                Architect target = hostiles[0];
 
-                foreach (Architect a in architects)
-                {
-                    if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
-                    {
-                        Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
-                        objects.Add(o);
-                        o.AirborneTarget = a;
-                        o.AirborneCyclesToHitTarget = 15 - Focus;
-                        return new TextStorage(ReferredToNames[0] + " fires a bolt at " + a.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, a });
-                    }
-                }
+                Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
+                objects.Add(o);
+                o.AirborneTarget = target;
+                o.AirborneCyclesToHitTarget = 15 - Focus;
+                return new TextStorage(ReferredToNames[0] + " fires a bolt at " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
             }
-            else if (Power == "ignite")
+            else if (Power == "ignite" && hostiles.Count > 0)
             {
-                IEnumerable<Architect> architects = Room != null ? Room.Architects : Block.Architects;
-
-                foreach (Architect a in architects)
-                {
-                    if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
-                    {
-                        a.FireCycles += 40;
-                        return new TextStorage(ReferredToNames[0] + " ignites " + a.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, a });
-                    }
-                }
-
+                Architect target = hostiles[0];
+                target.FireSeconds += 3;
+                return new TextStorage(ReferredToNames[0] + " ignites " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
             }
-            else if (Power == "destabilize")
+            else if (Power == "destabilize" && hostiles.Count > 0)
             {
-                IEnumerable<Architect> architects = Room != null ? Room.Architects : Block.Architects;
-
-                foreach (Architect a in architects)
-                {
-                    if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
-                    {
-                        a.DestabilizedCycles += 20;
-                        return new TextStorage(ReferredToNames[0] + " destabilizes " + a.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, a });
-                    }
-                }
-
+                Architect target = hostiles[0];
+                target.DestabilizedCycles += 20;
+                return new TextStorage(ReferredToNames[0] + " destabilizes " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
             }
             else if (Power == "dismiss")
             {
                 DismissalCycles += 30;
                 return new TextStorage(ReferredToNames[0] + " becomes partially intangible!", Color.Magenta, new List<Entity>() { this });
             }
+
             return new TextStorage("An unknown power triggered!", Color.Magenta, new List<Entity>() { this });
         }
 
+
         public void Fractallize(int Cycles)
         {
+            DropInventory(true);
             FractalCycles = Cycles;
             RematerializeLocation = (this.Location.Region, this.Location, this.District, this.Block, this.Structure, this.Room);
             Location.Region.World.FractalArchitects.Add(this);
@@ -6027,21 +6050,26 @@ namespace Lightrealm
             {
                 Block.Architects.Remove(this);
             }
+
+            if(Game1.LoadedArchitects.Contains(this))
+            {
+                Game1.LoadedArchitectsToRemove.Add(this);
+            }
         }
 
         public void Move(string direction)
         {
             var directionOffsets = new Dictionary<string, (int dx, int dz)>
-    {
-        {"north", (0, -1)},
-        {"northeast", (1, -1)},
-        {"east", (1, 0)},
-        {"southeast", (1, 1)},
-        {"south", (0, 1)},
-        {"southwest", (-1, 1)},
-        {"west", (-1, 0)},
-        {"northwest", (-1, -1)}
-    };
+            {
+                {"north", (0, -1)},
+                {"northeast", (1, -1)},
+                {"east", (1, 0)},
+                {"southeast", (1, 1)},
+                {"south", (0, 1)},
+                {"southwest", (-1, 1)},
+                {"west", (-1, 0)},
+                {"northwest", (-1, -1)}
+            };
 
             if (directionOffsets.TryGetValue(direction, out var offset))
             {
@@ -6149,7 +6177,7 @@ namespace Lightrealm
                         CooldownCycles += (int)Math.Round(25 / Speed());
                     }
                 }
-            }
+            } 
             else
             {
                 AnnounceToParty("You can't go that \"way\".", Color.Yellow, new List<Entity>());

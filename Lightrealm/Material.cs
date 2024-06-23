@@ -23,6 +23,8 @@ namespace Lightrealm
             Rarity = rarity;
             AddReferredToName(Name);
             Color = color;
+
+            Game1.MaterialsToAddToWorld.Add(this);
         }
         public Material()
         {

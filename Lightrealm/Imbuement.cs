@@ -15,6 +15,8 @@ namespace Lightrealm
         public int FirstPower;
         public int SecondPower;
 
+        public bool IsSatisfied = false;
+
         public Imbuement(bool isTrigger, string conditionOrTrigger, string buffOrResult, int firstPower, int secondPower)
         {
             IsTrigger = isTrigger;
@@ -43,26 +45,29 @@ namespace Lightrealm
                     // Logic for triggers
                     switch (ConditionOrTrigger)
                     {
-                        case "ondodge":
-                            description = "When you roll, ";
+                        case "onjump":
+                            description = "When you jump over an attack, ";
+                            break;
+                        case "onduck":
+                            description = "When you duck under an attack, ";
+                            break;
+                        case "onroll":
+                            description = "When you roll away from an attack, ";
                             break;
                         case "onblock":
-                            description = "When you block, ";
+                            description = "When you block an attack with a shield, ";
                             break;
                         case "onparry":
-                            description = "When you parry, ";
+                            description = "When you parry an attack, ";
                             break;
                         case "onredirect":
-                            description = "When you redirect, ";
+                            description = "When you redirect an attack, ";
                             break;
                         case "oncast":
                             description = "When you cast a spell, ";
                             break;
-                        case "onhpgain":
-                            description = "When you gain non-regeneration HP, ";
-                            break;
                         case "ondamage":
-                            description = "When you take damage, ";
+                            description = "When you are successfully attacked, ";
                             break;
                         case "onattack":
                             description = "When you successfully attack, ";
@@ -82,13 +87,13 @@ namespace Lightrealm
                         description = "When on the ground, ";
                         break;
                     case "diminished":
-                        description = $"When energy is below {FirstPower}%, ";
+                        description = $"When energy is below {FirstPower}, ";
                         break;
                     case "lowlight":
                         description = "When in low light, ";
                         break;
                     case "stagnant":
-                        description = "When you have spent 5 cycles in one block or room, ";
+                        description = "When you have spent 7 seconds in one block or room, ";
                         break;
                     case "maxenergy":
                         description = "When energy is maxed, ";
@@ -109,7 +114,7 @@ namespace Lightrealm
                         description = $"generate a barrier stack.";
                         break;
                     case "projectile":
-                        description = $"launch a projectile at the nearest hostile.";
+                        description = $"fire a bolt at the nearest hostile.";
                         break;
                     case "ignite":
                         description = $"ignite the nearest hostile.";
@@ -118,7 +123,7 @@ namespace Lightrealm
                         description = $"destabilize the nearest hostile.";
                         break;
                     case "dismiss":
-                        description = $"gain dismissal for two seconds.";
+                        description = $"gain dismissal for three seconds.";
                         break;
                 }
             }
@@ -151,13 +156,13 @@ namespace Lightrealm
                         description = $"increase scourging resistance by {SecondPower}%.";
                         break;
                     case "+stealth":
-                        description = "become harder to see and target.";
+                        description = "become slightly harder to see and target.";
                         break;
                     case "+heal":
                         description = $"enhance healing capability by {SecondPower}%.";
                         break;
                     case "+regen":
-                        description = $"regenerate {SecondPower} energy per cycle.";
+                        description = $"regenerate {SecondPower} energy per second.";
                         break;
                 }
             }

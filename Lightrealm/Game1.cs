@@ -26,6 +26,9 @@ using Point = Microsoft.Xna.Framework.Point;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 using System.Drawing;
 using System.Windows.Forms;
+using static System.Net.Mime.MediaTypeNames;
+using System.Drawing.Drawing2D;
+using Matrix = Microsoft.Xna.Framework.Matrix;
 
 #pragma warning disable SYSLIB0011
 
@@ -34,6 +37,8 @@ namespace Lightrealm
     public class Game1 : Game
     {
         public static string Version = "alpha1";
+
+        public static List<Vector2> crds = new List<Vector2>();
 
         public static string DetermineAttackVerb(string weaponType)
         {
@@ -57,7 +62,19 @@ namespace Lightrealm
 
         public static List<(Rectangle, Entity)> EntityHitboxes = new List<(Rectangle, Entity)>();
 
+        public static Rectangle RectangleN;
+        public static Rectangle RectangleNE;
+        public static Rectangle RectangleE;
+        public static Rectangle RectangleSE;
+        public static Rectangle RectangleS;
+        public static Rectangle RectangleSW;
+        public static Rectangle RectangleW;
+        public static Rectangle RectangleNW;
+        public static Rectangle RectangleCenter;
+
         public static int TemporaryNextUniqueID = 0;
+
+        public bool MassTravelOrderMode = false;
 
         public List<string> CurrentlyViewingHistory = new List<string>();
         public int HistoricalScrollValue = 0;
@@ -91,6 +108,8 @@ namespace Lightrealm
         public static bool EnableTTS;
         public static bool SimplifiedFont;
         public static bool SpeedWorldGen;
+
+        public static List<Material> MaterialsToAddToWorld = new List<Material>();
 
         public int LatestTraveledDay { get; set; }
 
@@ -128,13 +147,13 @@ namespace Lightrealm
                         subjectsToAdd.AddRange(architect.Clothing);
                         subjectsToAdd.AddRange(architect.BodyParts);
 
-                        if (architect.LeftHandObject != null)
+                        if (architect.OffHeldObject != null)
                         {
-                            subjectsToAdd.Add(architect.LeftHandObject);
+                            subjectsToAdd.Add(architect.OffHeldObject);
                         }
-                        if (architect.RightHandObject != null)
+                        if (architect.MainHeldObject != null)
                         {
-                            subjectsToAdd.Add(architect.RightHandObject);
+                            subjectsToAdd.Add(architect.MainHeldObject);
                         }
                     }
 
@@ -632,7 +651,7 @@ namespace Lightrealm
         public static Object GenerateRandomWeapon(Material material, string Rarity)
         {
             // Array of possible weapon types
-            string[] weaponTypes = { "shortsword", "greatsword", "battle axe", "greataxe", "rapier", "spear", "pike", "mace", "hammer", "shield", "whip", "scourge" };
+            string[] weaponTypes = { "shortsword", "greatsword", "battle axe", "greataxe", "rapier", "spear", "pike", "mace", "hammer", "whip", "scourge" };
 
             // Randomly select a weapon type
             Random rand = new Random();
@@ -647,6 +666,75 @@ namespace Lightrealm
             return o;
         }
 
+        public static string ConvertObjectToString(Object obj)
+        {
+            string materials = string.Join(",", obj.Materials.Select(m => m.Name));
+            string containedItems = string.Join(",", obj.ContainedObjects.Select(o => ConvertObjectToString(o)));
+            string containedPart = containedItems.Length > 0 ? $"&cont({containedItems})&" : "";
+
+            return $"{obj.Type},{1},{materials}{containedPart}";
+        }
+
+        public static List<Object> ConvertStringToObjects(string itemString)
+        {
+            List<Object> objects = new List<Object>();
+
+            string[] parts = itemString.Split(new[] { ',' }, 3);
+            string type = parts[0];
+            int count = int.Parse(parts[1]);
+            string[] materialsAndContained = parts[2].Split(new[] { "&cont(", ")" }, StringSplitOptions.None);
+
+            // Initialize the materials list
+            List<Material> materials = new List<Material>();
+
+            // Split the materials string and convert each one
+            string[] materialStrings = materialsAndContained[0].Split(',');
+
+            foreach (string materialName in materialStrings)
+            {
+                string trimmedName = materialName.Trim();
+                if (Game1.GameWorld.Materials.TryGetValue(trimmedName, out Material material))
+                {
+                    materials.Add(material);
+                }
+                else
+                {
+                    int sHIBE = 1;  // Handle error case
+                }
+            }
+
+            // Create the objects based on the count
+            for (int i = 0; i < count; i++)
+            {
+                Object obj = new Object(null, type, materials, null);
+
+                // If there are contained items, process them recursively
+                if (materialsAndContained.Length > 1 && !string.IsNullOrWhiteSpace(materialsAndContained[1]))
+                {
+                    string containedString = materialsAndContained[1].Trim();
+                    if (!string.IsNullOrEmpty(containedString))
+                    {
+                        string[] containedItems = containedString.Split(new[] { ")," }, StringSplitOptions.None);
+                        foreach (var containedItem in containedItems)
+                        {
+                            string cleanedItem = containedItem.Trim('(', ')', ' ');
+                            if (!string.IsNullOrEmpty(cleanedItem))
+                            {
+                                List<Object> containedObjects = ConvertStringToObjects(cleanedItem);
+                                obj.ContainedObjects.AddRange(containedObjects);
+                            }
+                        }
+                    }
+                }
+
+                objects.Add(obj);
+            }
+
+            return objects;
+        }
+
+
+
         public static int CalculateProximityScore(Entity entity, Architect player)
         {
             if (entity is Material)
@@ -656,7 +744,7 @@ namespace Lightrealm
 
             bool IsInPlayersHands(Entity entity, Architect player)
             {
-                return player.LeftHandObject == entity || player.RightHandObject == entity;
+                return player.OffHeldObject == entity || player.MainHeldObject == entity;
             }
 
             bool IsInPlayersInventory(Entity entity, Architect player)
@@ -1066,14 +1154,14 @@ namespace Lightrealm
                                         Reciever.Clothing.Remove(demandedItem);
                                     }
                                     // Check and remove the item from left hand
-                                    else if (Reciever.LeftHandObject == demandedItem)
+                                    else if (Reciever.OffHeldObject == demandedItem)
                                     {
-                                        Reciever.LeftHandObject = null;
+                                        Reciever.OffHeldObject = null;
                                     }
                                     // Check and remove the item from right hand
-                                    else if (Reciever.RightHandObject == demandedItem)
+                                    else if (Reciever.MainHeldObject == demandedItem)
                                     {
-                                        Reciever.RightHandObject = null;
+                                        Reciever.MainHeldObject = null;
                                     }
                                     else
                                     {
@@ -1124,9 +1212,13 @@ namespace Lightrealm
 
             string Date = "(" + Month + "/" + Year + ")";
 
-            attacker.CombatCycles = 100;
+            List<TextStorage> announcements = new List<TextStorage>()
+                    {
+                        
+                    };
 
-            //exposure calculation
+
+            // Exposure calculation
             if (weapon != null)
             {
                 if (attacker.BodyParts.Contains(weapon))
@@ -1135,7 +1227,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    if (attacker.LeftHandObject == weapon)
+                    if (attacker.OffHeldObject == weapon)
                     {
                         var leftHand = attacker.FindBodyPart("left hand");
                         var leftArm = attacker.FindBodyPart("left arm");
@@ -1149,7 +1241,7 @@ namespace Lightrealm
                             leftArm.UpdateExposure(25 - attacker.Dexterity);
                         }
                     }
-                    else if (attacker.RightHandObject == weapon)
+                    else if (attacker.MainHeldObject == weapon)
                     {
                         var rightHand = attacker.FindBodyPart("right hand");
                         var rightArm = attacker.FindBodyPart("right arm");
@@ -1165,8 +1257,6 @@ namespace Lightrealm
                     }
                 }
             }
-
-
 
             int proficiencyModifier;
 
@@ -1200,37 +1290,31 @@ namespace Lightrealm
                 proficiencyModifier = (int)Math.Round((double)(attacker.GetProficiency("bashing") / 2), 0, MidpointRounding.ToNegativeInfinity);
             }
 
-            //lets see if the attack gets avoided
-
             bool Avoided = false;
             string AvoidFeedback = "";
 
             Architect TargetArchitect = null;
 
-            if(target.Owner != null && target.IsBodyPart && target.Owner is Architect)
+            if (target.Owner != null && target.IsBodyPart && target.Owner is Architect)
             {
                 TargetArchitect = (Architect)(target.Owner);
                 TargetArchitect.Focused = true;
                 TargetArchitect.CombatCycles = 100;
             }
 
-
-            if (TargetArchitect != null )
+            if (TargetArchitect != null)
             {
-                if (!(GamePlayerParty.Architects.Contains(TargetArchitect)))
+                if (!GamePlayerParty.Architects.Contains(TargetArchitect))
                 {
                     TargetArchitect.ChangeOpinion(attacker, -75);
                 }
 
-                // Define the new event
                 string newEvent = Date + " " + attacker.Name + " attacked " + TargetArchitect.Name + ".";
 
-                // Check if there are at least two events in the HistoricalEvents list
                 if (GameWorld.HistoricalEvents.Count < 2 ||
                     GameWorld.HistoricalEvents[GameWorld.HistoricalEvents.Count - 1] != newEvent ||
                     GameWorld.HistoricalEvents[GameWorld.HistoricalEvents.Count - 2] != newEvent)
                 {
-                    // Add the new event if the last two events are not the same
                     GameWorld.HistoricalEvents.Add(newEvent);
                     attacker.Location.LocationHistoricalEvents.Add(newEvent);
                 }
@@ -1238,10 +1322,8 @@ namespace Lightrealm
 
             bool IsPlayerPartyNearby(Architect attacker)
             {
-                // Loop through each architect in the GamePlayerParty
                 foreach (Architect partyMember in GamePlayerParty.Architects)
                 {
-                    // Check if they are in the same room or block as the attacker
                     if ((attacker.Room != null && attacker.Room == partyMember.Room) ||
                         (attacker.Block != null && attacker.Block == partyMember.Block))
                     {
@@ -1251,70 +1333,68 @@ namespace Lightrealm
                 return false;
             }
 
-            //pls make sure one more time that the weapon is correct
-
             if (target != null && TargetArchitect != null)
             {
-                //calculate blcokign paryign and such, make sure we set avoided to true if its blocked.
+                attacker.CombatCycles = 50;
+
                 Object DefenderWeapon = null;
                 Object DefenderSidearm = null;
 
-                if (TargetArchitect.MainHandObject() != null && TargetArchitect.MainHandObject().IsWeapon && TargetArchitect.OffHandObject() != null && TargetArchitect.OffHandObject().IsWeapon)
+                if (TargetArchitect.MainHeldObject != null && TargetArchitect.MainHeldObject.IsWeapon && TargetArchitect.OffHeldObject != null && TargetArchitect.OffHeldObject.IsWeapon)
                 {
-                    DefenderWeapon = TargetArchitect.MainHandObject();
-                    DefenderSidearm = TargetArchitect.OffHandObject();
+                    DefenderWeapon = TargetArchitect.MainHeldObject;
+                    DefenderSidearm = TargetArchitect.OffHeldObject;
                 }
-                if (TargetArchitect.MainHandObject() != null && TargetArchitect.MainHandObject().IsWeapon)
+                if (TargetArchitect.MainHeldObject != null && TargetArchitect.MainHeldObject.IsWeapon)
                 {
-                    DefenderWeapon = TargetArchitect.MainHandObject();
+                    DefenderWeapon = TargetArchitect.MainHeldObject;
                 }
-                else if (TargetArchitect.OffHandObject() != null && TargetArchitect.OffHandObject().IsWeapon)
+                else if (TargetArchitect.OffHeldObject != null && TargetArchitect.OffHeldObject.IsWeapon)
                 {
-                    DefenderWeapon = TargetArchitect.OffHandObject();
+                    DefenderWeapon = TargetArchitect.OffHeldObject;
                 }
 
-                string primaryHand = TargetArchitect.RightHanded ? "right hand" : "left hand";
-                string secondaryHand = TargetArchitect.RightHanded ? "left hand" : "right hand";
+                Object primaryObject = TargetArchitect.MainInteractionAppendage;
+                Object secondaryObject = TargetArchitect.OffInteractionAppendage;
 
-                DefenderWeapon = DefenderWeapon ?? TargetArchitect.FindBodyPart(primaryHand);
+                DefenderWeapon = DefenderWeapon ?? primaryObject;
                 if (DefenderWeapon == null)
                 {
                     DefenderWeapon = TargetArchitect.BodyParts[r.Next(TargetArchitect.BodyParts.Count)];
                 }
 
-                DefenderSidearm = DefenderSidearm ?? TargetArchitect.FindBodyPart(secondaryHand);
+                DefenderSidearm = DefenderSidearm ?? secondaryObject;
                 if (DefenderSidearm == null)
                 {
                     DefenderSidearm = TargetArchitect.BodyParts[r.Next(TargetArchitect.BodyParts.Count)];
                 }
 
-
                 List<string> CantDuckBodyParts = new List<string>
-                {
-                    "left lower leg",
-                    "right lower leg",
-                    "left upper leg",
-                    "right upper leg",
-                    "left foot",
-                    "right foot"
-                };
+        {
+            "left lower leg",
+            "right lower leg",
+            "left upper leg",
+            "right upper leg",
+            "left foot",
+            "right foot"
+        };
 
                 List<string> CantJumpBodyParts = new List<string>
-                {
-                    "head",
-                    "neck",
-                    "torso"
-                };
+        {
+            "head",
+            "neck",
+            "torso"
+        };
 
                 if (DefenderAction == "decideforme")
                 {
                     List<string> PossibleActions = new List<string>()
-                    {
-                        "sustain",
-                        "duck",
-                        "jump",
-                        "roll"
-                    };
+            {
+                "sustain",
+                "duck",
+                "jump",
+                "roll"
+            };
 
                     if ((DefenderWeapon != null && DefenderWeapon.Type == "shield") || (DefenderSidearm != null && DefenderSidearm.Type == "shield"))
                     {
@@ -1332,428 +1412,20 @@ namespace Lightrealm
                     DefenderAction = PossibleActions[r.Next(PossibleActions.Count)];
                 }
 
-
                 var successChances = TargetArchitect.CalculateSuccessChances(new Attack(verb, attacker, target, weapon), GameWorld.ReactionModifierInt, attacker, proficiencyModifier);
 
-                if (TargetArchitect != null && r.Next(0, 100) < TargetArchitect.ExtraStealth)
-                {
-                    Avoided = true;
-                    AvoidFeedback = "The attack slices through a shadow of " + TargetArchitect.ReferredToNames[0] + "'s past self!";
-                }
-                else
-                {
-                    switch (DefenderAction)
-                    {
-                        case "sustain":
-                            //nothing happens you just take it lmaoooooo
-                            break;
-
-                        case "parry":
-                            // Determine which hand (right or left) is holding the weapon used to parry
-                            string parryHand = "";
-                            if (DefenderWeapon != null && DefenderWeapon.IsWeapon)
-                            {
-                                if (TargetArchitect.RightHandObject == DefenderWeapon)
-                                {
-                                    parryHand = "right";
-                                }
-                                else if (TargetArchitect.LeftHandObject == DefenderWeapon)
-                                {
-                                    parryHand = "left";
-                                }
-                            }
-                            else if (DefenderSidearm != null && DefenderSidearm.IsWeapon)
-                            {
-                                if (TargetArchitect.RightHandObject == DefenderSidearm)
-                                {
-                                    parryHand = "right";
-                                }
-                                else if (TargetArchitect.LeftHandObject == DefenderSidearm)
-                                {
-                                    parryHand = "left";
-                                }
-                            }
-
-                            // Apply exposure update based on the identified parrying hand
-                            if (!string.IsNullOrEmpty(parryHand))
-                            {
-                                if (TargetArchitect.FindBodyPart(parryHand + " hand") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(parryHand + " hand").UpdateExposure(15 - TargetArchitect.Dexterity);
-                                }
-                                if (TargetArchitect.FindBodyPart(parryHand + " arm") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(parryHand + " arm").UpdateExposure(10 - TargetArchitect.Dexterity);
-                                }
-                            }
-
-                            // Handle proficiency and success chances
-                            if ((DefenderWeapon != null && DefenderWeapon.IsWeapon) || (DefenderSidearm != null && DefenderSidearm.IsWeapon))
-                            {
-                                Object usedWeapon = DefenderWeapon ?? DefenderSidearm;
-                                if (usedWeapon != null)
-                                {
-                                    switch (usedWeapon.DamageType)
-                                    {
-                                        case "slashing":
-                                            proficiencyModifier = TargetArchitect.GetProficiency("slashing");
-                                            break;
-                                        case "piercing":
-                                            proficiencyModifier = TargetArchitect.GetProficiency("piercing");
-                                            break;
-                                        case "bashing":
-                                            proficiencyModifier = TargetArchitect.GetProficiency("bashing");
-                                            break;
-                                        case "scourging":
-                                            proficiencyModifier = TargetArchitect.GetProficiency("scourging");
-                                            break;
-                                        default:
-                                            proficiencyModifier = 0;
-                                            break;
-                                    }
-
-                                    int parrySuccessChance = r.Next(0, 101);
-                                    int SucChance = successChances.redirect;
-
-                                    if (parrySuccessChance < SucChance)
-                                    {
-                                        Avoided = true;
-                                        AvoidFeedback = "The attack is parried by the " + usedWeapon.ReferredToNames[0] + "!";
-                                        TargetArchitect.ChangeXP("parrying", r.Next(1, 4));
-                                        foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
-                                        {
-                                            if (i.IsTrigger && i.ConditionOrTrigger == "onparry")
-                                            {
-                                                TargetArchitect.ActivatePower(i.BuffOrResult);
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        AvoidFeedback = "The attack is not parried by the " + usedWeapon.ReferredToNames[0] + "!";
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " was unable to parry the attack with their arsenal!";
-                            }
-                            break;
-
-                        case "block":
-                            // Check if the defender has a shield or any other item that could be used for blocking
-                            bool isShield = (DefenderWeapon != null && DefenderWeapon.Type == "shield") ||
-                                            (DefenderSidearm != null && DefenderSidearm.Type == "shield");
-
-                            // Use successChances.block as the base chance if a shield is used
-                            int baseChance = isShield ? successChances.block : (int)(successChances.block * 0.75); // Apply 25% reduction to base chance if not a shield
-
-                            string blockingItem = isShield ? (DefenderWeapon != null && DefenderWeapon.Type == "shield" ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) : "item";
-
-                            // Determine which hand (right or left) is holding the shield or blocking item
-                            string blockHand = "";
-                            if (isShield)
-                            {
-                                if (TargetArchitect.RightHandObject != null && TargetArchitect.RightHandObject.Type == "shield")
-                                {
-                                    blockHand = "right";
-                                }
-                                else if (TargetArchitect.LeftHandObject != null && TargetArchitect.LeftHandObject.Type == "shield")
-                                {
-                                    blockHand = "left";
-                                }
-                            }
-                            else
-                            {
-                                if (TargetArchitect.RightHandObject == DefenderWeapon || TargetArchitect.RightHandObject == DefenderSidearm)
-                                {
-                                    blockHand = "right";
-                                }
-                                else if (TargetArchitect.LeftHandObject == DefenderWeapon || TargetArchitect.LeftHandObject == DefenderSidearm)
-                                {
-                                    blockHand = "left";
-                                }
-                            }
-
-                            // Apply exposure update based on the identified blocking hand
-                            if (!string.IsNullOrEmpty(blockHand))
-                            {
-                                if (TargetArchitect.FindBodyPart(blockHand + " hand") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(blockHand + " hand").UpdateExposure(15 - TargetArchitect.Dexterity);
-                                }
-                                if (TargetArchitect.FindBodyPart(blockHand + " arm") != null)
-                                {
-                                    TargetArchitect.FindBodyPart(blockHand + " arm").UpdateExposure(10 - TargetArchitect.Dexterity);
-                                }
-                            }
-
-                            // Calculate the chance of blocking
-                            int proficiencyBonus = TargetArchitect.GetProficiency("blocking") * 4;
-                            int chanceOfSuccess = baseChance + proficiencyBonus;
-
-                            // If not using a shield, apply a 25% reduction to the total chance of success
-                            if (!isShield)
-                            {
-                                chanceOfSuccess = (int)(chanceOfSuccess * 0.75);
-                            }
-
-                            if (r.Next(0, 101) < chanceOfSuccess)
-                            {
-                                Avoided = true;
-                                AvoidFeedback = "The attack was blocked by the " + blockingItem + "!";
-                                TargetArchitect.ChangeXP("blocking", r.Next(1, 4));
-                                foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
-                                {
-                                    if (i.IsTrigger && i.ConditionOrTrigger == "onblock")
-                                    {
-                                        TargetArchitect.ActivatePower(i.BuffOrResult);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                AvoidFeedback = "The attack was not blocked by the " + blockingItem + "!";
-                            }
-                            break;
-
-
-
-                        case "duck":
-                            if (r.Next(0, 101) < successChances.duck && !CantDuckBodyParts.Contains(target.Type))
-                            {
-                                Avoided = true;
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " ducked under the attack!";
-                                TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
-
-                                // Apply exposure update for the "head", "neck", and "torso" parts
-                                if (TargetArchitect.FindBodyPart("head") != null)
-                                {
-                                    TargetArchitect.FindBodyPart("head").UpdateExposure(15 - TargetArchitect.Dexterity);
-                                }
-                                if (TargetArchitect.FindBodyPart("neck") != null)
-                                {
-                                    TargetArchitect.FindBodyPart("neck").UpdateExposure(10 - TargetArchitect.Dexterity);
-                                }
-                                if (TargetArchitect.FindBodyPart("torso") != null)
-                                {
-                                    TargetArchitect.FindBodyPart("torso").UpdateExposure(5 - TargetArchitect.Dexterity);
-                                }
-
-                                // Apply exposure update for parts ending with "shoulder"
-                                foreach (var part in TargetArchitect.BodyParts)
-                                {
-                                    if (part.Type.EndsWith("shoulder"))
-                                    {
-                                        part.UpdateExposure(12 - TargetArchitect.Dexterity);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to duck under the attack, but failed!";
-                            }
-                            break;
-
-
-                        case "jump":
-                            if (r.Next(0, 101) < successChances.jump && !CantJumpBodyParts.Contains(target.Type))
-                            {
-                                Avoided = true;
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " jumped over the attack!";
-                                TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
-                            }
-                            else
-                            {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to jump over the attack, but failed!";
-                            }
-
-                            // Apply exposure update for parts containing "leg" or "foot"
-                            foreach (var part in TargetArchitect.BodyParts)
-                            {
-                                if (part.Type.Contains("foot"))
-                                {
-                                    int deposition = Math.Max(10 - TargetArchitect.Dexterity, 1);
-                                    part.UpdateExposure(deposition);
-                                }
-                                else if (part.Type.Contains("leg"))
-                                {
-                                    int deposition = Math.Max(5 - (TargetArchitect.Dexterity / 2), 1);
-                                    part.UpdateExposure(deposition);
-                                }
-                            }
-
-                            TargetArchitect.CyclesSinceJump = 0;
-                            break;
-
-
-                        case "roll":
-                            if (r.Next(0, 101) < successChances.roll)
-                            {
-                                Avoided = true;
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " rolled away from the attack, repositioning himself!";
-                                TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
-                                foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
-                                {
-                                    if (i.IsTrigger && i.ConditionOrTrigger == "ondodge")
-                                    {
-                                        TargetArchitect.ActivatePower(i.BuffOrResult);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " failed to roll away from the attack, but repositioned himself!";
-                            }
-
-                            int repositionAmount = Math.Max(3, TargetArchitect.Dexterity) * 8;
-                            foreach (var part in TargetArchitect.BodyParts)
-                            {
-                                part.UpdateExposure(-1 * repositionAmount);
-                            }
-
-                            break;
-
-
-                        case "disarm":
-                            if (r.Next(0, 101) < successChances.disarm && (attacker.RightHandObject == weapon || attacker.LeftHandObject == weapon))
-                            {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + ", while hit, successfully managed to disarm " + attacker.ReferredToNames[0] + "!";
-                                TargetArchitect.ChangeXP("disarming", r.Next(1, 4));
-
-                                if (TargetArchitect.Room != null)
-                                {
-                                    TargetArchitect.Room.Objects.Add(weapon);
-                                }
-                                else
-                                {
-                                    TargetArchitect.Block.Objects.Add(weapon);
-                                }
-
-                                if (attacker.RightHandObject == weapon)
-                                {
-                                    attacker.RightHandObject = null;
-                                }
-                                else
-                                {
-                                    attacker.LeftHandObject = null;
-                                }
-                            }
-                            else
-                            {
-                                AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to disarm " + attacker.ReferredToNames[0] + ", but could not!";
-                            }
-                            break;
-
-                        case "redirect":
-
-                            // Determine the proficiency modifier based on the weapon's damage type
-                            if (DefenderWeapon.IsWeapon)
-                            {
-                                switch (DefenderWeapon.DamageType)
-                                {
-                                    case "slashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("slashing");
-                                        break;
-                                    case "piercing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("piercing");
-                                        break;
-                                    case "bashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("bashing");
-                                        break;
-                                    case "scourging":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("scourging");
-                                        break;
-                                    default:
-                                        proficiencyModifier = 0;
-                                        break;
-                                }
-                            }
-
-                            // Determine the proficiency modifier for the sidearm
-                            if (DefenderSidearm.IsWeapon)
-                            {
-                                switch (DefenderSidearm.DamageType)
-                                {
-                                    case "slashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("slashing");
-                                        break;
-                                    case "piercing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("piercing");
-                                        break;
-                                    case "bashing":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("bashing");
-                                        break;
-                                    case "scourging":
-                                        proficiencyModifier = TargetArchitect.GetProficiency("scourging");
-                                        break;
-                                    default:
-                                        proficiencyModifier = 0;
-                                        break;
-                                }
-                            }
-
-                            // Calculate the success chance
-                            int successChance = successChances.redirect + (proficiencyModifier * 4);
-
-                            if (r.Next(0, 101) < successChance)
-                            {
-                                Avoided = true;
-                                AvoidFeedback = "The attack is redirected by the " + (DefenderWeapon.IsWeapon ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) + "!";
-                                TargetArchitect.ChangeXP("redirection", r.Next(1, 4));
-
-                                foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
-                                {
-                                    if (i.IsTrigger && i.ConditionOrTrigger == "redirect")
-                                    {
-                                        TargetArchitect.ActivatePower(i.BuffOrResult);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                AvoidFeedback = "The redirect of " + (DefenderWeapon.IsWeapon ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) + " failed!";
-                            }
-
-                            // Apply depositioning to all relevant limbs
-                            int depositionAmount = 20 - attacker.Dexterity;
-
-                            // Apply deposition to the limbs holding the DefenderWeapon
-                            string weaponHand = (attacker.RightHandObject == weapon) ? "right" : "left";
-
-                            if (attacker.FindBodyPart(weaponHand + " hand") != null)
-                            {
-                                attacker.FindBodyPart(weaponHand + " hand").UpdateExposure(depositionAmount);
-                            }
-                            if (attacker.FindBodyPart(weaponHand + " arm") != null)
-                            {
-                                attacker.FindBodyPart(weaponHand + " arm").UpdateExposure(depositionAmount);
-                            }
-
-
-
-                            break;
-
-                        default:
-                            break;
-
-                    }
-                }
-
-                //falling star
-
+                // Falling star logic
                 int StarCount = 0;
 
-                
                 if (attacker.PathOfStarsLevel >= 2)
                 {
                     StarCount = 1;
-                    Announcements.Add(new TextStorage($"A star falls from the heavens!", Color.Goldenrod, new List<Entity>()));
+                    announcements.Add(new TextStorage($"A star falls from the heavens!", Color.Goldenrod, new List<Entity>()));
                 }
                 else if (attacker.PathOfStarsLevel >= 6)
                 {
                     StarCount = 3;
-                    Announcements.Add(new TextStorage($"Stars fall from the heavens!", Color.Goldenrod, new List<Entity>()));
+                    announcements.Add(new TextStorage($"Stars fall from the heavens!", Color.Goldenrod, new List<Entity>()));
                 }
 
                 for (int i = 0; i < StarCount; i++)
@@ -1768,9 +1440,6 @@ namespace Lightrealm
                     }
 
                     Architect TargetArchitectForStar = null;
-
-
-                    //chance the attacker hasnt started yetr
 
                     if (!FightingArchitects.Contains(TargetArchitect))
                     {
@@ -1790,7 +1459,6 @@ namespace Lightrealm
                     {
                         TargetArchitectForStar = FightingArchitects[0];
                     }
-
 
                     Object o = new Object(null, "star", new List<Material>() { GameWorld.Energy }, attacker);
                     o.AirborneTarget = TargetArchitectForStar;
@@ -1816,34 +1484,444 @@ namespace Lightrealm
                             }
 
                             string message = $"{attacker.ReferredToNames[0]} {simplifiedVerb} {target.ReferredToNames[0]} with {weapon.ReferredToNames[0]}!";
-                            Observations.Add(new TextStorage(message, Color.Blue, new List<Entity>() { attacker, weapon }));
-                            Announcements.Add(new TextStorage(message, Color.Blue, new List<Entity>() { attacker, weapon }));
+                            announcements.Add(new TextStorage(message, Color.Blue, new List<Entity>() { attacker, weapon }));
+
+
+                            if (TargetArchitect != null && r.Next(0, 100) < TargetArchitect.ExtraStealth)
+                            {
+                                Avoided = true;
+                                AvoidFeedback = "The attack slices through a shadow of " + TargetArchitect.ReferredToNames[0] + "'s past self!";
+                            }
+                            else
+                            {
+                                switch (DefenderAction)
+                                {
+                                    case "sustain":
+                                        //nothing happens you just take it lmaoooooo
+                                        break;
+
+                                    case "parry":
+                                        // Determine which hand (right or left) is holding the weapon used to parry
+                                        string parryHand = "";
+
+                                        if (DefenderWeapon != null && DefenderWeapon.IsWeapon)
+                                        {
+                                            if (TargetArchitect.MainHeldObject == DefenderWeapon)
+                                            {
+                                                parryHand = TargetArchitect.MainInteractionAppendage.Type;
+                                            }
+                                            else if (TargetArchitect.OffHeldObject == DefenderWeapon)
+                                            {
+                                                parryHand = TargetArchitect.OffInteractionAppendage.Type;
+                                            }
+                                        }
+                                        else if (DefenderSidearm != null && DefenderSidearm.IsWeapon)
+                                        {
+                                            if (TargetArchitect.MainHeldObject == DefenderSidearm)
+                                            {
+                                                parryHand = TargetArchitect.MainInteractionAppendage.Type;
+                                            }
+                                            else if (TargetArchitect.OffHeldObject == DefenderSidearm)
+                                            {
+                                                parryHand = TargetArchitect.OffInteractionAppendage.Type;
+                                            }
+                                        }
+
+                                        // Apply exposure update based on the identified parrying hand
+                                        if (!string.IsNullOrEmpty(parryHand))
+                                        {
+                                            if (TargetArchitect.FindBodyPart(parryHand) != null)
+                                            {
+                                                TargetArchitect.FindBodyPart(parryHand).UpdateExposure(15 - TargetArchitect.Dexterity);
+                                            }
+                                            if (TargetArchitect.FindBodyPart(parryHand) != null)
+                                            {
+                                                TargetArchitect.FindBodyPart(parryHand).UpdateExposure(10 - TargetArchitect.Dexterity);
+                                            }
+                                        }
+
+                                        // Handle proficiency and success chances
+                                        if ((DefenderWeapon != null && DefenderWeapon.IsWeapon) || (DefenderSidearm != null && DefenderSidearm.IsWeapon))
+                                        {
+                                            Object usedWeapon = DefenderWeapon ?? DefenderSidearm;
+                                            if (usedWeapon != null)
+                                            {
+                                                switch (usedWeapon.DamageType)
+                                                {
+                                                    case "slashing":
+                                                        proficiencyModifier = TargetArchitect.GetProficiency("slashing");
+                                                        break;
+                                                    case "piercing":
+                                                        proficiencyModifier = TargetArchitect.GetProficiency("piercing");
+                                                        break;
+                                                    case "bashing":
+                                                        proficiencyModifier = TargetArchitect.GetProficiency("bashing");
+                                                        break;
+                                                    case "scourging":
+                                                        proficiencyModifier = TargetArchitect.GetProficiency("scourging");
+                                                        break;
+                                                    default:
+                                                        proficiencyModifier = 0;
+                                                        break;
+                                                }
+
+                                                int parrySuccessChance = r.Next(0, 101);
+                                                int SucChance = successChances.redirect;
+
+                                                if (parrySuccessChance < SucChance)
+                                                {
+                                                    Avoided = true;
+                                                    AvoidFeedback = "The attack is parried by the " + usedWeapon.ReferredToNames[0] + "!";
+                                                    TargetArchitect.ChangeXP("parrying", r.Next(1, 4));
+                                                    foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                                    {
+                                                        if (i.IsTrigger && i.ConditionOrTrigger == "onparry")
+                                                        {
+                                                            announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    AvoidFeedback = "The attack is not parried by the " + usedWeapon.ReferredToNames[0] + "!";
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " was unable to parry the attack with their arsenal!";
+                                        }
+                                        break;
+
+                                    case "block":
+                                        // Check if the defender has a shield or any other item that could be used for blocking
+                                        bool isShield = (DefenderWeapon != null && DefenderWeapon.Type == "shield") ||
+                                                        (DefenderSidearm != null && DefenderSidearm.Type == "shield");
+
+                                        // Use successChances.block as the base chance if a shield is used
+                                        int baseChance = isShield ? successChances.block : (int)(successChances.block * 0.75); // Apply 25% reduction to base chance if not a shield
+
+                                        string blockingItem = isShield ? (DefenderWeapon != null && DefenderWeapon.Type == "shield" ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) : "item";
+
+                                        // Determine which hand (right or left) is holding the shield or blocking item
+                                        string blockHand = "";
+
+                                        if (DefenderWeapon != null && DefenderWeapon.IsWeapon)
+                                        {
+                                            if (TargetArchitect.MainHeldObject == DefenderWeapon)
+                                            {
+                                                blockHand = TargetArchitect.MainInteractionAppendage.Type;
+                                            }
+                                            else if (TargetArchitect.OffHeldObject == DefenderWeapon)
+                                            {
+                                                blockHand = TargetArchitect.OffInteractionAppendage.Type;
+                                            }
+                                        }
+                                        else if (DefenderSidearm != null && DefenderSidearm.IsWeapon)
+                                        {
+                                            if (TargetArchitect.MainHeldObject == DefenderSidearm)
+                                            {
+                                                blockHand = TargetArchitect.MainInteractionAppendage.Type;
+                                            }
+                                            else if (TargetArchitect.OffHeldObject == DefenderSidearm)
+                                            {
+                                                blockHand = TargetArchitect.OffInteractionAppendage.Type;
+                                            }
+                                        }
+
+                                        // Apply exposure update based on the identified blocking hand
+                                        if (!string.IsNullOrEmpty(blockHand))
+                                        {
+                                            if (TargetArchitect.FindBodyPart(blockHand) != null)
+                                            {
+                                                TargetArchitect.FindBodyPart(blockHand).UpdateExposure(15 - TargetArchitect.Dexterity);
+                                            }
+                                            if (TargetArchitect.FindBodyPart(blockHand) != null)
+                                            {
+                                                TargetArchitect.FindBodyPart(blockHand).UpdateExposure(10 - TargetArchitect.Dexterity);
+                                            }
+                                        }
+
+                                        // Calculate the chance of blocking
+                                        int proficiencyBonus = TargetArchitect.GetProficiency("blocking") * 4;
+                                        int chanceOfSuccess = baseChance + proficiencyBonus;
+
+                                        // If not using a shield, apply a 25% reduction to the total chance of success
+                                        if (!isShield)
+                                        {
+                                            chanceOfSuccess = (int)(chanceOfSuccess * 0.75);
+                                        }
+
+                                        if (r.Next(0, 101) < chanceOfSuccess)
+                                        {
+                                            Avoided = true;
+                                            AvoidFeedback = "The attack was blocked by the " + blockingItem + "!";
+                                            TargetArchitect.ChangeXP("blocking", r.Next(1, 4));
+                                            foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                            {
+                                                if (i.IsTrigger && i.ConditionOrTrigger == "onblock")
+                                                {
+                                                    announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = "The attack was not blocked by the " + blockingItem + "!";
+                                        }
+                                        break;
+
+
+                                    case "duck":
+                                        if (r.Next(0, 101) < successChances.duck && !CantDuckBodyParts.Contains(target.Type))
+                                        {
+                                            Avoided = true;
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " ducked under the attack!";
+                                            TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
+
+                                            foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                            {
+                                                if (i.IsTrigger && i.ConditionOrTrigger == "onduck")
+                                                {
+                                                    announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                                                }
+                                            }
+
+                                            // Apply exposure update for the "head", "neck", and "torso" parts
+                                            if (TargetArchitect.FindBodyPart("head") != null)
+                                            {
+                                                TargetArchitect.FindBodyPart("head").UpdateExposure(15 - TargetArchitect.Dexterity);
+                                            }
+                                            if (TargetArchitect.FindBodyPart("neck") != null)
+                                            {
+                                                TargetArchitect.FindBodyPart("neck").UpdateExposure(10 - TargetArchitect.Dexterity);
+                                            }
+                                            if (TargetArchitect.FindBodyPart("torso") != null)
+                                            {
+                                                TargetArchitect.FindBodyPart("torso").UpdateExposure(5 - TargetArchitect.Dexterity);
+                                            }
+
+                                            // Apply exposure update for parts ending with "shoulder"
+                                            foreach (var part in TargetArchitect.BodyParts)
+                                            {
+                                                if (part.Type.EndsWith("shoulder"))
+                                                {
+                                                    part.UpdateExposure(12 - TargetArchitect.Dexterity);
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to duck under the attack, but failed!";
+                                        }
+                                        break;
+
+
+                                    case "jump":
+                                        if (r.Next(0, 101) < successChances.jump && !CantJumpBodyParts.Contains(target.Type))
+                                        {
+                                            Avoided = true;
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " jumped over the attack!";
+                                            TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
+                                            foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                            {
+                                                if (i.IsTrigger && i.ConditionOrTrigger == "onjump")
+                                                {
+                                                    announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to jump over the attack, but failed!";
+                                        }
+
+                                        // Apply exposure update for parts containing "leg" or "foot"
+                                        foreach (var part in TargetArchitect.BodyParts)
+                                        {
+                                            if (part.Type.Contains("foot"))
+                                            {
+                                                int deposition = Math.Max(10 - TargetArchitect.Dexterity, 1);
+                                                part.UpdateExposure(deposition);
+                                            }
+                                            else if (part.Type.Contains("leg"))
+                                            {
+                                                int deposition = Math.Max(5 - (TargetArchitect.Dexterity / 2), 1);
+                                                part.UpdateExposure(deposition);
+                                            }
+                                        }
+
+                                        TargetArchitect.CyclesSinceJump = 0;
+                                        break;
+
+
+                                    case "roll":
+                                        if (r.Next(0, 101) < successChances.roll)
+                                        {
+                                            Avoided = true;
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " rolled away from the attack, repositioning himself!";
+                                            TargetArchitect.ChangeXP("dodging", r.Next(1, 4));
+                                            foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                            {
+                                                if (i.IsTrigger && i.ConditionOrTrigger == "onroll")
+                                                {
+                                                    announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " failed to roll away from the attack, but repositioned himself!";
+                                        }
+
+                                        int repositionAmount = Math.Max(3, TargetArchitect.Dexterity) * 8;
+                                        foreach (var part in TargetArchitect.BodyParts)
+                                        {
+                                            part.UpdateExposure(-1 * repositionAmount);
+                                        }
+
+                                        break;
+
+
+                                    case "disarm":
+                                        if (r.Next(0, 101) < successChances.disarm && (attacker.MainHeldObject == weapon || attacker.OffHeldObject == weapon))
+                                        {
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + ", while hit, successfully managed to disarm " + attacker.ReferredToNames[0] + "!";
+                                            TargetArchitect.ChangeXP("disarming", r.Next(1, 4));
+
+                                            if (TargetArchitect.Room != null)
+                                            {
+                                                TargetArchitect.Room.Objects.Add(weapon);
+                                            }
+                                            else
+                                            {
+                                                TargetArchitect.Block.Objects.Add(weapon);
+                                            }
+
+                                            if (attacker.MainHeldObject == weapon)
+                                            {
+                                                attacker.MainHeldObject = null;
+                                            }
+                                            else
+                                            {
+                                                attacker.OffHeldObject = null;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = TargetArchitect.ReferredToNames[0] + " attempted to disarm " + attacker.ReferredToNames[0] + ", but could not!";
+                                        }
+                                        break;
+
+                                    case "redirect":
+
+                                        // Determine the proficiency modifier based on the weapon's damage type
+                                        if (DefenderWeapon.IsWeapon)
+                                        {
+                                            switch (DefenderWeapon.DamageType)
+                                            {
+                                                case "slashing":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("slashing");
+                                                    break;
+                                                case "piercing":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("piercing");
+                                                    break;
+                                                case "bashing":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("bashing");
+                                                    break;
+                                                case "scourging":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("scourging");
+                                                    break;
+                                                default:
+                                                    proficiencyModifier = 0;
+                                                    break;
+                                            }
+                                        }
+
+                                        // Determine the proficiency modifier for the sidearm
+                                        if (DefenderSidearm.IsWeapon)
+                                        {
+                                            switch (DefenderSidearm.DamageType)
+                                            {
+                                                case "slashing":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("slashing");
+                                                    break;
+                                                case "piercing":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("piercing");
+                                                    break;
+                                                case "bashing":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("bashing");
+                                                    break;
+                                                case "scourging":
+                                                    proficiencyModifier = TargetArchitect.GetProficiency("scourging");
+                                                    break;
+                                                default:
+                                                    proficiencyModifier = 0;
+                                                    break;
+                                            }
+                                        }
+
+                                        // Calculate the success chance
+                                        int successChance = successChances.redirect + (proficiencyModifier * 4);
+
+                                        if (r.Next(0, 101) < successChance)
+                                        {
+                                            Avoided = true;
+                                            AvoidFeedback = "The attack is redirected by the " + (DefenderWeapon.IsWeapon ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) + "!";
+                                            TargetArchitect.ChangeXP("redirection", r.Next(1, 4));
+
+                                            foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                                            {
+                                                if (i.IsTrigger && i.ConditionOrTrigger == "redirect")
+                                                {
+                                                    announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AvoidFeedback = "The redirect of " + (DefenderWeapon.IsWeapon ? DefenderWeapon.ReferredToNames[0] : DefenderSidearm.ReferredToNames[0]) + " failed!";
+                                        }
+
+                                        // Apply depositioning to all relevant limbs
+                                        int depositionAmount = 20 - attacker.Dexterity;
+
+                                        // Apply deposition to the limbs holding the DefenderWeapon
+                                        Object weaponHand = (attacker.MainHeldObject == weapon) ? attacker.MainInteractionAppendage : attacker.OffInteractionAppendage;
+                                        weaponHand.UpdateExposure(depositionAmount);
+
+                                        break;
+
+                                    default:
+                                        break;
+
+                                }
+                            }
+
+                            if (AvoidFeedback != "")
+                            {
+                                announcements.Add(new TextStorage(AvoidFeedback, Color.HotPink, new List<Entity>()));
+                            }
+
                         }
-
                     }
-
-                    List<TextStorage> announcements = new List<TextStorage>()
-                {
-                    new TextStorage(AvoidFeedback, Color.HotPink, new List<Entity>())
-                };
 
                     if (!Avoided)
                     {
                         CalculateAndApplyDamage(attacker, weapon, target, announcements);
+
+                        foreach (Imbuement i in attacker.CurrentlyActiveImbuements)
+                        {
+                            if (i.IsTrigger && i.ConditionOrTrigger == "onattack")
+                            {
+                                announcements.Add(attacker.ActivatePower(i.BuffOrResult));
+                            }
+                        }
                     }
-
-                    if (IsPlayerPartyNearby(attacker))
-                    {
-                        Announcements.AddRange(announcements);
-                        Observations.AddRange(announcements);
-                    }
-
-
 
                     if (attacker.QuickStrikeReady)
                     {
-                        Observations.Add(new TextStorage(attacker.ReferredToNames[0] + " strikes faster than light!", Color.LightCoral, new List<Entity>() { attacker }));
-                        Announcements.Add(new TextStorage(attacker.ReferredToNames[0] + " strikes faster than light!", Color.LightCoral, new List<Entity>() { attacker }));
+                        announcements.Add(new TextStorage(attacker.ReferredToNames[0] + " strikes faster than light!", Color.LightCoral, new List<Entity>() { attacker }));
                         attacker.QuickStrikeReady = false;
                     }
                     else
@@ -1865,12 +1943,19 @@ namespace Lightrealm
                 }
                 else
                 {
-                    Observations.Add(new TextStorage($"The attack was unsuccessful", Color.Red, new List<Entity>()));
-                    Announcements.Add(new TextStorage($"The attack was unsuccessful", Color.Red, new List<Entity>()));
+                    announcements.Add(new TextStorage($"The attack was unsuccessful", Color.Red, new List<Entity>()));
                 }
-
+            }
+            else if (target != null && TargetArchitect == null)
+            {
+                CalculateAndApplyDamage(attacker, weapon, target, announcements);
             }
 
+            if (IsPlayerPartyNearby(attacker))
+            {
+                Announcements.AddRange(announcements);
+                Observations.AddRange(announcements);
+            }
 
             void CalculateAndApplyDamage(Architect attacker, Object weapon, Object targetObject, List<TextStorage> announcements)
             {
@@ -1894,13 +1979,24 @@ namespace Lightrealm
                         announcements.Add(new TextStorage("The divine protection has worn off!", Color.Aquamarine, new List<Entity>()));
                     }
                 }
-                else
+
+                if(TargetArchitect != null)
                 {
+                    foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                    {
+                        if (i.IsTrigger && i.ConditionOrTrigger == "ondamage")
+                        {
+                            announcements.Add(TargetArchitect.ActivatePower(i.BuffOrResult));
+                        }
+                    }
+
                     // Constants for initial damage calculation
                     double baseDamageMultiplier = 1.0;
                     double strengthMultiplier = 0.08 * attacker.Strength;
-                    double proficiencyEffect = proficiencyModifier * (1 + attacker.ExtraAttackPower / 100);
+                    double proficiencyEffect = (double)proficiencyModifier * (1 + (double)attacker.ExtraAttackPower / 100);
+
                     int DamageModifier = (int)Math.Round((baseDamageMultiplier + strengthMultiplier) * proficiencyEffect + DivineMight);
+
 
                     // Check if the attacker's PathOfBodyLevel is 4 or higher
                     if (attacker.PathOfBodyLevel >= 4 && attacker.BodyParts.Contains(weapon))
@@ -1915,7 +2011,7 @@ namespace Lightrealm
                         attacker.DropKickReady = false;
                     }
 
-                    if(attacker.SeveringStrikeReady && targetObject.Owner != null && targetObject.Owner is Architect)
+                    if (attacker.SeveringStrikeReady && targetObject.Owner != null && targetObject.Owner is Architect)
                     {
                         announcements.Add(new TextStorage("The attack severs many critical veins!", Color.Red, new List<Entity>()));
                         ((Architect)(targetObject.Owner)).Bleeding += 6;
@@ -1923,13 +2019,13 @@ namespace Lightrealm
                     }
 
                     // Check for Radiant Energy channeling at level 6 or higher
-                    if (attacker.PathOfBodyLevel >= 6)
+                    if (attacker.PathOfBodyLevel >= 6 && attacker.BodyParts.Contains(weapon))
                     {
-                        int radiantIncrease = new Random().Next(40, 80);  // Random increase between 10 and 40
+                        int radiantIncrease = new Random().Next(40, 80);  // Random increase between 40 and 80
                         ((Architect)(targetObject.Owner)).RadiantCycles += radiantIncrease;  // Increase RadiantCycles of the body part's owner
 
                         // Announcement for Radiant Energy effect
-                        announcements.Add(new TextStorage($"{attacker.ReferredToNames[0]} channels a radiant energy into their strike, reducing the target's reflexes!", Color.Aquamarine, new List<Entity>() { attacker }));
+                        announcements.Add(new TextStorage($"{attacker.ReferredToNames[0]} channels a radiant energy into their strike, reducing the target's speed!", Color.Aquamarine, new List<Entity>() { attacker }));
                     }
 
                     // Apply Damage to Target
@@ -1947,16 +2043,37 @@ namespace Lightrealm
                         attacker.BodySlamReady = false;
                         announcements.Add(new TextStorage("The attack is a destabilizing body slam!", Color.Red, new List<Entity>()));
                         ((Architect)(targetObject.Owner)).DestabilizedCycles += (int)Math.Round(attacker.Energy / 2);
-                        ((Architect)(targetObject.Owner)).Energy -= Game1.r.Next(5,10);
+                        ((Architect)(targetObject.Owner)).Energy -= Game1.r.Next(5, 10);
 
                     }
-                    else if ((weapon.Type.EndsWith("leg")||weapon.Type.EndsWith("foot")) && attacker.LegSweepReady)
+                    else if ((weapon.Type.EndsWith("leg") || weapon.Type.EndsWith("foot")) && attacker.LegSweepReady)
                     {
                         attacker.LegSweepReady = false;
                         announcements.Add(new TextStorage("The attack is a swift leg sweep!", Color.Red, new List<Entity>()));
                         ((Architect)(targetObject.Owner)).DestabilizedCycles += (int)Math.Round(attacker.Energy / 2);
                         ((Architect)(targetObject.Owner)).ReactionBoostCycles += 30;
                     }
+                }
+                else 
+                {
+                    //not body part ifno
+
+                    // Constants for initial damage calculation
+                    double baseDamageMultiplier = 1.0;
+                    double strengthMultiplier = 0.08 * attacker.Strength;
+                    double proficiencyEffect = (double)proficiencyModifier * (1 + (double)attacker.ExtraAttackPower / 100);
+
+                    int DamageModifier = (int)Math.Round((baseDamageMultiplier + strengthMultiplier) * proficiencyEffect + DivineMight);
+
+                    // Apply Damage to Target
+                    announcements.AddRange(
+                        targetObject.TakeDamageFromObject(
+                            weapon,
+                            DamageModifier,
+                            attacker,
+                            verb
+                        )
+                    );
                 }
             }
         }
@@ -2583,11 +2700,26 @@ namespace Lightrealm
         public Texture2D BleedT;
 
         public Texture2D FrameT;
+        public Texture2D MoveMapFrameT;
         public Texture2D SpeakingT;
         public Texture2D QuitGuiT;
 
         public Texture2D ArchitectHere;
         public Texture2D HealthGuiT;
+
+        public Texture2D VibrantBlackT;
+        public Texture2D WindsweptBlackT;
+        public Texture2D DiminishedBlackT;
+        public Texture2D SwirlBlackT;
+        public Texture2D VibrantWhiteT;
+        public Texture2D WindsweptWhiteT;
+        public Texture2D DiminishedWhiteT;
+        public Texture2D SwirlWhiteT;
+        public Texture2D VibrantGrayT;
+        public Texture2D WindsweptGrayT;
+        public Texture2D DiminishedGrayT;
+        public Texture2D SwirlGrayT;
+
 
         int WaitingTicks = 0;
         int EscapeTicks = 0;
@@ -2784,7 +2916,6 @@ namespace Lightrealm
         {
             // Initialization logic
             Window.IsBorderless = true;
-
             IsMouseVisible = false;
 
             PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
@@ -2792,6 +2923,41 @@ namespace Lightrealm
 
             _graphics.PreferredBackBufferWidth = PreferredBackBufferWidth;
             _graphics.PreferredBackBufferHeight = PreferredBackBufferHeight;
+
+            // Define the original corners based on the new data
+            Vector2[] originalCorners = new Vector2[]
+            {
+        new Vector2(266, 1274), new Vector2(311, 1318), // NW
+        new Vector2(320, 1273), new Vector2(357, 1318), // N
+        new Vector2(366, 1274), new Vector2(403, 1318), // NE
+        new Vector2(265, 1328), new Vector2(311, 1365), // W
+        new Vector2(365, 1328), new Vector2(403, 1363), // E
+        new Vector2(266, 1375), new Vector2(311, 1409), // SW
+        new Vector2(319, 1375), new Vector2(357, 1411), // S
+        new Vector2(365, 1375), new Vector2(405, 1410), // SE
+        new Vector2(319, 1328), new Vector2(357, 1364)  // Center
+            };
+
+            // Scale the coordinates
+            Vector2[] scaledCorners = new Vector2[originalCorners.Length];
+            for (int i = 0; i < originalCorners.Length; i++)
+            {
+                scaledCorners[i] = new Vector2(
+                    originalCorners[i].X * PreferredBackBufferWidth / 2560,
+                    originalCorners[i].Y * PreferredBackBufferHeight / 1440
+                );
+            }
+
+            // Manually define the rectangles based on the scaled coordinates
+            RectangleNW = new Rectangle((int)scaledCorners[0].X, (int)scaledCorners[0].Y, (int)(scaledCorners[1].X - scaledCorners[0].X), (int)(scaledCorners[1].Y - scaledCorners[0].Y));
+            RectangleN = new Rectangle((int)scaledCorners[2].X, (int)scaledCorners[2].Y, (int)(scaledCorners[3].X - scaledCorners[2].X), (int)(scaledCorners[3].Y - scaledCorners[2].Y));
+            RectangleNE = new Rectangle((int)scaledCorners[4].X, (int)scaledCorners[4].Y, (int)(scaledCorners[5].X - scaledCorners[4].X), (int)(scaledCorners[5].Y - scaledCorners[4].Y));
+            RectangleW = new Rectangle((int)scaledCorners[6].X, (int)scaledCorners[6].Y, (int)(scaledCorners[7].X - scaledCorners[6].X), (int)(scaledCorners[7].Y - scaledCorners[6].Y));
+            RectangleE = new Rectangle((int)scaledCorners[8].X, (int)scaledCorners[8].Y, (int)(scaledCorners[9].X - scaledCorners[8].X), (int)(scaledCorners[9].Y - scaledCorners[8].Y));
+            RectangleSW = new Rectangle((int)scaledCorners[10].X, (int)scaledCorners[10].Y, (int)(scaledCorners[11].X - scaledCorners[10].X), (int)(scaledCorners[11].Y - scaledCorners[10].Y));
+            RectangleS = new Rectangle((int)scaledCorners[12].X, (int)scaledCorners[12].Y, (int)(scaledCorners[13].X - scaledCorners[12].X), (int)(scaledCorners[13].Y - scaledCorners[12].Y));
+            RectangleSE = new Rectangle((int)scaledCorners[14].X, (int)scaledCorners[14].Y, (int)(scaledCorners[15].X - scaledCorners[14].X), (int)(scaledCorners[15].Y - scaledCorners[14].Y));
+            RectangleCenter = new Rectangle((int)scaledCorners[16].X, (int)scaledCorners[16].Y, (int)(scaledCorners[17].X - scaledCorners[16].X), (int)(scaledCorners[17].Y - scaledCorners[16].Y));
 
             _graphics.ApplyChanges();
 
@@ -2992,7 +3158,7 @@ namespace Lightrealm
                 RecognizedMessages[kvp.Key] = kvp.Value;
             }
 
-            RecognizedCommands.Add("go_prone", (new List<string> { "go prone", "fall ~", "go on the ground", "fall over" }, new List<string> { "none" }));
+            RecognizedCommands.Add("go_prone", (new List<string> { "go prone", "fall ~", "go on the ground", "get on the ground", "fall over" }, new List<string> { "none" }));
             RecognizedCommands.Add("stand_up", (new List<string> { "stand ~", "get ~ off the ground", "get off the ground" }, new List<string> { "none" }));
             RecognizedCommands.Add("leave_structure", (new List<string> { "leave ~", "exit ~", "leave the structure", "exit the structure", "leave", "leave the building", "exit the building", "exit" }, new List<string> { "nearby_structure" }));
             RecognizedCommands.Add("enter", (new List<string> { "enter ~", "go inside ~", "go in ~", "go through ~" }, new List<string> { "enterable" }));
@@ -3041,7 +3207,7 @@ namespace Lightrealm
 
             RecognizedCommands.Add("become_invisible", (new List<string> { "become one with shadow", "become one with the shadow" }, new List<string> { "none" }));
             RecognizedCommands.Add("exit_invisibility", (new List<string> { "exit the shadows", "exit the darkness", "return from the shadows", "return from the shadow", "return from shadow" }, new List<string> { "none" }));
-            //RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
+            RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
             RecognizedCommands.Add("engage_target", (new List<string> { "engage ~", "engage with ~", "confront ~", "focus ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("approach_target", (new List<string> { "approach ~", "move closer to ~", "advance towards ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("distance_from_target", (new List<string> { "distance from ~", "move away from ~", "retreat from ~" }, new List<string> { "nearby_architect" }));
@@ -3102,6 +3268,7 @@ namespace Lightrealm
             RecognizedCommands.Add("reposition", (new List<string> { "reposition", "reset" }, new List<string> { "none" }));
             RecognizedCommands.Add("retract", (new List<string> { "retract ~", "pull back ~" }, new List<string> { "body_part_type" }));
             RecognizedCommands.Add("free", (new List<string> { "free ~", "unbound ~", "release ~" }, new List<string> { "nearby_architect" }));
+            RecognizedCommands.Add("fix_hair", (new List<string> { "fix hair", "fix my hair", "fix flames", "fix my flames"}, new List<string> { "none" }));
 
             // SuggestibleCommands.AddRange(RecognizedCommands.SelectMany(pair => pair.Value));
 
@@ -3267,6 +3434,7 @@ namespace Lightrealm
                 { "political figure", "political" },
                 { "outlaw", "squad" },
                 { "anarchist", "squad" },
+                { "shiba", "entertainment"},
                 { "craftsman", "guild" },
                 { "musician", "entertainment" },
                 { "scholar", "scholarly" },
@@ -3347,6 +3515,7 @@ namespace Lightrealm
                 {"anarchist", "from the chaos you've sown"},
                 {"craftsman", "by selling shiba statues"},
                 {"musician", "courtesy of ecstatic tavernkeepers"},
+                {"shiba", "from being beautiful"},
                 {"scholar", "from sharing your studies"},
                 {"sorcerer", "from the deity of light"},
                 {"warlock", "from the deity of shadow"},
@@ -3440,6 +3609,7 @@ namespace Lightrealm
                 {"elemental", "none"},
                 {"soverign", "core"},
                 {"heart", "heart"},
+                {"shiba", "tavern"},
                 {"spatiomancer", "library"},
                 {"perceptomancer", "library"},
                 {"conjumancer", "library"},
@@ -3646,6 +3816,7 @@ namespace Lightrealm
             NameSuffixes = File.ReadAllLines(string.Concat(dataPath, "namesuffixes.txt")).ToList();
 
             FrameT = Content.Load<Texture2D>("gui/frame");
+            MoveMapFrameT = Content.Load<Texture2D>("gui/moveframe");
             SpeakingT = Content.Load<Texture2D>("icons/speaking");
             QuitGuiT = Content.Load<Texture2D>("other/quitgui");
 
@@ -3876,6 +4047,19 @@ namespace Lightrealm
             CharacterAtlas["uppershirt female"] = UpperShirtFemaleT = Content.Load<Texture2D>("character art/uppershirt female");
             CharacterAtlas["uppershirt male"] = UpperShirtMaleT = Content.Load<Texture2D>("character art/uppershirt male");
             CharacterAtlas["wraps"] = WrapsT = Content.Load<Texture2D>("character art/wraps");
+
+            VibrantBlackT = Content.Load<Texture2D>("character art/vibrant_black");
+            WindsweptBlackT = Content.Load<Texture2D>("character art/windswept_black");
+            DiminishedBlackT = Content.Load<Texture2D>("character art/diminished_black");
+            SwirlBlackT = Content.Load<Texture2D>("character art/swirl_black");
+            VibrantWhiteT = Content.Load<Texture2D>("character art/vibrant_light");
+            WindsweptWhiteT = Content.Load<Texture2D>("character art/windswept_light");
+            DiminishedWhiteT = Content.Load<Texture2D>("character art/diminished_light");
+            SwirlWhiteT = Content.Load<Texture2D>("character art/swirl_light");
+            VibrantGrayT = Content.Load<Texture2D>("character art/vibrant_gray");
+            WindsweptGrayT = Content.Load<Texture2D>("character art/windswept_gray");
+            DiminishedGrayT = Content.Load<Texture2D>("character art/diminished_gray");
+            SwirlGrayT = Content.Load<Texture2D>("character art/swirl_gray");
 
             BaseRepositionGUIT = Content.Load<Texture2D>("repositiongui/basegui");
             BodyFrameT = Content.Load<Texture2D>("repositiongui/full");
@@ -4148,8 +4332,6 @@ namespace Lightrealm
                         int InitialStagnantObjectIntegrity = ArchitectBodyPart.Integrity;
                         int InitialThrowingObjectIntegrity = o.Integrity;
 
-                        target.AnnounceToParty("The " + o.ReferredToNames[0] + " has collided into " + ArchitectBodyPart.ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { o, ArchitectBodyPart });
-
                         List<TextStorage> ListText = ArchitectBodyPart.TakeDamageFromObject(o, 2 * (o.Thrower.Dexterity + o.Thrower.GetProficiency("throwing")), null, "");
 
                         foreach(TextStorage t in ListText)
@@ -4160,21 +4342,21 @@ namespace Lightrealm
                         if (o.Type == "star" && ((Architect)(o.Creator)).PathOfStarsLevel > 4)
                         {
                             target.AnnounceToParty(ArchitectBodyPart.ReferredToNames[0] + " bursts into flames!", Color.Orange, new List<Entity>() { ArchitectBodyPart });
-                            target.FireCycles += r.Next(30, 100);
+                            target.FireSeconds += r.Next(2, 5);
                         }
                         else if (o.Materials.Contains(GameWorld.Flame))
                         {
-                            if (((Architect)(o.Creator)).PathOfHeatLevel >= 8 && ((Architect)(o.Creator)).FireCycles > 0)
+                            if (((Architect)(o.Creator)).PathOfHeatLevel >= 8 && ((Architect)(o.Creator)).FireSeconds > 0)
                             {
-                                target.FireCycles += r.Next(40, 80 + (((Architect)(o.Creator)).FireCycles));
+                                target.FireSeconds += r.Next(2, 5 + (((Architect)(o.Creator)).FireSeconds));
                             }
                             else if (((Architect)(o.Creator)).PathOfHeatLevel >= 6)
                             {
-                                target.FireCycles += r.Next(40, 80);
+                                target.FireSeconds += r.Next(2, 5);
                             }
                             else
                             {
-                                target.FireCycles += r.Next(20, 40);
+                                target.FireSeconds += r.Next(0, 4);
                             }
                         }
 
@@ -4242,14 +4424,14 @@ namespace Lightrealm
                 }
 
 
-                //return fractal objects to reality/updatt them
+                //return fractal objects to reality/update them
 
                 List<Object> FractalObjectsToRemove = new List<Object>();
 
                 foreach (Object o in GameWorld.FractalObjects)
                 {
                     o.FractalCycles--;
-                    if (o.FractalCycles < 1)
+                    if (o.FractalCycles < 1 && o.RematerializeLocation.Item3.IsLoaded)
                     {
                         o.Block = o.RematerializeLocation.Item4;
                         o.Room = o.RematerializeLocation.Item6;
@@ -4279,7 +4461,8 @@ namespace Lightrealm
                 foreach (Architect a in GameWorld.FractalArchitects)
                 {
                     a.FractalCycles--;
-                    if (a.FractalCycles < 1)
+
+                    if (a.FractalCycles < 1 && a.RematerializeLocation.Item3.IsLoaded)
                     {
                         if (a.RematerializeLocation.Item3.IsLoaded)
                         {
@@ -4310,6 +4493,11 @@ namespace Lightrealm
                             a.Location = a.RematerializeLocation.Item2;
                             a.District = a.RematerializeLocation.Item3;
                             a.District.Architects.Add(a);
+                        }
+
+                        if(!LoadedArchitects.Contains(a))
+                        {
+                            LoadedArchitects.Add(a);
                         }
                     }
                 }
@@ -4409,13 +4597,13 @@ namespace Lightrealm
                         case "nearby_target":
                             RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
                             RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
-                            if (MostRecentPartyTurnArchitect.LeftHandObject != null)
+                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
                             {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.LeftHandObject);
+                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
                             }
-                            if (MostRecentPartyTurnArchitect.RightHandObject != null)
+                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
                             {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.RightHandObject);
+                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
                             }
                             RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
                             break;
@@ -4426,26 +4614,26 @@ namespace Lightrealm
                             RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "book" || e.Metadata == "song" || e.Metadata == "poem"));
                             break;
                         case "hand_object":
-                            if (MostRecentPartyTurnArchitect.LeftHandObject != null)
+                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
                             {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.LeftHandObject);
+                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
                             }
-                            if (MostRecentPartyTurnArchitect.RightHandObject != null)
+                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
                             {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.RightHandObject);
+                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
                             }
                             break;
                         case "non_hand_inventory":
                             RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
                             break;
                         case "inventory":
-                            if (MostRecentPartyTurnArchitect.LeftHandObject != null)
+                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
                             {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.LeftHandObject);
+                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
                             }
-                            if (MostRecentPartyTurnArchitect.RightHandObject != null)
+                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
                             {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.RightHandObject);
+                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
                             }
                             RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
                             break;
@@ -4487,6 +4675,7 @@ namespace Lightrealm
                 }
             }
 
+            KeyboardState ShiftTestState = Keyboard.GetState();
 
             void ResetCommandBuilder()
             {
@@ -4767,6 +4956,7 @@ namespace Lightrealm
                             if (KeysNewlyPressed.Contains(Keys.Enter))
                             {
                                 GameState = "loadinggame";
+                                SeenTips = true;
                                 SelectedDirectory = saveDirectories[LoadGameCursor];
                             }
 
@@ -4827,35 +5017,38 @@ namespace Lightrealm
 
                         foreach (Keys k in KeysNewlyPressed)
                         {
-                            HistoricalScrollValue = 0;
-
-                            if (k == Keys.Back && HistoryPrompt.Length != 0)
+                            if (k == Keys.Up)
                             {
-                                if (Keyboard.GetState().IsKeyDown(Keys.LeftControl))
+                                if (MostRecentPartyTurnArchitect.PromptIndex == 0)
                                 {
-                                    HistoryPrompt = "";
+                                    // Save the current prompt before starting to navigate through history
+                                    MostRecentPartyTurnArchitect.SavedPrompt = MostRecentPartyTurnArchitect.Prompt;
                                 }
-                                else
+
+                                if (MostRecentPartyTurnArchitect.PromptIndex < MostRecentPartyTurnArchitect.PreviousPrompts.Count - 1)
                                 {
-                                    HistoryPrompt = HistoryPrompt.Substring(0, HistoryPrompt.Length - 1);
+                                    // Move to the previous prompt
+                                    MostRecentPartyTurnArchitect.PromptIndex += 1;
+                                    MostRecentPartyTurnArchitect.Prompt = MostRecentPartyTurnArchitect.PreviousPrompts[MostRecentPartyTurnArchitect.PromptIndex];
                                 }
                             }
-                            else if (KeyAtlas.ContainsKey(k))
+                            else if (k == Keys.Down)
                             {
-                                if (!Keyboard.GetState().IsKeyDown(Keys.OemTilde) && !Keyboard.GetState().IsKeyDown(Keys.LeftControl) && !Keyboard.GetState().IsKeyDown(Keys.RightControl))
+                                if (MostRecentPartyTurnArchitect.PromptIndex > 0)
                                 {
-                                    if (Keyboard.GetState().CapsLock == true || Keyboard.GetState().IsKeyDown(Keys.LeftShift) || Keyboard.GetState().IsKeyDown(Keys.RightShift))
+                                    // Move to the next prompt or restore the saved prompt if reaching the initial position
+                                    MostRecentPartyTurnArchitect.PromptIndex -= 1;
+                                    if (MostRecentPartyTurnArchitect.PromptIndex == 0)
                                     {
-                                        HistoryPrompt += UpperKeyAtlas[k];
+                                        MostRecentPartyTurnArchitect.Prompt = MostRecentPartyTurnArchitect.SavedPrompt;
                                     }
                                     else
                                     {
-                                        HistoryPrompt += KeyAtlas[k];
+                                        MostRecentPartyTurnArchitect.Prompt = MostRecentPartyTurnArchitect.PreviousPrompts[MostRecentPartyTurnArchitect.PromptIndex];
                                     }
                                 }
                             }
                         }
-
                     }
                     else if (GameState == "deletinggame")
                     {
@@ -5272,7 +5465,19 @@ namespace Lightrealm
                             MostRecentPartyTurnArchitect = TheChosenOne;
                             TheChosenOne.District.Architects.Remove(TheChosenOne);
                             TheChosenOne.Group = GamePlayerParty;
-                            TheChosenOne.RightHanded = CurrentlySelectingHandedness;
+
+                            if(CurrentlySelectingHandedness == true)
+                            {
+                                //right handed
+                                TheChosenOne.MainInteractionAppendage = TheChosenOne.FindBodyPart("right hand");
+                                TheChosenOne.OffInteractionAppendage = TheChosenOne.FindBodyPart("left hand");
+                            }
+                            else
+                            {
+                                //left handed
+                                TheChosenOne.MainInteractionAppendage = TheChosenOne.FindBodyPart("left hand");
+                                TheChosenOne.OffInteractionAppendage = TheChosenOne.FindBodyPart("right hand");
+                            }
 
                             GameWorld.ProgressToNextMorning();
 
@@ -5527,6 +5732,12 @@ namespace Lightrealm
                             }
                         }
 
+
+                        if(currentMouseState.LeftButton == ButtonState.Pressed && previousMouseState.LeftButton == ButtonState.Released && Keyboard.GetState().IsKeyDown(Keys.LeftShift))
+                        {
+                            crds.Add(new Vector2(currentMouseState.X, currentMouseState.Y));
+                        }
+
                         if (SplitMode && currentMouseState.LeftButton == ButtonState.Pressed && previousMouseState.LeftButton == ButtonState.Released)
                         {
                             Vector2 mousePosition = new Vector2(currentMouseState.X, currentMouseState.Y);
@@ -5551,6 +5762,18 @@ namespace Lightrealm
                             if (closestEntity != null)
                             {
                                 ThisList.Add(closestEntity);
+                            }
+                        }
+
+                        if(KeysNewlyPressed.Contains(Keys.RightControl))
+                        {
+                            if(MassTravelOrderMode == false)
+                            {
+                                MassTravelOrderMode = true;
+                            }
+                            else
+                            {
+                                MassTravelOrderMode = false;
                             }
                         }
 
@@ -5602,6 +5825,17 @@ namespace Lightrealm
                                 }
                             }    
                         }
+
+
+                        if(!GamePlayerParty.ReceivedPartyAdvice && GamePlayerParty.Architects.Count > 1)
+                        {
+                            GamePlayerParty.ReceivedPartyAdvice = true;
+
+                            MakeObservation("While in a party, you will switch between each member and control them manually.", Color.HotPink, new List<Entity>());
+                            MakeObservation("Press Right Control to turn on Group-Move, which will make Numpad / Control + QWEADZXC orders apply to all members.", Color.HotPink, new List<Entity>());
+                            MakeObservation("When all members are attempting to leave the district, all members will leave the area.", Color.HotPink, new List<Entity>());
+                        }
+
 
                         if (GamePlayerParty.Architects.Count == 0)
                         {
@@ -6013,7 +6247,7 @@ namespace Lightrealm
                                     {
                                         Exposition = new List<TextStorage>();
 
-                                        if(KeysNewlyPressed.Contains(Keys.OemTilde) && InInventory == false && Keyboard.GetState().IsKeyUp(Keys.Tab))
+                                        if (KeysNewlyPressed.Contains(Keys.OemTilde) && InInventory == false && Keyboard.GetState().IsKeyUp(Keys.Tab))
                                         {
                                             CommandBuilderStage = "categories";
                                             AllSubjects = CollectAllSubjects(MostRecentPartyTurnArchitect, "none");
@@ -6026,16 +6260,41 @@ namespace Lightrealm
                                         {
                                             if (k == Keys.Up)
                                             {
-                                                LoadedArchitects[ArchitectIndex].Prompt = LoadedArchitects[ArchitectIndex].LastPrompt;
+                                                if (MostRecentPartyTurnArchitect.PromptIndex == 0)
+                                                {
+                                                    // Save the current prompt before starting to navigate through history
+                                                    MostRecentPartyTurnArchitect.SavedPrompt = MostRecentPartyTurnArchitect.Prompt;
+                                                    MostRecentPartyTurnArchitect.PromptIndex = MostRecentPartyTurnArchitect.PreviousPrompts.Count; // Start from the latest prompt
+                                                }
+
+                                                if (MostRecentPartyTurnArchitect.PromptIndex > 0)
+                                                {
+                                                    // Move to the previous prompt
+                                                    MostRecentPartyTurnArchitect.PromptIndex -= 1;
+                                                    MostRecentPartyTurnArchitect.Prompt = MostRecentPartyTurnArchitect.PreviousPrompts[MostRecentPartyTurnArchitect.PromptIndex];
+                                                }
                                             }
                                             else if (k == Keys.Down)
                                             {
-                                                LoadedArchitects[ArchitectIndex].LastPrompt = LoadedArchitects[ArchitectIndex].Prompt;
-                                                LoadedArchitects[ArchitectIndex].Prompt = "";
+                                                if (MostRecentPartyTurnArchitect.PromptIndex != 0)
+                                                {
+                                                    if (MostRecentPartyTurnArchitect.PromptIndex < MostRecentPartyTurnArchitect.PreviousPrompts.Count - 1)
+                                                    {
+                                                        // Move to the next prompt
+                                                        MostRecentPartyTurnArchitect.PromptIndex += 1;
+                                                        MostRecentPartyTurnArchitect.Prompt = MostRecentPartyTurnArchitect.PreviousPrompts[MostRecentPartyTurnArchitect.PromptIndex];
+                                                    }
+                                                    else
+                                                    {
+                                                        // Restore the saved prompt if we reach the initial position
+                                                        MostRecentPartyTurnArchitect.PromptIndex = 0;
+                                                        MostRecentPartyTurnArchitect.Prompt = MostRecentPartyTurnArchitect.SavedPrompt;
+                                                    }
+                                                }
                                             }
                                             if (k == Keys.Back && LoadedArchitects[ArchitectIndex].Prompt.Length != 0)
                                             {
-                                                if(Keyboard.GetState().IsKeyDown(Keys.LeftControl))
+                                                if (Keyboard.GetState().IsKeyDown(Keys.LeftControl))
                                                 {
                                                     LoadedArchitects[ArchitectIndex].Prompt = "";
                                                 }
@@ -6078,7 +6337,7 @@ namespace Lightrealm
                                         }
                                         */
 
-                                        
+
 
                                         if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)) && Keyboard.GetState().IsKeyDown(Keys.S))
                                         {
@@ -6098,8 +6357,23 @@ namespace Lightrealm
                                             InInventory = false;
                                         }
 
-                                        if (KeysNewlyPressed.Contains(Keys.Enter) || (currentMouseState.RightButton == ButtonState.Pressed && previousMouseState.RightButton == ButtonState.Released))
+                                        if (MostRecentPartyTurnArchitect.NextMoveOrder != "" && MostRecentPartyTurnArchitect.Structure == null)
                                         {
+                                            MostRecentPartyTurnArchitect.Move(MostRecentPartyTurnArchitect.NextMoveOrder);
+                                            MostRecentPartyTurnArchitect.NextMoveOrder = "";
+                                            IncrementAndCycleWorld();
+                                        }
+                                        else if (KeysNewlyPressed.Contains(Keys.Enter) || (currentMouseState.RightButton == ButtonState.Pressed && previousMouseState.RightButton == ButtonState.Released))
+                                        {
+                                            // Store the current prompt to the history if it's not empty
+                                            if (!string.IsNullOrWhiteSpace(MostRecentPartyTurnArchitect.Prompt))
+                                            {
+                                                MostRecentPartyTurnArchitect.PreviousPrompts.Insert(1, MostRecentPartyTurnArchitect.Prompt); // Insert at the beginning
+                                                MostRecentPartyTurnArchitect.PromptIndex = 0; // Reset the index to 0 (empty slate)
+                                                MostRecentPartyTurnArchitect.SavedPrompt = ""; // Clear the saved prompt
+                                            }
+
+                                            MostRecentPartyTurnArchitect.NextMoveOrder = "";
                                             // Get the original command from the current architect
                                             string originalCommand = LoadedArchitects[ArchitectIndex].Prompt.ToLower();
 
@@ -6123,7 +6397,7 @@ namespace Lightrealm
                                             }
 
                                             // Store the last prompt
-                                            LoadedArchitects[ArchitectIndex].LastPrompt = LoadedArchitects[ArchitectIndex].Prompt;
+                                            MostRecentPartyTurnArchitect.PreviousPrompts.Add(MostRecentPartyTurnArchitect.Prompt);
 
                                             // Determine modifier
                                             string Modifier = "none";
@@ -6211,11 +6485,11 @@ namespace Lightrealm
                                                 }
                                             }
                                         }
-
-
                                         else if (MostRecentPartyTurnArchitect.Structure == null)
                                         {
-                                            bool altPressed = Keyboard.GetState().IsKeyDown(Keys.LeftControl);
+                                            bool altPressed = ShiftTestState.IsKeyDown(Keys.LeftControl);
+
+                                            string StoredDirection = "";
 
                                             foreach (var key in KeysNewlyPressed)
                                             {
@@ -6228,14 +6502,116 @@ namespace Lightrealm
                                                     {
                                                         // Convert key direction to string direction for Move function
                                                         string direction = KeyDirections[key];
-                                                        MostRecentPartyTurnArchitect.Move(direction);
-
+                                                        string fullDirection = ConvertToFullDirection(direction);
+                                                        MostRecentPartyTurnArchitect.Move(fullDirection);
+                                                        StoredDirection = fullDirection;
                                                         IncrementAndCycleWorld();
+                                                    }
+                                                }
+                                            }
+
+                                            bool isMouseClicked = currentMouseState.LeftButton == ButtonState.Pressed && previousMouseState.LeftButton == ButtonState.Released;
+
+                                            if (isMouseClicked)
+                                            {
+                                                Point mousePosition = currentMouseState.Position;
+                                                if (RectangleN.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("north");
+                                                    StoredDirection = "north";
+                                                }
+                                                else if (RectangleNE.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("northeast");
+                                                    StoredDirection = "northeast";
+                                                }
+                                                else if (RectangleE.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("east");
+                                                    StoredDirection = "east";
+                                                }
+                                                else if (RectangleSE.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("southeast");
+                                                    StoredDirection = "southeast";
+                                                }
+                                                else if (RectangleS.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("south");
+                                                    StoredDirection = "south";
+                                                }
+                                                else if (RectangleSW.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("southwest");
+                                                    StoredDirection = "southwest";
+                                                }
+                                                else if (RectangleW.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("west");
+                                                    StoredDirection = "west";
+                                                }
+                                                else if (RectangleNW.Contains(mousePosition))
+                                                {
+                                                    MostRecentPartyTurnArchitect.Move("northwest");
+                                                    StoredDirection = "northwest";
+                                                }
+                                                else if (RectangleCenter.Contains(mousePosition))
+                                                {
+                                                    if(MassTravelOrderMode)
+                                                    {
+                                                        MassTravelOrderMode = false;
+                                                    }
+                                                    else
+                                                    {
+                                                        MassTravelOrderMode = true;
+                                                    }
+                                                }
+
+                                                if (StoredDirection != "")
+                                                {
+                                                    IncrementAndCycleWorld();
+                                                }
+                                            }
+
+                                            if (MassTravelOrderMode)
+                                            {
+                                                if (StoredDirection != "")
+                                                {
+                                                    foreach (Architect a in GamePlayerParty.Architects)
+                                                    {
+                                                        if (a != MostRecentPartyTurnArchitect)
+                                                        {
+                                                            a.NextMoveOrder = StoredDirection;
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
 
+                                        string ConvertToFullDirection(string shortDirection)
+                                        {
+                                            switch (shortDirection)
+                                            {
+                                                case "N":
+                                                    return "north";
+                                                case "NE":
+                                                    return "northeast";
+                                                case "E":
+                                                    return "east";
+                                                case "SE":
+                                                    return "southeast";
+                                                case "S":
+                                                    return "south";
+                                                case "SW":
+                                                    return "southwest";
+                                                case "W":
+                                                    return "west";
+                                                case "NW":
+                                                    return "northwest";
+                                                default:
+                                                    return shortDirection;
+                                            }
+                                        }
                                     }
                                 }
                                 else
@@ -6486,7 +6862,14 @@ namespace Lightrealm
                     }
                     else if (GameState == "reaction")
                     {
-                        if (KeysNewlyPressed.Any(key => key == Keys.S || key == Keys.P || key == Keys.B || key == Keys.D || key == Keys.J || key == Keys.R || key == Keys.N || key == Keys.C))
+                        // Check if the target's creator has HoldCycles or UnconsciousCycles
+                        if (StoredAttacks.Count > 0 &&
+                            ((Architect)(StoredAttacks[0].Target.Creator)).HoldCycles > 0 || ((Architect)(StoredAttacks[0].Target.Creator)).UnconsciousCycles > 0)
+                        {
+                            CalculateAttack(StoredAttacks[0].Verb, StoredAttacks[0].Attacker, StoredAttacks[0].Target, "sustain", StoredAttacks[0].Weapon);
+                            StoredAttacks.RemoveAt(0);
+                        }
+                        else if (KeysNewlyPressed.Any(key => key == Keys.S || key == Keys.P || key == Keys.B || key == Keys.D || key == Keys.J || key == Keys.R || key == Keys.N || key == Keys.C))
                         {
                             string Action = "";
 
@@ -6498,31 +6881,24 @@ namespace Lightrealm
                                     break;
                                 case Keys.P:
                                     Action = "parry";
-                                    // Handle P key
                                     break;
                                 case Keys.B:
                                     Action = "block";
-                                    // Handle B key
                                     break;
                                 case Keys.D:
                                     Action = "duck";
-                                    // Handle D key
                                     break;
                                 case Keys.J:
                                     Action = "jump";
-                                    // Handle J key
                                     break;
                                 case Keys.R:
                                     Action = "roll";
-                                    // Handle R key
                                     break;
                                 case Keys.N:
                                     Action = "disarm";
-                                    // Handle N key
                                     break;
                                 case Keys.C:
                                     Action = "redirect";
-                                    // Handle C key
                                     break;
                                 default:
                                     break;
@@ -6537,13 +6913,22 @@ namespace Lightrealm
                             GameState = "otherturn";
                         }
                     }
+
                     else if (GameState == "messagereply")
                     {
-                        if(MostRecentPartyTurnArchitect.MessagesNotRespondedTo.Count == 0)
+                        if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo.Count == 0)
                         {
                             GameState = "partyturn";
                         }
-                        else if(KeysNewlyPressed.Any(key => key == Keys.T || key == Keys.M || key == Keys.I || key == Keys.D || key == Keys.F || key == Keys.R || key == Keys.X))
+                        else if (MostRecentPartyTurnArchitect.HoldCycles > 0 || MostRecentPartyTurnArchitect.UnconsciousCycles > 0)
+                        {
+                            // Automatically respond with "does not reply" if the person is unconscious or held
+                            AddMessage(MostRecentPartyTurnArchitect.ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { MostRecentPartyTurnArchitect });
+                            MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, "", new List<Location>());
+                            MostRecentPartyTurnArchitect.MessagesNotRespondedTo.RemoveAt(0);
+                            GameState = "otherturn";
+                        }
+                        else if (KeysNewlyPressed.Any(key => key == Keys.T || key == Keys.M || key == Keys.I || key == Keys.D || key == Keys.F || key == Keys.R || key == Keys.X))
                         {
                             string Reply = "";
 
@@ -6566,6 +6951,7 @@ namespace Lightrealm
                                     Reply = MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse;
                                     break;
                                 case Keys.R:
+                                    // No action, no reply
                                     break;
                                 default:
                                     break;
@@ -6581,13 +6967,12 @@ namespace Lightrealm
                             else
                             {
                                 AddMessage(MostRecentPartyTurnArchitect.ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { MostRecentPartyTurnArchitect });
-                                MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, Reply, new List<Location>());
+                                MessageWorldEdit(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Subjects, "", new List<Location>());
                                 MostRecentPartyTurnArchitect.MessagesNotRespondedTo.RemoveAt(0);
                             }
 
                             GameState = "otherturn";
                         }
-
                     }
                     else if (GameState == "trypickup")
                     {
@@ -7438,7 +7823,7 @@ namespace Lightrealm
             {"stone", "stone"},
             {"metal", "bar"},
             {"ore", "ore"},
-            {"gemstone", "gemstone"},
+            {"gemstone", "cut gem"},
             {"sand", "pile"},
             {"fiber", "bunch"},
             {"ice", "block"},
@@ -7546,6 +7931,15 @@ namespace Lightrealm
                                     ItemPickupGuiLines.Clear();
 
                                     // Add the crafted item to the inventory
+
+
+                                    if(currentRecipe.Item1 == "sheet")
+                                    {
+                                        allUsedMaterials.Clear();
+                                        allUsedMaterials.Add(GameWorld.Glass);
+                                    }
+
+
                                     Object o = new Object("", currentRecipe.Item1, allUsedMaterials, MostRecentPartyTurnArchitect);
                                     o.Name = GameWorld.GenerateUniqueName("1S" + r.Next(2, 5) + "sw", o);
                                     MostRecentPartyTurnArchitect.Inventory.Add(o);
@@ -8231,7 +8625,7 @@ namespace Lightrealm
                 _spriteBatch.Draw(MirrorT, newRect, Color.White);
 
                 // Add hitbox for the character frame
-                if (!IsShowingSkills)
+                if (!IsShowingSkills && !IsShowingSpells && !IsShowingBodyParts)
                 {
                     if (SplitMode && GamePlayerParty.Architects.Contains(a))
                     {
@@ -8259,13 +8653,81 @@ namespace Lightrealm
                 {
                     case "luminarch":
                         _spriteBatch.Draw(baseTexture == "FemaleT" ? LuminarchFemaleT : LuminarchMaleT, ChosenRect, Color.White);
+                        DrawHairTexture(a, "white", ChosenRect);
                         break;
                     case "nightfell":
                         _spriteBatch.Draw(baseTexture == "FemaleT" ? NightfellFemaleT : NightfellMaleT, ChosenRect, Color.White);
+                        DrawHairTexture(a, "black", ChosenRect);
                         break;
                     default:
                         _spriteBatch.Draw(baseTexture == "FemaleT" ? ArchaixFemaleT : ArchaixMaleT, ChosenRect, Color.White);
+                        DrawHairTexture(a, "gray", ChosenRect);
                         break;
+                }
+
+                void DrawHairTexture(Architect a, string raceColor, Rectangle rect)
+                {
+                    Texture2D hairTexture = null;
+
+                    switch (raceColor)
+                    {
+                        case "white":
+                            switch (a.HairID)
+                            {
+                                case 0:
+                                    hairTexture = VibrantWhiteT;
+                                    break;
+                                case 1:
+                                    hairTexture = WindsweptWhiteT;
+                                    break;
+                                case 2:
+                                    hairTexture = DiminishedWhiteT;
+                                    break;
+                                case 3:
+                                    hairTexture = SwirlWhiteT;
+                                    break;
+                            }
+                            break;
+                        case "black":
+                            switch (a.HairID)
+                            {
+                                case 0:
+                                    hairTexture = VibrantBlackT;
+                                    break;
+                                case 1:
+                                    hairTexture = WindsweptBlackT;
+                                    break;
+                                case 2:
+                                    hairTexture = DiminishedBlackT;
+                                    break;
+                                case 3:
+                                    hairTexture = SwirlBlackT;
+                                    break;
+                            }
+                            break;
+                        case "gray":
+                            switch (a.HairID)
+                            {
+                                case 0:
+                                    hairTexture = VibrantGrayT;
+                                    break;
+                                case 1:
+                                    hairTexture = WindsweptGrayT;
+                                    break;
+                                case 2:
+                                    hairTexture = DiminishedGrayT;
+                                    break;
+                                case 3:
+                                    hairTexture = SwirlGrayT;
+                                    break;
+                            }
+                            break;
+                    }
+
+                    if (hairTexture != null)
+                    {
+                        _spriteBatch.Draw(hairTexture, rect, Color.White);
+                    }
                 }
 
                 // Define the drawing order
@@ -8437,40 +8899,51 @@ namespace Lightrealm
             void DrawList(SpriteBatch spriteBatch, List<(string Description, int Count, int IndentationLevel, Color TextColor, Object Obj)> list, Vector2 startCoords, SpriteFont font, int CurrentObjectPage, int itemsPerPage)
             {
                 int line = 0;
-                int startIndex = CurrentObjectPage * itemsPerPage;
-                int endIndex = Math.Min(startIndex + itemsPerPage, list.Count);
 
-                // Draw the page indicator
-                string pageIndicator = $"(page {CurrentObjectPage + 1} of {MaximumObjectPage+1}, use CTRL + / -)";
-                Vector2 pageIndicatorPosition = new Vector2(startCoords.X, startCoords.Y + line * 25);
-                spriteBatch.DrawString(font, pageIndicator, pageIndicatorPosition, Color.White);
-                line++;
 
-                pageIndicator = $"Press F3 To Split Items.";
-                pageIndicatorPosition = new Vector2(startCoords.X, startCoords.Y + line * 25);
-                spriteBatch.DrawString(font, pageIndicator, pageIndicatorPosition, Color.White);
-                line++;
-
-                // Adjust start coordinates for drawing the actual list
-                startCoords = new Vector2(startCoords.X, startCoords.Y + 40); // Move startCoords down by 40 (two lines)
-
-                for (int i = startIndex; i < endIndex; i++)
+                if(MostRecentPartyTurnArchitect.BlindCycles > 0)
                 {
-                    var (Description, Count, IndentationLevel, TextColor, Obj) = list[i];
-                    string textToDraw = SplitMode ?
-                        $"{new string(' ', 4 * IndentationLevel)}{Description}" :
-                        $"{new string(' ', 4 * IndentationLevel)}{Description} x{Count}";
-
-                    Vector2 textPosition = new Vector2(startCoords.X, startCoords.Y + line * 25);
-                    spriteBatch.DrawString(font, textToDraw, textPosition, TextColor);
-
-                    // Add hitbox for the object
-                    EntityHitboxes.Add((new Rectangle(textPosition.ToPoint(), font.MeasureString(textToDraw).ToPoint()), Obj));
-
-                    line++;
+                    string ind = $"You are currently blind.";
+                    Vector2 indpos = new Vector2(startCoords.X, startCoords.Y + line * 25);
+                    spriteBatch.DrawString(font, ind, indpos, Color.Yellow);
                 }
+                else
+                {
+                    int startIndex = CurrentObjectPage * itemsPerPage;
+                    int endIndex = Math.Min(startIndex + itemsPerPage, list.Count);
 
-                MaximumObjectPage = (int)Math.Round((decimal)(list.Count / itemsPerPage), 0, MidpointRounding.ToPositiveInfinity);
+                    // Draw the page indicator
+                    string pageIndicator = $"(page {CurrentObjectPage + 1} of {MaximumObjectPage + 1}, use CTRL + / -)";
+                    Vector2 pageIndicatorPosition = new Vector2(startCoords.X, startCoords.Y + line * 25);
+                    spriteBatch.DrawString(font, pageIndicator, pageIndicatorPosition, Color.White);
+                    line++;
+
+                    pageIndicator = $"Press F3 To Split Items.";
+                    pageIndicatorPosition = new Vector2(startCoords.X, startCoords.Y + line * 25);
+                    spriteBatch.DrawString(font, pageIndicator, pageIndicatorPosition, Color.White);
+                    line++;
+
+                    // Adjust start coordinates for drawing the actual list
+                    startCoords = new Vector2(startCoords.X, startCoords.Y + 40); // Move startCoords down by 40 (two lines)
+
+                    for (int i = startIndex; i < endIndex; i++)
+                    {
+                        var (Description, Count, IndentationLevel, TextColor, Obj) = list[i];
+                        string textToDraw = SplitMode ?
+                            $"{new string(' ', 4 * IndentationLevel)}{Description}" :
+                            $"{new string(' ', 4 * IndentationLevel)}{Description} x{Count}";
+
+                        Vector2 textPosition = new Vector2(startCoords.X, startCoords.Y + line * 25);
+                        spriteBatch.DrawString(font, textToDraw, textPosition, TextColor);
+
+                        // Add hitbox for the object
+                        EntityHitboxes.Add((new Rectangle(textPosition.ToPoint(), font.MeasureString(textToDraw).ToPoint()), Obj));
+
+                        line++;
+                    }
+
+                    MaximumObjectPage = (int)Math.Round((decimal)(list.Count / itemsPerPage), 0, MidpointRounding.ToPositiveInfinity);
+                }
             }
 
             // Assuming you have a method to handle user input to navigate pages, you would update CurrentObjectPage accordingly
@@ -8478,7 +8951,7 @@ namespace Lightrealm
 
 
             
-            void DrawCenteredTextAtPosition(SpriteBatch spriteBatch, string text, float centerX, float centerY, SpriteFont font)
+            void DrawCenteredTextAtPosition(SpriteBatch spriteBatch, string text, float centerX, float centerY, SpriteFont font, Color c)
             {
                 // Measure the size of the text using the provided font
                 Vector2 textSize = font.MeasureString(text);
@@ -8494,7 +8967,7 @@ namespace Lightrealm
                 Vector2 position = new Vector2(xPosition, yPosition);
 
                 // Draw the text at the calculated position with the specified font and color
-                spriteBatch.DrawString(font, text, position, Color.White);
+                spriteBatch.DrawString(font, text, position, c);
             }
 
             int DrawX = 1400;
@@ -8612,85 +9085,95 @@ namespace Lightrealm
                 List<TextStorage> reversedAnnouncements = new List<TextStorage>(Announcements);
                 reversedAnnouncements.Reverse();
 
-                foreach (TextStorage announcement in reversedAnnouncements)
+
+                if(MostRecentPartyTurnArchitect.BlindCycles > 0)
                 {
-                    List<string> lines = new List<string>();
-
-                    if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
+                    _spriteBatch.DrawString(BabyShibafont, "You are currently blind.", new Vector2(50, yPos), Color.Yellow);
+                }
+                else
+                {
+                    foreach (TextStorage announcement in reversedAnnouncements)
                     {
-                        // Split announcement into lines if it exceeds MaxLength
-                        string[] words = announcement.Data.Split(' ');
-                        string currentLine = "";
+                        List<string> lines = new List<string>();
 
-                        foreach (var word in words)
+                        if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
                         {
-                            if (BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
-                            {
-                                lines.Add(currentLine.TrimEnd());
-                                currentLine = word + " ";
-                            }
-                            else
-                            {
-                                currentLine += word + " ";
-                            }
-                        }
+                            // Split announcement into lines if it exceeds MaxLength
+                            string[] words = announcement.Data.Split(' ');
+                            string currentLine = "";
 
-                        lines.Add(currentLine.TrimEnd());
-                    }
-                    else
-                    {
-                        lines.Add(announcement.Data);
-                    }
+                            foreach (var word in words)
+                            {
+                                if (BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
+                                {
+                                    lines.Add(currentLine.TrimEnd());
+                                    currentLine = word + " ";
+                                }
+                                else
+                                {
+                                    currentLine += word + " ";
+                                }
+                            }
 
-                    // Draw lines in reverse order
-                    for (int i = lines.Count - 1; i >= 0; i--)
-                    {
-                        if (totalLinesDisplayed < MaxLines)
-                        {
-                            DrawAnnouncementLine(lines[i], yPos, announcement.Color, announcement.Entities);
-                            yPos -= lineHeight;
-                            totalLinesDisplayed++;
+                            lines.Add(currentLine.TrimEnd());
                         }
                         else
                         {
-                            break;  // Exit the loop if the maximum number of lines is reached
+                            lines.Add(announcement.Data);
+                        }
+
+                        // Draw lines in reverse order
+                        for (int i = lines.Count - 1; i >= 0; i--)
+                        {
+                            if (totalLinesDisplayed < MaxLines)
+                            {
+                                DrawAnnouncementLine(lines[i], yPos, announcement.Color, announcement.Entities);
+                                yPos -= lineHeight;
+                                totalLinesDisplayed++;
+                            }
+                            else
+                            {
+                                break;  // Exit the loop if the maximum number of lines is reached
+                            }
+                        }
+
+                        if (totalLinesDisplayed >= MaxLines)
+                        {
+                            break;  // Exit the outer loop if the maximum number of lines is reached
                         }
                     }
 
-                    if (totalLinesDisplayed >= MaxLines)
+                    // Helper function to draw each announcement line and create hitboxes for entity names
+                    void DrawAnnouncementLine(string text, int yPosition, Color color, List<Entity> entities)
                     {
-                        break;  // Exit the outer loop if the maximum number of lines is reached
-                    }
-                }
+                        _spriteBatch.DrawString(BabyShibafont, text, new Vector2(50, yPosition), color);
 
-                // Helper function to draw each announcement line and create hitboxes for entity names
-                void DrawAnnouncementLine(string text, int yPosition, Color color, List<Entity> entities)
-                {
-                    _spriteBatch.DrawString(BabyShibafont, text, new Vector2(50, yPosition), color);
-
-                    // Create hitboxes for the longest entity names
-                    foreach (var entity in entities)
-                    {
-                        string longestName = entity.ReferredToNames.OrderByDescending(name => name.Length).FirstOrDefault(name => text.Contains(name));
-
-                        if (!string.IsNullOrEmpty(longestName))
+                        // Create hitboxes for the longest entity names
+                        foreach (var entity in entities)
                         {
-                            int index = text.IndexOf(longestName);
-                            if (index != -1)
-                            {
-                                string substringBeforeName = text.Substring(0, index);
-                                Vector2 sizeBeforeName = BabyShibafont.MeasureString(substringBeforeName);
-                                Vector2 positionOfName = new Vector2(50 + sizeBeforeName.X, yPosition);
+                            string longestName = entity.ReferredToNames.OrderByDescending(name => name.Length).FirstOrDefault(name => text.Contains(name));
 
-                                // Measure the length of the text up to the longest name
-                                Vector2 sizeOfName = BabyShibafont.MeasureString(longestName);
-                                Rectangle hitbox = new Rectangle(positionOfName.ToPoint(), sizeOfName.ToPoint());
-                                hitbox = ScaleRectangle(hitbox, scaleX, scaleY);
-                                EntityHitboxes.Add((hitbox, entity));
+                            if (!string.IsNullOrEmpty(longestName))
+                            {
+                                int index = text.IndexOf(longestName);
+                                if (index != -1)
+                                {
+                                    string substringBeforeName = text.Substring(0, index);
+                                    Vector2 sizeBeforeName = BabyShibafont.MeasureString(substringBeforeName);
+                                    Vector2 positionOfName = new Vector2(50 + sizeBeforeName.X, yPosition);
+
+                                    // Measure the length of the text up to the longest name
+                                    Vector2 sizeOfName = BabyShibafont.MeasureString(longestName);
+                                    Rectangle hitbox = new Rectangle(positionOfName.ToPoint(), sizeOfName.ToPoint());
+                                    hitbox = ScaleRectangle(hitbox, scaleX, scaleY);
+                                    EntityHitboxes.Add((hitbox, entity));
+                                }
                             }
                         }
                     }
                 }
+
+                
             }
 
             if (GameState == "generatehistory" || GameState == "choosepreferences")
@@ -8820,7 +9303,7 @@ namespace Lightrealm
 
                 Dictionary<string, string> threatDescriptions = new Dictionary<string, string>
     {
-        { "non-cataclysmic", "Choose a random, morally-questionable threat, but with a goal that does not bring the destruction of the entire world. (recommended)" },
+        { "non-cataclysmic", "Choose a random, morally-questionable threat, but with a goal that is less world-ending. (recommended)" },
         { "random", "Choose a completely random threat from all options. May destroy/desolate your entire world." },
         { "dominator", "An organization bent on unjustly taking over the world will inhabit your continent." },
         { "purifier", "A force of purity will try to erase the entire world into indistinguishable matter." },
@@ -9326,718 +9809,828 @@ namespace Lightrealm
             }
             else if (GameState == "partyturn" || GameState == "reaction" || GameState == "otherturn" || GameState == "messagereply" || GameState == "trypickup" || GameState == "trydrop")
             {
-                if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
+                if (MostRecentPartyTurnArchitect != null)
                 {
-                    _spriteBatch.Draw(HelpGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
-                }
-                else if (!InInventory && !Keyboard.GetState().IsKeyDown(Keys.Tab))
-                {
-                    _spriteBatch.Draw(GUI, new Rectangle(0, 0, 2560, 1440), Color.White);
-
-                    // Calculate the color intensity based on the current energy relative to MaxEnergy
-                    // Using a linear interpolation method to ensure the transition is smooth
-                    double energyPercentage = (double)MostRecentPartyTurnArchitect.Energy / MostRecentPartyTurnArchitect.MaxEnergy();
-                    int colorIntensity = (int)Math.Round(energyPercentage * 255);
-
-                    // Ensure the color intensity stays within the range [0, 255]
-                    // Although Math.Clamp inherently ensures this, it's good to reinforce the valid range in the comment
-                    colorIntensity = Math.Clamp(colorIntensity, 0, 255);
-
-                    // Define the rectangle where the energy GUI will be drawn
-                    Rectangle energyGuiRect = new Rectangle(620, 80, 200, 200); // Adjusted by 20 right and 65 down (80-15)
-
-                    // Use a gradient from red (low energy) to green (high energy) to represent energy level visually
-                    // Red component decreases with energy increase, green component increases with energy increase
-                    Color energyColor = new Color(colorIntensity, colorIntensity, colorIntensity, 255); // No blue component
-
-                    // Draw the energy GUI with the calculated color
-                    _spriteBatch.Draw(HealthGuiT, energyGuiRect, energyColor);
-
-                    // Drawing droplets for each bleeding stack
-                    int dropletSize = 24; // Size of each droplet
-                    int startX = 720; // Center X position of the health GUI (620 + half of its width)
-                    int startY = 280; // Starting Y position (95 + height of the health GUI + some padding)
-
-                    for (int i = 0; i < MostRecentPartyTurnArchitect.Bleeding; i++)
+                    if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
                     {
-                        // Calculate the Y position for the current droplet
-                        int posY = startY + (dropletSize * i);
-
-                        // Draw the droplet at the calculated position
-                        _spriteBatch.Draw(BleedT, new Rectangle(startX - (dropletSize / 2), posY, dropletSize, dropletSize), Color.White);
+                        _spriteBatch.Draw(HelpGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
                     }
-
-                    EntityHitboxes.Clear();
-
-                    // Draw the architect's name
-                    string architectName = MostRecentPartyTurnArchitect.Name;
-                    Vector2 architectNamePosition = new Vector2(70, 120);
-                    _spriteBatch.DrawString(Shibafont, architectName, architectNamePosition, Color.White);
-                    EntityHitboxes.Add((new Rectangle(architectNamePosition.ToPoint(), Shibafont.MeasureString(architectName).ToPoint()), MostRecentPartyTurnArchitect));
-
-                    // Draw the location
-                    string locationText = "L: " + MostRecentPartyTurnArchitect.Location.Name;
-                    Vector2 locationPosition = new Vector2(70, 150);
-                    _spriteBatch.DrawString(Shibafont, locationText, locationPosition, Color.White);
-                    EntityHitboxes.Add((new Rectangle(locationPosition.ToPoint(), Shibafont.MeasureString(locationText).ToPoint()), MostRecentPartyTurnArchitect.Location));
-
-                    // Draw the district
-                    string districtText = "D: " + MostRecentPartyTurnArchitect.District.Name + " (" + MostRecentPartyTurnArchitect.Block.X + ", " + MostRecentPartyTurnArchitect.Block.Z + ")";
-                    Vector2 districtPosition = new Vector2(70, 180);
-                    _spriteBatch.DrawString(Shibafont, districtText, districtPosition, Color.White);
-                    EntityHitboxes.Add((new Rectangle(districtPosition.ToPoint(), Shibafont.MeasureString(districtText).ToPoint()), MostRecentPartyTurnArchitect.District));
-
-                    // Draw the structure if it's not null
-                    if (MostRecentPartyTurnArchitect.Structure != null)
+                    else if (!InInventory && !Keyboard.GetState().IsKeyDown(Keys.Tab))
                     {
-                        string structureText = "S: " + MostRecentPartyTurnArchitect.Structure.Name + ", R: " + MostRecentPartyTurnArchitect.Structure.Rooms.IndexOf(MostRecentPartyTurnArchitect.Room);
-                        Vector2 structurePosition = new Vector2(70, 210);
-                        _spriteBatch.DrawString(Shibafont, structureText, structurePosition, Color.White);
-                        EntityHitboxes.Add((new Rectangle(structurePosition.ToPoint(), Shibafont.MeasureString(structureText).ToPoint()), MostRecentPartyTurnArchitect.Structure));
-                    }
+                        _spriteBatch.Draw(GUI, new Rectangle(0, 0, 2560, 1440), Color.White);
 
-                    // Draw the left hand object or empty text
-                    string leftHandText = MostRecentPartyTurnArchitect.LeftHandObject != null
-                        ? "LH: " + MostRecentPartyTurnArchitect.LeftHandObject.ReferredToNames[0]
-                        : "LH: (empty)";
-                    Vector2 leftHandPosition = new Vector2(70, 240);
-                    _spriteBatch.DrawString(Shibafont, leftHandText, leftHandPosition, Color.White);
-                    Entity leftHandEntity = MostRecentPartyTurnArchitect.LeftHandObject != null
-                        ? MostRecentPartyTurnArchitect.LeftHandObject
-                        : MostRecentPartyTurnArchitect.FindBodyPart("left hand");
-                    EntityHitboxes.Add((new Rectangle(leftHandPosition.ToPoint(), Shibafont.MeasureString(leftHandText).ToPoint()), leftHandEntity));
+                        // Calculate the color intensity based on the current energy relative to MaxEnergy
+                        // Using a linear interpolation method to ensure the transition is smooth
+                        double energyPercentage = (double)MostRecentPartyTurnArchitect.Energy / MostRecentPartyTurnArchitect.MaxEnergy();
+                        int colorIntensity = (int)Math.Round(energyPercentage * 255);
 
-                    // Draw the right hand object or empty text
-                    string rightHandText = MostRecentPartyTurnArchitect.RightHandObject != null
-                        ? "RH: " + MostRecentPartyTurnArchitect.RightHandObject.ReferredToNames[0]
-                        : "RH: (empty)";
-                    Vector2 rightHandPosition = new Vector2(70, 270);
-                    _spriteBatch.DrawString(Shibafont, rightHandText, rightHandPosition, Color.White);
-                    Entity rightHandEntity = MostRecentPartyTurnArchitect.RightHandObject != null
-                        ? MostRecentPartyTurnArchitect.RightHandObject
-                        : MostRecentPartyTurnArchitect.FindBodyPart("right hand");
-                    EntityHitboxes.Add((new Rectangle(rightHandPosition.ToPoint(), Shibafont.MeasureString(rightHandText).ToPoint()), rightHandEntity));
+                        // Ensure the color intensity stays within the range [0, 255]
+                        // Although Math.Clamp inherently ensures this, it's good to reinforce the valid range in the comment
+                        colorIntensity = Math.Clamp(colorIntensity, 0, 255);
 
+                        // Define the rectangle where the energy GUI will be drawn
+                        Rectangle energyGuiRect = new Rectangle(620, 80, 200, 200); // Adjusted by 20 right and 65 down (80-15)
 
+                        // Use a gradient from red (low energy) to green (high energy) to represent energy level visually
+                        // Red component decreases with energy increase, green component increases with energy increase
+                        Color energyColor = new Color(colorIntensity, colorIntensity, colorIntensity, 255); // No blue component
 
-                    _spriteBatch.DrawString(Shibafont, "Speed: " + MostRecentPartyTurnArchitect.Speed(), new Vector2(420, 120), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "CD: " + MostRecentPartyTurnArchitect.CooldownCycles, new Vector2(420, 150), Color.White);
+                        // Draw the energy GUI with the calculated color
+                        _spriteBatch.Draw(HealthGuiT, energyGuiRect, energyColor);
 
-                    if (MostRecentPartyTurnArchitect.CombatCycles > 0)
-                    {
-                        _spriteBatch.DrawString(Shibafont, "Evade: " + MostRecentPartyTurnArchitect.EscapeChance(), new Vector2(420, 230), Color.White);
-                    }
+                        // Drawing droplets for each bleeding stack
+                        int dropletSize = 24; // Size of each droplet
+                        int startX = 720; // Center X position of the health GUI (620 + half of its width)
+                        int startY = 280; // Starting Y position (95 + height of the health GUI + some padding)
 
-                    _spriteBatch.DrawString(Shibafont, "Press TAB for More.", new Vector2(420, 270), Color.White);
-
-
-                    int Line = 0;
-
-
-                    //date/time
-
-                    string dateTimeString = GameWorld.GetFormattedDateTime();
-                    Vector2 dateTimeSize = Shibafont.MeasureString(dateTimeString);
-                    Vector2 dateTimePosition = new Vector2(250, 1350);
-                    _spriteBatch.DrawString(Shibafont, dateTimeString, dateTimePosition, Color.White);
-                    Color oColor = GameWorld.IsNightTime() ? new Color(100, 100, 100) : Color.Goldenrod;
-                    Vector2 oPosition = new Vector2(dateTimePosition.X + dateTimeSize.X + 10, dateTimePosition.Y);
-                    _spriteBatch.DrawString(Shibafont, "O", oPosition, oColor);
-                    Rectangle backgroundRect = new Rectangle(50, 1258, 176, 176);
-
-                    //district map
-
-                    _spriteBatch.Draw(FrameT, backgroundRect, Color.White);
-
-                    _spriteBatch.DrawString(Shibafont, "Press CTRL+? for GUI Info", new Vector2(600, 1350), Color.White);
-
-                    for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                    {
-                        for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                        for (int i = 0; i < MostRecentPartyTurnArchitect.Bleeding; i++)
                         {
-                            // Define rectangle once for use in all draws
-                            Rectangle drawRect = new Rectangle(82 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16);
+                            // Calculate the Y position for the current droplet
+                            int posY = startY + (dropletSize * i);
 
-                            if (MostRecentPartyTurnArchitect.Block.X == DistrictX && MostRecentPartyTurnArchitect.Block.Z == DistrictZ)
+                            // Draw the droplet at the calculated position
+                            _spriteBatch.Draw(BleedT, new Rectangle(startX - (dropletSize / 2), posY, dropletSize, dropletSize), Color.White);
+                        }
+
+                        EntityHitboxes.Clear();
+
+                        // Draw the architect's name
+                        string architectName = MostRecentPartyTurnArchitect.Name;
+                        Vector2 architectNamePosition = new Vector2(70, 120);
+                        _spriteBatch.DrawString(Shibafont, architectName, architectNamePosition, Color.White);
+                        EntityHitboxes.Add((new Rectangle(architectNamePosition.ToPoint(), Shibafont.MeasureString(architectName).ToPoint()), MostRecentPartyTurnArchitect));
+
+                        // Draw the location
+                        string locationText = "L: " + MostRecentPartyTurnArchitect.Location.Name;
+                        Vector2 locationPosition = new Vector2(70, 150);
+                        _spriteBatch.DrawString(Shibafont, locationText, locationPosition, Color.White);
+                        EntityHitboxes.Add((new Rectangle(locationPosition.ToPoint(), Shibafont.MeasureString(locationText).ToPoint()), MostRecentPartyTurnArchitect.Location));
+
+                        // Draw the district
+                        string districtText = "D: " + MostRecentPartyTurnArchitect.District.Name + " (" + MostRecentPartyTurnArchitect.Block.X + ", " + MostRecentPartyTurnArchitect.Block.Z + ")";
+                        Vector2 districtPosition = new Vector2(70, 180);
+                        _spriteBatch.DrawString(Shibafont, districtText, districtPosition, Color.White);
+                        EntityHitboxes.Add((new Rectangle(districtPosition.ToPoint(), Shibafont.MeasureString(districtText).ToPoint()), MostRecentPartyTurnArchitect.District));
+
+                        // Draw the structure if it's not null
+                        if (MostRecentPartyTurnArchitect.Structure != null)
+                        {
+                            string structureText = "S: " + MostRecentPartyTurnArchitect.Structure.Name + ", R: " + MostRecentPartyTurnArchitect.Structure.Rooms.IndexOf(MostRecentPartyTurnArchitect.Room);
+                            Vector2 structurePosition = new Vector2(70, 210);
+                            _spriteBatch.DrawString(Shibafont, structureText, structurePosition, Color.White);
+                            EntityHitboxes.Add((new Rectangle(structurePosition.ToPoint(), Shibafont.MeasureString(structureText).ToPoint()), MostRecentPartyTurnArchitect.Structure));
+                        }
+
+
+
+                        string GetAppendageLabel(Object appendage, bool isMain)
+                        {
+                            if (appendage.Type == "left hand")
                             {
-                                _spriteBatch.Draw(CursorT, drawRect, Color.White);
+                                return "LH: ";
                             }
-                            else
+                            else if (appendage.Type == "right hand")
                             {
-                                Texture2D DecidedTexture = null;
+                                return "RH: ";
+                            }
+                            return isMain ? "M: " : "O: ";
+                        }
 
-                                if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 0)
+                        // Function to determine the text for an appendage
+                        string GetAppendageText(Object appendage, Entity heldObject, bool isMain)
+                        {
+                            return heldObject != null
+                                ? GetAppendageLabel(appendage, isMain) + heldObject.ReferredToNames[0]
+                                : GetAppendageLabel(appendage, isMain) + "(empty)";
+                        }
+
+                        // Function to draw the appendage text and create hitboxes
+                        void DrawAppendageText(Object appendage, Entity heldObject, bool isMain, Vector2 position)
+                        {
+                            string appendageText = GetAppendageText(appendage, heldObject, isMain);
+                            _spriteBatch.DrawString(Shibafont, appendageText, position, Color.White);
+                            Entity appendageEntity = heldObject != null ? heldObject : appendage;
+                            EntityHitboxes.Add((new Rectangle(position.ToPoint(), Shibafont.MeasureString(appendageText).ToPoint()), appendageEntity));
+                        }
+
+                        // Main interaction appendage
+                        Vector2 mainInteractionPosition = new Vector2(70, 240);
+                        DrawAppendageText(MostRecentPartyTurnArchitect.MainInteractionAppendage, MostRecentPartyTurnArchitect.MainHeldObject, true, mainInteractionPosition);
+
+                        // Off interaction appendage
+                        Vector2 offInteractionPosition = new Vector2(70, 270);
+                        DrawAppendageText(MostRecentPartyTurnArchitect.OffInteractionAppendage, MostRecentPartyTurnArchitect.OffHeldObject, false, offInteractionPosition);
+
+
+                        _spriteBatch.DrawString(Shibafont, "Speed: " + MostRecentPartyTurnArchitect.Speed(), new Vector2(420, 120), Color.White);
+                        _spriteBatch.DrawString(Shibafont, "CD: " + MostRecentPartyTurnArchitect.CooldownCycles, new Vector2(420, 150), Color.White);
+
+
+
+                        string conditionText = "CND: ";
+                        List<(string letter, Color color)> conditionLetters = new List<(string, Color)>();
+
+                        if (MostRecentPartyTurnArchitect.FireSeconds > 0)
+                            conditionLetters.Add(("F", Color.Orange));
+                        if (MostRecentPartyTurnArchitect.WetCycles > 0)
+                            conditionLetters.Add(("W", Color.LightBlue));
+                        if (MostRecentPartyTurnArchitect.BlindCycles > 0)
+                            conditionLetters.Add(("B", Color.White));
+                        if (MostRecentPartyTurnArchitect.DestabilizedCycles > 0)
+                            conditionLetters.Add(("D", Color.LightGray));
+                        if (MostRecentPartyTurnArchitect.UnconsciousCycles > 0)
+                            conditionLetters.Add(("U", Color.Red));
+                        if (MostRecentPartyTurnArchitect.RadiantCycles > 0)
+                            conditionLetters.Add(("R", Color.Yellow));
+                        if (MostRecentPartyTurnArchitect.CloakCycles > 0)
+                            conditionLetters.Add(("C", Color.Magenta));
+                        if (MostRecentPartyTurnArchitect.FractalCycles > 0)
+                            conditionLetters.Add(("F", Color.Green));
+                        if (MostRecentPartyTurnArchitect.HoldCycles > 0)
+                            conditionLetters.Add(("H", Color.LimeGreen));
+                        if (MostRecentPartyTurnArchitect.DismissalCycles > 0)
+                            conditionLetters.Add(("D", Color.Purple));
+
+                        Vector2 currentPos = new Vector2(420, 180);
+
+                        _spriteBatch.DrawString(Shibafont, conditionText, currentPos, Color.White);
+                        currentPos.X += Shibafont.MeasureString(conditionText).X;
+
+                        foreach (var condition in conditionLetters)
+                        {
+                            _spriteBatch.DrawString(Shibafont, condition.letter, currentPos, condition.color);
+                            currentPos.X += Shibafont.MeasureString(condition.letter).X;
+                        }
+
+
+
+
+                        if (MostRecentPartyTurnArchitect.CombatCycles > 0)
+                        {
+                            _spriteBatch.DrawString(Shibafont, "Evade: " + MostRecentPartyTurnArchitect.EscapeChance(), new Vector2(420, 230), Color.White);
+                        }
+
+                        _spriteBatch.DrawString(Shibafont, "Press TAB for More.", new Vector2(420, 270), Color.White);
+
+
+                        int Line = 0;
+
+
+                        //date/time
+
+                        string dateTimeString = GameWorld.GetFormattedDateTime();
+                        Vector2 dateTimeSize = Shibafont.MeasureString(dateTimeString);
+                        Vector2 dateTimePosition = new Vector2(647, 1300);
+                        _spriteBatch.DrawString(Shibafont, dateTimeString, dateTimePosition, Color.White);
+                        Color oColor = GameWorld.IsNightTime() ? new Color(100, 100, 100) : Color.Goldenrod;
+                        Vector2 oPosition = new Vector2(dateTimePosition.X + dateTimeSize.X + 10, dateTimePosition.Y);
+                        _spriteBatch.DrawString(Shibafont, "O", oPosition, oColor);
+
+                        _spriteBatch.DrawString(Shibafont, "Press CTRL + ? for GUI Info", new Vector2(647, 1350), Color.White);
+
+
+                        Rectangle backgroundRect = new Rectangle(50, 1258, 176, 176);
+
+                        //district map
+
+                        _spriteBatch.Draw(FrameT, backgroundRect, Color.White);
+
+                        Rectangle MMR = new Rectangle(250, 1258, 176, 176);
+
+                        _spriteBatch.Draw(MoveMapFrameT, MMR, Color.White);
+
+                        for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+                        {
+                            for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                            {
+                                // Define rectangle once for use in all draws
+                                Rectangle drawRect = new Rectangle(82 + DistrictX * 16, 1290 + DistrictZ * 16, 16, 16);
+
+                                if (MostRecentPartyTurnArchitect.Block.X == DistrictX && MostRecentPartyTurnArchitect.Block.Z == DistrictZ)
                                 {
-                                    string biome = MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Biome;
-                                    if (biome == "desert")
-                                    {
-                                        DecidedTexture = DistrictEmptyDesertT;
-                                    }
-                                    else if (biome == "taiga" || biome == "mountain" || biome == "forest" || biome == "lightforest")
-                                    {
-                                        DecidedTexture = DistrictEmptyTreesT;
-                                    }
-                                    else if (biome == "tundra" || biome == "snowpeak")
-                                    {
-                                        DecidedTexture = DistrictEmptySnowT;
-                                    }
-                                    else if (biome == "ocean" || biome == "water")
-                                    {
-                                        DecidedTexture = DistrictEmptyOceanT;
-                                    }
-                                    else if (biome == "plains")
-                                    {
-                                        DecidedTexture = DistrictEmptyPlainsT;
-                                    }
-                                }
-                                else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 1)
-                                {
-                                    switch (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type)
-                                    {
-                                        case "bighouse":
-                                        case "house":
-                                            DecidedTexture = DistrictBuildingT;
-                                            break;
-                                        case "prism":
-                                            DecidedTexture = DistrictPrismT;
-                                            break;
-                                        case "spire":
-                                            DecidedTexture = DistrictSpireT;
-                                            break;
-                                        case "market":
-                                            DecidedTexture = DistrictMarketT;
-                                            break;
-
-                                        case "commune":
-                                            DecidedTexture = DistrictCommuneT;
-                                            break;
-                                        case "towers":
-                                            DecidedTexture = DistrictTowersT;
-                                            break;
-                                        case "dock":
-                                            DecidedTexture = DistrictDockT;
-                                            break;
-                                        case "ship":
-                                            DecidedTexture = DistrictShipT;
-                                            break;
-                                        case "fortress":
-                                            DecidedTexture = DistrictFortressT;
-                                            break;
-                                        case "hallway":
-                                            DecidedTexture = DistrictHallwayT;
-                                            break;
-                                        case "mound":
-                                            DecidedTexture = DistrictMoundT;
-                                            break;
-                                        case "core":
-                                            DecidedTexture = DistrictCoreT;
-                                            break;
-                                        case "scaffold":
-                                            DecidedTexture = DistrictScaffoldT;
-                                            break;
-                                        case "keep":
-                                            DecidedTexture = DistrictKeepT;
-                                            break;
-                                        case "monastery":
-                                            DecidedTexture = DistrictMonasteryT;
-                                            break;
-                                        case "monument":
-                                            DecidedTexture = DistrictMonumentT;
-                                            break;
-                                        case "outpost":
-                                            DecidedTexture = DistrictOutpostT;
-                                            break;
-                                        case "sanctum":
-                                            DecidedTexture = DistrictSanctumT;
-                                            break;
-                                        case "heart":
-                                            DecidedTexture = DistrictHeartT;
-                                            break;
-                                        case "scum":
-                                            DecidedTexture = DistrictScumT;
-                                            break;
-                                        case "stronghold":
-                                            DecidedTexture = DistrictStrongholdT;
-                                            break;
-
-
-                                        default:
-                                            switch (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Block.District.Location.Layout)
-                                            {
-                                                case "archway":
-                                                    DecidedTexture = DistrictArchwayT;
-                                                    break;
-                                                case "tower":
-                                                    DecidedTexture = DistrictTowerT;
-                                                    break;
-                                                case "toroid":
-                                                    DecidedTexture = DistrictToroidT;
-                                                    break;
-                                                case "hallway":
-                                                    DecidedTexture = DistrictHallwayT;
-                                                    break;
-                                                case "pyramid":
-                                                    DecidedTexture = DistrictPyramidT;
-                                                    break;
-                                                default:
-                                                    DecidedTexture = DistrictSpecialBuildingT;
-                                                    break;
-                                            }
-                                            break;
-                                    }
+                                    _spriteBatch.Draw(CursorT, drawRect, Color.White);
                                 }
                                 else
                                 {
-                                    bool FoundSpecial = false;
-                                    bool FoundHouse = false;
-                                    bool FoundMarket = false;
-                                    bool FoundKeep = false;
+                                    Texture2D DecidedTexture = null;
 
-                                    foreach (Structure s in MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures)
+                                    if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 0)
                                     {
-                                        if (s.Type == "prism")
+                                        string biome = MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Biome;
+                                        if (biome == "desert")
                                         {
-                                            FoundKeep = true;
+                                            DecidedTexture = DistrictEmptyDesertT;
                                         }
-                                        else if (s.Type == "bighouse" || s.Type == "house")
+                                        else if (biome == "taiga" || biome == "mountain" || biome == "forest" || biome == "lightforest")
                                         {
-                                            FoundHouse = true;
+                                            DecidedTexture = DistrictEmptyTreesT;
                                         }
-                                        else if (s.Type == "market")
+                                        else if (biome == "tundra" || biome == "snowpeak")
                                         {
-                                            FoundMarket = true;
+                                            DecidedTexture = DistrictEmptySnowT;
                                         }
-                                        else
+                                        else if (biome == "ocean" || biome == "water")
                                         {
-                                            FoundSpecial = true;
+                                            DecidedTexture = DistrictEmptyOceanT;
+                                        }
+                                        else if (biome == "plains")
+                                        {
+                                            DecidedTexture = DistrictEmptyPlainsT;
                                         }
                                     }
+                                    else if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count == 1)
+                                    {
+                                        switch (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Type)
+                                        {
+                                            case "bighouse":
+                                            case "house":
+                                                DecidedTexture = DistrictBuildingT;
+                                                break;
+                                            case "prism":
+                                                DecidedTexture = DistrictPrismT;
+                                                break;
+                                            case "spire":
+                                                DecidedTexture = DistrictSpireT;
+                                                break;
+                                            case "market":
+                                                DecidedTexture = DistrictMarketT;
+                                                break;
 
-                                    if (FoundKeep)
-                                    {
-                                        DecidedTexture = DistrictPrismT;
-                                    }
-                                    else if (FoundMarket && !FoundSpecial && !FoundHouse)
-                                    {
-                                        DecidedTexture = DistrictMarketT;
-                                    }
-                                    else if (FoundMarket)
-                                    {
-                                        DecidedTexture = DistrictMarketSurroundedT;
-                                    }
-                                    else if (FoundHouse && !FoundSpecial)
-                                    {
-                                        DecidedTexture = DistrictManyBuildingsT;
+                                            case "commune":
+                                                DecidedTexture = DistrictCommuneT;
+                                                break;
+                                            case "towers":
+                                                DecidedTexture = DistrictTowersT;
+                                                break;
+                                            case "dock":
+                                                DecidedTexture = DistrictDockT;
+                                                break;
+                                            case "ship":
+                                                DecidedTexture = DistrictShipT;
+                                                break;
+                                            case "fortress":
+                                                DecidedTexture = DistrictFortressT;
+                                                break;
+                                            case "hallway":
+                                                DecidedTexture = DistrictHallwayT;
+                                                break;
+                                            case "mound":
+                                                DecidedTexture = DistrictMoundT;
+                                                break;
+                                            case "core":
+                                                DecidedTexture = DistrictCoreT;
+                                                break;
+                                            case "scaffold":
+                                                DecidedTexture = DistrictScaffoldT;
+                                                break;
+                                            case "keep":
+                                                DecidedTexture = DistrictKeepT;
+                                                break;
+                                            case "monastery":
+                                                DecidedTexture = DistrictMonasteryT;
+                                                break;
+                                            case "monument":
+                                                DecidedTexture = DistrictMonumentT;
+                                                break;
+                                            case "outpost":
+                                                DecidedTexture = DistrictOutpostT;
+                                                break;
+                                            case "sanctum":
+                                                DecidedTexture = DistrictSanctumT;
+                                                break;
+                                            case "heart":
+                                                DecidedTexture = DistrictHeartT;
+                                                break;
+                                            case "scum":
+                                                DecidedTexture = DistrictScumT;
+                                                break;
+                                            case "stronghold":
+                                                DecidedTexture = DistrictStrongholdT;
+                                                break;
+
+
+                                            default:
+                                                switch (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].Block.District.Location.Layout)
+                                                {
+                                                    case "archway":
+                                                        DecidedTexture = DistrictArchwayT;
+                                                        break;
+                                                    case "tower":
+                                                        DecidedTexture = DistrictTowerT;
+                                                        break;
+                                                    case "toroid":
+                                                        DecidedTexture = DistrictToroidT;
+                                                        break;
+                                                    case "hallway":
+                                                        DecidedTexture = DistrictHallwayT;
+                                                        break;
+                                                    case "pyramid":
+                                                        DecidedTexture = DistrictPyramidT;
+                                                        break;
+                                                    default:
+                                                        DecidedTexture = DistrictSpecialBuildingT;
+                                                        break;
+                                                }
+                                                break;
+                                        }
                                     }
                                     else
                                     {
-                                        DecidedTexture = DistrictSpecialAndBuildingsT;
-                                    }
-                                }
+                                        bool FoundSpecial = false;
+                                        bool FoundHouse = false;
+                                        bool FoundMarket = false;
+                                        bool FoundKeep = false;
 
-                                Color BuildingColor = Color.White; //luminarch or other
-                                if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count > 0)
-                                {
-                                    switch (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name)
-                                    {
-                                        case "nightfell":
-                                            BuildingColor = new Color(100, 100, 100);
-                                            break;
-                                        case "archaix":
-                                            BuildingColor = new Color(150, 150, 150);
-                                            break;
-                                        case "photonexus":
-                                            BuildingColor = new Color(200, 200, 255);
-                                            break;
-                                        case "isofractal":
-                                            BuildingColor = ColorConverter[MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].FakeIsofractalColor];
-                                            break;
-                                        case "shade":
-                                            BuildingColor = Color.White;
-                                            if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Contains(MostRecentPartyTurnArchitect.Location.Prism))
+                                        foreach (Structure s in MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures)
+                                        {
+                                            if (s.Type == "prism")
                                             {
-                                                DecidedTexture = DistrictHeartT;
+                                                FoundKeep = true;
+                                            }
+                                            else if (s.Type == "bighouse" || s.Type == "house")
+                                            {
+                                                FoundHouse = true;
+                                            }
+                                            else if (s.Type == "market")
+                                            {
+                                                FoundMarket = true;
                                             }
                                             else
                                             {
-                                                DecidedTexture = DistrictScumT;
+                                                FoundSpecial = true;
                                             }
-                                            break;
+                                        }
+
+                                        if (FoundKeep)
+                                        {
+                                            DecidedTexture = DistrictPrismT;
+                                        }
+                                        else if (FoundMarket && !FoundSpecial && !FoundHouse)
+                                        {
+                                            DecidedTexture = DistrictMarketT;
+                                        }
+                                        else if (FoundMarket)
+                                        {
+                                            DecidedTexture = DistrictMarketSurroundedT;
+                                        }
+                                        else if (FoundHouse && !FoundSpecial)
+                                        {
+                                            DecidedTexture = DistrictManyBuildingsT;
+                                        }
+                                        else
+                                        {
+                                            DecidedTexture = DistrictSpecialAndBuildingsT;
+                                        }
                                     }
-                                }
 
-                                if (DecidedTexture != null)
-                                {
-                                    _spriteBatch.Draw(DecidedTexture, drawRect, BuildingColor);
-                                }
-
-                                foreach (Object o in MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Objects)
-                                {
-                                    if (o.Type == "well")
+                                    Color BuildingColor = Color.White; //luminarch or other
+                                    if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Count > 0)
                                     {
-                                        _spriteBatch.Draw(DistrictWellT, drawRect, Color.White);
+                                        switch (MostRecentPartyTurnArchitect.Location.PrimaryRace.Name)
+                                        {
+                                            case "nightfell":
+                                                BuildingColor = new Color(100, 100, 100);
+                                                break;
+                                            case "archaix":
+                                                BuildingColor = new Color(150, 150, 150);
+                                                break;
+                                            case "photonexus":
+                                                BuildingColor = new Color(200, 200, 255);
+                                                break;
+                                            case "isofractal":
+                                                BuildingColor = ColorConverter[MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures[0].FakeIsofractalColor];
+                                                break;
+                                            case "shade":
+                                                BuildingColor = Color.White;
+                                                if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Structures.Contains(MostRecentPartyTurnArchitect.Location.Prism))
+                                                {
+                                                    DecidedTexture = DistrictHeartT;
+                                                }
+                                                else
+                                                {
+                                                    DecidedTexture = DistrictScumT;
+                                                }
+                                                break;
+                                        }
                                     }
-                                    else if (o.Type == "shadow storage")
-                                    {
-                                        _spriteBatch.Draw(DistrictShadowStorageT, drawRect, Color.White);
-                                    }
-                                }
 
-                                if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 0 && FlashTick > 50)
+                                    if (DecidedTexture != null)
+                                    {
+                                        _spriteBatch.Draw(DecidedTexture, drawRect, BuildingColor);
+                                    }
+
+                                    foreach (Object o in MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Objects)
+                                    {
+                                        if (o.Type == "well")
+                                        {
+                                            _spriteBatch.Draw(DistrictWellT, drawRect, Color.White);
+                                        }
+                                        else if (o.Type == "shadow storage")
+                                        {
+                                            _spriteBatch.Draw(DistrictShadowStorageT, drawRect, Color.White);
+                                        }
+                                    }
+
+                                    if (MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Count > 0 && FlashTick > 50)
+                                    {
+                                        var aliveArchitects = MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Where(architect => architect.IsAlive).ToList();
+                                        if (aliveArchitects.Count > 0)
+                                        {
+                                            Color HeavinessColor = Color.White;
+                                            if (aliveArchitects.Count > 10)
+                                            {
+                                                HeavinessColor = Color.Blue;
+                                            }
+                                            else if (aliveArchitects.Count > 5)
+                                            {
+                                                HeavinessColor = Color.CornflowerBlue;
+                                            }
+                                            else if (aliveArchitects.Count > 2)
+                                            {
+                                                HeavinessColor = Color.LightBlue;
+                                            }
+                                            else if (aliveArchitects.Count > 1)
+                                            {
+                                                HeavinessColor = Color.LightCyan;
+                                            }
+
+                                            _spriteBatch.Draw(ArchitectHere, drawRect, HeavinessColor);
+                                        }
+                                    }
+
+                                }
+                            }
+                        }
+
+                        DrawAnnouncements();
+
+
+
+                        // Determine the source collection of objects based on the condition
+                        var sourceObjects = MostRecentPartyTurnArchitect.Structure != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects;
+
+                        // Condense and structure the list from the chosen collection
+                        var structuredList = CondenseAndStructureList(sourceObjects, SplitMode);
+
+                        // Draw the structured list
+                        DrawList(_spriteBatch, structuredList, new Vector2(2150, 125), BabyShibafont, CurrentObjectPage, ItemsPerPage);
+
+                        int Houses = 0;
+
+
+                        // Method to get unique architects
+                        List<(string description, int count, Architect architect)> GetUniqueArchitects(IEnumerable<Architect> architects)
+                        {
+                            var uniqueArchitects = new Dictionary<string, (int count, Architect architect)>();
+                            foreach (var architect in architects)
+                            {
+                                if (architect == MostRecentPartyTurnArchitect)
                                 {
-                                    var aliveArchitects = MostRecentPartyTurnArchitect.District.DistrictMap[DistrictX + DistrictZ * 7].Architects.Where(architect => architect.IsAlive).ToList();
-                                    if (aliveArchitects.Count > 0)
-                                    {
-                                        Color HeavinessColor = Color.White;
-                                        if (aliveArchitects.Count > 10)
-                                        {
-                                            HeavinessColor = Color.Blue;
-                                        }
-                                        else if (aliveArchitects.Count > 5)
-                                        {
-                                            HeavinessColor = Color.CornflowerBlue;
-                                        }
-                                        else if (aliveArchitects.Count > 2)
-                                        {
-                                            HeavinessColor = Color.LightBlue;
-                                        }
-                                        else if (aliveArchitects.Count > 1)
-                                        {
-                                            HeavinessColor = Color.LightCyan;
-                                        }
-
-                                        _spriteBatch.Draw(ArchitectHere, drawRect, HeavinessColor);
-                                    }
+                                    continue;
                                 }
 
+                                // Create a description for the architect
+                                string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)}, distance {architect.GetDistance(MostRecentPartyTurnArchitect)}";
+
+                                if (uniqueArchitects.ContainsKey(description))
+                                {
+                                    uniqueArchitects[description] = (uniqueArchitects[description].count + 1, uniqueArchitects[description].architect);
+                                }
+                                else
+                                {
+                                    uniqueArchitects.Add(description, (1, architect));
+                                }
                             }
+                            return uniqueArchitects.Select(kvp => (kvp.Key, kvp.Value.count, kvp.Value.architect)).ToList();
                         }
-                    }
 
-                    //debt
-
-                    if (MostRecentPartyTurnArchitect.Structure != null && MostRecentPartyTurnArchitect.Structure.Type == "market")
-                    {
-                        Color c = Color.Green;
-                        if (MostRecentPartyTurnArchitect.Structure.MarketDebt < 0)
+                        // Method to draw architects
+                        void DrawArchitects(SpriteBatch spriteBatch, List<(string description, int count, Architect architect)> uniqueArchitects, Vector2 startCoords, SpriteFont font, int indentSize)
                         {
-                            c = Color.Red;
+                            int line = 0;
+
+                            if (MostRecentPartyTurnArchitect.BlindCycles > 0)
+                            {
+                                string textToDraw = "You are currently blind.";
+                                Vector2 indentCoords = new Vector2(startCoords.X, startCoords.Y + line * 20);
+                                spriteBatch.DrawString(font, textToDraw, indentCoords, Color.Yellow);
+                                return;
+                            }
+
+                            foreach (var architect in uniqueArchitects)
+                            {
+                                string textToDraw = $"{architect.description}, x{architect.count}";
+                                Vector2 indentCoords = new Vector2(startCoords.X, startCoords.Y + line * 20);
+                                spriteBatch.DrawString(font, textToDraw, indentCoords, Color.White);
+
+                                // Create a hitbox for the first entity in the stack or for each individual entity in SplitMode
+                                if (SplitMode || architect.count == 1)
+                                {
+                                    EntityHitboxes.Add((new Rectangle(indentCoords.ToPoint(), font.MeasureString(textToDraw).ToPoint()), architect.architect));
+                                }
+                                else
+                                {
+                                    EntityHitboxes.Add((new Rectangle(indentCoords.ToPoint(), font.MeasureString(textToDraw).ToPoint()), architect.architect));
+                                }
+
+                                line++;
+                            }
                         }
-                        else if (MostRecentPartyTurnArchitect.Structure.MarketDebt == 0)
+
+                        // Draw logic for architects and structures
+                        if (MostRecentPartyTurnArchitect.Structure != null)
                         {
-                            c = Color.White;
-                        }
+                            _spriteBatch.Draw(whiteRect, new Rectangle(1650, 0, 444, 1920), Color.Black);
 
-                        _spriteBatch.DrawString(Shibafont, "Owes you: " + MostRecentPartyTurnArchitect.Structure.MarketDebt, new Vector2(220, 1400), c);
-                    }
+                            // Get a list of unique architects
+                            var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Room.Architects);
+                            DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 150), BabyShibafont, 20);
 
-                    DrawAnnouncements();
-
-
-
-                    // Determine the source collection of objects based on the condition
-                    var sourceObjects = MostRecentPartyTurnArchitect.Structure != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects;
-
-                    // Condense and structure the list from the chosen collection
-                    var structuredList = CondenseAndStructureList(sourceObjects, SplitMode);
-
-                    // Draw the structured list
-                    DrawList(_spriteBatch, structuredList, new Vector2(2150, 125), BabyShibafont, CurrentObjectPage, ItemsPerPage);
-
-                    int Houses = 0;
-
-
-                    // Method to get unique architects
-                    List<(string description, int count, Architect architect)> GetUniqueArchitects(IEnumerable<Architect> architects)
-                    {
-                        var uniqueArchitects = new Dictionary<string, (int count, Architect architect)>();
-                        foreach (var architect in architects)
-                        {
-                            if (architect == MostRecentPartyTurnArchitect)
+                            // Test market debt
+                            if (MostRecentPartyTurnArchitect.Structure.Type == "market")
                             {
-                                continue;
+                                Color c = Color.White;
+                                string message = "Neither you nor the market have unsettled debts.";
+
+                                if (MostRecentPartyTurnArchitect.Structure.MarketDebt < 0)
+                                {
+                                    c = Color.Red;
+                                    message = "You owe the market here " + Math.Abs(MostRecentPartyTurnArchitect.Structure.MarketDebt) + "*. Leaving would be ill-advised.";
+                                }
+                                else if (MostRecentPartyTurnArchitect.Structure.MarketDebt > 0)
+                                {
+                                    c = Color.Green;
+                                    message = "The market here owes you " + MostRecentPartyTurnArchitect.Structure.MarketDebt + "*.";
+                                }
+
+                                DrawCenteredTextAtPosition(_spriteBatch, "Market Ledger", 1856, 150, BabyShibafont, Color.White);
+                                DrawSplitText(_spriteBatch, message, 1856, 172, BabyShibafont, c);
                             }
 
-                            // Create a description for the architect
-                            string description = $"{architect.Race.RaceLetter} {ConvertArchitectToDescription(architect)}, distance {architect.GetDistance(MostRecentPartyTurnArchitect)}";
-
-                            if (uniqueArchitects.ContainsKey(description))
+                            void DrawSplitText(SpriteBatch spriteBatch, string text, float x, float y, SpriteFont font, Color color)
                             {
-                                uniqueArchitects[description] = (uniqueArchitects[description].count + 1, uniqueArchitects[description].architect);
-                            }
-                            else
-                            {
-                                uniqueArchitects.Add(description, (1, architect));
-                            }
-                        }
-                        return uniqueArchitects.Select(kvp => (kvp.Key, kvp.Value.count, kvp.Value.architect)).ToList();
-                    }
+                                // Split the text into words
+                                string[] words = text.Split(' ');
+                                int middleIndex = words.Length / 2;
 
-                    // Method to draw architects
-                    void DrawArchitects(SpriteBatch spriteBatch, List<(string description, int count, Architect architect)> uniqueArchitects, Vector2 startCoords, SpriteFont font, int indentSize)
-                    {
-                        int line = 0;
-                        foreach (var architect in uniqueArchitects)
-                        {
-                            string textToDraw = $"{architect.description}, x{architect.count}";
-                            Vector2 indentCoords = new Vector2(startCoords.X, startCoords.Y + line * 20);
-                            spriteBatch.DrawString(font, textToDraw, indentCoords, Color.White);
+                                // First half
+                                string firstHalf = string.Join(" ", words.Take(middleIndex));
+                                // Second half
+                                string secondHalf = string.Join(" ", words.Skip(middleIndex));
 
-                            // Create a hitbox for the first entity in the stack or for each individual entity in SplitMode
-                            if (SplitMode || architect.count == 1)
-                            {
-                                EntityHitboxes.Add((new Rectangle(indentCoords.ToPoint(), font.MeasureString(textToDraw).ToPoint()), architect.architect));
-                            }
-                            else
-                            {
-                                EntityHitboxes.Add((new Rectangle(indentCoords.ToPoint(), font.MeasureString(textToDraw).ToPoint()), architect.architect));
-                            }
+                                // Measure text heights
+                                Vector2 firstHalfSize = font.MeasureString(firstHalf);
+                                Vector2 secondHalfSize = font.MeasureString(secondHalf);
 
-                            line++;
-                        }
-                    }
-
-                    // Draw logic for architects and structures
-                    if (MostRecentPartyTurnArchitect.Structure != null)
-                    {
-                        _spriteBatch.Draw(whiteRect, new Rectangle(1650, 0, 444, 1920), Color.Black);
-
-                        // Get a list of unique architects
-                        var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Room.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 150), BabyShibafont, 20);
-                    }
-                    else
-                    {
-                        // Get a list of unique architects
-                        var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Block.Architects);
-                        DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 150), BabyShibafont, 20);
-
-                        Line = 0;
-                        foreach (Structure s in MostRecentPartyTurnArchitect.Block.Structures)
-                        {
-                            if (s.Type == "house" || s.Type == "bighouse")
-                            {
-                                Houses++;
-                            }
-                            else
-                            {
-                                Line++;
-                                string structureText = "(" + s.Type.Substring(0, 1).ToUpper() + ") " + s.Name;
-                                Vector2 structurePosition = new Vector2(1700, Line * 30 + 200);
-                                _spriteBatch.DrawString(Shibafont, structureText, structurePosition, Color.White);
-                                EntityHitboxes.Add((new Rectangle(structurePosition.ToPoint(), Shibafont.MeasureString(structureText).ToPoint()), s));
+                                // Draw both lines
+                                spriteBatch.DrawString(font, firstHalf, new Vector2(x - firstHalfSize.X / 2, y), color);
+                                spriteBatch.DrawString(font, secondHalf, new Vector2(x - secondHalfSize.X / 2, y + firstHalfSize.Y + 5), color);
                             }
                         }
-                    }
 
-                    if (Houses == 1)
-                    {
-                        _spriteBatch.DrawString(Shibafont, "1 house (house 1)", new Vector2(1700, 180), Color.White);
-                    }
-                    else if (Houses > 1)
-                    {
-                        _spriteBatch.DrawString(Shibafont, Houses + " houses (house 1-" + Houses + ")", new Vector2(1700, 180), Color.White);
-                    }
-
-
-                    if (IsInGui)
-                    {
-                        _spriteBatch.Draw(MessageGUIT, new Rectangle(0, 0, 2560, 1440), Color.White);
-                        int Linee = 0;
-                        foreach (string s in ItemPickupGuiLines)
-                        {
-                            DrawCenteredText(_spriteBatch, s, Linee * 35 + 600, Shibafont, Color.White);
-                            Linee++;
-                        }
-                    }
-
-                    if (GameState == "reaction")
-                    {
-                        if (Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
-                        {
-                            _spriteBatch.Draw(ReactionGUIHelpT, new Rectangle(320, 180, 1920, 1080), Color.White);
-                        }
                         else
                         {
+                            // Get a list of unique architects
+                            var uniqueArchitects = GetUniqueArchitects(MostRecentPartyTurnArchitect.Block.Architects);
+                            DrawArchitects(_spriteBatch, uniqueArchitects, new Vector2(950, 150), BabyShibafont, 20);
+
+                            Line = 0;
+
+                            if (MostRecentPartyTurnArchitect.BlindCycles == 0)
+                            {
+                                foreach (Structure s in MostRecentPartyTurnArchitect.Block.Structures)
+                                {
+                                    if (s.Type == "house" || s.Type == "bighouse")
+                                    {
+                                        Houses++;
+                                    }
+                                    else
+                                    {
+                                        Line++;
+                                        string structureText = "(" + s.Type.Substring(0, 1).ToUpper() + ") " + s.Name;
+                                        Vector2 structurePosition = new Vector2(1700, Line * 30 + 200);
+                                        _spriteBatch.DrawString(Shibafont, structureText, structurePosition, Color.White);
+                                        EntityHitboxes.Add((new Rectangle(structurePosition.ToPoint(), Shibafont.MeasureString(structureText).ToPoint()), s));
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Vector2 structurePosition = new Vector2(1700, Line * 30 + 200);
+                                _spriteBatch.DrawString(Shibafont, "You are currently blind.", structurePosition, Color.Yellow);
+                            }
+                        }
+
+                        //houses never increases if your blind so dont worry
+
+                        if (Houses == 1)
+                        {
+                            _spriteBatch.DrawString(Shibafont, "1 house (house 1)", new Vector2(1700, 180), Color.White);
+                        }
+                        else if (Houses > 1)
+                        {
+                            _spriteBatch.DrawString(Shibafont, Houses + " houses (house 1-" + Houses + ")", new Vector2(1700, 180), Color.White);
+                        }
+
+
+                        if (IsInGui)
+                        {
+                            _spriteBatch.Draw(MessageGUIT, new Rectangle(0, 0, 2560, 1440), Color.White);
+                            int Linee = 0;
+                            foreach (string s in ItemPickupGuiLines)
+                            {
+                                DrawCenteredText(_spriteBatch, s, Linee * 35 + 600, Shibafont, Color.White);
+                                Linee++;
+                            }
+                        }
+
+                        if (GameState == "reaction")
+                        {
+                            if (Keyboard.GetState().IsKeyDown(Keys.OemQuestion))
+                            {
+                                _spriteBatch.Draw(ReactionGUIHelpT, new Rectangle(320, 180, 1920, 1080), Color.White);
+                            }
+                            else
+                            {
+                                _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
+
+                                // Calculate the success chances for the MostRecentPartyTurnArchitect
+                                var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttacks[0], GameWorld.ReactionModifierInt, StoredAttacks[0].Attacker, StoredAttacks[0].Attacker.GetProficiency(StoredAttacks[0].Weapon.DamageType));
+
+                                int y = 600;
+                                int d = 30;
+
+                                string Exposed = "";
+
+                                if (StoredAttacks[0].Target.Exposure > 49)
+                                {
+                                    Exposed = "exposed ";
+                                }
+
+                                DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.ReferredToNames[0] + " is aiming a " + StoredAttacks[0].Verb, y, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "at your " + Exposed + StoredAttacks[0].Target.Type + " with their " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, Shibafont, Color.White);
+
+                                int RoundToNearestFive(int value)
+                                {
+                                    return ((value + 2) / 5) * 5;
+                                }
+
+
+                                DrawCenteredText(_spriteBatch, "[S] Sustain (" + RoundToNearestFive(successChances.sustain) + "% evs.?)", y + d * 2, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[D] Duck (" + RoundToNearestFive(successChances.duck) + "% evs.?)", y + d * 3, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[J] Jump (" + RoundToNearestFive(successChances.jump) + "% evs.?)", y + d * 4, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[R] Roll (" + RoundToNearestFive(successChances.roll) + "% evs.?)", y + d * 5, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[N] Disarm (" + RoundToNearestFive(successChances.disarm) + "% evs.?)", y + d * 6, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[C] Redirect (" + RoundToNearestFive(successChances.redirect) + "% evs.?)", y + d * 7, Shibafont, Color.White);
+
+                                if ((MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.IsWeapon) || (MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.IsWeapon))
+                                {
+                                    DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + RoundToNearestFive(successChances.parry) + "%?)", y + d * 8, Shibafont, Color.White);
+                                }
+                                if ((MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.Type == "shield") || (MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.Type == "shield"))
+                                {
+                                    DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + RoundToNearestFive(successChances.block) + "%?)", y + d * 9, Shibafont, Color.White);
+                                }
+
+                                DrawCenteredText(_spriteBatch, "Press ? for detailed info.", y + d * 10, Shibafont, Color.White);
+                            }
+                        }
+                        else if (GameState == "trypickup")
+                        {
+                            int GetHalfCount(string itemType)
+                            {
+                                int totalCount = (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
+                                    .Count(item => item.Type == itemType);
+                                return (int)Math.Ceiling(totalCount / 2.0);
+                            }
+
+                            int GetFullCount(string itemType)
+                            {
+                                return (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
+                                    .Count(item => item.Type == itemType);
+                            }
+
                             _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
 
-                            // Calculate the success chances for the MostRecentPartyTurnArchitect
-                            var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttacks[0], GameWorld.ReactionModifierInt, StoredAttacks[0].Attacker, StoredAttacks[0].Attacker.GetProficiency(StoredAttacks[0].Weapon.DamageType));
+                            int totalCount = GetFullCount(MostRecentPartyTurnArchitect.TryPickUpItemType);
+                            int halfCount = GetHalfCount(MostRecentPartyTurnArchitect.TryPickUpItemType);
 
                             int y = 600;
                             int d = 30;
+                            DrawCenteredText(_spriteBatch, "Pick up how many?", y, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[1] Pick up 1.", y + d, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, $"[2] Pick up half ({halfCount}).", y + d * 2, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, $"[3] Pick up all ({totalCount}).", y + d * 3, Shibafont, Color.White);
+                        }
 
-                            string Exposed = "";
-
-                            if (StoredAttacks[0].Target.Exposure > 49)
+                        else if (GameState == "trydrop")
+                        {
+                            int GetHalfCount(string itemType, List<Material> itemMaterials)
                             {
-                                Exposed = "exposed ";
+                                int totalCount = MostRecentPartyTurnArchitect.Inventory
+                                    .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
+                                return (int)Math.Ceiling(totalCount / 2.0);
                             }
 
-                            DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.ReferredToNames[0] + " is aiming a " + StoredAttacks[0].Verb, y, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "at your " + Exposed + StoredAttacks[0].Target.Type + " with their " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, Shibafont, Color.White);
-
-                            int RoundToNearestFive(int value)
+                            int GetFullCount(string itemType, List<Material> itemMaterials)
                             {
-                                return ((value + 2) / 5) * 5;
+                                return MostRecentPartyTurnArchitect.Inventory
+                                    .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
                             }
 
+                            _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
 
-                            DrawCenteredText(_spriteBatch, "[S] Sustain (" + RoundToNearestFive(successChances.sustain) + "% evs.?)", y + d * 2, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[D] Duck (" + RoundToNearestFive(successChances.duck) + "% evs.?)", y + d * 3, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[J] Jump (" + RoundToNearestFive(successChances.jump) + "% evs.?)", y + d * 4, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[R] Roll (" + RoundToNearestFive(successChances.roll) + "% evs.?)", y + d * 5, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[N] Disarm (" + RoundToNearestFive(successChances.disarm) + "% evs.?)", y + d * 6, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[C] Redirect (" + RoundToNearestFive(successChances.redirect) + "% evs.?)", y + d * 7, Shibafont, Color.White);
+                            int totalCount = GetFullCount(MostRecentPartyTurnArchitect.TryDropItemType, MostRecentPartyTurnArchitect.TryDropMaterials);
+                            int halfCount = GetHalfCount(MostRecentPartyTurnArchitect.TryDropItemType, MostRecentPartyTurnArchitect.TryDropMaterials);
 
-                            if ((MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.IsWeapon) || (MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.IsWeapon))
+                            int y = 600;
+                            int d = 30;
+                            DrawCenteredText(_spriteBatch, "Drop how many?", y, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "[1] Drop 1.", y + d, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, $"[2] Drop half ({halfCount}).", y + d * 2, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, $"[3] Drop all ({totalCount}).", y + d * 3, Shibafont, Color.White);
+                        }
+
+                        else if (GameState == "messagereply" && MostRecentPartyTurnArchitect.MessagesNotRespondedTo.Count > 0)
+                        {
+                            _spriteBatch.Draw(MessageGUIT, new Rectangle(0, 0, 2560, 1440), Color.White);
+
+                            string TruncateText(string text, int maxLength)
                             {
-                                DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + RoundToNearestFive(successChances.parry) + "%?)", y + d * 8, Shibafont, Color.White);
+                                if (text.Length <= maxLength)
+                                    return text;
+                                return text.Substring(0, maxLength) + "...";
                             }
-                            if ((MostRecentPartyTurnArchitect.RightHandObject != null && MostRecentPartyTurnArchitect.RightHandObject.Type == "shield") || (MostRecentPartyTurnArchitect.LeftHandObject != null && MostRecentPartyTurnArchitect.LeftHandObject.Type == "shield"))
+
+                            int y = 600;
+                            int d = 30;
+                            DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender.ReferredToNames[0] + " says:", y, Shibafont, Color.White);
+                            DrawCenteredText(_spriteBatch, "\"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent + "\"", y + d, Shibafont, Color.White);
+
+
+                            int TruncationLength = 70;
+
+                            if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "question")
                             {
-                                DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + RoundToNearestFive(successChances.block) + "%?)", y + d * 9, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[T] Reply Truthfully: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse, TruncationLength) + "\"", y + d * 2, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[M] Make Something Up: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse, TruncationLength) + "\"", y + d * 3, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[I] Claim Ignorance: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse, TruncationLength) + "\"", y + d * 4, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse, TruncationLength) + "\"", y + d * 5, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[F] Say Something Flattering: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse, TruncationLength) + "\"", y + d * 6, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[X] Do Not Respond.", y + d * 7, Shibafont, Color.White);
                             }
-
-                            DrawCenteredText(_spriteBatch, "Press ? for detailed info.", y + d * 10, Shibafont, Color.White);
-                        }
-                    }
-                    else if (GameState == "trypickup")
-                    {
-                        int GetHalfCount(string itemType)
-                        {
-                            int totalCount = (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
-                                .Count(item => item.Type == itemType);
-                            return (int)Math.Ceiling(totalCount / 2.0);
-                        }
-
-                        int GetFullCount(string itemType)
-                        {
-                            return (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
-                                .Count(item => item.Type == itemType);
-                        }
-
-                        _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
-
-                        int totalCount = GetFullCount(MostRecentPartyTurnArchitect.TryPickUpItemType);
-                        int halfCount = GetHalfCount(MostRecentPartyTurnArchitect.TryPickUpItemType);
-
-                        int y = 600;
-                        int d = 30;
-                        DrawCenteredText(_spriteBatch, "Pick up how many?", y, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[1] Pick up 1.", y + d, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, $"[2] Pick up half ({halfCount}).", y + d * 2, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, $"[3] Pick up all ({totalCount}).", y + d * 3, Shibafont, Color.White);
-                    }
-
-                    else if (GameState == "trydrop")
-                    {
-                        int GetHalfCount(string itemType, List<Material> itemMaterials)
-                        {
-                            int totalCount = MostRecentPartyTurnArchitect.Inventory
-                                .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
-                            return (int)Math.Ceiling(totalCount / 2.0);
-                        }
-
-                        int GetFullCount(string itemType, List<Material> itemMaterials)
-                        {
-                            return MostRecentPartyTurnArchitect.Inventory
-                                .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
-                        }
-
-                        _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
-
-                        int totalCount = GetFullCount(MostRecentPartyTurnArchitect.TryDropItemType, MostRecentPartyTurnArchitect.TryDropMaterials);
-                        int halfCount = GetHalfCount(MostRecentPartyTurnArchitect.TryDropItemType, MostRecentPartyTurnArchitect.TryDropMaterials);
-
-                        int y = 600;
-                        int d = 30;
-                        DrawCenteredText(_spriteBatch, "Drop how many?", y, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "[1] Drop 1.", y + d, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, $"[2] Drop half ({halfCount}).", y + d * 2, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, $"[3] Drop all ({totalCount}).", y + d * 3, Shibafont, Color.White);
-                    }
-
-                    else if (GameState == "messagereply")
-                    {
-                        _spriteBatch.Draw(MessageGUIT, new Rectangle(0, 0, 2560, 1440), Color.White);
-
-                        string TruncateText(string text, int maxLength)
-                        {
-                            if (text.Length <= maxLength)
-                                return text;
-                            return text.Substring(0, maxLength) + "...";
-                        }
-
-                        int y = 600;
-                        int d = 30;
-                        DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender.ReferredToNames[0] + " says:", y, Shibafont, Color.White);
-                        DrawCenteredText(_spriteBatch, "\"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent + "\"", y + d, Shibafont, Color.White);
-
-
-                        int TruncationLength = 70;
-
-                        if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "question")
-                        {
-                            DrawCenteredText(_spriteBatch, "[T] Reply Truthfully: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse, TruncationLength) + "\"", y + d * 2, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[M] Make Something Up: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse, TruncationLength) + "\"", y + d * 3, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[I] Claim Ignorance: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse, TruncationLength) + "\"", y + d * 4, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse, TruncationLength) + "\"", y + d * 5, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[F] Say Something Flattering: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse, TruncationLength) + "\"", y + d * 6, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[X] Do Not Respond.", y + d * 7, Shibafont, Color.White);
-                        }
-                        else if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "request")
-                        {
-                            DrawCenteredText(_spriteBatch, "[T] Comply: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse, TruncationLength) + "\"", y + d * 2, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[M] Directly Deny: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse, TruncationLength) + "\"", y + d * 3, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[I] Act Confused: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse, TruncationLength) + "\"", y + d * 4, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse, TruncationLength) + "\"", y + d * 5, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[F] Say something Flattering: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse, TruncationLength) + "\"", y + d * 6, Shibafont, Color.White);
-                            DrawCenteredText(_spriteBatch, "[X] Do not respond.", y + d * 7, Shibafont, Color.White);
-                        }
-                    }
-                    else if (CommandBuilderStage != "none")
-                    {
-                        // Draw the message GUI
-                        _spriteBatch.Draw(MessageGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
-
-                        // Handle 'X' key press for going back
-                        if (KeysNewlyPressed.Contains(Keys.X))
-                        {
-                            switch (CommandBuilderStage)
+                            else if (MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageType == "request")
                             {
-                                case "categories":
-                                    CommandBuilderStage = "none";
-                                    SelectedCategory = "";
-                                    break;
-                                case "commands":
-                                    CommandBuilderStage = "categories";
-                                    SelectedCommand = "";
-                                    break;
-                                case "pickingsubjects":
-                                    CommandBuilderStage = "commands";
-                                    SelectedEntities.Clear();
-                                    break;
-                                case "execution":
-                                    CommandBuilderStage = "pickingsubjects";
-                                    break;
-                                default:
-                                    break;
+                                DrawCenteredText(_spriteBatch, "[T] Comply: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].PositiveResponse, TruncationLength) + "\"", y + d * 2, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[M] Directly Deny: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DirectRefusalResponse, TruncationLength) + "\"", y + d * 3, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[I] Act Confused: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].IgnorantResponse, TruncationLength) + "\"", y + d * 4, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[D] Derail Conversation: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].DerailingResponse, TruncationLength) + "\"", y + d * 5, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[F] Say something Flattering: \"" + TruncateText(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].FlatteringResponse, TruncationLength) + "\"", y + d * 6, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "[X] Do not respond.", y + d * 7, Shibafont, Color.White);
                             }
                         }
-
-                        // Handle 'Z' key press for manual finishing
-                        if (KeysNewlyPressed.Contains(Keys.Z))
+                        else if (CommandBuilderStage != "none")
                         {
-                            // Eventually, this will break out so you can modify the command you are currently working on by yourself.
-                        }
+                            // Draw the message GUI
+                            _spriteBatch.Draw(MessageGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
 
-                        startY = 400; // Consistent starting Y position
+                            // Handle 'X' key press for going back
+                            if (KeysNewlyPressed.Contains(Keys.X))
+                            {
+                                switch (CommandBuilderStage)
+                                {
+                                    case "categories":
+                                        CommandBuilderStage = "none";
+                                        SelectedCategory = "";
+                                        break;
+                                    case "commands":
+                                        CommandBuilderStage = "categories";
+                                        SelectedCommand = "";
+                                        break;
+                                    case "pickingsubjects":
+                                        CommandBuilderStage = "commands";
+                                        SelectedEntities.Clear();
+                                        break;
+                                    case "execution":
+                                        CommandBuilderStage = "pickingsubjects";
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
 
-                        // Draw categories
-                        if (CommandBuilderStage == "categories")
-                        {
-                            var categories = new Dictionary<int, string>
+                            // Handle 'Z' key press for manual finishing
+                            if (KeysNewlyPressed.Contains(Keys.Z))
+                            {
+                                // Eventually, this will break out so you can modify the command you are currently working on by yourself.
+                            }
+
+                            startY = 400; // Consistent starting Y position
+
+                            // Draw categories
+                            if (CommandBuilderStage == "categories")
+                            {
+                                var categories = new Dictionary<int, string>
                             {
                                 { 1, "General" },
                                 { 2, "Questions" },
@@ -10050,1394 +10643,1420 @@ namespace Lightrealm
                                 { 9, "Movement" }
                             };
 
-                            DrawListInColumns(categories.Select(c => $"[{c.Key}] {c.Value}").ToList(), 830, startY, 40, 50, BabyShibafont);
+                                DrawListInColumns(categories.Select(c => $"[{c.Key}] {c.Value}").ToList(), 830, startY, 40, 50, BabyShibafont);
 
-                            _spriteBatch.DrawString(BabyShibafont, "[X] Exit", new Vector2(830, 1050), Color.White);
-                        }
-                        // Draw commands
-                        else if (CommandBuilderStage == "commands")
-                        {
-                            var commands = GetCommandsForCategory(SelectedCategory);
-                            var keys = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" };
-
-                            var commandList = commands.Take(keys.Count).Select((cmd, index) => $"[{keys[index]}] {cmd}").ToList();
-                            DrawListInColumns(commandList, 830, startY, 40, 50, BabyShibafont);
-
-                            _spriteBatch.DrawString(BabyShibafont, "[X] Go Back", new Vector2(830, 1050), Color.White);
-                        }
-                        // Draw pickingsubjects
-                        else if (CommandBuilderStage == "pickingsubjects")
-                        {
-                            int yPositionLeft = startY; // Starting Y position for the left column
-                            int yPositionRight = startY; // Starting Y position for the right column
-                            int startIndex = CurrentCommandBuilderPage * 20; // Calculate start index based on the current page
-
-                            // Draw subjects
-                            if (RelevantEntities.Count == 0)
-                            {
-                                _spriteBatch.DrawString(BabyShibafont, "No Applicable Subjects", new Vector2(830, yPositionLeft), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "[X] Exit", new Vector2(830, 1050), Color.White);
                             }
-                            else
+                            // Draw commands
+                            else if (CommandBuilderStage == "commands")
                             {
-                                var subjectList = new List<string>();
-                                for (int i = 0; i < 20 && (startIndex + i) < RelevantEntities.Count; i++)
+                                var commands = GetCommandsForCategory(SelectedCategory);
+                                var keys = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" };
+
+                                var commandList = commands.Take(keys.Count).Select((cmd, index) => $"[{keys[index]}] {cmd}").ToList();
+                                DrawListInColumns(commandList, 830, startY, 40, 50, BabyShibafont);
+
+                                _spriteBatch.DrawString(BabyShibafont, "[X] Go Back", new Vector2(830, 1050), Color.White);
+                            }
+                            // Draw pickingsubjects
+                            else if (CommandBuilderStage == "pickingsubjects")
+                            {
+                                int yPositionLeft = startY; // Starting Y position for the left column
+                                int yPositionRight = startY; // Starting Y position for the right column
+                                int startIndex = CurrentCommandBuilderPage * 20; // Calculate start index based on the current page
+
+                                // Draw subjects
+                                if (RelevantEntities.Count == 0)
                                 {
-                                    var entity = RelevantEntities[startIndex + i];
-                                    subjectList.Add($"[{i + 1}] {entity.ReferredToNames[0]}");
-                                }
-                                DrawListInColumns(subjectList, 830, startY, 40, 50, BabyShibafont);
-                            }
-
-                            // Draw guides at the bottom
-                            _spriteBatch.DrawString(BabyShibafont, "[X] Go Back", new Vector2(830, 1050), Color.White);
-                        }
-                    }
-
-
-                    void DrawListInColumns(List<string> items, int startX, int startY, int lineSpacing, int boundaryPadding, SpriteFont font)
-                    {
-                        int xPosition = startX;
-                        int yPosition = startY;
-                        int columnWidth = 960; // Half of the MessageGUIT width
-
-                        foreach (var item in items)
-                        {
-                            // Check if item would get too close to the right boundary of the MessageGUIT
-                            if (yPosition + lineSpacing > 1080 - boundaryPadding)
-                            {
-                                xPosition += columnWidth;
-                                yPosition = startY;
-                            }
-
-                            // Draw the item
-                            _spriteBatch.DrawString(font, item, new Vector2(xPosition, yPosition), Color.White);
-
-                            yPosition += lineSpacing;
-                        }
-                    }
-
-                    var sortedArchitects = GamePlayerParty.Architects.OrderBy(a => a.CooldownCycles).ToList();
-                    int currentX = 1400;
-
-                    foreach (var architect in sortedArchitects)
-                    {
-                        if (GameWorld.HumanoidRaces.Contains(architect.Race))
-                        {
-                            // Draw the character
-                            DrawCharacter(architect, currentX, 1200, 0.2);
-                            currentX -= -120; // Move to the left for the next character
-                        }
-                    }
-
-                    if (MostRecentPartyTurnArchitect.CombatCycles > 0)
-                    {
-                        if (GameWorld.HumanoidRaces.Contains(MostRecentPartyTurnArchitect.Race))
-                        {
-                            Vector2 bodyPartsPosition = new Vector2(currentX + 225, 1225); // Adjust the X position as needed
-
-                            // Draw the body parts
-                            DrawBodyParts(_spriteBatch, bodyPartsPosition);
-
-                            // Calculate the position for the "Exposure" text
-                            float textCenterX = bodyPartsPosition.X + (300 * 0.6f) / 2; // Assuming the width of the rectangle is 300
-                            float textCenterY = bodyPartsPosition.Y - 20; // Position the text above the rectangle
-
-                            // Draw the "Exposure" text
-                            DrawCenteredTextAtPosition(_spriteBatch, "Exposure", textCenterX, textCenterY, BabyShibafont);
-                        }
-                    }
-
-                    // Exposure graph
-
-                    void DrawBodyParts(SpriteBatch spriteBatch, Vector2 position)
-                    {
-                        // Draw basegui and full at the same position and color
-                        spriteBatch.Draw(BaseRepositionGUIT, position, null, Color.White, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
-                        spriteBatch.Draw(BodyFrameT, position, null, Color.White, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
-
-                        DrawBodyPart(spriteBatch, HeadRepT, "head", position);
-                        DrawBodyPart(spriteBatch, LeftArmRepT, "left arm", position);
-                        DrawBodyPart(spriteBatch, RightArmRepT, "right arm", position);
-                        DrawBodyPart(spriteBatch, LeftFootRepT, "left foot", position);
-                        DrawBodyPart(spriteBatch, LeftHandRepT, "left hand", position);
-                        DrawBodyPart(spriteBatch, RightHandRepT, "right hand", position);
-                        DrawBodyPart(spriteBatch, RightFootLeftT, "right foot", position);
-                        DrawBodyPart(spriteBatch, RightLegT, "right leg", position);
-                        DrawBodyPart(spriteBatch, LeftLegT, "left leg", position);
-                        DrawBodyPart(spriteBatch, TorsoT, "torso", position);
-                    }
-
-                    void DrawBodyPart(SpriteBatch spriteBatch, Texture2D texture, string bodyPartType, Vector2 position)
-                    {
-                        int exposure = MostRecentPartyTurnArchitect.FindBodyPart(bodyPartType).Exposure;
-
-                        // Calculate the red and blue values based on the exposure
-                        int red = (exposure <= 50) ? (int)(1 + 124 * (exposure / 50f)) : 125;
-                        int blue = (exposure <= 50) ? (int)(1 + 254 * (exposure / 50f)) : 255;
-
-                        Color color = new Color(red, 0, blue);
-
-                        spriteBatch.Draw(texture, position, null, color, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
-                    }
-
-
-                    if (Keyboard.GetState().IsKeyDown(Keys.F2) && StoredPortrait != null)
-                    {
-                        DrawCharacter(StoredPortrait, 40, 600, 0.2);
-                    }
-
-                }
-                else
-                {
-                    _spriteBatch.Draw(InventoryGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
-
-                    DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.Name, 80, BabyShibafont, Color.White);
-                    DrawCenteredText(_spriteBatch, "STR: " + MostRecentPartyTurnArchitect.Strength + " / " +
-                                                    "AGL: " + MostRecentPartyTurnArchitect.Agility + " / " +
-                                                    "DEX: " + MostRecentPartyTurnArchitect.Dexterity + " / " +
-                                                    "END: " + MostRecentPartyTurnArchitect.Endurance + " / " +
-                                                    "CRE: " + MostRecentPartyTurnArchitect.Creativity + " / " +
-                                                    "CHA: " + MostRecentPartyTurnArchitect.Charisma + " / " +
-                                                    "FOC: " + MostRecentPartyTurnArchitect.Focus,
-                                                    110, BabyShibafont, Color.White);
-                    DrawCenteredText(_spriteBatch, "Use \"remember skills\" or \"remember spells\" to list spell or skill information.", 140, BabyShibafont, Color.White);
-                    DrawCenteredText(_spriteBatch, "Use tilde (~) and a specific key to get path information.", 170, BabyShibafont, Color.White);
-
-                    int line = 0;
-
-                    var sourceObjects = MostRecentPartyTurnArchitect.Inventory;
-                    var structuredList = CondenseAndStructureList(sourceObjects, SplitMode);
-                    DrawList(_spriteBatch, structuredList, new Vector2(2100, 100), BabyShibafont, CurrentObjectPage, ItemsPerPage);
-
-                    line = 0;
-                    if (MostRecentPartyTurnArchitect.Clothing.Count == 0)
-                    {
-                        DrawCenteredTextAtPosition(_spriteBatch, "You have no clothing. Please put some on.", 1625, 425, BabyShibafont);
-                    }
-                    else
-                    {
-                        foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
-                        {
-                            float centerY = 425 + 20 * line;
-                            string text = o.ReferredToNames[0];
-
-                            // Draw the text
-                            DrawCenteredTextAtPosition(_spriteBatch, text, 1625, centerY, BabyShibafont);
-
-                            // Measure the size of the text
-                            Vector2 textSize = BabyShibafont.MeasureString(text);
-
-                            // Calculate the position to start drawing the text so that it is centered on (1625, centerY)
-                            float xPosition = 1625 - (textSize.X / 2);
-                            float yPosition = centerY - (textSize.Y / 2);
-
-                            // Create a Rectangle for the hitbox
-                            Rectangle hitbox = new Rectangle((int)xPosition, (int)yPosition, (int)textSize.X, (int)textSize.Y);
-                            EntityHitboxes.Add((hitbox, o));
-
-                            line++;
-                        }
-                    }
-
-                    line = 0;
-                    if (MostRecentPartyTurnArchitect.Intrigue.Count == 0)
-                    {
-                        DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1625, 1150, BabyShibafont);
-                    }
-                    else
-                    {
-                        foreach (var intrigue in MostRecentPartyTurnArchitect.Intrigue)
-                        {
-                            var (text, architect) = intrigue;
-                            Vector2 textPosition = new Vector2(1640, 1150 + 15 * line);
-                            DrawCenteredTextAtPosition(_spriteBatch, text, (int)textPosition.X, (int)textPosition.Y, BabyShibafont);
-
-                            // Create hitbox for the intrigue text
-                            Vector2 textSize = Shibafont.MeasureString(text);
-                            Rectangle hitbox = new Rectangle(textPosition.ToPoint(), textSize.ToPoint());
-                            EntityHitboxes.Add((hitbox, architect));
-
-                            line++;
-                        }
-                    }
-
-                    line = 0;
-                    if (MostRecentPartyTurnArchitect.CurrentlyActiveImbuements.Count == 0)
-                    {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No active imbuements.", 950, 425, BabyShibafont);
-                    }
-                    else
-                    {
-                        foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
-                        {
-                            string description = i.GetDescription();
-                            while (description.Length > 40)
-                            {
-                                int splitIndex = 40;
-                                if (description.Length > 40)
-                                {
-                                    splitIndex = description.Substring(0, 40).LastIndexOf(' ');
-                                    if (splitIndex == -1) splitIndex = 40;
-                                }
-
-                                DrawCenteredTextAtPosition(_spriteBatch, description.Substring(0, splitIndex), 950, 425 + 20 * line, BabyShibafont);
-                                description = description.Substring(splitIndex).Trim();
-                                line++;
-                            }
-
-                            DrawCenteredTextAtPosition(_spriteBatch, description, 950, 425 + 20 * line, BabyShibafont);
-                            line++;
-                        }
-                    }
-
-
-                    // XPValues processing remains unchanged as you already have a check for no entries.
-
-
-                    line = 0;
-
-                    foreach ((string, int) p in MostRecentPartyTurnArchitect.XPValues)
-                    {
-                        line++;
-                        DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetXP(p.Item1)} XP", 290, 100 + 20 * line, BabyShibafont);
-                    }
-                    if (line == 0)
-                    {
-                        DrawCenteredTextAtPosition(_spriteBatch, "No proficiencies...?", 280, 120 + 10 * line, BabyShibafont);
-                    }
-
-                    //level up screen
-                    void DrawPathLevel(SpriteBatch spriteBatch, SpriteFont babyShibaFont, string pathName, int pathLevel, int Y, Color color)
-                    {
-                        string text = pathLevel > 0 ? $"{pathName} Level {pathLevel}" : $"{pathName} (not activated)";
-                        DrawCenteredText(_spriteBatch, text, Y, babyShibaFont, pathLevel > 0 ? color : new Color(40, 40, 40));
-                    }
-
-                    if (MostRecentPartyTurnArchitect.SpendableLevels > 0)
-                    {
-                        int newWidth = 1919 + 200; // Increase width by 200
-                        int newHeight = 1080 + 200; // Increase height by 200
-
-                        _spriteBatch.Draw(
-                            ReactionGUIT,
-                            new Rectangle(
-                                (2560 - newWidth) / 2, // Centered X
-                                (1440 - newHeight) / 2, // Centered Y
-                                newWidth,
-                                newHeight),
-                            Color.White);
-
-                        int boxX = (2560 - newWidth) / 2;
-                        int boxY = (1440 - newHeight) / 2;
-
-                        int startingPosition = 500;
-                        int spacing = 30;
-
-                        void DrawPathLevels(Party GamePlayerParty, SpriteBatch spriteBatch, SpriteFont babyShibaFont)
-                        {
-                            int position = startingPosition;
-
-                            // Each path's drawing code:
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[X] Path of Shadow", MostRecentPartyTurnArchitect.PathOfShadowLevel, position, Color.MidnightBlue);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[L] Path of Life", MostRecentPartyTurnArchitect.PathOfLifeLevel, position, Color.ForestGreen);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[D] Path of Death", MostRecentPartyTurnArchitect.PathOfDeathLevel, position, Color.DarkRed);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[A] Path of Stars", MostRecentPartyTurnArchitect.PathOfStarsLevel, position, Color.Gold);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[H] Path of Heat", MostRecentPartyTurnArchitect.PathOfHeatLevel, position, Color.OrangeRed);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
-                            position += spacing;
-
-                            /*
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[I] Path of Illusions", MostRecentPartyTurnArchitect.PathOfIllusionsLevel, position, Color.Magenta);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[T] Path of Time", MostRecentPartyTurnArchitect.PathOfTimeLevel, position, Color.SkyBlue);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[E] Path of Ethereality", MostRecentPartyTurnArchitect.PathOfEtherealityLevel, position, Color.LightBlue);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[V] Path of Void", MostRecentPartyTurnArchitect.PathOfVoidLevel, position, Color.DarkSlateBlue);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[S] Path of Storms", MostRecentPartyTurnArchitect.PathOfStormsLevel, position, Color.Cyan);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[F] Path of Forge", MostRecentPartyTurnArchitect.PathOfForgeLevel, position, Color.DarkOrange);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[K] Path of Lore", MostRecentPartyTurnArchitect.PathOfLoreLevel, position, Color.SeaGreen);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[M] Path of Mind", MostRecentPartyTurnArchitect.PathOfMindLevel, position, Color.LightSeaGreen);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[U] Path of Soul", MostRecentPartyTurnArchitect.PathOfSoulLevel, position, Color.MediumPurple);
-                            position += spacing;
-
-                            DrawPathLevel(spriteBatch, babyShibaFont, "[P] Path of Space", MostRecentPartyTurnArchitect.PathOfSpaceLevel, position, Color.DarkOrchid);
-                            position += spacing;
-                            */
-                        }
-
-                        DrawPathLevels(GamePlayerParty, _spriteBatch, BabyShibafont);
-
-
-                    }
-
-
-                    if (!Keyboard.GetState().IsKeyDown(Keys.LeftControl) && (MostRecentPartyTurnArchitect.SpendableLevels > 0 || Keyboard.GetState().IsKeyDown(Keys.OemTilde)))
-                    {
-                        int newWidth = 1919 + 200; // Increase width by 200
-                        int newHeight = 1080 + 200; // Increase height by 200
-
-                        _spriteBatch.Draw(
-                            ReactionGUIT,
-                            new Rectangle(
-                                (2560 - newWidth) / 2, // Centered X
-                                (1440 - newHeight) / 2, // Centered Y
-                                newWidth,
-                                newHeight),
-                            Color.White);
-
-                        int boxX = (2560 - newWidth) / 2;
-                        int boxY = (1440 - newHeight) / 2;
-
-                        int startingPosition = 500;
-                        int spacing = 30;
-
-                        int position = 500;
-
-                        // Each path's drawing code:
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[X] Path of Shadow", MostRecentPartyTurnArchitect.PathOfShadowLevel, position, Color.MidnightBlue);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[L] Path of Life", MostRecentPartyTurnArchitect.PathOfLifeLevel, position, Color.ForestGreen);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[D] Path of Death", MostRecentPartyTurnArchitect.PathOfDeathLevel, position, Color.DarkRed);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[A] Path of Stars", MostRecentPartyTurnArchitect.PathOfStarsLevel, position, Color.Gold);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[H] Path of Heat", MostRecentPartyTurnArchitect.PathOfHeatLevel, position, Color.OrangeRed);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
-                        position += spacing;
-
-                        DrawPathLevel(_spriteBatch, BabyShibafont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
-                        position += spacing;
-
-                        if (Keyboard.GetState().IsKeyDown(Keys.X))
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            DrawCenteredText(_spriteBatch, "PATH OF SHADOW", position, BabyShibafont, Color.MidnightBlue);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 1) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Become harder to see and target.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 2) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 3) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: \"become one with shadow\" to go invisible but lose energy. Your items are visible.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 4) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 5) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Your possessions become invisible with you.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 6) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 7) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Energy loss from invisibility cut in half.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 8) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 9: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 9) ? Color.MidnightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "PRESS CTRL X TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                        }
-
-                        if (Keyboard.GetState().IsKeyDown(Keys.L)) // Assuming 'L' is the key for Path of Life
-                        {
-                            _spriteBatch.Draw(ReactionGUIT, new Rectangle((2560 - newWidth) / 2, (1440 - newHeight) / 2, newWidth, newHeight), Color.White);
-
-                            position = startingPosition;
-
-                            // Title
-                            DrawCenteredText(_spriteBatch, "PATH OF LIFE", position, BabyShibafont, Color.ForestGreen);
-                            position += spacing;
-
-                            // Display abilities with conditional coloring based on the level
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 1) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-
-                            DrawCenteredText(_spriteBatch, "LVL 2: Gain a constant regeneration buff.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 2) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 3) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-
-                            DrawCenteredText(_spriteBatch, "LVL 4: Full communication with all creatures.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 4) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 5) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Pacify/Tame animals, add to party. Max of Path LVL animals. Use \"pacify ~\"", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 6) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 7) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-
-                            DrawCenteredText(_spriteBatch, "LVL 8: Buff/augment your animals with \"augment ~\".", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 8) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-
-                            DrawCenteredText(_spriteBatch, "LVL 9: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 9) ? Color.ForestGreen : new Color(40, 40, 40));
-                            position += spacing;
-
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "PRESS CTRL + L TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                        }
-                        else if (Keyboard.GetState().IsKeyDown(Keys.D))
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            // Title
-                            DrawCenteredText(_spriteBatch, "PATH OF DEATH", position, BabyShibafont, Color.DarkRed);
-                            position += spacing;
-                            // Abilities
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 1 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Raise ((LVL/2) rounded down) weakened undead servants with \"raise ~\"", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 2 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 3 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Fire spectral bolts with \"spectralize ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 4 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 5 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Foes slain by bolts may become undead.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 6 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 7 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Return to life with 30 energy once a day.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 8 ? Color.DarkRed : new Color(40, 40, 40));
-                            position += spacing;
-                            // Leveling up instruction
-                            DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.A)) // Assuming 'A' is the key for Path of Stars
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            // Title
-                            DrawCenteredText(_spriteBatch, "PATH OF STARS", position, BabyShibafont, Color.Gold);
-                            position += spacing;
-                            // Abilities
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 1 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Summon a falling star on strike.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 2 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 3 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Starstruck creatures ignite.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 4 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 5 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Fire stars from your hands with \"starstrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 6 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 7 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Open a portal to a star and fire a laser with \"starsmite ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 8 ? Color.Gold : new Color(40, 40, 40));
-                            position += spacing;
-                            // Leveling up instruction
-                            DrawCenteredText(_spriteBatch, "PRESS CTRL + A TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.H)) // Assuming 'H' is the key for Path of Heat
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            // Title
-                            DrawCenteredText(_spriteBatch, "PATH OF HEAT", position, BabyShibafont, Color.OrangeRed);
-                            position += spacing;
-                            // Abilities
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 1 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Conjure and throw waves of heat with \"flamestrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 2 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 3 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Control heat of objects you touch, with \"sear ~\" to increase damage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 4 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 5 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Conjure larger waves of heat.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 6 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 7 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Set self on fire at will with \"inflame\". Increases fire abliities.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 8 ? Color.OrangeRed : new Color(40, 40, 40));
-                            position += spacing;
-                            // Leveling up instruction
-                            DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF BODY", position, BabyShibafont, Color.SandyBrown);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Increased unarmed melee capabilities and agility.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Gain a considerable boost to speed.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF LIGHT", position, BabyShibafont, Color.Yellow);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL. Summon sparks with \"conjure spark\". Maximum of Path Level.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Use \"evoke blindness\" to consume a spark and blind nearby hostiles.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Consume a spark to strike a target with \"evoke strike at ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Use a spark out of combat to fully heal all with \"evoke healing\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Use a spark to conjure a loyal photonexus with \"evoke nexus\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD G FOR PATH DETAILS. CTRL+G TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF REALITY", position, BabyShibafont, Color.IndianRed);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Increase/Decrease integrity, temperature, aerodynamics, and weight of objects once.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Liquify objects and structures with \"liquify ~\"", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects with \"split ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Remove people from reality with \"blip ~\". Requires time and multiple tries.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        /*
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.I)) // For Path of Illusions
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF ILLUSIONS", position, BabyShibafont, Color.Magenta);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 1 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Summon an incorporeal immobile duplicate of yourself or an object.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 2 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 3 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Summon a duplicate of an animate object. Your duplicates move on their own", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 4 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 5 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Control all clones you create.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 6 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 7 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.T))
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title
-                            DrawCenteredText(_spriteBatch, "PATH OF TIME", position, BabyShibafont, Color.SkyBlue);
-                            position += spacing;
-                            // Abilities
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            // Leveling up instruction
-                            DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.E)) // For Path of Ethereality
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF ETHEREALITY", position, BabyShibafont, Color.LightBlue);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 1 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Take less damage, generally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 2 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 3 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Enter the ethereal plane briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 4 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 5 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Send objects to the ethereal plane.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 6 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 7 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Instantaneous travel anywhere.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 8 ? Color.LightBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD E FOR PATH DETAILS. CTRL+E TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.V)) // For Path of Void
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF VOID", position, BabyShibafont, Color.DarkSlateBlue);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 1 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Create voids that you can store items for later usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 2 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 3 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Fire matter projectiles from voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 4 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 5 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Compel creatures into voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 6 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 7 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Voids last forever and are interconnected.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 8 ? Color.DarkSlateBlue : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD V FOR PATH DETAILS. CTRL+V TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.S)) // For Path of Storms
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF STORMS", position, BabyShibafont, Color.Cyan);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 1 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Energy strike on foes.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 2 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 3 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Flow with uncontrollable energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 4 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 5 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Direct energy into objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 6 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 7 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Gain flight and powerful energy manipulation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 8 ? Color.Cyan : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD S FOR PATH DETAILS. CTRL+S TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.F)) // For Path of Forge
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF FORGE", position, BabyShibafont, Color.DarkOrange);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 1 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Craft any weapon at a forge with the right materials.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 2 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 3 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Weapons you make have an extra imbuement.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 4 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 5 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Your imbuements have more effectiveness.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 6 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 7 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Touch objects to give them three extra imbuements.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 8 ? Color.DarkOrange : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD F FOR PATH DETAILS. CTRL+F TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.K)) // For Path of Lore
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF LORE", position, BabyShibafont, Color.SeaGreen);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 1 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Access lore from other lorepathers, containing secrets.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 2 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 3 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Trade knowledge with people mentally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 4 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 5 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Increase max path level by 4.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 6 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 7 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Access a wellspring of history at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 8 ? Color.SeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD K FOR PATH DETAILS. CTRL+K TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.M)) // For Path of Mind
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF MIND", position, BabyShibafont, Color.LightSeaGreen);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 1 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Enhanced magical power.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 2 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 3 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Decreased magical energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 4 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 5 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Option to double spell effects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 6 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 7 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Triple Spell effects and reduced energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 8 ? Color.LightSeaGreen : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.U)) // For Path of Soul
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF SOUL", position, BabyShibafont, Color.MediumPurple);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 1 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Increases to all nonphysical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 2 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 3 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased energy generation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 4 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 5 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Exit your body, moving through walls.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 6 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 7 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-
-                        else if (Keyboard.GetState().IsKeyDown(Keys.P)) // For Path of Space
-                        {
-                            _spriteBatch.Draw(
-                                ReactionGUIT,
-                                new Rectangle(
-                                    (2560 - newWidth) / 2, // Centered X
-                                    (1440 - newHeight) / 2, // Centered Y
-                                    newWidth,
-                                    newHeight),
-                                Color.White);
-
-                            int position = startingPosition;
-
-                            // Title and Abilities
-                            DrawCenteredText(_spriteBatch, "PATH OF SPACE", position, BabyShibafont, Color.DarkOrchid);
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 1 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 2: Open a portal for travel.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 2 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 3 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 4: Telekinesis for small objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 4 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 5 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 6: Telekinesis for heavier objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 6 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 7 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            DrawCenteredText(_spriteBatch, "LVL 8: Telekinesis without limits, including self for flight.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 8 ? Color.DarkOrchid : new Color(40, 40, 40));
-                            position += spacing;
-                            // Instruction for leveling up
-                            DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", position, BabyShibafont, Color.White);
-                        }
-                        */
-
-                    }
-
-
-                    //character
-                    DrawCharacter(MostRecentPartyTurnArchitect, 500, 1200, 0.2);
-
-                }
-                string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that", "his", "their", "himself", "herself", "themself", "themselves" };
-
-                if (!((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion)))
-                {
-                    // Define colors for different parts
-                    Color infrastructureColor = new Color(255, 0, 255); // Pink
-                    Color subjectColor = new Color(0, 255, 0); // Green
-                    Color completePronounColor = new Color(0, 255, 255); // Cyan
-                    Color incompletePronounColor = new Color(0, 0, 139); // Dark blue
-                    Color defaultColor = new Color(75, 75, 75); // Gray
-
-                    List<(string part, string type, bool isComplete)> ParseIntoParts(string command, string input)
-                    {
-                        var commandParts = command.Split(' ');
-                        var inputParts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
-                        var parsedParts = new List<(string part, string type, bool isComplete)>();
-
-                        // Merge adjacent non-unique parts in the command
-                        var mergedCommandParts = new List<string>();
-                        for (int i = 0; i < commandParts.Length; i++)
-                        {
-                            if (commandParts[i] == "~" || commandParts[i] == "/p")
-                            {
-                                mergedCommandParts.Add(commandParts[i]);
-                            }
-                            else
-                            {
-                                string mergedPart = commandParts[i];
-                                while (i + 1 < commandParts.Length && commandParts[i + 1] != "~" && commandParts[i + 1] != "/p")
-                                {
-                                    mergedPart += " " + commandParts[++i];
-                                }
-                                mergedCommandParts.Add(mergedPart);
-                            }
-                        }
-
-                        // Tagging parts
-                        var taggedInputParts = inputParts.Select(part =>
-                            (part, isUnique: pronouns.Any(p => part.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || mergedCommandParts.Any(cp => cp.Equals(part, StringComparison.OrdinalIgnoreCase))))
-                            .ToList();
-
-                        // Merge adjacent non-unique parts in the input
-                        var mergedInputParts = new List<string>();
-                        for (int i = 0; i < taggedInputParts.Count; i++)
-                        {
-                            if (!taggedInputParts[i].isUnique)
-                            {
-                                string mergedPart = taggedInputParts[i].part;
-                                while (i + 1 < taggedInputParts.Count && !taggedInputParts[i + 1].isUnique)
-                                {
-                                    mergedPart += " " + taggedInputParts[++i].part;
-                                }
-                                mergedInputParts.Add(mergedPart);
-                            }
-                            else
-                            {
-                                mergedInputParts.Add(taggedInputParts[i].part);
-                            }
-                        }
-
-                        // Parsing logic to align with GetMatchScore's merged logic
-                        int j = 0;
-                        bool firstPartChecked = false;
-                        for (int i = 0; i < mergedCommandParts.Count; i++)
-                        {
-                            if (mergedCommandParts[i] == "~")
-                            {
-                                if (j < mergedInputParts.Count)
-                                {
-                                    parsedParts.Add((mergedInputParts[j], "subject", true));
-                                    j++;
+                                    _spriteBatch.DrawString(BabyShibafont, "No Applicable Subjects", new Vector2(830, yPositionLeft), Color.White);
                                 }
                                 else
                                 {
-                                    parsedParts.Add(("~", "default", false));
+                                    var subjectList = new List<string>();
+                                    for (int i = 0; i < 20 && (startIndex + i) < RelevantEntities.Count; i++)
+                                    {
+                                        var entity = RelevantEntities[startIndex + i];
+                                        subjectList.Add($"[{i + 1}] {entity.ReferredToNames[0]}");
+                                    }
+                                    DrawListInColumns(subjectList, 830, startY, 40, 50, BabyShibafont);
+                                }
+
+                                // Draw guides at the bottom
+                                _spriteBatch.DrawString(BabyShibafont, "[X] Go Back", new Vector2(830, 1050), Color.White);
+                            }
+                        }
+
+
+                        void DrawListInColumns(List<string> items, int startX, int startY, int lineSpacing, int boundaryPadding, SpriteFont font)
+                        {
+                            int xPosition = startX;
+                            int yPosition = startY;
+                            int columnWidth = 960; // Half of the MessageGUIT width
+
+                            foreach (var item in items)
+                            {
+                                // Check if item would get too close to the right boundary of the MessageGUIT
+                                if (yPosition + lineSpacing > 1080 - boundaryPadding)
+                                {
+                                    xPosition += columnWidth;
+                                    yPosition = startY;
+                                }
+
+                                // Draw the item
+                                _spriteBatch.DrawString(font, item, new Vector2(xPosition, yPosition), Color.White);
+
+                                yPosition += lineSpacing;
+                            }
+                        }
+
+                        // Declare the static adjustment variable
+                        int PositionAdjustment = 400;
+
+                        var sortedArchitects = GamePlayerParty.Architects.OrderBy(a => a.CooldownCycles).ToList();
+                        int currentX = 1400 + PositionAdjustment; // Apply the adjustment
+
+                        foreach (var architect in sortedArchitects)
+                        {
+                            if (GameWorld.HumanoidRaces.Contains(architect.Race))
+                            {
+                                // Draw the character
+                                DrawCharacter(architect, currentX, 1200, 0.2);
+                                currentX -= -120; // Move to the left for the next character
+                            }
+                        }
+
+                        if (MostRecentPartyTurnArchitect.CombatCycles > 0)
+                        {
+                            if (GameWorld.HumanoidRaces.Contains(MostRecentPartyTurnArchitect.Race))
+                            {
+                                Vector2 bodyPartsPosition = new Vector2(currentX + (PositionAdjustment-450), 1225); // Apply the adjustment
+
+                                // Draw the body parts
+                                DrawBodyParts(_spriteBatch, bodyPartsPosition);
+
+                                // Calculate the position for the "Exposure" text
+                                float textCenterX = bodyPartsPosition.X + (300 * 0.6f) / 2; // Assuming the width of the rectangle is 300
+                                float textCenterY = bodyPartsPosition.Y - 20; // Position the text above the rectangle
+
+                                // Draw the "Exposure" text
+                                DrawCenteredTextAtPosition(_spriteBatch, "Exposure", textCenterX, textCenterY, BabyShibafont, Color.White);
+                            }
+                        }
+
+                        // Exposure graph
+
+                        void DrawBodyParts(SpriteBatch spriteBatch, Vector2 position)
+                        {
+                            // Draw basegui and full at the same position and color
+                            spriteBatch.Draw(BaseRepositionGUIT, position, null, Color.White, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
+                            spriteBatch.Draw(BodyFrameT, position, null, Color.White, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
+
+                            DrawBodyPart(spriteBatch, HeadRepT, "head", position);
+                            DrawBodyPart(spriteBatch, LeftArmRepT, "left arm", position);
+                            DrawBodyPart(spriteBatch, RightArmRepT, "right arm", position);
+                            DrawBodyPart(spriteBatch, LeftFootRepT, "left foot", position);
+                            DrawBodyPart(spriteBatch, LeftHandRepT, "left hand", position);
+                            DrawBodyPart(spriteBatch, RightHandRepT, "right hand", position);
+                            DrawBodyPart(spriteBatch, RightFootLeftT, "right foot", position);
+                            DrawBodyPart(spriteBatch, RightLegT, "right leg", position);
+                            DrawBodyPart(spriteBatch, LeftLegT, "left leg", position);
+                            DrawBodyPart(spriteBatch, TorsoT, "torso", position);
+                        }
+
+                        void DrawBodyPart(SpriteBatch spriteBatch, Texture2D texture, string bodyPartType, Vector2 position)
+                        {
+                            int exposure = MostRecentPartyTurnArchitect.FindBodyPart(bodyPartType).Exposure;
+
+                            // Calculate the red and blue values based on the exposure
+                            int red = (exposure <= 50) ? (int)(1 + 124 * (exposure / 50f)) : 125;
+                            int blue = (exposure <= 50) ? (int)(1 + 254 * (exposure / 50f)) : 255;
+
+                            Color color = new Color(red, 0, blue);
+
+                            spriteBatch.Draw(texture, position, null, color, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
+                        }
+                    }
+                    else
+                    {
+                        _spriteBatch.Draw(InventoryGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
+
+                        DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.Name, 80, BabyShibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "STR: " + MostRecentPartyTurnArchitect.Strength + " / " +
+                                                        "AGL: " + MostRecentPartyTurnArchitect.Agility + " / " +
+                                                        "DEX: " + MostRecentPartyTurnArchitect.Dexterity + " / " +
+                                                        "END: " + MostRecentPartyTurnArchitect.Endurance + " / " +
+                                                        "CRE: " + MostRecentPartyTurnArchitect.Creativity + " / " +
+                                                        "CHA: " + MostRecentPartyTurnArchitect.Charisma + " / " +
+                                                        "FOC: " + MostRecentPartyTurnArchitect.Focus,
+                                                        110, BabyShibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "Use \"remember skills\" or \"remember spells\" to list spell or skill information.", 140, BabyShibafont, Color.White);
+                        DrawCenteredText(_spriteBatch, "Use tilde (~) and a specific key to get path information.", 170, BabyShibafont, Color.White);
+
+                        int line = 0;
+
+                        var sourceObjects = MostRecentPartyTurnArchitect.Inventory;
+                        var structuredList = CondenseAndStructureList(sourceObjects, SplitMode);
+                        DrawList(_spriteBatch, structuredList, new Vector2(2100, 100), BabyShibafont, CurrentObjectPage, ItemsPerPage);
+
+                        line = 0;
+                        if (MostRecentPartyTurnArchitect.Clothing.Count == 0)
+                        {
+                            DrawCenteredTextAtPosition(_spriteBatch, "You have no clothing. Please put some on.", 1625, 425, BabyShibafont, Color.White);
+                        }
+                        else
+                        {
+                            foreach (Object o in MostRecentPartyTurnArchitect.Clothing)
+                            {
+                                float centerY = 425 + 20 * line;
+                                string text = o.ReferredToNames[0];
+
+                                // Draw the text
+                                DrawCenteredTextAtPosition(_spriteBatch, text, 1625, centerY, BabyShibafont, Color.White);
+
+                                // Measure the size of the text
+                                Vector2 textSize = BabyShibafont.MeasureString(text);
+
+                                // Calculate the position to start drawing the text so that it is centered on (1625, centerY)
+                                float xPosition = 1625 - (textSize.X / 2);
+                                float yPosition = centerY - (textSize.Y / 2);
+
+                                // Create a Rectangle for the hitbox
+                                Rectangle hitbox = new Rectangle((int)xPosition, (int)yPosition, (int)textSize.X, (int)textSize.Y);
+                                EntityHitboxes.Add((hitbox, o));
+
+                                line++;
+                            }
+                        }
+
+                        line = 0;
+                        if (MostRecentPartyTurnArchitect.Intrigue.Count == 0)
+                        {
+                            DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1625, 1150, BabyShibafont, Color.White);
+                        }
+                        else
+                        {
+                            foreach (var intrigue in MostRecentPartyTurnArchitect.Intrigue)
+                            {
+                                var (text, architect) = intrigue;
+                                Vector2 textPosition = new Vector2(1640, 1150 + 15 * line);
+                                DrawCenteredTextAtPosition(_spriteBatch, text, (int)textPosition.X, (int)textPosition.Y, BabyShibafont, Color.White);
+
+                                // Create hitbox for the intrigue text
+                                Vector2 textSize = Shibafont.MeasureString(text);
+                                Rectangle hitbox = new Rectangle(textPosition.ToPoint(), textSize.ToPoint());
+                                EntityHitboxes.Add((hitbox, architect));
+
+                                line++;
+                            }
+                        }
+
+                        line = 0;
+
+                        // Check for melded shibas and list them first
+                        if (MostRecentPartyTurnArchitect.MeldedShibas.Count > 0)
+                        {
+                            string meldedShibasText = MostRecentPartyTurnArchitect.MeldedShibas.Count == 1 ?
+                                "1 shiba has melded with your face, applying unstable buffs." :
+                                $"{MostRecentPartyTurnArchitect.MeldedShibas.Count} shibas have melded with your face, applying unstable buffs.";
+
+                            DrawCenteredTextAtPosition(_spriteBatch, meldedShibasText, 950, 425 + 20 * line, BabyShibafont, Color.White);
+                            line++;
+                        }
+
+                        // Check for active imbuements and list them
+                        if (MostRecentPartyTurnArchitect.CurrentlyActiveImbuements.Count > 0)
+                        {
+                            foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
+                            {
+                                string description = i.GetDescription();
+                                while (description.Length > 40)
+                                {
+                                    int splitIndex = 40;
+                                    if (description.Length > 40)
+                                    {
+                                        splitIndex = description.Substring(0, 40).LastIndexOf(' ');
+                                        if (splitIndex == -1) splitIndex = 40;
+                                    }
+
+                                    DrawCenteredTextAtPosition(_spriteBatch, description.Substring(0, splitIndex), 950, 425 + 20 * line, BabyShibafont, i.IsTrigger ? Color.Goldenrod : (i.IsSatisfied ? Color.Lime : Color.White));
+                                    description = description.Substring(splitIndex).Trim();
+                                    line++;
+                                }
+
+                                DrawCenteredTextAtPosition(_spriteBatch, description, 950, 425 + 20 * line, BabyShibafont, i.IsTrigger ? Color.Goldenrod : (i.IsSatisfied ? Color.Lime : Color.White));
+                                line++;
+                            }
+                        }
+                        else if (MostRecentPartyTurnArchitect.MeldedShibas.Count == 0)
+                        {
+                            // If no melded shibas and no imbuements, display "No active imbuements."
+                            DrawCenteredTextAtPosition(_spriteBatch, "No active imbuements.", 950, 425, BabyShibafont, Color.White);
+                        }
+
+
+
+                        // XPValues processing remains unchanged as you already have a check for no entries.
+
+
+                        line = 0;
+
+                        foreach ((string, int) p in MostRecentPartyTurnArchitect.XPValues)
+                        {
+                            line++;
+                            DrawCenteredTextAtPosition(_spriteBatch, $"{p.Item1}: {ConvertNumberToProficiency(MostRecentPartyTurnArchitect.GetProficiency(p.Item1))}, {MostRecentPartyTurnArchitect.GetXP(p.Item1)} XP", 290, 100 + 20 * line, BabyShibafont, Color.White);
+                        }
+                        if (line == 0)
+                        {
+                            DrawCenteredTextAtPosition(_spriteBatch, "No proficiencies...?", 280, 120 + 10 * line, BabyShibafont, Color.White);
+                        }
+
+                        //level up screen
+                        void DrawPathLevel(SpriteBatch spriteBatch, SpriteFont babyShibaFont, string pathName, int pathLevel, int Y, Color color)
+                        {
+                            string text = pathLevel > 0 ? $"{pathName} Level {pathLevel}" : $"{pathName} (not activated)";
+                            DrawCenteredText(_spriteBatch, text, Y, babyShibaFont, pathLevel > 0 ? color : new Color(40, 40, 40));
+                        }
+
+                        if (MostRecentPartyTurnArchitect.SpendableLevels > 0)
+                        {
+                            int newWidth = 1919 + 200; // Increase width by 200
+                            int newHeight = 1080 + 200; // Increase height by 200
+
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int boxX = (2560 - newWidth) / 2;
+                            int boxY = (1440 - newHeight) / 2;
+
+                            int startingPosition = 500;
+                            int spacing = 30;
+
+                            void DrawPathLevels(Party GamePlayerParty, SpriteBatch spriteBatch, SpriteFont babyShibaFont)
+                            {
+                                int position = startingPosition;
+
+                                // Each path's drawing code:
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[X] Path of Shadow", MostRecentPartyTurnArchitect.PathOfShadowLevel, position, Color.MidnightBlue);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[L] Path of Life", MostRecentPartyTurnArchitect.PathOfLifeLevel, position, Color.ForestGreen);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[D] Path of Death", MostRecentPartyTurnArchitect.PathOfDeathLevel, position, Color.DarkRed);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[A] Path of Stars", MostRecentPartyTurnArchitect.PathOfStarsLevel, position, Color.Gold);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[H] Path of Heat", MostRecentPartyTurnArchitect.PathOfHeatLevel, position, Color.OrangeRed);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
+                                position += spacing;
+
+                                /*
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[I] Path of Illusions", MostRecentPartyTurnArchitect.PathOfIllusionsLevel, position, Color.Magenta);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[T] Path of Time", MostRecentPartyTurnArchitect.PathOfTimeLevel, position, Color.SkyBlue);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[E] Path of Ethereality", MostRecentPartyTurnArchitect.PathOfEtherealityLevel, position, Color.LightBlue);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[V] Path of Void", MostRecentPartyTurnArchitect.PathOfVoidLevel, position, Color.DarkSlateBlue);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[S] Path of Storms", MostRecentPartyTurnArchitect.PathOfStormsLevel, position, Color.Cyan);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[F] Path of Forge", MostRecentPartyTurnArchitect.PathOfForgeLevel, position, Color.DarkOrange);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[K] Path of Lore", MostRecentPartyTurnArchitect.PathOfLoreLevel, position, Color.SeaGreen);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[M] Path of Mind", MostRecentPartyTurnArchitect.PathOfMindLevel, position, Color.LightSeaGreen);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[U] Path of Soul", MostRecentPartyTurnArchitect.PathOfSoulLevel, position, Color.MediumPurple);
+                                position += spacing;
+
+                                DrawPathLevel(spriteBatch, babyShibaFont, "[P] Path of Space", MostRecentPartyTurnArchitect.PathOfSpaceLevel, position, Color.DarkOrchid);
+                                position += spacing;
+                                */
+                            }
+
+                            DrawPathLevels(GamePlayerParty, _spriteBatch, BabyShibafont);
+
+
+                        }
+
+
+                        if (!Keyboard.GetState().IsKeyDown(Keys.LeftControl) && (MostRecentPartyTurnArchitect.SpendableLevels > 0 || Keyboard.GetState().IsKeyDown(Keys.OemTilde)))
+                        {
+                            int newWidth = 1919 + 200; // Increase width by 200
+                            int newHeight = 1080 + 200; // Increase height by 200
+
+                            _spriteBatch.Draw(
+                                ReactionGUIT,
+                                new Rectangle(
+                                    (2560 - newWidth) / 2, // Centered X
+                                    (1440 - newHeight) / 2, // Centered Y
+                                    newWidth,
+                                    newHeight),
+                                Color.White);
+
+                            int boxX = (2560 - newWidth) / 2;
+                            int boxY = (1440 - newHeight) / 2;
+
+                            int startingPosition = 500;
+                            int spacing = 30;
+
+                            int position = 500;
+
+                            // Each path's drawing code:
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[X] Path of Shadow", MostRecentPartyTurnArchitect.PathOfShadowLevel, position, Color.MidnightBlue);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[L] Path of Life", MostRecentPartyTurnArchitect.PathOfLifeLevel, position, Color.ForestGreen);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[D] Path of Death", MostRecentPartyTurnArchitect.PathOfDeathLevel, position, Color.DarkRed);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[A] Path of Stars", MostRecentPartyTurnArchitect.PathOfStarsLevel, position, Color.Gold);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[H] Path of Heat", MostRecentPartyTurnArchitect.PathOfHeatLevel, position, Color.OrangeRed);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[B] Path of Body", MostRecentPartyTurnArchitect.PathOfBodyLevel, position, Color.SandyBrown);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[R] Path of Reality", MostRecentPartyTurnArchitect.PathOfRealityLevel, position, Color.IndianRed);
+                            position += spacing;
+
+                            DrawPathLevel(_spriteBatch, BabyShibafont, "[G] Path of Light", MostRecentPartyTurnArchitect.PathOfLightLevel, position, Color.Yellow);
+                            position += spacing;
+
+                            if (Keyboard.GetState().IsKeyDown(Keys.X))
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                DrawCenteredText(_spriteBatch, "PATH OF SHADOW", position, BabyShibafont, Color.MidnightBlue);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 1) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Become harder to see and target.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 2) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 3) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: \"become one with shadow\" to go invisible but lose energy. Your items are visible.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 4) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 5) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Your possessions become invisible with you.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 6) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 7) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Energy loss from invisibility cut in half.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 8) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 9: +1 AGL ", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfShadowLevel >= 9) ? Color.MidnightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL X TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                            }
+
+                            if (Keyboard.GetState().IsKeyDown(Keys.L)) // Assuming 'L' is the key for Path of Life
+                            {
+                                _spriteBatch.Draw(ReactionGUIT, new Rectangle((2560 - newWidth) / 2, (1440 - newHeight) / 2, newWidth, newHeight), Color.White);
+
+                                position = startingPosition;
+
+                                // Title
+                                DrawCenteredText(_spriteBatch, "PATH OF LIFE", position, BabyShibafont, Color.ForestGreen);
+                                position += spacing;
+
+                                // Display abilities with conditional coloring based on the level
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 1) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                DrawCenteredText(_spriteBatch, "LVL 2: Gain a constant regeneration buff.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 2) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 3) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                DrawCenteredText(_spriteBatch, "LVL 4: Full communication with all creatures.", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 4) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 5) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Pacify/Tame animals, add to party. Max of Path LVL animals. Use \"pacify ~\"", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 6) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 7) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                DrawCenteredText(_spriteBatch, "LVL 8: Buff/augment your animals with \"augment ~\".", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 8) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                DrawCenteredText(_spriteBatch, "LVL 9: +1 CHA", position, BabyShibafont, (MostRecentPartyTurnArchitect.PathOfLifeLevel >= 9) ? Color.ForestGreen : new Color(40, 40, 40));
+                                position += spacing;
+
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + L TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                            }
+                            else if (Keyboard.GetState().IsKeyDown(Keys.D))
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                // Title
+                                DrawCenteredText(_spriteBatch, "PATH OF DEATH", position, BabyShibafont, Color.DarkRed);
+                                position += spacing;
+                                // Abilities
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 1 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Raise ((LVL/2) rounded down) weakened undead servants with \"raise ~\"", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 2 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 3 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Fire spectral bolts with \"spectralize ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 4 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 5 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Foes slain by bolts may become undead.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 6 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 7 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Return to life with 30 energy once a day.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfDeathLevel >= 8 ? Color.DarkRed : new Color(40, 40, 40));
+                                position += spacing;
+                                // Leveling up instruction
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + D TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.A)) // Assuming 'A' is the key for Path of Stars
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                // Title
+                                DrawCenteredText(_spriteBatch, "PATH OF STARS", position, BabyShibafont, Color.Gold);
+                                position += spacing;
+                                // Abilities
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 1 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Summon a falling star on strike.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 2 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 3 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Starstruck creatures ignite.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 4 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 5 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Fire stars from your hands with \"starstrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 6 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 7 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Open a portal to a star and fire a laser with \"starsmite ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStarsLevel >= 8 ? Color.Gold : new Color(40, 40, 40));
+                                position += spacing;
+                                // Leveling up instruction
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + A TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.H)) // Assuming 'H' is the key for Path of Heat
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                // Title
+                                DrawCenteredText(_spriteBatch, "PATH OF HEAT", position, BabyShibafont, Color.OrangeRed);
+                                position += spacing;
+                                // Abilities
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 1 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Conjure and throw waves of heat with \"flamestrike ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 2 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 3 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Control heat of objects you touch, with \"sear ~\" to increase damage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 4 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 5 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Conjure larger waves of heat.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 6 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 7 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Set self on fire at will with \"inflame\". Increases fire abliities.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfHeatLevel >= 8 ? Color.OrangeRed : new Color(40, 40, 40));
+                                position += spacing;
+                                // Leveling up instruction
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + H TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.B)) // For Path of Body
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF BODY", position, BabyShibafont, Color.SandyBrown);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 1 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all physical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 2 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 3 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Increased unarmed melee capabilities and agility.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 4 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 5 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Unarmed strikes channel radiant energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 6 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 7 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Gain a considerable boost to speed.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfBodyLevel >= 8 ? Color.SandyBrown : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD B FOR PATH DETAILS. CTRL+B TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.G)) // For Path of Light
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF LIGHT", position, BabyShibafont, Color.Yellow);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 AGL. Summon sparks with \"conjure spark\". Maximum of Path Level.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 1 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Use \"evoke blindness\" to consume a spark and blind nearby hostiles.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 2 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 3 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Consume a spark to strike a target with \"evoke strike at ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 4 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 5 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Use a spark out of combat to fully heal all with \"evoke healing\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 6 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 AGL", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 7 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Use a spark to conjure a loyal photonexus with \"evoke nexus\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLightLevel >= 8 ? Color.Yellow : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD G FOR PATH DETAILS. CTRL+G TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.R)) // For Path of Reality
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF REALITY", position, BabyShibafont, Color.IndianRed);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 1 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Increase/Decrease integrity, temperature, aerodynamics, and weight of objects once.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 2 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 3 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Liquify objects and structures with \"liquify ~\"", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 4 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 5 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Duplicate objects with \"split ~\".", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 6 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 7 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Remove people from reality with \"blip ~\". Requires time and multiple tries.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfRealityLevel >= 8 ? Color.IndianRed : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD R FOR PATH DETAILS. CTRL+R TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            /*
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.I)) // For Path of Illusions
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF ILLUSIONS", position, BabyShibafont, Color.Magenta);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 1 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Summon an incorporeal immobile duplicate of yourself or an object.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 2 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 3 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Summon a duplicate of an animate object. Your duplicates move on their own", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 4 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 5 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Control all clones you create.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 6 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CHA", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 7 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Switch places with a duplicate of yourself at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfIllusionsLevel >= 8 ? Color.Magenta : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD I FOR PATH DETAILS. CTRL+I TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.T))
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title
+                                DrawCenteredText(_spriteBatch, "PATH OF TIME", position, BabyShibafont, Color.SkyBlue);
+                                position += spacing;
+                                // Abilities
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 1 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Gain some control over your timeline.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 2 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 3 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Reverse a cycle and its events once per day.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 4 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 5 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Accelerate your timeline briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 6 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 7 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Freeze everyone’s timeline but your own.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfTimeLevel >= 8 ? Color.SkyBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                // Leveling up instruction
+                                DrawCenteredText(_spriteBatch, "PRESS CTRL + T TO LEVEL UP THIS PATH.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.E)) // For Path of Ethereality
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF ETHEREALITY", position, BabyShibafont, Color.LightBlue);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 1 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Take less damage, generally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 2 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 3 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Enter the ethereal plane briefly.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 4 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 5 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Send objects to the ethereal plane.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 6 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 7 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Instantaneous travel anywhere.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfEtherealityLevel >= 8 ? Color.LightBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD E FOR PATH DETAILS. CTRL+E TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.V)) // For Path of Void
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF VOID", position, BabyShibafont, Color.DarkSlateBlue);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 1 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Create voids that you can store items for later usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 2 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 3 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Fire matter projectiles from voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 4 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 5 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Compel creatures into voids.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 6 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 7 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Voids last forever and are interconnected.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfVoidLevel >= 8 ? Color.DarkSlateBlue : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD V FOR PATH DETAILS. CTRL+V TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.S)) // For Path of Storms
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF STORMS", position, BabyShibafont, Color.Cyan);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 1 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Energy strike on foes.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 2 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 3 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Flow with uncontrollable energy.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 4 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 5 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Direct energy into objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 6 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 7 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Gain flight and powerful energy manipulation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfStormsLevel >= 8 ? Color.Cyan : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD S FOR PATH DETAILS. CTRL+S TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.F)) // For Path of Forge
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF FORGE", position, BabyShibafont, Color.DarkOrange);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 1 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Craft any weapon at a forge with the right materials.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 2 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 3 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Weapons you make have an extra imbuement.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 4 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 5 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Your imbuements have more effectiveness.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 6 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 DEX", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 7 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Touch objects to give them three extra imbuements.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfForgeLevel >= 8 ? Color.DarkOrange : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD F FOR PATH DETAILS. CTRL+F TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.K)) // For Path of Lore
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF LORE", position, BabyShibafont, Color.SeaGreen);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 1 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Access lore from other lorepathers, containing secrets.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 2 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 3 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Trade knowledge with people mentally.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 4 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 5 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Increase max path level by 4.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 6 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 CRE", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 7 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Access a wellspring of history at will.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfLoreLevel >= 8 ? Color.SeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD K FOR PATH DETAILS. CTRL+K TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.M)) // For Path of Mind
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF MIND", position, BabyShibafont, Color.LightSeaGreen);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 1 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Enhanced magical power.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 2 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 3 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Decreased magical energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 4 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 5 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Option to double spell effects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 6 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 FOC", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 7 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Triple Spell effects and reduced energy usage.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfMindLevel >= 8 ? Color.LightSeaGreen : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD M FOR PATH DETAILS. CTRL+M TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.U)) // For Path of Soul
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF SOUL", position, BabyShibafont, Color.MediumPurple);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 1 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Increases to all nonphysical stats.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 2 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 3 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Greatly increased energy generation.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 4 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 5 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Exit your body, moving through walls.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 6 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 END", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 7 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Possess a new vessel if you die.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSoulLevel >= 8 ? Color.MediumPurple : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD U FOR PATH DETAILS. CTRL+U TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+
+                            else if (Keyboard.GetState().IsKeyDown(Keys.P)) // For Path of Space
+                            {
+                                _spriteBatch.Draw(
+                                    ReactionGUIT,
+                                    new Rectangle(
+                                        (2560 - newWidth) / 2, // Centered X
+                                        (1440 - newHeight) / 2, // Centered Y
+                                        newWidth,
+                                        newHeight),
+                                    Color.White);
+
+                                int position = startingPosition;
+
+                                // Title and Abilities
+                                DrawCenteredText(_spriteBatch, "PATH OF SPACE", position, BabyShibafont, Color.DarkOrchid);
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 1: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 1 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 2: Open a portal for travel.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 2 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 3: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 3 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 4: Telekinesis for small objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 4 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 5: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 5 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 6: Telekinesis for heavier objects.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 6 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 7: +1 STR", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 7 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                DrawCenteredText(_spriteBatch, "LVL 8: Telekinesis without limits, including self for flight.", position, BabyShibafont, MostRecentPartyTurnArchitect.PathOfSpaceLevel >= 8 ? Color.DarkOrchid : new Color(40, 40, 40));
+                                position += spacing;
+                                // Instruction for leveling up
+                                DrawCenteredText(_spriteBatch, "HOLD P FOR PATH DETAILS. CTRL+P TO LEVEL.", position, BabyShibafont, Color.White);
+                            }
+                            */
+
+                        }
+
+
+                        //character
+                        DrawCharacter(MostRecentPartyTurnArchitect, 500, 1200, 0.2);
+
+                    }
+
+                    string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that", "his", "their", "himself", "herself", "themself", "themselves" };
+
+                    if (!((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.LeftControl)) && Keyboard.GetState().IsKeyDown(Keys.OemQuestion)))
+                    {
+                        // Define colors for different parts
+                        Color infrastructureColor = new Color(255, 0, 255); // Pink
+                        Color subjectColor = new Color(0, 255, 0); // Green
+                        Color completePronounColor = new Color(0, 255, 255); // Cyan
+                        Color incompletePronounColor = new Color(0, 0, 139); // Dark blue
+                        Color defaultColor = new Color(75, 75, 75); // Gray
+
+                        List<(string part, string type, bool isComplete)> ParseIntoParts(string command, string input)
+                        {
+                            var commandParts = command.Split(' ');
+                            var inputParts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+                            var parsedParts = new List<(string part, string type, bool isComplete)>();
+
+                            // Merge adjacent non-unique parts in the command
+                            var mergedCommandParts = new List<string>();
+                            for (int i = 0; i < commandParts.Length; i++)
+                            {
+                                if (commandParts[i] == "~" || commandParts[i] == "/p")
+                                {
+                                    mergedCommandParts.Add(commandParts[i]);
+                                }
+                                else
+                                {
+                                    string mergedPart = commandParts[i];
+                                    while (i + 1 < commandParts.Length && commandParts[i + 1] != "~" && commandParts[i + 1] != "/p")
+                                    {
+                                        mergedPart += " " + commandParts[++i];
+                                    }
+                                    mergedCommandParts.Add(mergedPart);
                                 }
                             }
-                            else if (mergedCommandParts[i] == "/p")
+
+                            // Tagging parts
+                            var taggedInputParts = inputParts.Select(part =>
+                                (part, isUnique: pronouns.Any(p => part.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || mergedCommandParts.Any(cp => cp.Equals(part, StringComparison.OrdinalIgnoreCase))))
+                                .ToList();
+
+                            // Merge adjacent non-unique parts in the input
+                            var mergedInputParts = new List<string>();
+                            for (int i = 0; i < taggedInputParts.Count; i++)
                             {
-                                if (j < mergedInputParts.Count)
+                                if (!taggedInputParts[i].isUnique)
                                 {
-                                    string currentInput = mergedInputParts[j].ToLower();
-                                    if (pronouns.Contains(currentInput))
+                                    string mergedPart = taggedInputParts[i].part;
+                                    while (i + 1 < taggedInputParts.Count && !taggedInputParts[i + 1].isUnique)
                                     {
-                                        parsedParts.Add((mergedInputParts[j], "completePronoun", true));
+                                        mergedPart += " " + taggedInputParts[++i].part;
+                                    }
+                                    mergedInputParts.Add(mergedPart);
+                                }
+                                else
+                                {
+                                    mergedInputParts.Add(taggedInputParts[i].part);
+                                }
+                            }
+
+                            // Parsing logic to align with GetMatchScore's merged logic
+                            int j = 0;
+                            bool firstPartChecked = false;
+                            for (int i = 0; i < mergedCommandParts.Count; i++)
+                            {
+                                if (mergedCommandParts[i] == "~")
+                                {
+                                    if (j < mergedInputParts.Count)
+                                    {
+                                        parsedParts.Add((mergedInputParts[j], "subject", true));
+                                        j++;
                                     }
                                     else
                                     {
-                                        // Check if the current input is a prefix of any pronoun
-                                        bool isIncompletePronoun = pronouns.Any(p => p.StartsWith(currentInput));
-                                        if (isIncompletePronoun)
+                                        parsedParts.Add(("~", "default", false));
+                                    }
+                                }
+                                else if (mergedCommandParts[i] == "/p")
+                                {
+                                    if (j < mergedInputParts.Count)
+                                    {
+                                        string currentInput = mergedInputParts[j].ToLower();
+                                        if (pronouns.Contains(currentInput))
                                         {
-                                            parsedParts.Add((mergedInputParts[j], "incompletePronoun", false));
+                                            parsedParts.Add((mergedInputParts[j], "completePronoun", true));
                                         }
                                         else
                                         {
-                                            parsedParts.Add((mergedInputParts[j], "default", false));
+                                            // Check if the current input is a prefix of any pronoun
+                                            bool isIncompletePronoun = pronouns.Any(p => p.StartsWith(currentInput));
+                                            if (isIncompletePronoun)
+                                            {
+                                                parsedParts.Add((mergedInputParts[j], "incompletePronoun", false));
+                                            }
+                                            else
+                                            {
+                                                parsedParts.Add((mergedInputParts[j], "default", false));
+                                            }
                                         }
+                                        j++;
                                     }
-                                    j++;
+                                    else
+                                    {
+                                        parsedParts.Add(("/p", "default", false));
+                                    }
                                 }
                                 else
                                 {
-                                    parsedParts.Add(("/p", "default", false));
-                                }
-                            }
-                            else
-                            {
-                                bool isComplete = j < mergedInputParts.Count && mergedCommandParts[i].Equals(mergedInputParts[j], StringComparison.OrdinalIgnoreCase);
-                                if (i == 0 || !firstPartChecked) // Special case for the first part of the command
-                                {
-                                    firstPartChecked = true;
-                                    parsedParts.Add((mergedCommandParts[i], "infrastructure", isComplete));
-                                    j++;
-                                }
-                                else if (isComplete)
-                                {
-                                    parsedParts.Add((mergedCommandParts[i], "infrastructure", true));
-                                    j++;
-                                }
-                                else
-                                {
-                                    parsedParts.Add((mergedCommandParts[i], "incompleteInfrastructure", false));
-                                    if (!firstPartChecked)
+                                    bool isComplete = j < mergedInputParts.Count && mergedCommandParts[i].Equals(mergedInputParts[j], StringComparison.OrdinalIgnoreCase);
+                                    if (i == 0 || !firstPartChecked) // Special case for the first part of the command
                                     {
                                         firstPartChecked = true;
+                                        parsedParts.Add((mergedCommandParts[i], "infrastructure", isComplete));
+                                        j++;
                                     }
-                                    j++;
+                                    else if (isComplete)
+                                    {
+                                        parsedParts.Add((mergedCommandParts[i], "infrastructure", true));
+                                        j++;
+                                    }
+                                    else
+                                    {
+                                        parsedParts.Add((mergedCommandParts[i], "incompleteInfrastructure", false));
+                                        if (!firstPartChecked)
+                                        {
+                                            firstPartChecked = true;
+                                        }
+                                        j++;
+                                    }
                                 }
                             }
-                        }
 
-                        // Handle remaining input parts
-                        while (j < mergedInputParts.Count)
-                        {
-                            parsedParts.Add((mergedInputParts[j], "default", false));
-                            j++;
-                        }
-
-                        return parsedParts;
-                    }
-
-
-
-
-                    (int score, bool isMatch, bool isPartialMatch) GetMatchScore(string command, string input)
-                    {
-                        var commandParts = command.Split(' ');
-                        var inputParts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        int score = 0;
-                        int infrastructureScore = 0;
-                        bool isPartial = false;
-
-                        // Merge adjacent non-unique parts in the command
-                        var mergedCommandParts = new List<string>();
-                        for (int i = 0; i < commandParts.Length; i++)
-                        {
-                            if (commandParts[i] == "~" || commandParts[i] == "/p")
+                            // Handle remaining input parts
+                            while (j < mergedInputParts.Count)
                             {
-                                mergedCommandParts.Add(commandParts[i]);
+                                parsedParts.Add((mergedInputParts[j], "default", false));
+                                j++;
                             }
-                            else
+
+                            return parsedParts;
+                        }
+
+
+
+
+                        (int score, bool isMatch, bool isPartialMatch) GetMatchScore(string command, string input)
+                        {
+                            var commandParts = command.Split(' ');
+                            var inputParts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            int score = 0;
+                            int infrastructureScore = 0;
+                            bool isPartial = false;
+
+                            // Merge adjacent non-unique parts in the command
+                            var mergedCommandParts = new List<string>();
+                            for (int i = 0; i < commandParts.Length; i++)
                             {
-                                string mergedPart = commandParts[i];
-                                while (i + 1 < commandParts.Length && commandParts[i + 1] != "~" && commandParts[i + 1] != "/p")
+                                if (commandParts[i] == "~" || commandParts[i] == "/p")
                                 {
-                                    mergedPart += " " + commandParts[++i];
+                                    mergedCommandParts.Add(commandParts[i]);
                                 }
-                                mergedCommandParts.Add(mergedPart);
-                            }
-                        }
-
-                        // Tagging parts
-                        var taggedInputParts = inputParts.Select(part =>
-                            (part, isUnique: pronouns.Any(p => part.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || mergedCommandParts.Any(cp => cp.Equals(part, StringComparison.OrdinalIgnoreCase))))
-                            .ToList();
-
-                        // Merge adjacent non-unique parts in the input
-                        var mergedInputParts = new List<string>();
-                        for (int i = 0; i < taggedInputParts.Count; i++)
-                        {
-                            if (!taggedInputParts[i].isUnique)
-                            {
-                                string mergedPart = taggedInputParts[i].part;
-                                while (i + 1 < taggedInputParts.Count && !taggedInputParts[i + 1].isUnique)
+                                else
                                 {
-                                    mergedPart += " " + taggedInputParts[++i].part;
+                                    string mergedPart = commandParts[i];
+                                    while (i + 1 < commandParts.Length && commandParts[i + 1] != "~" && commandParts[i + 1] != "/p")
+                                    {
+                                        mergedPart += " " + commandParts[++i];
+                                    }
+                                    mergedCommandParts.Add(mergedPart);
                                 }
-                                mergedInputParts.Add(mergedPart);
                             }
-                            else
+
+                            // Tagging parts
+                            var taggedInputParts = inputParts.Select(part =>
+                                (part, isUnique: pronouns.Any(p => part.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || mergedCommandParts.Any(cp => cp.Equals(part, StringComparison.OrdinalIgnoreCase))))
+                                .ToList();
+
+                            // Merge adjacent non-unique parts in the input
+                            var mergedInputParts = new List<string>();
+                            for (int i = 0; i < taggedInputParts.Count; i++)
                             {
-                                mergedInputParts.Add(taggedInputParts[i].part);
+                                if (!taggedInputParts[i].isUnique)
+                                {
+                                    string mergedPart = taggedInputParts[i].part;
+                                    while (i + 1 < taggedInputParts.Count && !taggedInputParts[i + 1].isUnique)
+                                    {
+                                        mergedPart += " " + taggedInputParts[++i].part;
+                                    }
+                                    mergedInputParts.Add(mergedPart);
+                                }
+                                else
+                                {
+                                    mergedInputParts.Add(taggedInputParts[i].part);
+                                }
+                            }
+
+                            // Matching logic
+                            for (int i = 0; i < mergedCommandParts.Count && i < mergedInputParts.Count; i++)
+                            {
+                                if (mergedCommandParts[i] == "~" || mergedCommandParts[i] == "/p")
+                                {
+                                    score++;
+                                }
+                                else if (mergedCommandParts[i].Equals(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    score++;
+                                    infrastructureScore++;
+                                }
+                                else if (mergedCommandParts[i].StartsWith(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    score++;
+                                    infrastructureScore++;
+                                }
+                                else
+                                {
+                                    return (score + infrastructureScore, false, isPartial);
+                                }
+
+                                if (i == mergedInputParts.Count - 1 && !mergedCommandParts[i].Equals(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
+                                {
+                                    isPartial = true;
+                                }
+                            }
+
+                            return (score + infrastructureScore, true, isPartial);
+                        }
+
+                        // Function to get color for each part
+                        Color GetColor(string partType, bool isComplete)
+                        {
+                            return partType switch
+                            {
+                                "infrastructure" => isComplete ? infrastructureColor : defaultColor, // Pink or Gray
+                                "subject" => subjectColor, // Green
+                                "completePronoun" => completePronounColor, // Cyan
+                                "incompletePronoun" => incompletePronounColor, // Dark blue
+                                _ => defaultColor, // Gray
+                            };
+                        }
+
+                        // Function to draw suggestions
+                        void DrawSuggestions(string prompt, List<string> suggestions)
+                        {
+                            string initialText = "Enter a command. Press F5 For Info: \"I ";
+                            Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
+                            float StartX = 50 + sizeOfInitialText.X;
+                            int yOffset = 20;
+
+                            for (int i = 0; i < suggestions.Count; i++)
+                            {
+                                string suggestion = suggestions[i];
+                                var parts = ParseIntoParts(suggestion, prompt);
+
+                                foreach (var (part, type, isComplete) in parts)
+                                {
+                                    Color color = GetColor(type, isComplete);
+                                    _spriteBatch.DrawString(Shibafont, part, new Vector2(StartX, 1200 + (i + 1) * yOffset), color);
+                                    StartX += Shibafont.MeasureString(part).X + 5;
+                                }
+
+                                StartX = 50 + sizeOfInitialText.X;
                             }
                         }
 
-                        // Matching logic
-                        for (int i = 0; i < mergedCommandParts.Count && i < mergedInputParts.Count; i++)
+                        if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
                         {
-                            if (mergedCommandParts[i] == "~" || mergedCommandParts[i] == "/p")
-                            {
-                                score++;
-                            }
-                            else if (mergedCommandParts[i].Equals(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
-                            {
-                                score++;
-                                infrastructureScore++;
-                            }
-                            else if (mergedCommandParts[i].StartsWith(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
-                            {
-                                score++;
-                                infrastructureScore++;
-                            }
-                            else
-                            {
-                                return (score + infrastructureScore, false, isPartial);
-                            }
+                            var commandsWithMatchData = RecognizedCommands
+                                .SelectMany(cmd => cmd.Value.Item1.Select(command => new
+                                {
+                                    Command = command,
+                                    MatchData = GetMatchScore(command, MostRecentPartyTurnArchitect.Prompt)
+                                }))
+                                .ToList();
 
-                            if (i == mergedInputParts.Count - 1 && !mergedCommandParts[i].Equals(mergedInputParts[i], StringComparison.OrdinalIgnoreCase))
-                            {
-                                isPartial = true;
-                            }
+                            var matchedCommands = commandsWithMatchData
+                                .Where(x => x.MatchData.isMatch || x.MatchData.isPartialMatch)
+                                .ToList();
+
+                            var orderedCommands = matchedCommands
+                                .OrderByDescending(x => x.MatchData.score)
+                                .Take(4)
+                                .ToList();
+
+                            var matchingCommands = orderedCommands
+                                .Select(x => x.Command)
+                                .ToList();
+
+                            DrawSuggestions(MostRecentPartyTurnArchitect.Prompt, matchingCommands);
                         }
 
-                        return (score + infrastructureScore, true, isPartial);
-                    }
+                        _spriteBatch.DrawString(Shibafont, "Enter a command. Press F5 For Help: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
 
-                    // Function to get color for each part
-                    Color GetColor(string partType, bool isComplete)
-                    {
-                        return partType switch
+                        // Display movement description
+                        string MovementDescription = "";
+
+                        if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
                         {
-                            "infrastructure" => isComplete ? infrastructureColor : defaultColor, // Pink or Gray
-                            "subject" => subjectColor, // Green
-                            "completePronoun" => completePronounColor, // Cyan
-                            "incompletePronoun" => incompletePronounColor, // Dark blue
-                            _ => defaultColor, // Gray
-                        };
-                    }
-
-                    // Function to draw suggestions
-                    void DrawSuggestions(string prompt, List<string> suggestions)
-                    {
-                        string initialText = "Enter a command. Press F5 For Info: \"I ";
-                        Vector2 sizeOfInitialText = Shibafont.MeasureString(initialText);
-                        float StartX = 50 + sizeOfInitialText.X;
-                        int yOffset = 20;
-
-                        for (int i = 0; i < suggestions.Count; i++)
-                        {
-                            string suggestion = suggestions[i];
-                            var parts = ParseIntoParts(suggestion, prompt);
-
-                            foreach (var (part, type, isComplete) in parts)
-                            {
-                                Color color = GetColor(type, isComplete);
-                                _spriteBatch.DrawString(Shibafont, part, new Vector2(StartX, 1200 + (i + 1) * yOffset), color);
-                                StartX += Shibafont.MeasureString(part).X + 5;
-                            }
-
-                            StartX = 50 + sizeOfInitialText.X;
+                            MovementDescription = "You are not moving right now.";
                         }
+                        else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
+                        {
+                            MovementDescription = "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace + ".";
+                        }
+                        else
+                        {
+                            MovementDescription = "You are not moving right now.";
+                        }
+
+                        if (MostRecentPartyTurnArchitect.OnGround)
+                        {
+                            MovementDescription += " You are currently prone.";
+                        }
+                        else
+                        {
+                            MovementDescription += " You are currently standing.";
+                        }
+
+                        if (MassTravelOrderMode)
+                        {
+                            MovementDescription += " Move orders given to entire party.";
+                        }
+
+                        _spriteBatch.DrawString(Shibafont, MovementDescription, new Vector2(50, 1150), Color.White);
                     }
 
-                    if (MostRecentPartyTurnArchitect.Prompt.Length > 0)
+                    //cmd help
+                    if (Keyboard.GetState().IsKeyDown(Keys.F5))
                     {
-                        var commandsWithMatchData = RecognizedCommands
-                            .SelectMany(cmd => cmd.Value.Item1.Select(command => new
-                            {
-                                Command = command,
-                                MatchData = GetMatchScore(command, MostRecentPartyTurnArchitect.Prompt)
-                            }))
-                            .ToList();
-
-                        var matchedCommands = commandsWithMatchData
-                            .Where(x => x.MatchData.isMatch || x.MatchData.isPartialMatch)
-                            .ToList();
-
-                        var orderedCommands = matchedCommands
-                            .OrderByDescending(x => x.MatchData.score)
-                            .Take(4)
-                            .ToList();
-
-                        var matchingCommands = orderedCommands
-                            .Select(x => x.Command)
-                            .ToList();
-
-                        DrawSuggestions(MostRecentPartyTurnArchitect.Prompt, matchingCommands);
+                        _spriteBatch.Draw(CmdHelpT, new Rectangle(0, 0, 2560, 1440), Color.White);
                     }
 
-                    _spriteBatch.DrawString(Shibafont, "Enter a command. Press F5 For Help: \"I " + MostRecentPartyTurnArchitect.Prompt + "_\"", new Vector2(50, 1200), Color.White);
-
-                    // Display movement description
-                    string MovementDescription = "";
-
-                    if (MostRecentPartyTurnArchitect.CurrentlyMovingPlace == "none")
+                    if(Keyboard.GetState().IsKeyDown(Keys.F2) && StoredPortrait != null)
                     {
-                        MovementDescription = "You are not moving right now.";
+                        DrawCharacter(StoredPortrait, 75, 600, 0.2);
                     }
-                    else if (KeyDirections.ContainsValue(MostRecentPartyTurnArchitect.CurrentlyMovingPlace))
-                    {
-                        MovementDescription = "You are currently headed to the " + MostRecentPartyTurnArchitect.CurrentlyMovingPlace + ".";
-                    }
-                    else
-                    {
-                        MovementDescription = "You are not moving right now.";
-                    }
-
-                    if (MostRecentPartyTurnArchitect.OnGround)
-                    {
-                        MovementDescription += " You are currently prone.";
-                    }
-                    else
-                    {
-                        MovementDescription += " You are currently standing.";
-                    }
-
-                    _spriteBatch.DrawString(Shibafont, MovementDescription, new Vector2(50, 1150), Color.White);
                 }
-
-                //cmd help
-                if (Keyboard.GetState().IsKeyDown(Keys.F5))
+                else
                 {
-                    _spriteBatch.Draw(CmdHelpT, new Rectangle(0, 0, 2560, 1440), Color.White);
+                    MostRecentPartyTurnArchitect = GamePlayerParty.Architects[0];
                 }
-
             }
             else if (GameState == "dead")
             {
@@ -11792,7 +12411,8 @@ namespace Lightrealm
                     if (relevantItems.Count == 0)
                     {
                         _spriteBatch.DrawString(Shibafont, "You do not have the required materials for this.", new Vector2(960, 100), Color.Red);
-                        _spriteBatch.DrawString(Shibafont, "You can gather resources at empty regions.", new Vector2(960, 150), Color.Red);
+                        _spriteBatch.DrawString(Shibafont, "You can gather raw resources at empty regions.", new Vector2(960, 150), Color.Red);
+                        _spriteBatch.DrawString(Shibafont, "You can craft bars, bolts, and sheets in this menu.", new Vector2(960, 200), Color.Red);
                     }
                     else
                     {
@@ -12062,7 +12682,7 @@ namespace Lightrealm
                 }
 
 
-
+                /*
 
                 // Draw the hitbox borders
                 foreach ((Rectangle rect, Entity entity) in EntityHitboxes)
@@ -12083,6 +12703,9 @@ namespace Lightrealm
                     // Right Border
                     _spriteBatch.Draw(whiteRect, new Rectangle(rect.X + rect.Width - scaledBorderSizeX, rect.Y, scaledBorderSizeX, rect.Height), Color.White);
                 }
+
+                */
+
 
                 if (ThisList.Count > 0)
                 {
@@ -12113,7 +12736,7 @@ namespace Lightrealm
                         if (entity.ReferredToNames != null && entity.ReferredToNames.Count > 0)
                         {
                             string text = entity.ReferredToNames[0];
-                            DrawCenteredTextAtPosition(_spriteBatch, text, textStartX, textStartY, BabyShibafont);
+                            DrawCenteredTextAtPosition(_spriteBatch, text, textStartX, textStartY, BabyShibafont, Color.White);
                             textStartY += BabyShibafont.LineSpacing; // Move down for the next text
                         }
                     }
@@ -12122,6 +12745,18 @@ namespace Lightrealm
             }
 
             _spriteBatch.Draw(BetterCursorT, new Rectangle(Mouse.GetState().X - 8, Mouse.GetState().Y - 8, 16, 16), Color.White);
+
+            /*
+            _spriteBatch.Draw(whiteRect, RectangleE, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleSE, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleSW, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleS, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleN, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleW, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleNE, Color.White);
+            _spriteBatch.Draw(whiteRect, RectangleNW, Color.White);
+            */
+
 
             _spriteBatch.End();
 

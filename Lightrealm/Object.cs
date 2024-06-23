@@ -78,9 +78,6 @@ namespace Lightrealm
 
         public Entity Creator { get; set; }
 
-        public string WordCount { get; set; } = "";
-        public string Subject { get; set; }
-
         public int FireCycles { get; set; } = 0;
         public int WetCycles { get; set; } = 0;
         public int DestabilizedCycles { get; set; } = 0;
@@ -331,17 +328,29 @@ namespace Lightrealm
                     return Announcements;
                 }
 
-                if (Owner != null && IsBodyPart && Game1.r.Next(100) < ((Architect)Owner).NaturalArmor)
+                if (Owner != null && Owner is Architect a && IsBodyPart)
                 {
-                    Announcements.Add(new TextStorage("The attack breaks through and damages " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
-                    ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
+                    if (Game1.r.Next(100) < a.BarrierStacks * 10)
+                    {
+                        Announcements.Add(new TextStorage("The attack is blocked by a barrier stack!", Color.LimeGreen, new List<Entity>() { }));
+                        a.BarrierStacks--;
+                        return Announcements;
+                    }
+
+                    int armorDamage = Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
+                    if (Game1.r.Next(100) < a.NaturalArmor)
+                    {
+                        Announcements.Add(new TextStorage("The attack breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
+                        a.NaturalArmor -= armorDamage;
+                    }
+                    else if (a.NaturalArmor > 0)
+                    {
+                        Announcements.Add(new TextStorage("The attack damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
+                        a.NaturalArmor -= armorDamage;
+                        return Announcements;
+                    }
                 }
-                else if (((Architect)Owner).NaturalArmor > 0)
-                {
-                    Announcements.Add(new TextStorage("The attack damages, but does not pierce " + ((Architect)Owner).ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
-                    ((Architect)Owner).NaturalArmor -= Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
-                    return Announcements;
-                }
+
 
 
                 // Apply damage to integrity
@@ -427,16 +436,16 @@ namespace Lightrealm
                     Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
 
                     List<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
-                    foreach (Architect a in nearbyPeoples)
+                    foreach (Architect A in nearbyPeoples)
                     {
-                        if (a.TargetArchitect == MeleeAttacker ||
+                        if (A.TargetArchitect == MeleeAttacker ||
         (Game1.GamePlayerParty.Architects.Contains(MeleeAttacker) &&
          Game1.GamePlayerParty.Architects.Any(architect =>
-             architect.TargetArchitect == a &&
+             architect.TargetArchitect == A &&
              (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
                         {
-                            a.Energy -= 30;
-                            Announcements.Add(new TextStorage(a.ReferredToNames[0] + " looks drained!", Color.Green, new List<Entity>() { a }));
+                            A.Energy -= 30;
+                            Announcements.Add(new TextStorage(A.ReferredToNames[0] + " looks drained!", Color.Green, new List<Entity>() { A }));
                         }
                     }
                 }
@@ -451,14 +460,19 @@ namespace Lightrealm
                 double throwingObjectIntegrityLoss = 0;
                 double targetIntegrityLoss = 0;
 
+                // Calculate weight-based factors
+                double weightFactor = o.Weight / this.Weight;
+
                 foreach (var material in o.Materials)
                 {
-                    throwingObjectIntegrityLoss += material.Toughness;
+                    double integrityLossFactor = GetMaterialIntegrityLossFactor(material.Type);
+                    throwingObjectIntegrityLoss += material.Toughness * integrityLossFactor * weightFactor;
                 }
 
                 foreach (var material in this.Materials)
                 {
-                    targetIntegrityLoss += material.Toughness;
+                    double integrityLossFactor = GetMaterialIntegrityLossFactor(material.Type);
+                    targetIntegrityLoss += material.Toughness * integrityLossFactor / weightFactor;
                 }
 
                 // Adjust integrity loss based on airborne power
@@ -496,6 +510,26 @@ namespace Lightrealm
                 // Ensure integrity doesn't go below 0
                 o.Integrity = Math.Max(o.Integrity, 0);
                 this.Integrity = Math.Max(this.Integrity, 0);
+            }
+
+            // Helper method to get integrity loss factor based on material type
+            double GetMaterialIntegrityLossFactor(string materialType)
+            {
+                switch (materialType.ToLower())
+                {
+                    case "metal":
+                        return 0.5; // half damage
+                    case "cloth":
+                        return 0.7; // resists
+                    case "wood":
+                        return 1.0; // normal
+                    case "stone":
+                        return 0.8; // slightly resists
+                    case "glass":
+                        return 10.0; // very susceptible
+                    default:
+                        return 1.0; // default multiplier
+                }
             }
 
             void AnnounceDamage(Object obj, int damage)
@@ -576,8 +610,8 @@ namespace Lightrealm
 
             if (Game1.MostRecentPartyTurnArchitect != null &&
                 Game1.GamePlayerParty != null &&
-                (Game1.MostRecentPartyTurnArchitect.LeftHandObject == this ||
-                 Game1.MostRecentPartyTurnArchitect.RightHandObject == this ||
+                (Game1.MostRecentPartyTurnArchitect.OffHeldObject == this ||
+                 Game1.MostRecentPartyTurnArchitect.MainHeldObject == this ||
                  Game1.MostRecentPartyTurnArchitect.Inventory.Contains(this)))
             {
                 List<string> newItems = new List<string>();
@@ -704,7 +738,7 @@ namespace Lightrealm
 
             //burn
 
-            if (FireCycles > 0)
+            if (FireCycles > 0 && Game1.GameWorld.Cycle % 10 == 0)
             {
                 Integrity -= FireCycles;
                 FireCycles--;
@@ -731,51 +765,6 @@ namespace Lightrealm
                 ContainedObjects = new List<Object>();
             }
 
-            if (Type == "scroll" || Type == "book" || Type == "sheet" || Type == "waxtablet")
-            {
-                IsWritable = true;
-                CompositionContent = content;
-
-                if (Type == "scroll")
-                {
-                    WordCount = "~" + Game1.r.Next(5, 500) + "0";
-                }
-                else if (Type == "book")
-                {
-                    WordCount = "~" + Game1.r.Next(30, 150) + "000";
-                }
-                else if (Type == "sheet")
-                {
-                    WordCount = "~" + Game1.r.Next(1, 30) + "0";
-                }
-                else if (Type == "waxtablet")
-                {
-                    WordCount = "~" + Game1.r.Next(1, 10) + "0";
-                }
-            }
-
-
-            if (Type == "shortsword" || Type == "greatsword" || Type == "axe" || Type == "greataxe" || Type == "knife")
-            {
-                IsWeapon = true;
-                DamageType = "slashing";
-            }
-            else if (Type == "rapier" || Type == "spear" || Type == "pike" || Type == "dagger")
-            {
-                IsWeapon = true;
-                DamageType = "piercing";
-            }
-            else if (Type == "mace" || Type == "hammer" || Type == "shield" || Type == "objectUsedAsWeapon")
-            {
-                IsWeapon = true;
-                DamageType = "bashing";
-            }
-            else if (Type == "whip" || Type == "flail" || Type == "chain")
-            {
-                IsWeapon = true;
-                DamageType = "scourging";
-            }
-
             ApplyImbuements(0);
             UpdateNames();
         }
@@ -799,7 +788,7 @@ namespace Lightrealm
             {
                 // Basic resource types
                 case "bar":
-                    Weight = 10000; // e.g., in grams
+                    Weight = 1000; // e.g., in grams
                     Description = "An ingot used to efficiently store /m.";
                     break;
                 case "star":
@@ -841,7 +830,6 @@ namespace Lightrealm
                 case "scroll":
                     IsWritable = true;
                     CompositionContent = null;
-                    WordCount = "~" + Game1.r.Next(5, 500) + "0";
                     Weight = 100; // example weight in grams
                     Description = "A sheet attached to a roller.";
                     break;
@@ -852,21 +840,18 @@ namespace Lightrealm
                 case "book":
                     IsWritable = true;
                     CompositionContent = null;
-                    WordCount = "~" + Game1.r.Next(30, 150) + "000";
                     Description = "A bound collection of sheets.";
                     Weight = 500; // example weight
                     break;
                 case "sheet":
                     IsWritable = true;
                     CompositionContent = null;
-                    WordCount = "~" + Game1.r.Next(1, 30) + "0";
                     Description = "A sheet of /m";
                     Weight = 50; // example weight
                     break;
                 case "waxtablet":
                     IsWritable = true;
                     CompositionContent = null;
-                    WordCount = "~" + Game1.r.Next(1, 10) + "0";
                     Description = "A tablet on which can be scratched to inscribe.";
                     Weight = 300; // example weight
                     break;
@@ -1082,7 +1067,7 @@ namespace Lightrealm
                     Weight = 150;
                     IsContainer = true;
                     IsGeneralGood = true;
-                    Description = "A small pouch. The inscription shows it is intended to contain isodust.";
+                    Description = "A small pouch. The inscription shows it is intended to contain isodust, a powder with various magical uses.";
                     break;
                 case "coffee crate":
                     Weight = 2000;
@@ -1349,29 +1334,7 @@ namespace Lightrealm
 
                 // Inside the switch statement of your object constructor
 
-                case "salt":
-                    Weight = 100; // Example weight for a pouch of salt
-                    IsContainer = true;
-                    Description = "A pouch of salt, essential for seasoning and preservation.";
-                    break;
-
-                case "pepper":
-                    Weight = 100; // Example weight for a pouch of pepper
-                    IsContainer = true;
-                    Description = "A pouch of pepper, used to spice up meals.";
-                    break;
-
-                case "paprika":
-                    Weight = 100; // Example weight for a pouch of paprika
-                    IsContainer = true;
-                    Description = "A pouch of paprika, adding flavor and color to dishes.";
-                    break;
-
-                case "isodust":
-                    Weight = 100; // Example weight for a pouch of isodust
-                    IsContainer = true;
-                    Description = "A pouch of isodust, a magical powder with various uses.";
-                    break;
+                
 
                 case "urn":
                     Weight = 1500; // Example weight for an urn
@@ -1738,16 +1701,17 @@ namespace Lightrealm
                 case "exalted": Imbuements += 7; break;
                 default: break; // Handle unknown rarity
             }
+
             List<string> PassiveConditions = new List<string>()
             {
                 "multipleenemies", // when fighting multiple enemies
                 "grounded",        // when on the ground
                 "diminished",      // when energy is below 40-60%
                 "lowlight",        // when in low light
-                "stagnant",        // when you have spent 5 cycles in one block or room
+                "stagnant",        // when you have spent 7 seconds in a block/room
                 "maxenergy"        // when energy is maxed
             };
-            List<string> PassiveEffects = new List<string>()
+                    List<string> PassiveEffects = new List<string>()
             {
                 "+attack",         // +% attack power
                 "+shield",         // +% shield effectiveness
@@ -1757,22 +1721,22 @@ namespace Lightrealm
                 "+pierce",         // +% piercing resistance
                 "+slash",          // +% slashing resistance
                 "+scourge",        // +% scourging resistance
-                "+stealth",          // become harder to see and target
-                "+heal",           // +% enhanced healing capability
+                "+stealth",        // become harder to see and target
                 "+regen"           // +X energy regen/cycle
             };
-            List<string> TriggerConditions = new List<string>()
+                    List<string> TriggerConditions = new List<string>()
             {
-                "ondodge",         // when you dodge
-                "onblock",         // when you block
-                "onparry",         // when you parry
-                "onredirect",      // when you redirect
-                "oncast",          // when you cast a spell
-                //"onhpgain",        // when you gain non-regeneration HP
-                "ondamage",        // when you take damage
-                "onattack"         // when you successfully attack
+                "onroll",         // when you roll
+                "onduck",         // when you duck
+                "onjump",         // when you jump
+                "onblock",        // when you block
+                "onparry",        // when you parry
+                "onredirect",     // when you redirect
+                "oncast",         // when you cast a spell
+                "ondamage",       // when you take damage
+                "onattack"        // when you successfully attack
             };
-            List<string> TriggerEffects = new List<string>()
+                    List<string> TriggerEffects = new List<string>()
             {
                 "barrier",         // generate a barrier stack
                 "projectile",      // launch projectile at nearest hostile
@@ -1780,6 +1744,7 @@ namespace Lightrealm
                 "destabilize",     // destabilize the nearest hostile
                 "dismiss"          // gain dismissal for one turn
             };
+
             for (int i = 0; i < Imbuements; i++)
             {
                 bool isTrigger = Game1.r.Next(2) == 0;
@@ -1798,24 +1763,27 @@ namespace Lightrealm
                 }
                 else
                 {
-                    int passiveIndex = Game1.r.Next(PassiveConditions.Count);
-                    conditionOrTrigger = PassiveConditions[passiveIndex];
-                    int buffIndex = Game1.r.Next(PassiveEffects.Count);
-                    buffOrEffect = PassiveEffects[buffIndex];
+                    int passiveIndex;
+                    int buffIndex;
+
+                    // Ensure "maxenergy" is never paired with "+regen"
+                    do
+                    {
+                        passiveIndex = Game1.r.Next(PassiveConditions.Count);
+                        buffIndex = Game1.r.Next(PassiveEffects.Count);
+                        conditionOrTrigger = PassiveConditions[passiveIndex];
+                        buffOrEffect = PassiveEffects[buffIndex];
+                    } while (conditionOrTrigger == "maxenergy" && buffOrEffect == "+regen");
+
                     // Example power calculation for passive buffs
-                    if (buffOrEffect.Equals("+heal"))
+                    if (buffOrEffect.Equals("+regen"))
                     {
-                        // Assuming heal and regen buffs require specific power values
-                        secondPower = Game1.r.Next(5, 21); // Example range from 5 to 20
-                    }
-                    else if (buffOrEffect.Equals("+regen"))
-                    {
-                        secondPower = 1;
+                        secondPower = Game1.r.Next(1, 4);
                     }
                     else if (buffOrEffect.StartsWith("+") && buffOrEffect != "+stealth")
                     {
                         // Assuming heal and regen buffs require specific power values
-                        secondPower = Game1.r.Next(3, 8); // Example range from 5 to 20
+                        secondPower = Game1.r.Next(2, 7); // Example range from 5 to 20
                     }
 
                     // For 'diminished' condition, set a specific range for the firstPower
