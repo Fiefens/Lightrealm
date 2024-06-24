@@ -172,6 +172,7 @@ namespace Lightrealm
         public bool Bound;
 
         public double AdventureCooldown = 0;
+        public double DiplomacyCooldown = 0;
 
         Dictionary<string, int> BackupProfessionToLevel = new Dictionary<string, int>
         {
@@ -328,6 +329,7 @@ namespace Lightrealm
         public int CooldownCycles = 0;
 
         public bool IsCalamity = false;
+        public bool BuiltSpire = false;
 
         public void DistanceFromArchitect(Architect otherArchitect, int distanceModifier)
         {
@@ -2677,6 +2679,7 @@ namespace Lightrealm
             ExtraStealth = 0;
             ExtraEnergyRegen = 0;
 
+            //description pls
 
             if (Block == null && Room == null)
             {
@@ -2859,25 +2862,25 @@ namespace Lightrealm
                     }
                     else
                     {
-                        AnnounceToParty(this.Name + " has fallen. ", Color.PaleGoldenrod, new List<Entity>() { this });
+                        AnnounceToParty(this.Name + " has fallen. ", Color.Goldenrod, new List<Entity>() { this });
                         if (Master != null)
                         {
                             switch (new Random().Next(1, 6))
                             {
                                 case 1:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", forgive me... I could not succeed...", Color.PaleGoldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", forgive me... I could not succeed...", Color.Goldenrod, new List<Entity>() { this, Master });
                                     break;
                                 case 2:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", my journey ends here...", Color.PaleGoldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", my journey ends here...", Color.Goldenrod, new List<Entity>() { this, Master });
                                     break;
                                 case 3:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", alas, I have fallen...", Color.PaleGoldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", alas, I have fallen...", Color.Goldenrod, new List<Entity>() { this, Master });
                                     break;
                                 case 4:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", I apologize, I've let you down...", Color.PaleGoldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", I apologize, I've let you down...", Color.Goldenrod, new List<Entity>() { this, Master });
                                     break;
                                 case 5:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", the end has come for me...", Color.PaleGoldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", the end has come for me...", Color.Goldenrod, new List<Entity>() { this, Master });
                                     break;
                             }
 
@@ -3685,7 +3688,7 @@ namespace Lightrealm
 
                 foreach (Architect a in architects)
                 {
-                    if (GetOpinion(a) == 0 && a != this && !(Game1.r.Next(0, 100) < a.ExtraStealth && !a.ArchitectsWhoSurrenderedToMe.Contains(this)))
+                    if (GetOpinion(a) >= 0 && a != this && !(Game1.r.Next(0, 100) < a.ExtraStealth && !a.ArchitectsWhoSurrenderedToMe.Contains(this)))
                     {
                         int FinalOpinion = 0;
                         bool isOpposed = false;
@@ -5975,7 +5978,11 @@ namespace Lightrealm
             {
                 if (i.IsTrigger && i.ConditionOrTrigger == "oncast")
                 {
-                    Announcements.Add(ActivatePower(i.BuffOrResult));
+                    TextStorage result = ActivatePower(i.BuffOrResult);
+                    if (result.Data != "unknown")
+                    {
+                        Announcements.Add(result);
+                    }
                 }
             }
 
@@ -5989,7 +5996,7 @@ namespace Lightrealm
 
             foreach (Architect a in architects)
             {
-                if ((a.Task == "fighting" && a.TargetArchitect == this) || (Task == "fighting" && this.TargetArchitect == a))
+                if (((a.Task == "killtarget" || a.Task == "disabletarget") && a.TargetArchitect == this) || ((Task == "killtarget" || Task == "disabletarget") && this.TargetArchitect == a))
                 {
                     hostiles.Add(a);
                 }
@@ -6010,6 +6017,7 @@ namespace Lightrealm
                 Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                 objects.Add(o);
                 o.AirborneTarget = target;
+                o.Thrower = this;
                 o.AirborneCyclesToHitTarget = 15 - Focus;
                 return new TextStorage(ReferredToNames[0] + " fires a bolt at " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
             }
@@ -6030,8 +6038,10 @@ namespace Lightrealm
                 DismissalCycles += 30;
                 return new TextStorage(ReferredToNames[0] + " becomes partially intangible!", Color.Magenta, new List<Entity>() { this });
             }
-
-            return new TextStorage("An unknown power triggered!", Color.Magenta, new List<Entity>() { this });
+            else
+            {
+                return new TextStorage("unknown", Color.Magenta, new List<Entity>() { this });
+            }
         }
 
 

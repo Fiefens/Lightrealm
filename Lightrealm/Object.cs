@@ -687,6 +687,11 @@ namespace Lightrealm
                 CompositionContent = null;
             }
 
+            if(Description.Contains("/m"))
+            {
+                Description.Replace("/m", Game1.FormatMaterialList(Materials));
+            }
+
 
             //remove bad materials, if this is the first removal add void.
 

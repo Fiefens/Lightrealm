@@ -1152,10 +1152,8 @@ namespace Lightrealm
                                     string itemString = Game1.ConvertObjectToString(o);
                                     AddOrUpdateItemString(GeneralItemsWeHave, itemString);
                                 }
-                                else
-                                {
-                                    r.Structure.HistoricalObjects.Add(o);
-                                }
+
+                                //otherwise just leave it so its nice :)
                             }
                             r.Objects.Clear();
                         }

@@ -37,6 +37,8 @@ namespace Lightrealm
 
         public int NextUniqueID = 0;
 
+        public Dictionary<int, Entity> AllEntities = new Dictionary<int, Entity>();
+
         public Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         public List<string> DupeMats = new List<string>();
 
@@ -3275,7 +3277,7 @@ namespace Lightrealm
                         if (c.CyclesTillElection < 0 && c.Citizens.Count > 0)
                         {
                             // Filter candidates whose home location matches the civilization's capital
-                            var eligibleCandidates = c.Citizens.Where(citizen => citizen.HomeLocation == c.Capitol).ToList();
+                            var eligibleCandidates = c.Citizens.Where(citizen => citizen.Location == c.Capitol).ToList();
                             if (eligibleCandidates.Count > 0)
                             {
                                 var highestReputation = eligibleCandidates.Max(citizen => citizen.Reputation);
@@ -4816,8 +4818,8 @@ namespace Lightrealm
 
                             if (r.Next(100) == 1)
                             {
-                                HistoricalEvents.Add($"{Date}{Name} possessed an unrivaled spirit and determination.");
-                                location.LocationHistoricalEvents.Add($"{Date}{Name} possessed an unrivaled spirit and determination.");
+                                HistoricalEvents.Add($"{Date} {Name} possessed an unrivaled spirit and determination.");
+                                location.LocationHistoricalEvents.Add($"{Date} {Name} possessed an unrivaled spirit and determination.");
 
                                 Legends.Add(architect);
                             }
@@ -5711,9 +5713,11 @@ namespace Lightrealm
 
                         foreach (Architect a in d.Architects)
                         {
-                            if ((a.Profession == "warlock" || a.Profession == "sorcerer") && location.Type != "spire")
+                            if (!a.IsCalamity && (a.Profession == "warlock" || a.Profession == "sorcerer") && location.Type != "spire" && a.BuiltSpire == false)
                             {
                                 //hunt an unnoccupied location
+
+                                a.BuiltSpire = true;
 
                                 bool Found = false;
 
@@ -6055,7 +6059,7 @@ namespace Lightrealm
                                 List<Architect> PossibleArch = new List<Architect>();
                                 foreach (Architect a in AllArchitects)
                                 {
-                                    if (a.Group == null && !Calamity.Contains(a) && a.IsAlive && a.Location != null && a.Location.HomeCivilization != null)
+                                    if (a.Group == null && !Calamity.Contains(a) && a.IsAlive && a.Location != null && a.Location.HomeCivilization != null && a.Profession != "sorcerer" && a.Profession != "warlock")
                                     {
                                         PossibleArch.Add(a);
                                     }
@@ -6604,10 +6608,10 @@ namespace Lightrealm
                         a.District = a.NextMigrationLocation.Districts[Game1.r.Next(a.NextMigrationLocation.Districts.Count)];
                         a.District.ArchitectsToAdd.Add(a);
                         a.Location = a.NextMigrationLocation;
-                        
+                        a.HomeLocation = a.Location;
+
                         if (new List<string>() { "commune", "mound", "monastery", "outpost" }.Contains(a.NextMigrationLocation.Type) || CalamityStructures.Contains(a.NextMigrationLocation.Type))
                         {
-                            a.HomeLocation = a.Location;
                             if (Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type) && a.Diplomakitted == false)
                             {
                                 a.KitOutArchitect("warriorpower" + a.Level);

@@ -65,18 +65,19 @@ namespace Lightrealm
 
         public Entity()
         {
-            if(Game1.GameWorld != null)
+            if (Game1.GameWorld != null)
             {
                 ID = Game1.GameWorld.NextUniqueID;
                 Game1.GameWorld.NextUniqueID++;
+                Game1.GameWorld.AllEntities.Add(ID, this);
             }
             else
             {
                 ID = Game1.TemporaryNextUniqueID;
                 Game1.TemporaryNextUniqueID++;
+                Game1.TemporaryEntities.Add(ID, this);
             }
         }
-
         public Entity(string metadata)
         {
             Metadata = metadata;
