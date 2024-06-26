@@ -45,62 +45,12 @@ namespace Lightrealm
         {
             foreach(Architect a in architects)
             {
-                //give tje, resources for testing
-
-                // We assume that 'Region' has properties for each harvestable material type.
-                var region = a.Location.Region;
-
-                // We'll use a dictionary to map the resource types to their corresponding properties.
-
-                /*
-                var resources = new Dictionary<string, Material>
-                {
-                    {"log", region.HarvestableWood},
-                    {"stone", region.HarvestableStone},
-                    {"ore", region.HarvestableMetal},
-                    {"pile", region.HarvestableSand},
-                    {"bunch", region.HarvestableFiber},
-                    {"block", region.HarvestableIce}
-                };
-
-                foreach (var resource in resources)
-                {
-                    if (resource.Value != null)  // Check if the resource exists in the region.
-                    {
-                        for (int i = 0; i < 20; i++)  
-                        {
-                            a.Inventory.Add(new Object(null, resource.Key, new List<Material>() { resource.Value }, null));
-                        }
-                    }
-                }
-                */
-
-                List<Material> M = new List<Material>() { Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Game1.GameWorld.ConvertLevelToToughness(a.Level)) };
-
-                /*
-                for (int i = Game1.r.Next(5, 10); i != 0; i--)
-                {
-                    a.Inventory.Add(new Object(null, "dagger", M, null));
-                }
-                */
-
-                Object o = new Object(null, "small cup", new List<Material>() { a.Location.HomeCivilization.CulturalStone }, null);
-                o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { Game1.GameWorld.Coffee }, null));
-                a.Inventory.Add(o);
-
                 a.HairID = Game1.r.Next(0,2);
 
 
                 List<Material> m = new List<Material>() { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count)] };
 
                 a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
-
-                /*
-                a.Inventory.Add(new Object(null, "pickaxe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
-                a.Inventory.Add(new Object(null, "scythe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
-                a.Inventory.Add(new Object(null, "axe", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
-                a.Inventory.Add(new Object(null, "shovel", new List<Material>() { a.Location.HomeCivilization.CulturalMetal }, null));
-                */
 
                 int Count = Game1.r.Next(10, 21);
 

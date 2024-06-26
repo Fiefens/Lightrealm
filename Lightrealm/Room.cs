@@ -213,48 +213,40 @@ namespace Lightrealm
             }
             else if (Structure.Type == "tower")
             {
-                if (Structure.Type == "spire")
+                Material m = Game1.GameWorld.Stones[Game1.r.Next(Game1.GameWorld.Stones.Count)];
+                int Position = Structure.Rooms.IndexOf(this);
+
+                // Add exit door if it's the first room
+                if (Position == 0)
+                    AddObject("exit door", m);
+
+                // Add random number of bookcases
+                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                    AddObject("bookcase", m);
+
+                // Add random number of tables
+                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                    AddObject("table", m);
+
+                // Add random number of chairs
+                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                    AddObject("chair", m);
+
+                // Add doors to connect with other rooms, if applicable
+                if (Position != 0)
                 {
-                    Material m = Game1.GameWorld.Stones[Game1.r.Next(Game1.GameWorld.Stones.Count)];
-                    int Position = Structure.Rooms.IndexOf(this);
+                    // Logic to create and add doors to connect this room with the previous room
+                    // For example, downward and upward spiral staircases as doors
+                    Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "downward spiral staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(downStaircase);
 
-                    // Add exit door if it's the first room
-                    if (Position == 0)
-                        AddObject("exit door", m);
+                    Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "upward spiral staircase", new List<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
+                    Structure.Rooms[Position - 1].Objects.Add(upStaircase);
+                }
 
-                    // Add random number of bookcases
-                    for (int i = Game1.r.Next(0, 2); i > 0; i--)
-                        AddObject("bookcase", m);
-
-                    // Add random number of tables
-                    for (int i = Game1.r.Next(0, 2); i > 0; i--)
-                        AddObject("table", m);
-
-                    // Add random number of chairs
-                    for (int i = Game1.r.Next(0, 2); i > 0; i--)
-                        AddObject("chair", m);
-
-                    // Add doors to connect with other rooms, if applicable
-                    if (Position != 0)
-                    {
-                        // Logic to create and add doors to connect this room with the previous room
-                        // For example, downward and upward spiral staircases as doors
-                        Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "downward spiral staircase", new List<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(downStaircase);
-
-                        Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "upward spiral staircase", new List<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
-                        Structure.Rooms[Position - 1].Objects.Add(upStaircase);
-                    }
-
-                    if (Position == Structure.Rooms.Count - 1)
-                    {
-                        Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("magictreasure56"));
-                    }
-
-                    if (Game1.r.Next(1, 3) == 1)
-                    {
-                        Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("general"));
-                    }
+                if (Game1.r.Next(1, 3) == 1)
+                {
+                    Objects.AddRange(Structure.Block.District.Location.Region.World.LootTableMachine("general"));
                 }
             }
 

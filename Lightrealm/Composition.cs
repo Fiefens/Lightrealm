@@ -86,8 +86,7 @@ namespace Lightrealm
                 "chorus",
                 "lullaby",
                 "symphony",
-                "refrain",
-                "cantata"
+                "refrain"
             };
 
             List<string> poemNouns = new List<string>
@@ -148,48 +147,59 @@ namespace Lightrealm
         {
             List<Section> sections = new List<Section>();
             var events = GetEventsForSubject(subject);
+
             int numberSections = Math.Min(type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12), events.Count);
 
-            if (type == "song")
+            // If no events are found, create a generic section
+            if (events.Count == 0)
             {
-                List<string> sectionTypes = new List<string> { "Verse" };
-                bool hasChorus = false;
-                bool hasBridge = false;
-
-                for (int i = 0; i < numberSections; i++)
-                {
-                    string sectionType;
-                    if (i == 0)
-                    {
-                        sectionType = "Verse";
-                    }
-                    else if (!hasChorus && Game1.r.NextDouble() < 0.5)
-                    {
-                        sectionType = "Chorus";
-                        hasChorus = true;
-                    }
-                    else if (hasChorus && !hasBridge && i > 1 && Game1.r.NextDouble() < 0.3)
-                    {
-                        sectionType = "Bridge";
-                        hasBridge = true;
-                    }
-                    else
-                    {
-                        sectionType = "Verse";
-                    }
-                    sections.Add(new Section(type, this, Author.Creativity, i + 1, sectionType));
-                }
+                sections.Add(new Section(type, this, Author.Creativity, 1, "none"));
             }
             else
             {
-                for (int i = 0; i < numberSections; i++)
+                if (type == "song")
                 {
-                    sections.Add(new Section(type, this, Author.Creativity, i + 1, events[i]));
+                    List<string> sectionTypes = new List<string> { "Verse" };
+                    bool hasChorus = false;
+                    bool hasBridge = false;
+
+                    for (int i = 0; i < numberSections; i++)
+                    {
+                        string sectionType;
+                        if (i == 0)
+                        {
+                            sectionType = "Verse";
+                        }
+                        else if (!hasChorus && Game1.r.NextDouble() < 0.5)
+                        {
+                            sectionType = "Chorus";
+                            hasChorus = true;
+                        }
+                        else if (hasChorus && !hasBridge && i > 1 && Game1.r.NextDouble() < 0.3)
+                        {
+                            sectionType = "Bridge";
+                            hasBridge = true;
+                        }
+                        else
+                        {
+                            sectionType = "Verse";
+                        }
+                        sections.Add(new Section(type, this, Author.Creativity, i + 1, sectionType));
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < numberSections; i++)
+                    {
+                        sections.Add(new Section(type, this, Author.Creativity, i + 1, events[i]));
+                    }
                 }
             }
 
             return sections;
         }
+
+
 
         private Entity GenerateRandomSubject()
         {
@@ -284,23 +294,23 @@ namespace Lightrealm
             GenerateDescription();
         }
 
-        public Section(string compositionType, Composition parent, int QualityMod, int number, string eventDescription, string sectionType = "none")
+        public Section(string compositionType, Composition parent, int QualityMod, int number, string eventDescription = null, string sectionType = "none")
         {
             this.Parent = parent;
             this.Number = number;
             this.Quality = Game1.r.Next(0, 8) + QualityMod;
 
             List<string> tones = new List<string>
-            {
-                "passionate", "depressed", "indignant", "joyful", "sombre", "optimistic", "angry",
-                "serene", "excited", "pensive", "skeptical", "amused", "anxious", "hopeful"
-            };
+    {
+        "passionate", "depressed", "indignant", "joyful", "sombre", "optimistic", "angry",
+        "serene", "excited", "pensive", "skeptical", "amused", "anxious", "hopeful"
+    };
 
             List<string> perspectives = new List<string>
-            {
-                "admirable", "criticizing", "neutral", "nostalgic", "skeptical", "affectionate",
-                "disdainful", "curious", "enthusiastic", "contemptuous"
-            };
+    {
+        "admirable", "criticizing", "neutral", "nostalgic", "skeptical", "affectionate",
+        "disdainful", "curious", "enthusiastic", "contemptuous"
+    };
 
             this.Tone = tones[Game1.r.Next(tones.Count)];
             this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };
@@ -323,10 +333,32 @@ namespace Lightrealm
                 this.Type = "Chapter";
             }
 
-            GenerateDescription(eventDescription);
+            if (string.IsNullOrEmpty(eventDescription))
+            {
+                GenerateGenericDescription();
+            }
+            else
+            {
+                GenerateDescription(eventDescription);
+            }
         }
 
         private void GenerateDescription()
+        {
+            List<string> formats = new List<string>
+            {
+                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
+                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
+            };
+
+            string format = formats[Game1.r.Next(formats.Count)];
+            Description = format;
+        }
+
+        private void GenerateGenericDescription()
         {
             List<string> formats = new List<string>
             {

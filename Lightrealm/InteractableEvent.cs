@@ -136,11 +136,11 @@ namespace Lightrealm
                     // Code for traders
                     break;
                 case "vagabond":
-                    Info = new List<string>() { "A lonely traveller seems to be headed somewhere. Perhaps they can help you somehow.", "A vagabond walks alone, his intentions unknown to you.", "Before you is a solitary wanderer. They at least appears harmless..." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A lonely traveller seems to be headed somewhere. Perhaps they can help you somehow.", "A vagabond walks alone, their intentions unknown to you.", "Before you is a solitary wanderer. They at least appears harmless..." }[Game1.r.Next(0, 3)];
                     // Code for vagabond
                     break;
                 case "adventurer":
-                    Info = new List<string>() { "You cross paths with someone who appears equipped for adventure.", "A well prepared traveller stands before you, flaunting his satchel. Could be useful.", "You see a traveler who appears to be well equipped for adventure." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "You cross paths with someone who appears equipped for adventure.", "A well prepared traveller stands before you, flaunting their satchel. Could be useful.", "You see a traveler who appears to be well equipped for adventure." }[Game1.r.Next(0, 3)];
                     // Code for adventurer
                     break;
                 case "shiba":

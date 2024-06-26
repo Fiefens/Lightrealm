@@ -574,8 +574,8 @@ namespace Lightrealm
 
             List<Material> Materials = new List<Material>
             {
-                Cloths[Game1.r.Next(Cloths.Count)],
-                Metals[Game1.r.Next(Metals.Count)]
+                Metals[Game1.r.Next(Metals.Count)],
+                Cloths[Game1.r.Next(Cloths.Count)]
             };
 
             while (true)
@@ -2880,7 +2880,7 @@ namespace Lightrealm
                                                 if (potentialGrievants.Count > 0)
                                                 {
                                                     Architect randomPerson = potentialGrievants[r.Next(potentialGrievants.Count)];
-                                                    string grievance = $"The sustained rule of {Calamitizer.Name} brought great hardship and loss of freedom on {randomPerson.PossessivePronoun} town, {l.Name}.";
+                                                    string grievance = $"'s sustained rule brought great hardship and loss of freedom on {randomPerson.PossessivePronoun} town, {l.Name}";
                                                     randomPerson.Grievances.Add((Calamitizer, grievance));
                                                     // Add a tragedy point to the region
                                                     l.Region.TragedyPoints.Add((r.Next(-10, 11), r.Next(-10, 11)));
@@ -3329,7 +3329,7 @@ namespace Lightrealm
                                         if (WorldMap[x + z * Width].Biome != "void" &&
                                             WorldMap[x + z * Width].Biome != "ocean" &&
                                             WorldMap[x + z * Width].MyLocation != null &&
-                                            WorldMap[x + z * Width].MyLocation.Type == "spire")
+                                            (WorldMap[x + z * Width].MyLocation.Type == "spire" && WorldMap[x + z * Width].MyLocation.Government != null))
                                         {
                                             b.Spawned = true;
                                             WorldMap[x + z * Width].Blight = b;
@@ -5038,7 +5038,14 @@ namespace Lightrealm
                                     // Use a random number to decide based on weights
                                     int randomChoice = Game1.r.Next(100);
 
-                                    if ((a.Profession == "sorcerer" || a.Profession == "warlock") && (r.Next(5) != 0))
+                                    bool shouldWriteBook = (a.SpellsKnown.Count > 0) && (r.Next(2) == 0);
+
+                                    if (shouldWriteBook)
+                                    {
+                                        // 50 percent chance to ignore and write a book
+                                        writingType = "book";
+                                    }
+                                    else if ((a.Profession == "sorcerer" || a.Profession == "warlock") && (r.Next(5) != 0))
                                     {
                                         writingType = "book";
                                     }
@@ -5095,7 +5102,7 @@ namespace Lightrealm
                                             o.CompositionContent = newWork;
                                             AllWrittenContent.Add(o);
 
-                                            if (a.SpellsKnown.Count > 0 && r.Next(40) == 1)
+                                            if (a.SpellsKnown.Count > 0 && r.Next(5) == 1)
                                             {
                                                 o.SpecialKnowledge = a.SpellsKnown[r.Next(a.SpellsKnown.Count)];
                                                 Spell = o.SpecialKnowledge;
@@ -5187,7 +5194,7 @@ namespace Lightrealm
                             // Destiny
                             List<string> PossibleInfusionSpells = new List<string>();
 
-                            if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock"))
+                            if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock") && a.IsImmortal == false /*this will prevent multiple infusions from happening*/)
                             {
                                 a.AssignSpells();
 
@@ -6046,6 +6053,16 @@ namespace Lightrealm
                     {
                         //recruitment
 
+                        // Define the outcast civilization types and their professions
+                        Dictionary<string, List<string>> outcastProfessions = new Dictionary<string, List<string>>()
+                        {
+                            { "druid", new List<string> { "gardener", "druidcrafter", "archdruid" } },
+                            { "scavenger", new List<string> { "salvager", "constructor", "scraplord" } },
+                            { "cultist", new List<string> { "cultist", "priest", "intermediary" } },
+                            { "pirate", new List<string> { "swashbuckler", "deadeye", "captain" } },
+                            { "anarchist", new List<string> { "disruptor", "bomber", "inspiration" } }
+                        };
+
                         if (r.Next(1, 100 * MonthToDayConstant) == 1)
                         {
                             if (r.Next(2) == 0)
@@ -6073,11 +6090,31 @@ namespace Lightrealm
                                     HistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
                                     location.LocationHistoricalEvents.Add(Date + " " + Migrator.Name + " felt called by the " + OutcastCivType + "s of " + location.Name + " and decided to migrate there.");
 
-                                    if(OutcastCivType == "druid")
+                                    // Assign profession based on OutcastCivType
+                                    if (outcastProfessions.ContainsKey(OutcastCivType))
+                                    {
+                                        List<string> professions = outcastProfessions[OutcastCivType];
+                                        int professionRoll = r.Next(100);
+
+                                        if (professionRoll < 80)
+                                        {
+                                            Migrator.Profession = professions[0];
+                                        }
+                                        else if (professionRoll < 95)
+                                        {
+                                            Migrator.Profession = professions[1];
+                                        }
+                                        else
+                                        {
+                                            Migrator.Profession = professions[2];
+                                        }
+                                    }
+
+                                    if (OutcastCivType == "druid")
                                     {
                                         Migrator.Clothing.Clear();
 
-                                        if(Migrator.Sex == "female")
+                                        if (Migrator.Sex == "female")
                                         {
                                             Migrator.Clothing.Add(new Object(null, "brassiere", new List<Material>() { Fibers[r.Next(Fibers.Count)] }, null));
                                         }
@@ -6093,6 +6130,7 @@ namespace Lightrealm
                                 }
                             }
                         }
+
 
                         //spread
 

@@ -34,6 +34,11 @@ namespace Lightrealm
             OppositionTags = oppositionTags;
             NaturalArmor = naturalArmor;
 
+            if(Game1.GameWorld != null && Game1.GameWorld.Races.Any(r => r.Name == name))
+            {
+                int shibe = 1;
+            }
+
             MainInteractionAppendage = mainInteractionAppendage;
             OffInteractionAppendage = offInteractionAppendage;
 

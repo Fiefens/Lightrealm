@@ -321,10 +321,9 @@ namespace Lightrealm
                 }
 
                 // Determine if the attack gets blocked by coverage or armor
-                double coverageMissChance = (Coverage / 22.5) * 75;
-                if (Game1.r.Next(100) < coverageMissChance)
+                if (Game1.r.Next(100) < Coverage)
                 {
-                    Announcements.Add(new TextStorage("The attack is deflected by " + CoverageName + "!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is deflected by " + CoverageName + "!", Color.Green, new List<Entity>()));
                     return Announcements;
                 }
 
@@ -332,7 +331,7 @@ namespace Lightrealm
                 {
                     if (Game1.r.Next(100) < a.BarrierStacks * 10)
                     {
-                        Announcements.Add(new TextStorage("The attack is blocked by a barrier stack!", Color.LimeGreen, new List<Entity>() { }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is blocked by a barrier stack!", Color.LimeGreen, new List<Entity>() { }));
                         a.BarrierStacks--;
                         return Announcements;
                     }
@@ -340,12 +339,12 @@ namespace Lightrealm
                     int armorDamage = Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
                     if (Game1.r.Next(100) < a.NaturalArmor)
                     {
-                        Announcements.Add(new TextStorage("The attack breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
                     }
                     else if (a.NaturalArmor > 0)
                     {
-                        Announcements.Add(new TextStorage("The attack damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
                         return Announcements;
                     }
@@ -359,7 +358,7 @@ namespace Lightrealm
 
                 if (IntegrityDamage > 0)
                 {
-                    Announcements.Add(new TextStorage("The attack damages " + ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { this }));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages " + ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { this }));
                 }
                 else
                 {
@@ -368,26 +367,26 @@ namespace Lightrealm
 
                 if (Bleeding > 5)
                 {
-                    Announcements.Add(new TextStorage("The attack pierces multiple membranes, causing heavy bleeding!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new List<Entity>()));
                 }
                 else if (Bleeding > 3)
                 {
-                    Announcements.Add(new TextStorage("The attack pierces a membrane, causing bleeding!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces a membrane, causing bleeding!", Color.Green, new List<Entity>()));
                 }
                 else if (Bleeding > 1)
                 {
-                    Announcements.Add(new TextStorage("The attack draws a small amount of blood!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " draws a small amount of blood!", Color.Green, new List<Entity>()));
                 }
 
-                if (Pain > 10)
+                if (Pain > 20)
                 {
                     Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
                 }
-                else if (Pain > 7)
+                else if (Pain > 14)
                 {
                     Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
                 }
-                else if (Pain > 5)
+                else if (Pain > 7)
                 {
                     Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new List<Entity>() { ((Architect)Creator) }));
                 }
@@ -582,7 +581,7 @@ namespace Lightrealm
                 if (quickestExitDoor == door)
                 {
                     // Add * to the first ReferredToName and insert it at the front
-                    string quickestName = ReferredToNames[0] + "*";
+                    string quickestName = ReferredToNames[0] + " [<]";
                     ReferredToNames.Insert(0, quickestName);
                 }
 
@@ -666,7 +665,7 @@ namespace Lightrealm
 
             if (this.Type == "exit door")
             {
-                string quickestName = ReferredToNames[0] + "*";
+                string quickestName = ReferredToNames[0] + " [<]";
                 ReferredToNames.Insert(0, quickestName);
             }
 
@@ -686,12 +685,6 @@ namespace Lightrealm
             {
                 CompositionContent = null;
             }
-
-            if(Description.Contains("/m"))
-            {
-                Description.Replace("/m", Game1.FormatMaterialList(Materials));
-            }
-
 
             //remove bad materials, if this is the first removal add void.
 
@@ -1523,6 +1516,16 @@ namespace Lightrealm
                     Description = "A levitating, glistening orb. It feels weightless.";
                     break;
 
+                case "tree":
+                    Weight = 9000000;
+                    IsContainer = true;
+                    Description = "A huge membranous organism that grows out of the ground.";
+                    break;
+                case "bush":
+                    Weight = 1000;
+                    IsContainer = true;
+                    Description = "A flowering, leafy, membranous organism that grows out of the ground.";
+                    break;
 
                 // other amror
 
@@ -1645,7 +1648,7 @@ namespace Lightrealm
             }
             string MaterialList = Game1.FormatList(Mater);
 
-            Description.Replace("/m", MaterialList);
+            Description = Description.Replace("/m", MaterialList);
 
             //rarity
 

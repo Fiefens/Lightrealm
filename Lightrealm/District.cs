@@ -170,11 +170,6 @@ namespace Lightrealm
                 DecidedProduction = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
             }
 
-            if(Industry == "spices" || Industry == "coffee")
-            {
-                int shibe = 1;
-            }
-
             List<string> itemsToBeAdded = GenerateItems(DecidedProduction, Intensity);
 
             // Adding items and increasing crafts within the same method
@@ -537,6 +532,14 @@ namespace Lightrealm
                 return;
             }
 
+            if (architect.Profession == "druidcrafter" || (architect.Profession == "gardener" && Game1.r.Next(3) == 0))
+            {
+                architect.Task = "druidcrafting";
+                architect.CyclesLeftInTask = 500;
+
+                return;
+            }
+
             if (architect.Room == null)
             {
                 if(Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
@@ -647,9 +650,22 @@ namespace Lightrealm
 
         Room GetRandomRoom(List<Structure> structures)
         {
-            Structure randomStructure = structures[Game1.r.Next(structures.Count)];
+            // Filter structures to include only those with at least one room
+            var structuresWithRooms = structures.Where(s => s.Rooms.Count > 0).ToList();
+
+            // Check if there are any structures with rooms
+            if (structuresWithRooms.Count == 0)
+            {
+                throw new InvalidOperationException("No structures with rooms available.");
+            }
+
+            // Randomly select a structure with at least one room
+            Structure randomStructure = structuresWithRooms[Game1.r.Next(structuresWithRooms.Count)];
+
+            // Randomly select a room from the selected structure
             return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
         }
+
 
 
         public void Load()
@@ -686,6 +702,17 @@ namespace Lightrealm
 
             if (!HasBeenLoadedEver)
             {
+                if(Location.Type == "preserve")
+                {
+                    for(int I = Game1.r.Next(40, 80); I != 0; I--)
+                    {
+                        string Type = new List<string>() { "tree", "plant", "bush" }[Game1.r.Next(3)];
+                        Object o = new Object(null, Type, new List<Material>() { Game1.GameWorld.Membrane }, null);
+                        DistrictMap[Game1.r.Next(49)].Objects.Add(o);
+                    }
+                }
+
+
                 foreach (Structure s in allDistrictStructures)
                 {
                     Room coreRoom = new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>());
@@ -746,6 +773,16 @@ namespace Lightrealm
                 Location.Market.Block.Architects.AddRange(Location.DebtShibas);
             }
 
+            // Define the outcast civilization types and their professions
+            Dictionary<string, List<string>> outcastProfessions = new Dictionary<string, List<string>>()
+{
+    { "druid", new List<string> { "gardener", "druidcrafter", "archdruid" } },
+    { "scavenger", new List<string> { "salvager", "constructor", "scraplord" } },
+    { "cultist", new List<string> { "cultist", "priest", "intermediary" } },
+    { "pirate", new List<string> { "swashbuckler", "deadeye", "captain" } },
+    { "anarchist", new List<string> { "disruptor", "bomber", "inspiration" } }
+};
+
             for (int i = 0; i < UnplacedPopulation; i++)
             {
                 string sex = Game1.r.Next(1, 3) == 1 ? "male" : "female";
@@ -797,10 +834,31 @@ namespace Lightrealm
                     _ => ""
                 };
 
+                // Check if Location.HomeCivilization is one of the outcast civilizations
+                if (Location.HomeCivilization != null && outcastProfessions.ContainsKey(Location.HomeCivilization.Type))
+                {
+                    List<string> professions = outcastProfessions[Location.HomeCivilization.Type];
+                    int professionRoll = Game1.r.Next(100);
+
+                    if (professionRoll < 80)
+                    {
+                        role = professions[0];
+                    }
+                    else if (professionRoll < 95)
+                    {
+                        role = professions[1];
+                    }
+                    else
+                    {
+                        role = professions[2];
+                    }
+                }
+
                 Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new List<Object>(), Location, this, null, destiny, 1);
                 a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                 allArchitects.Add(a);
             }
+
 
             UnplacedPopulation = 0;
 
@@ -1114,6 +1172,11 @@ namespace Lightrealm
                     foreach (Object o in objectsToRemove)
                     {
                         DistrictMap[DistrictX + DistrictZ * 7].Objects.Remove(o);
+
+                        if(Location.AllStructures.Count > 0)
+                        {
+                            Location.AllStructures[Game1.r.Next(Location.AllStructures.Count)].HistoricalObjects.Add(o);
+                        }
                     }
 
                     // Handle structures and rooms
@@ -1144,6 +1207,9 @@ namespace Lightrealm
                             }
                             r.Architects.Clear();
 
+                            // Create a list to hold objects that are general goods
+                            List<Object> RoomObjectsToRemove = new List<Object>();
+
                             // Handle objects in the room
                             foreach (Object o in r.Objects)
                             {
@@ -1151,11 +1217,15 @@ namespace Lightrealm
                                 {
                                     string itemString = Game1.ConvertObjectToString(o);
                                     AddOrUpdateItemString(GeneralItemsWeHave, itemString);
+                                    RoomObjectsToRemove.Add(o);
                                 }
-
-                                //otherwise just leave it so its nice :)
                             }
-                            r.Objects.Clear();
+
+                            foreach (Object o in RoomObjectsToRemove)
+                            {
+                                r.Objects.Remove(o);
+                            }
+
                         }
                     }
                 }

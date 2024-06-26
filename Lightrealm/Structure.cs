@@ -107,7 +107,7 @@ namespace Lightrealm
             LightingMethods = lightingMethods;
             Windows = windows;
 
-            ReferredToNames = new List<string>() { Name, Name + ", " + type, ID };
+            ReferredToNames = new List<string>() { Name, Name + ", " + type, ID.ToString() };
 
             if (Type == "house" || Type == "bighouse")
             {
