@@ -196,17 +196,17 @@ namespace Lightrealm
             }
 
             // Spells known to the architect
-            foreach (var spell in AllSpells)
+            foreach (var spell in GameWorld.AllSpells)
             {
-                subjects.Add(new Entity(spell.ToLower()));
+                subjects.Add(spell);
             }
-            foreach (var skill in AllSkills)
+            foreach (var skill in GameWorld.AllSkills)
             {
-                subjects.Add(new Entity(skill.ToLower()));
+                subjects.Add(skill);
             }
-            foreach (var spell in AllLegendarySpells)
+            foreach (var spell in GameWorld.AllLegendarySpells)
             {
-                subjects.Add(new Entity(spell.ToLower()));
+                subjects.Add(spell);
             }
 
             // Add types of body parts
@@ -218,28 +218,9 @@ namespace Lightrealm
                 }
             }
 
-            List<string> entitiesToAdd = new List<string>
-            {
-                "tavern", "prism", "well", "shrine", "library", "watchtower", "forge", "market",
-                "north", "south", "east", "west", "up", "down", "southeast", "southwest",
-                "northeast", "northwest", "shadow storage", "relationships", "mining",
-                "combat", "crafting", "trading", "stealth", "alchemy", "cooking", "fishing",
-                "hunting", "quests", "gathering", "imbuement", "healing", "navigation",
-                "tactics", "survival", "diplomacy", "lockpicking", "animal taming", "herbalism",
-                "herbs", "blacksmithing", "tailoring", "carpentry", "architecture",
-                "history", "sailing", "farming", "brewing", "divination",
-                "spellcasting", "negotiation", "investigation", "potions",
-                "archery", "swordsmanship", "armor crafting", "thievery",
-                "mountaineering", "cartography", "astronomy", "necromancy", "spatiomancy", "conjuromancy", "fractalmancy", "perceptomancy",
-                "beasts", "divination", "divinity", "illusion", "mechanics", "engineering",
-                "book", "poem", "song",
-                "spells", "skills",
-                "all"
-            };
-
-            entitiesToAdd = entitiesToAdd.Except(Domains).ToList();
-            subjects.UnionWith(entitiesToAdd.Select(entity => new Entity(entity)));
-            subjects.UnionWith(Domains.Select(domain => new Entity(domain))); // Ensure all domains are also added as entities if not already covered
+            GameWorld.ExtraEntities = GameWorld.ExtraEntities.Except(GameWorld.Domains).ToList();
+            subjects.UnionWith(GameWorld.ExtraEntities);
+            subjects.UnionWith(GameWorld.Domains); // Ensure all domains are also added as entities if not already covered
             subjects.UnionWith(GameWorld.Blights);
             subjects.Add(GameWorld.DarkDeity);
             subjects.Add(GameWorld.LightDeity);
@@ -344,94 +325,6 @@ namespace Lightrealm
         public static double ProsperityMultiplier = 1; //determines wealth increase, aka general flourishing
         public static int CurrentlySelectedWorldWidth = 128; //max 128
         public static int CurrentlySelectedWorldLength = 128; //max 128
-
-        public static List<string> Domains = new List<string>
-        {
-            "shadows",
-            "life",
-            "death",
-            "time",
-            "stars",
-            "heat",
-            "void",
-            "storms",
-            "lore",
-            "mind",
-            "soul",
-            "body",
-            "space",
-            "reality",
-            "chaos",
-            "order",
-            "nature",
-            "earth",
-            "water",
-            "fire",
-            "air",
-            "dreams",
-            "music",
-            "war",
-            "peace",
-            "fate",
-            "luck",
-            "craftsmanship",
-            "wisdom",
-            "mountains",
-            "forests",
-            "seas",
-            "rivers",
-            "deserts",
-            "skies",
-            "twilight",
-            "dusk",
-            "dawn",
-            "justice",
-            "mercy",
-            "vengeance",
-            "joy",
-            "beauty",
-            "fear",
-            "courage",
-            "mystery",
-            "knowledge",
-            "exploration",
-            "civilization",
-            "wilderness",
-            "magic",
-            "art",
-            "celebration",
-            "silence",
-            "echoes",
-            "decay",
-            "balance",
-            "creation",
-            "destruction",
-            "power",
-            "eternity",
-            "nightmares",
-            "stability",
-            "change",
-            "harmony",
-            "discord",
-            "vision",
-            "memory",
-            "truth",
-            "deception",
-            "hope",
-            "despair",
-            "wealth",
-            "poverty",
-            "disease",
-            "youth",
-            "beginnings",
-            "endings",
-            "exile",
-            "theft",
-            "victory",
-            "defeat",
-            "secrets",
-            "ruin"
-        };
 
         public static Architect MostRecentPartyTurnArchitect = null;
 
@@ -2438,10 +2331,7 @@ namespace Lightrealm
 
 
         public static List<string> LightingStyles = new List<string> { "nothing", "nothing", "nothing", "nothing", "nothing", "candles", "candles", "candles", "candles", "a lone torch in each room", "several braziers", "an oil lamp", "a candelabra", "an oil lantern", "a blazing fireplace" };
-        public static List<string> AllSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock", /*"immobile illusion", "shadow veil", "mobile illusion", "reactive illusion",*/ "truthfulness", "rise", "hold", "force throw", "shatter", "clone", "intercept", "expel", "extract", "emergent growth", "animate", "immortalize", "revive", "resurrect" };
-        public static List<string> AllSkills = new List<string> { /* "deflect" temporarily removing because it doesn't do anything for you. */ "dropkick", "double strike", "quick strike", "severing strike", "backflip", "escape", "finale", "concentration", "body slam", "leg sweep" };
-        public static List<string> AllLegendarySpells = new List<string>() { "ethereal rupture", "emergence", "eternal bind", "expunge", "echo" };
-
+        
         public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "bracelet", "left gauntlet", "staff", "amulet", "hourglass", "locket", "orb" };
 
         public Dictionary<string, Texture2D> TileAtlas = new Dictionary<string, Texture2D>();
@@ -2824,11 +2714,33 @@ namespace Lightrealm
             }
         }
 
+        public static string FormatEntityList(List<Entity> items)
+        {
+            int count = items.Count;
+            if (count == 0)
+            {
+                return "";
+            }
+            else if (count == 1)
+            {
+                return items[0].ReferredToNames[0];
+            }
+            else if (count == 2)
+            {
+                return $"{items[0].ReferredToNames[0]} and {items[1].ReferredToNames[0]}";
+            }
+            else
+            {
+                string lastItem = items[count - 1].ReferredToNames[0];
+                string otherItems = string.Join(", ", items.GetRange(0, count - 1).ConvertAll(item => item.ReferredToNames[0]));
+                return $"{otherItems}, and {lastItem}";
+            }
+        }
+
         public static string FormatMaterialList(List<Material> materials)
         {
             return string.Join(" ", materials.Select(m => m.Name));
         }
-
 
         public static string RestOfListIncludingThisIndex(List<string> list, int index)
         {
@@ -4673,45 +4585,45 @@ namespace Lightrealm
                             // Iterate through the player's inventory objects
                             foreach (var item in MostRecentPartyTurnArchitect.Inventory)
                             {
-                                if (!string.IsNullOrEmpty(item.SpecialKnowledge))
+                                if (item.SpecialKnowledge != null)
                                 {
-                                    var spellEntity = AllSpells.Concat(AllLegendarySpells).FirstOrDefault(spell => spell == item.SpecialKnowledge);
+                                    var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == item.SpecialKnowledge);
                                     if (spellEntity != null)
                                     {
-                                        RelevantEntities.Add(new Entity(spellEntity));
+                                        RelevantEntities.Add(spellEntity);
                                     }
                                 }
                             }
 
                             // Check main hand object
-                            if (MostRecentPartyTurnArchitect.MainHeldObject != null && !string.IsNullOrEmpty(MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge))
+                            if (MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge != null)
                             {
-                                var spellEntity = AllSpells.Concat(AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge);
+                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge);
                                 if (spellEntity != null)
                                 {
-                                    RelevantEntities.Add(new Entity(spellEntity));
+                                    RelevantEntities.Add(spellEntity);
                                 }
                             }
 
                             // Check off hand object
-                            if (MostRecentPartyTurnArchitect.OffHeldObject != null && !string.IsNullOrEmpty(MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge))
+                            if (MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge != null)
                             {
-                                var spellEntity = AllSpells.Concat(AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge);
+                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge);
                                 if (spellEntity != null)
                                 {
-                                    RelevantEntities.Add(new Entity(spellEntity));
+                                    RelevantEntities.Add(spellEntity);
                                 }
                             }
 
                             // Check clothing items
                             foreach (var clothingItem in MostRecentPartyTurnArchitect.Clothing)
                             {
-                                if (!string.IsNullOrEmpty(clothingItem.SpecialKnowledge))
+                                if (clothingItem.SpecialKnowledge != null)
                                 {
-                                    var spellEntity = AllSpells.Concat(AllLegendarySpells).FirstOrDefault(spell => spell == clothingItem.SpecialKnowledge);
+                                    var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == clothingItem.SpecialKnowledge);
                                     if (spellEntity != null)
                                     {
-                                        RelevantEntities.Add(new Entity(spellEntity));
+                                        RelevantEntities.Add(spellEntity);
                                     }
                                 }
                             }
@@ -4719,16 +4631,17 @@ namespace Lightrealm
                             // Get all spells known by the player and add them as entities
                             foreach (var knownSpell in MostRecentPartyTurnArchitect.SpellsKnown)
                             {
-                                var spellEntity = AllSpells.Concat(AllLegendarySpells).FirstOrDefault(spell => spell == knownSpell);
+                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == knownSpell);
                                 if (spellEntity != null)
                                 {
-                                    RelevantEntities.Add(new Entity(spellEntity));
+                                    RelevantEntities.Add(spellEntity);
                                 }
                             }
                             break;
 
+
                         case "skill":
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.SkillsKnown.Select(skill => new Entity(skill)));
+                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.SkillsKnown);
                             break;
                         case "direction":
                             RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "north" || e.Metadata == "south" || e.Metadata == "east" || e.Metadata == "west" || e.Metadata == "northeast" || e.Metadata == "southeast" || e.Metadata == "southwest" || e.Metadata == "northwest"));
@@ -7589,30 +7502,35 @@ namespace Lightrealm
 
                                         if (InspirationSelected == "Learn a random offensive spell.")
                                         {
-                                            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock" };
+                                            List<string> offSpells = new List<string> { "expel", "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock" };
                                             var knownSpells = GamePlayerParty.Architects[0].SpellsKnown;
-                                            var availableSpells = OffensiveSpells.Except(knownSpells).ToList();
-                                            if (availableSpells.Any())
+
+                                            List<Entity> OffensiveSpells = Game1.GameWorld.AllSpells
+                                                .Where(spell => offSpells.Contains(spell.Metadata))
+                                                .Except(knownSpells)
+                                                .ToList();
+
+                                            if (OffensiveSpells.Any())
                                             {
                                                 Random random = new Random();
-                                                string randomSpell = availableSpells[random.Next(availableSpells.Count)];
+                                                Entity randomSpell = OffensiveSpells[random.Next(OffensiveSpells.Count)];
                                                 knownSpells.Add(randomSpell);
                                                 Announcements.Add(new TextStorage($"Learned a new spell: {randomSpell}", Color.White, new List<Entity>()));
-                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSpell], Color.Cyan, new List<Entity>()));
+                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSpell.Metadata], Color.Cyan, new List<Entity>()));
 
                                             }
                                         }
                                         else if (InspirationSelected == "Learn a random skill.")
                                         {
                                             var knownSkills = GamePlayerParty.Architects[0].SkillsKnown;
-                                            var availableSkills = AllSkills.Except(knownSkills).ToList();
+                                            var availableSkills = GameWorld.AllSkills.Except(knownSkills).ToList();
                                             if (availableSkills.Any())
                                             {
                                                 Random random = new Random();
-                                                string randomSkill = availableSkills[random.Next(availableSkills.Count)];
+                                                Entity randomSkill = availableSkills[random.Next(availableSkills.Count)];
                                                 knownSkills.Add(randomSkill);
                                                 Announcements.Add(new TextStorage($"Learned a new random skill: {randomSkill}", Color.White, new List<Entity>()));
-                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSkill], Color.Cyan, new List<Entity>()));
+                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSkill.Metadata], Color.Cyan, new List<Entity>()));
                                             }
                                         }
                                         else if (InspirationSelected == "Gain 2 random stat improvements.")
@@ -12878,12 +12796,12 @@ namespace Lightrealm
                 }
                 if (IsShowingBodyParts)
                 {
-                    var bodyParts = GetUniqueBodyParts(MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Architects : MostRecentPartyTurnArchitect.Block.Architects);
+                    List<Entity> bodyParts = GetUniqueBodyParts(MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Architects : MostRecentPartyTurnArchitect.Block.Architects);
                     DrawTextInMenu(bodyPartPosition, bodyParts, "Body Parts");
                 }
 
 
-                void DrawTextInMenu(Vector2 position, List<string> items, string itemType)
+                void DrawTextInMenu(Vector2 position, List<Entity> items, string itemType)
                 {
                     float startY = position.Y + 100;
                     float offsetX = position.X + 50;
@@ -12898,7 +12816,7 @@ namespace Lightrealm
                     int line = 0;
                     foreach (var item in items)
                     {
-                        string text = item;
+                        string text = item.ReferredToNames[0];
                         float textY = startY + line * BabyShibafont.LineSpacing;
 
                         // Draw the text aligned to the left side of the hitbox
@@ -12923,18 +12841,27 @@ namespace Lightrealm
                     }
                 }
 
-                List<string> GetUniqueBodyParts(IEnumerable<Architect> architects)
+                List<Entity> GetUniqueBodyParts(IEnumerable<Architect> architects)
                 {
                     var bodyPartTypes = new HashSet<string>();
                     foreach (var architect in architects)
                     {
                         foreach (var bodyPart in architect.BodyParts)
                         {
-                            bodyPartTypes.Add(bodyPart.Type);
+                            if (!bodyPartTypes.Contains(bodyPart.Type))
+                            {
+                                bodyPartTypes.Add(bodyPart.Type);
+                            }
                         }
                     }
-                    return bodyPartTypes.ToList();
+
+                    var uniqueBodyParts = Game1.GameWorld.AllBodyParts
+                        .Where(bodyPart => bodyPartTypes.Contains(bodyPart.Metadata))
+                        .ToList();
+
+                    return uniqueBodyParts;
                 }
+
 
 
                 /*

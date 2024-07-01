@@ -10,6 +10,16 @@ namespace Lightrealm
     [Serializable]
     public class Race : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public string Size;
         public List<(string, Material)> BodyParts;
         public string Color;
@@ -34,15 +44,10 @@ namespace Lightrealm
             OppositionTags = oppositionTags;
             NaturalArmor = naturalArmor;
 
-            if(Game1.GameWorld != null && Game1.GameWorld.Races.Any(r => r.Name == name))
-            {
-                int shibe = 1;
-            }
-
             MainInteractionAppendage = mainInteractionAppendage;
             OffInteractionAppendage = offInteractionAppendage;
 
-            if(Name.EndsWith("guardian"))
+            if (Name.EndsWith("guardian"))
             {
                 List<string> PowerTypes = new List<string>() { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
                 int numberOfPowers = Game1.r.Next(1, 4);
@@ -52,7 +57,27 @@ namespace Lightrealm
             AddReferredToName(Name);
 
             Description = GenerateDescription();
+
+            // Add body parts to the appropriate list
+            foreach (var bodyPart in bodyParts.Select(bp => bp.Item1))
+            {
+                if (Game1.GameWorld != null)
+                {
+                    if (!Game1.GameWorld.AllEntities.Any(e => e.Value.Name == bodyPart) && !Game1.TemporaryEntities.Any(e => e.Value.Metadata == bodyPart))
+                    {
+                        Entity bodyPartEntity = new Entity(bodyPart);
+                    }
+                }
+                else
+                {
+                    if (!Game1.TemporaryEntities.Any(e => e.Value.Metadata == bodyPart))
+                    {
+                        Entity bodyPartEntity = new Entity(bodyPart);
+                    }
+                }
+            }
         }
+
 
         private string GenerateDescription()
         {

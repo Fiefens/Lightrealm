@@ -10,6 +10,16 @@ namespace Lightrealm
     [Serializable]
     public class LocationBuilderPacket
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public Entity Government { get; set; }
         public int X { get; set; }
         public int Z { get; set; }

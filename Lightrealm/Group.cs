@@ -10,6 +10,16 @@ namespace Lightrealm
     [Serializable]
     public class Group : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public List<Architect> Architects { get; set; } = new List<Architect>();
         public Architect Leader { get; set; }
         public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
@@ -53,6 +63,10 @@ namespace Lightrealm
         public List<Architect> ArchitectsWhoDeclined { get; set; } = new List<Architect>();
 
         public List<string> CaravanItems { get; set; } = new List<string>();
+
+        // groups with both a good and bad reputation can fall more easily...
+
+        public List<Group> GroupsIKnowAbout { get; set; } = new List<Group>();
 
         public List<Location> TradeRoute = new List<Location>();
         public int MaxTradeRouteLength = Game1.r.Next(3, 10);
@@ -104,10 +118,6 @@ namespace Lightrealm
 
             return catalogueBuilder.ToString().Trim();
         }
-
-        // groups with both a good and bad reputation can fall more easily...
-
-        public List<Group> GroupsIKnowAbout { get; set; } = new List<Group>();
 
         public Group(List<Architect> architects, string type, Architect leader, Location Basee)
         {

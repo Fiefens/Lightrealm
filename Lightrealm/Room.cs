@@ -9,8 +9,18 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class Room
+    public class Room : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public Structure Structure { get; set; }
         public List<Object> Objects { get; set; } = new List<Object>();
         public List<Object> ObjectsToRemove { get; set; } = new List<Object>();
@@ -282,7 +292,7 @@ namespace Lightrealm
                     Object Artifact = null;
                     foreach (Object o in Structure.Block.District.Location.UnplacedArtifacts)
                     {
-                        if (Game1.AllLegendarySpells.Contains(o.SpecialKnowledge))
+                        if (Game1.GameWorld.AllLegendarySpells.Contains(o.SpecialKnowledge))
                         {
                             Structure.Block.District.Location.UnplacedArtifacts.Remove(o);
                             Artifact = o;

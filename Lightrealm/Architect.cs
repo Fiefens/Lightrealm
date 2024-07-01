@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using Color = Microsoft.Xna.Framework.Color;
 
@@ -12,6 +13,16 @@ namespace Lightrealm
 
     public class Architect : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         static List<string> LegendTypes = new List<string>() { "hunter", "adventurer", "assassin", "rogue", "artisan", "diplomat", "enchanter" };
 
         public string Sex { get; set; }
@@ -69,74 +80,6 @@ namespace Lightrealm
             }
         }
 
-
-
-        public void AssignSpells()
-        {
-            if (Race == Game1.GameWorld.GetRace("debtshiba"))
-            {
-                SpellcastingPower = 10;
-                for (int i = 0; i < 4; i++)
-                {
-                    AddSpell();
-                }
-            }
-            else if (Profession == "archbard" || Profession == "archluminary" ||
-            Profession == "archartificer" || Profession == "archduelist")
-            {
-                SpellcastingPower = 4;
-                for (int i = 0; i < 4; i++)
-                {
-                    AddSpell();
-                }
-            }
-            else if (Profession == "warlock" || Profession == "sorcerer" ||
-                     Profession == "necromancer" || Profession == "spatiomancer" ||
-                     Profession == "perceptomancer" || Profession == "conjumancer" ||
-                     Profession == "fractalmancer")
-            {
-                SpellcastingPower = 3;
-                for (int i = 0; i < 3; i++)
-                {
-                    AddSpell();
-                }
-            }
-            else if (Profession == "elemental")
-            {
-                SpellcastingPower = 3;
-                AddSpell();
-            }
-            else if (Profession == "archmage")
-            {
-                SpellcastingPower = 2;
-                for (int i = 0; i < 2; i++)
-                {
-                    AddSpell();
-                }
-            }
-            else if (Profession == "mage" || Profession == "magician")
-            {
-                SpellcastingPower = 1;
-                for (int i = 0; i < 2; i++)
-                {
-                    AddSpell();
-                }
-            }
-        }
-        public void AddSpell()
-        {
-            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock" };
-            List<string> unknownSpells = OffensiveSpells.Where(spell => !SpellsKnown.Contains(spell)).ToList();
-
-            if (unknownSpells.Count > 0)
-            {
-                SpellsKnown.Add(unknownSpells[Game1.r.Next(unknownSpells.Count)]);
-            }
-        }
-
-
-
-
         public bool BroadcastedDeathMessage = false;
 
         public bool Crafting = false;
@@ -162,7 +105,7 @@ namespace Lightrealm
         public (Location, District, Block, Structure, Room) SavePoint = (null, null, null, null, null);
         public int SavePointTicks = 0;
 
-        public List<string> AlignedDomains = new List<string>();
+        public List<Entity> AlignedDomains = new List<Entity>();
 
         public List<Composition> CultureBank = new List<Composition>();
         public List<Location> ExploredLocations = new List<Location>();
@@ -178,82 +121,82 @@ namespace Lightrealm
         public double DiplomacyCooldown = 0;
 
         Dictionary<string, int> BackupProfessionToLevel = new Dictionary<string, int>
-        {
-            // Level 1
-            {"baker", 1},
-            {"blacksmith", 1},
-            {"brewer", 1},
-            {"butcher", 1},
-            {"carpenter", 1},
-            {"child", 1},
-            {"craftsman", 1},
-            {"elder", 1},
-            {"fisherman", 1},
-            {"leader", 1},
-            {"mason", 1},
-            {"merchant", 1},
-            {"miller", 1},
-            {"miner", 1},
-            {"musician", 1},
-            {"indolent", 1},
-            {"peasant", 1},
-            {"political figure", 1},
-            {"potter", 1},
-            {"prestiged", 1},
-            {"prophet", 1},
-            {"scribe", 1},
-            {"tailor", 1},
-            {"tanner", 1},
-            {"trader", 1},
-            {"weaver", 1},
+{
+    // Level 1
+    {"baker", 1},
+    {"blacksmith", 1},
+    {"brewer", 1},
+    {"butcher", 1},
+    {"carpenter", 1},
+    {"child", 1},
+    {"craftsman", 1},
+    {"elder", 1},
+    {"fisherman", 1},
+    {"leader", 1},
+    {"mason", 1},
+    {"merchant", 1},
+    {"miller", 1},
+    {"miner", 1},
+    {"musician", 1},
+    {"indolent", 1},
+    {"peasant", 1},
+    {"political figure", 1},
+    {"potter", 1},
+    {"prestiged", 1},
+    {"prophet", 1},
+    {"scribe", 1},
+    {"tailor", 1},
+    {"tanner", 1},
+    {"trader", 1},
+    {"weaver", 1},
 
-            // Level 2
-            {"animal", 2},
-            {"beast", 2},
-            {"embezzler", 2},
-            {"hunter", 2},
-            {"knight", 2},
-            {"magician", 2},
-            {"mercenary", 2},
-            {"scout", 2},
-            {"soldier", 2},
-            {"thief", 2},
+    // Level 2
+    {"animal", 2},
+    {"beast", 2},
+    {"embezzler", 2},
+    {"hunter", 2},
+    {"knight", 2},
+    {"magician", 2},
+    {"mercenary", 2},
+    {"scout", 2},
+    {"soldier", 2},
+    {"thief", 2},
 
-            // Level 4
-            {"artificer", 4},
-            {"bard", 4},
-            {"duelist", 4},
-            {"luminary", 4},
-            {"mage", 4},
+    // Level 4
+    {"artificer", 4},
+    {"bard", 4},
+    {"duelist", 4},
+    {"luminary", 4},
+    {"mage", 4},
 
-            // Level 6
-            {"alpha", 6},
-            {"anarchist", 6},
-            {"archmage", 6},
-            {"beastmaster", 6},
-            {"commander", 6},
-            {"diplomancer", 6},
-            {"largebeast", 6},
-            {"outlaw", 6},
-            {"spy", 6},
+    // Level 6
+    {"alpha", 6},
+    {"anarchist", 6},
+    {"archmage", 6},
+    {"beastmaster", 6},
+    {"commander", 6},
+    {"diplomancer", 6},
+    {"largebeast", 6},
+    {"outlaw", 6},
+    {"spy", 6},
 
-            // Level 8
-            {"archartificer", 8},
-            {"archbard", 8},
-            {"archduelist", 8},
-            {"archluminary", 8},
-            {"conjumancer", 8},
-            {"elemental", 8},
-            {"fractalmancer", 8},
-            {"hypernexus", 8},
-            {"icosidodecahedron", 8},
-            {"necromancer", 8},
-            {"perceptomancer", 8},
-            {"shadeheart", 8},
-            {"sorcerer", 8},
-            {"spatiomancer", 8},
-            {"warlock", 8}
-        };
+    // Level 8
+    {"archartificer", 8},
+    {"archbard", 8},
+    {"archduelist", 8},
+    {"archluminary", 8},
+    {"conjumancer", 8},
+    {"elemental", 8},
+    {"fractalmancer", 8},
+    {"hypernexus", 8},
+    {"icosidodecahedron", 8},
+    {"necromancer", 8},
+    {"perceptomancer", 8},
+    {"shadeheart", 8},
+    {"sorcerer", 8},
+    {"spatiomancer", 8},
+    {"warlock", 8}
+};
 
         public Location InteractionLocation = null;
 
@@ -264,6 +207,51 @@ namespace Lightrealm
 
         public bool RecievedBodyPhysicalStatIncrease = false;
         public bool RecievedBodyPhysicalStatIncreaseTwo = false;
+
+
+        public Dictionary<Architect, int> Distances = new Dictionary<Architect, int>();
+
+        public Entity LegendaryTarget = null;
+        public Structure LegendaryTargetStructure = null;
+        public int HuntingProgress = 0;
+
+        public List<Architect> ShieldTokens = new List<Architect>();
+
+        public int DivineProtection = 0;
+        public int DivineMight = 0;
+
+        public bool Diplomakitted = false;
+
+        public List<(Entity, string)> Grievances = new List<(Entity, string)>();
+
+        public int CooldownCycles = 0;
+
+        public bool IsCalamity = false;
+        public bool BuiltSpire = false;
+
+        public void DistanceFromArchitect(Architect otherArchitect, int distanceModifier)
+        {
+            // Update or initialize distance for this architect to the other
+            if (Distances.TryGetValue(otherArchitect, out int currentDistance))
+            {
+                Distances[otherArchitect] = Math.Clamp(currentDistance + distanceModifier, 0, 5);
+            }
+            else
+            {
+                Distances[otherArchitect] = Math.Clamp(distanceModifier, 0, 5);
+            }
+
+            // Ensure the other architect also updates its distance list symmetrically
+            if (otherArchitect.Distances.TryGetValue(this, out int otherCurrentDistance))
+            {
+                otherArchitect.Distances[this] = Math.Clamp(otherCurrentDistance + distanceModifier, 0, 5);
+            }
+            else
+            {
+                otherArchitect.Distances[this] = Math.Clamp(distanceModifier, 0, 5);
+            }
+        }
+
 
         public int GetDistance(object entity)
         {
@@ -313,108 +301,6 @@ namespace Lightrealm
             return 0;
         }
 
-
-        public Dictionary<Architect, int> Distances = new Dictionary<Architect, int>();
-
-        public Entity LegendaryTarget = null;
-        public Structure LegendaryTargetStructure = null;
-        public int HuntingProgress = 0;
-
-        public List<Architect> ShieldTokens = new List<Architect>();
-
-        public int DivineProtection = 0;
-        public int DivineMight = 0;
-
-        public bool Diplomakitted = false;
-
-        public List<(Entity, string)> Grievances = new List<(Entity, string)>();
-
-        public int CooldownCycles = 0;
-
-        public bool IsCalamity = false;
-        public bool BuiltSpire = false;
-
-        public void DistanceFromArchitect(Architect otherArchitect, int distanceModifier)
-        {
-            // Update or initialize distance for this architect to the other
-            if (Distances.TryGetValue(otherArchitect, out int currentDistance))
-            {
-                Distances[otherArchitect] = Math.Clamp(currentDistance + distanceModifier, 0, 5);
-            }
-            else
-            {
-                Distances[otherArchitect] = Math.Clamp(distanceModifier, 0, 5);
-            }
-
-            // Ensure the other architect also updates its distance list symmetrically
-            if (otherArchitect.Distances.TryGetValue(this, out int otherCurrentDistance))
-            {
-                otherArchitect.Distances[this] = Math.Clamp(otherCurrentDistance + distanceModifier, 0, 5);
-            }
-            else
-            {
-                otherArchitect.Distances[this] = Math.Clamp(distanceModifier, 0, 5);
-            }
-        }
-
-
-        public double Speed()
-        {
-            const double BaseSpeed = 1.0; // Normalized average speed
-            const double WeightEffectModifier = 0.5; // Constant to adjust the total effect of weight
-
-            int numberOfLegs = BodyParts.Count(part => new[] { "leg", "tentacle", "wing", "fin", "sludge", "sphere", "shard" }
-                                              .Any(term => part.Type.Contains(term)));
-            double legSpeedModifier = CalculateLegSpeedModifier(numberOfLegs);
-            double agilityModifier = CalculateAgilityModifier(Agility); // Adjusted to keep speed not too high
-            double totalWeight = Inventory.Sum(item => item.IsMagical ? item.Weight * 0.2 : item.Weight)
-                      + Clothing.Sum(item => item.IsMagical ? item.Weight * 0.2 : item.Weight * 0.5);
-            double weightPenaltyModifier = CalculateWeightPenaltyModifier(totalWeight, Endurance, WeightEffectModifier);
-            double radiantPenalty = RadiantCycles > 0 ? 0.6 : 1.0;
-            double bodyPathBonus = PathOfBodyLevel >= 8 ? 1.5 : 1.0;
-
-            double rawSpeed = BaseSpeed * legSpeedModifier * agilityModifier * weightPenaltyModifier * radiantPenalty * bodyPathBonus;
-
-            if (OnGround)
-            {
-                rawSpeed = (int)Math.Round(rawSpeed / 2);
-            }
-
-            return Math.Max(0.1, Math.Round(rawSpeed, 2)); // Rounding to the nearest two decimal places
-
-            double CalculateLegSpeedModifier(int numberOfLegs) 
-            {
-                // Adjusting for new effects of leg counts
-                if (numberOfLegs == 0) return 0.1; // 1/10 speed if no legs
-                else if (numberOfLegs == 1) return 0.6; // 3/5 speed if one leg
-                else if (numberOfLegs == 2) return 1.0; // Full speed if two legs
-                else // Diminishing returns for each leg above 2
-                {
-                    double extraLegsModifier = 0.1 * (numberOfLegs - 2); // 0.1 boost per additional leg
-                    return 1.0 + Math.Min(extraLegsModifier, 0.5); // Cap at an additional 0.5
-                }
-            }
-
-            double CalculateAgilityModifier(int agility)
-            {
-                // Adjusting the agility effect to start from 0.9 and increase by 0.05 for each point
-                double baseModifier = 0.9;
-                double increment = 0.05;
-                return baseModifier + (agility * increment);
-            }
-
-
-            double CalculateWeightPenaltyModifier(double totalWeight, int endurance, double weightEffectModifier)
-            {
-                double excessWeight = Math.Max(0, totalWeight - 1000); // Considering weight above 1000g
-                double penalty = excessWeight / 10000; // Halved penalty for weight
-                double enduranceModifier = 1 - (0.025 * (endurance - 1)); // Halved impact of endurance
-                return Math.Max(0.3, 1 - (penalty * enduranceModifier * weightEffectModifier)); // Ensuring a minimum 75% speed
-            }
-        }
-
-
-
         public int NaturalArmor = 0; //number from 1-100, dependent on race, chance of blocking an attack simply with natural ability
 
         public int Level = 0;
@@ -425,18 +311,6 @@ namespace Lightrealm
         public Architect UndeadCreator = null;
 
         public bool Invisible = false;
-
-        public int EscapeChance()
-        {
-            int Chance = Math.Min(Agility * 4 + PathOfShadowLevel * 3 + (CyclesSinceMoved / 50) * 2, 100);
-
-            if (DismissalCycles > 0)
-            {
-                Chance += 40;
-            }
-
-            return Math.Min(Chance, 100);
-        }
 
         public int CombatCycles = 0;
 
@@ -476,56 +350,12 @@ namespace Lightrealm
         public bool TriggeredLock = false;
         public int CyclesSinceMoved = 0;
 
-        public string GetNonZeroPathLevels()
-        {
-            var paths = new List<string>();
-
-            if (PathOfShadowLevel > 0) paths.Add($"Shadow LVL {PathOfShadowLevel}");
-            if (PathOfLifeLevel > 0) paths.Add($"Life LVL {PathOfLifeLevel}");
-            if (PathOfDeathLevel > 0) paths.Add($"Death LVL {PathOfDeathLevel}");
-            if (PathOfTimeLevel > 0) paths.Add($"Time LVL {PathOfTimeLevel}");
-            if (PathOfStarsLevel > 0) paths.Add($"Stars LVL {PathOfStarsLevel}");
-            if (PathOfHeatLevel > 0) paths.Add($"Heat LVL {PathOfHeatLevel}");
-            if (PathOfIllusionsLevel > 0) paths.Add($"Illusions LVL {PathOfIllusionsLevel}");
-            if (PathOfEtherealityLevel > 0) paths.Add($"Ethereality LVL {PathOfEtherealityLevel}");
-            if (PathOfVoidLevel > 0) paths.Add($"Void LVL {PathOfVoidLevel}");
-            if (PathOfStormsLevel > 0) paths.Add($"Storms LVL {PathOfStormsLevel}");
-            if (PathOfForgeLevel > 0) paths.Add($"Forge LVL {PathOfForgeLevel}");
-            if (PathOfLoreLevel > 0) paths.Add($"Lore LVL {PathOfLoreLevel}");
-            if (PathOfMindLevel > 0) paths.Add($"Mind LVL {PathOfMindLevel}");
-            if (PathOfSoulLevel > 0) paths.Add($"Soul LVL {PathOfSoulLevel}");
-            if (PathOfBodyLevel > 0) paths.Add($"Body LVL {PathOfBodyLevel}");
-            if (PathOfSpaceLevel > 0) paths.Add($"Space LVL {PathOfSpaceLevel}");
-            if (PathOfRealityLevel > 0) paths.Add($"Reality LVL {PathOfRealityLevel}");
-            if (PathOfLightLevel > 0) paths.Add($"Light LVL {PathOfLightLevel}");
-
-            return paths.Count > 0 ? $"PATHS: {string.Join(", ", paths)}" : "No paths have levels above 0.";
-        }
-
 
         public Block BlockLastCycle = null;
         public Room RoomLastCycle = null;
 
         public int BarrierStacks = 0;
 
-        public string GetDescription(int value)
-        {
-            switch (value)
-            {
-                case 0: return "non-existent";
-                case 1: return "terrible";
-                case 2: return "poor";
-                case 3: return "average";
-                case 4: return "good";
-                case 5: return "excellent";
-                case 6: return "superior";
-                case 7: return "exceptional";
-                case 8: return "unbelievable";
-                case 9: return "unfathomable";
-                case 10: return "mythical";
-                default: return "archancient"; // In case of greater than 10 value
-            }
-        }
 
         public (Region, Location, District, Block, Structure, Room) RematerializeLocation = (null, null, null, null, null, null);
 
@@ -583,156 +413,6 @@ namespace Lightrealm
         public Structure StudyBuilding { get; set; }
 
         public bool HasMadeALegendaryArtifact = false;
-
-        public string CheckEnergyLevel()
-        {
-            double ratio = (double)(Energy / MaxEnergy());
-            if (ratio == 0)
-            {
-                return (Pronoun + " is dead.");
-            }
-            if (ratio < 0.2)
-            {
-                return (Pronoun + " appears on the verge of collapse.");
-            }
-            else if (ratio < 0.4)
-            {
-                return (Pronoun + " is not looking very healthy.");
-            }
-            else if (ratio < 0.6)
-            {
-                return (Pronoun + " is looking somewhat dim.");
-            }
-            else if (ratio < 0.8)
-            {
-                return (Pronoun + " is looking just fine.");
-            }
-            else
-            {
-                return (Pronoun + " looks perfectly healthy.");
-            }
-        }
-        public string DescribeArchitectInventory()
-        {
-            var inventoryItemCounts = new Dictionary<string, int>();
-            var clothingItemCounts = new Dictionary<string, int>();
-
-            // Function to add an item to the dictionary
-            void AddItem(Dictionary<string, int> itemCounts, Object item)
-            {
-                if (item != null && item.ReferredToNames.Any())
-                {
-                    string itemName = item.ReferredToNames[0];
-                    if (!itemCounts.ContainsKey(itemName))
-                        itemCounts[itemName] = 0;
-                    itemCounts[itemName]++;
-                }
-            }
-
-            // Add right and left hand objects
-            AddItem(inventoryItemCounts, MainHeldObject);
-            AddItem(inventoryItemCounts, OffHeldObject);
-
-            // Add inventory items
-            foreach (Object o in Inventory)
-            {
-                AddItem(inventoryItemCounts, o);
-            }
-
-            // Add clothing items
-            foreach (Object c in Clothing)
-            {
-                AddItem(clothingItemCounts, c);
-            }
-
-            // Describe hand objects
-            string DescribeAppendageObject(Object appendageObject, string appendage)
-            {
-                if (appendageObject != null && appendageObject.ReferredToNames.Any())
-                {
-                    string article = "aeiouAEIOU".Contains(appendageObject.ReferredToNames[0][0]) ? "an " : "a ";
-                    return $"{Pronoun} has {article}{appendageObject.ReferredToNames[0]} in {PossessivePronoun} {appendage}";
-                }
-                else
-                {
-                    return $"{PossessivePronoun} {appendage} is empty";
-                }
-            }
-
-            // Get the dominant and off appendages
-            Object dominantAppendage = MainInteractionAppendage; // or whichever property refers to the dominant appendage
-            Object dominantHeldObject = MainHeldObject;
-            string dominantAppendageName = MainInteractionAppendage.Type;
-
-            Object offAppendage = OffInteractionAppendage;
-            Object offHeldObject = OffHeldObject;
-            string offAppendageName = OffInteractionAppendage.Type;
-
-            // Append the description
-            StringBuilder description = new StringBuilder();
-            description.Append(DescribeAppendageObject(dominantHeldObject, dominantAppendageName));
-            description.Append(", and ");
-            description.Append(DescribeAppendageObject(offHeldObject, offAppendageName));
-            description.Append(".");
-
-            // Describe inventory
-            if (inventoryItemCounts.Count > 0)
-            {
-                description.Append($" {Pronoun} is carrying ");
-                var inventoryDescriptions = inventoryItemCounts.Select(kvp =>
-                {
-                    string itemName = kvp.Key;
-                    int count = kvp.Value;
-                    string article = "aeiouAEIOU".Contains(itemName[0]) ? "an " : "a ";
-                    string pluralForm = itemName.EndsWith("s") ? itemName + "es" : itemName + "s";
-                    return count == 1 ? $"{article}{itemName}" : $"{count} {pluralForm}";
-                }).ToList();
-
-                if (inventoryDescriptions.Count > 1)
-                {
-                    var lastItem = inventoryDescriptions.Last();
-                    inventoryDescriptions.RemoveAt(inventoryDescriptions.Count - 1);
-                    description.Append(string.Join(", ", inventoryDescriptions));
-                    description.Append(", and " + lastItem);
-                }
-                else
-                {
-                    description.Append(inventoryDescriptions[0]);
-                }
-            }
-
-            // Describe clothing
-            if (clothingItemCounts.Count > 0)
-            {
-                description.Append($". {Game1.Capitalize(Pronoun)} is wearing ");
-                var clothingDescriptions = clothingItemCounts.Select(kvp =>
-                {
-                    string itemName = kvp.Key;
-                    int count = kvp.Value;
-                    string article = "aeiouAEIOU".Contains(itemName[0]) ? "an " : "a ";
-                    string pluralForm = itemName.EndsWith("s") ? itemName + "es" : itemName + "s";
-                    return count == 1 ? $"{article}{itemName}" : $"{count} {pluralForm}";
-                }).ToList();
-
-                if (clothingDescriptions.Count > 1)
-                {
-                    var lastClothingItem = clothingDescriptions.Last();
-                    clothingDescriptions.RemoveAt(clothingDescriptions.Count - 1);
-                    description.Append(string.Join(", ", clothingDescriptions));
-                    description.Append(", and " + lastClothingItem);
-                }
-                else
-                {
-                    description.Append(clothingDescriptions[0]);
-                }
-            }
-
-            return description.ToString() + ".";
-        }
-
-
-
-
 
         public bool HadChildren = false;
 
@@ -811,179 +491,6 @@ namespace Lightrealm
             }
         }
 
-        public Object FindBodyPart(string objectType)
-        {
-            foreach (var bodyPart in BodyParts)
-            {
-                if (bodyPart.Type == objectType)
-                {
-                    return bodyPart;
-                }
-            }
-
-            return null;
-        }
-
-        public (int sustain, int parry, int block, int duck, int jump, int roll, int disarm, int redirect) CalculateSuccessChances(Attack attack, int reactionModifierInt, Architect Attacker, int attackersProficiency)
-        {
-            // Assuming you have methods to get these values from imbuements
-            int extraDodgeChance = ExtraDodgeChance + (DismissalCycles > 0 ? 5 : 0);
-            int extraRedirectionChance = ExtraRedirectionChance;
-            int extraShieldEffectiveness = ExtraShieldEffectiveness;
-
-            if (UnconsciousCycles > 0 || HoldCycles > 0)
-            {
-                return (0, 0, 0, 0, 0, 0, 0, 0);
-            }
-
-            int GetResistance(string DamageType)
-            {
-                return DamageType switch
-                {
-                    "scourging" => ExtraScourgingResistance,
-                    "piercing" => ExtraPiercingResistance,
-                    "slashing" => ExtraSlashingResistance,
-                    _ => ExtraBashingResistance,
-                };
-            }
-
-            float resistanceMultiplier = 1 + (GetResistance(attack.Weapon?.DamageType ?? "bashing") / 100f);
-
-            int CalculateChance(int proficiency, int baseChance, int multiplier)
-            {
-                int chance = baseChance + (proficiency * multiplier);
-                chance = (int)(chance * resistanceMultiplier); // Apply resistance
-                return Math.Clamp(chance, 0, 100); // Clamp the chance between 0 and 100
-            }
-
-            int sustainChance = 0; // Sustain means taking the hit, so 0% chance to evade
-
-            // Target-based modifications
-            bool targetAffectsJump = attack.Target.Type.Contains("head") || attack.Target.Type.Contains("neck") || attack.Target.Type.Contains("eye") || attack.Target.Type.Contains("tooth") || attack.Target.Type.Contains("core") || attack.Target.Type.Contains("shoulder");
-            bool targetAffectsDuck = attack.Target.Type.Contains("shard") || attack.Target.Type.Contains("leg") || attack.Target.Type.Contains("foot");
-
-            int ModifyChanceBasedOnTarget(int chance, bool decrease)
-            {
-                return (int)(chance * (decrease ? 0.8 : 1.0));
-            }
-
-            // Check if the attack target's type is a necessary body part
-            bool isNecessaryBodyPart = this.Race.NecessaryBodyParts.Contains(attack.Target.Type);
-            float necessaryBodyPartMultiplier = isNecessaryBodyPart ? 1.15f : 1.0f;
-
-            // Get the target owner as Architect
-            Architect targetOwner = (Architect)attack.Target.Owner;
-
-            // Calculate chances with uniqueness
-            int parryChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("parrying") + extraRedirectionChance, 50, 4), reactionModifierInt, 1);
-            string[] parryWeaponTypes = { "shortsword", "greatsword", "battle axe", "rapier", "mace" };
-            // Adjust parry chance if NOT holding parry weapons
-            bool leftHandParryWeapon = targetOwner.OffHeldObject != null && parryWeaponTypes.Contains(targetOwner.OffHeldObject.Type);
-            bool rightHandParryWeapon = targetOwner.MainHeldObject != null && parryWeaponTypes.Contains(targetOwner.MainHeldObject.Type);
-
-            if (!leftHandParryWeapon) parryChance = (int)(parryChance * 0.9); // 10% reduction for not having left-hand parrying weapon
-            if (!rightHandParryWeapon) parryChance = (int)(parryChance * 0.9); // 10% reduction for not having right-hand parrying weapon
-
-            int blockChance = 0;
-            if (targetOwner.OffHeldObject?.Type == "shield" || targetOwner.MainHeldObject?.Type == "shield")
-            {
-                int shieldToughness = (targetOwner.OffHeldObject?.Materials?[0].Toughness ?? 0) + (targetOwner.MainHeldObject?.Materials?[0].Toughness ?? 0);
-                blockChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("blocking") + extraShieldEffectiveness, 50 + shieldToughness, 4), reactionModifierInt, 2);
-            }
-
-            int baseDuckChance = CalculateChance(GetProficiency("dodging") + extraDodgeChance, 50, 4);
-            int baseJumpChance = CalculateChance(GetProficiency("dodging") + extraDodgeChance, 50, 4);
-
-            // Adjust jump and duck chances based on the attack target
-            int duckChance = targetAffectsDuck ? ModifyChanceBasedOnTarget(baseDuckChance, true) : baseDuckChance;
-            int jumpChance = targetAffectsJump ? ModifyChanceBasedOnTarget(baseJumpChance, true) : baseJumpChance;
-
-            int rollChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("dodging") + extraDodgeChance, 40, 4), reactionModifierInt, 5);
-            int disarmChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("disarming"), 0, 6), reactionModifierInt, 6);
-            int redirectChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("redirection") + extraRedirectionChance, 50, 4), reactionModifierInt, 7);
-
-            // Apply multipliers
-            float multiplier = 1.0f;
-            if (DestabilizedCycles > 0) multiplier *= 0.5f; // Reduce chances by half if destabilized
-            if (Attacker.IsCoveredInPlants) multiplier *= 1.5f; // Increase chances by 1.5x if attacker is covered in plants
-
-            foreach (Object o in Attacker.Clothing)
-            {
-                if (!o.IsWearable) multiplier *= 0.95f; // Reduce success chances by 5% for each non-wearable clothing object
-            }
-
-            float attackersProficiencyImpact = 1.0f - (attackersProficiency * 0.03f); // Each proficiency level reduces defender's success chance by 3%
-
-            // Apply the multiplier and ensuring the value stays within 0-100
-            parryChance = (int)(parryChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-            blockChance = (int)(blockChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-            duckChance = (int)(duckChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-            jumpChance = (int)(jumpChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-            rollChance = (int)(rollChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-            disarmChance = (int)(disarmChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-            redirectChance = (int)(redirectChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
-
-            // Apply Weight Reduction
-            int CalculateTotalWeight(IEnumerable<Object> objects)
-            {
-                int totalWeight = 0;
-                foreach (var obj in objects)
-                {
-                    totalWeight += (int)(obj.Weight);
-                    if (obj.ContainedObjects != null && obj.ContainedObjects.Any())
-                    {
-                        totalWeight += CalculateTotalWeight(obj.ContainedObjects); // Recursively add the weight of contained objects
-                    }
-                }
-                return totalWeight;
-            }
-
-            int totalWeight = CalculateTotalWeight(this.Inventory)
-                              + CalculateTotalWeight(this.Clothing)
-                              + (this.OffHeldObject != null ? CalculateTotalWeight(new[] { this.OffHeldObject }) : 0)
-                              + (this.MainHeldObject != null ? CalculateTotalWeight(new[] { this.MainHeldObject }) : 0);
-
-            float weightImpact = 1.0f - (totalWeight / 1000 * 0.02f);
-            multiplier *= weightImpact;
-
-            // Apply Exposure
-            int exposure = attack.Target.Exposure; // Assuming Exposure is an int property of the Target
-            float exposureImpact = 1.0f - (exposure / 100f);
-
-            // Ensuring values are clamped between 0 and 100 after final adjustments
-            int backflipBonus = ReactionBoostCycles > 0 ? 30 : 0;
-
-            return (
-                sustainChance, // Sustain chance isn't affected by proficiency as it's always 0
-                Math.Clamp(parryChance + backflipBonus, 0, 100),
-                Math.Clamp(blockChance + backflipBonus, 0, 100),
-                Math.Clamp(duckChance + backflipBonus, 0, 100),
-                Math.Clamp(jumpChance + backflipBonus, 0, 100),
-                Math.Clamp(rollChance + backflipBonus, 0, 100),
-                Math.Clamp(disarmChance + backflipBonus, 0, 100),
-                Math.Clamp(redirectChance + backflipBonus, 0, 100)
-            );
-        }
-
-
-        // Random multiplier function
-        private int ApplyRandomMultiplier(int baseChance, int reactionModifierInt, int actionIndex)
-        {
-            // Create a unique seed based on reactionModifierInt and actionIndex
-            int uniqueSeed = reactionModifierInt + actionIndex * 1000; // Ensure actionIndex significantly changes the seed
-            Random random = new Random(uniqueSeed);
-
-            // Generate a multiplier in the range of -15 to +15
-            int adjustment = random.Next(-15, 16); // Random number between -15 and 15 (inclusive)
-
-            // Apply this adjustment to the base chance
-            int adjustedChance = baseChance + adjustment;
-
-            // Ensure the adjusted chance is between 0 and 100
-            return Math.Clamp(adjustedChance, 0, 100);
-        }
-
-
 
         private Room _room;
         private Block _block;
@@ -1033,20 +540,6 @@ namespace Lightrealm
             }
         }
 
-        public bool CanBeNotOnGround()
-        {
-            // List of valid body part types for standing/flying
-            List<string> validTypes = new List<string> { "leg", "tentacle", "wing", "fin", "sludge", "sphere", "shard" };
-
-            // Find all body parts that match the valid types and have Integrity >= 30
-            var eligibleParts = BodyParts.Where(bp =>
-                validTypes.Any(type => bp.Type.Contains(type)) &&
-                bp.Integrity >= 30).ToList();
-
-            // Check if there are at least two such body parts
-            return eligibleParts.Count >= 2;
-        }
-
         public string Size { get; set; } = "average";
 
         public Location HomeLocation { get; set; }
@@ -1077,9 +570,9 @@ namespace Lightrealm
         public int CultureStudyPoints { get; set; } = 0;
         public int ScienceStudyPoints { get; set; } = 0;
 
-        public List<string> SpellsKnown { get; set; } = new List<string>();
-        public List<string> SkillsKnown { get; set; } = new List<string>();
-        public List<string> UsedSkills { get; set; } = new List<string>();
+        public List<Entity> SpellsKnown { get; set; } = new List<Entity>();
+        public List<Entity> SkillsKnown { get; set; } = new List<Entity>();
+        public List<Entity> UsedSkills { get; set; } = new List<Entity>();
 
         public bool DiscoveredASpell { get; set; } = false;
 
@@ -1123,32 +616,6 @@ namespace Lightrealm
         public decimal Energy;
         public int MaxEnergyMod = 0;
 
-        public int MaxEnergy()
-        {
-            int Max = (Endurance * 4) + 100;
-
-            if (Race == Game1.GameWorld.GetRace("luminarch"))
-            {
-                Max += Max * (1 / 10);
-            }
-            else if (Race == Game1.GameWorld.GetRace("nightfell"))
-            {
-                Max -= Max * (1 / 10);
-            }
-
-            if (Game1.EnergySizeMultipliers.ContainsKey(Size))
-            {
-                Max = (int)(Max * Game1.EnergySizeMultipliers[Size]);
-            }
-
-            Max += MaxEnergyMod;
-            Max += MaxEnergyInspiration ? 5 : 0;
-
-            return Max;
-        }
-
-
-
         public decimal Bleeding = 0;
         public double Pain = 0;
 
@@ -1179,18 +646,6 @@ namespace Lightrealm
 
         public bool IsofractalThief = false;
 
-        public bool TemporarilyIncapacitated()
-        {
-            if (CooldownCycles == 0 && FractalCycles == 0)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
-        }
-
 
         public int ArmorProficiency { get; set; } = 0;
 
@@ -1198,18 +653,20 @@ namespace Lightrealm
         public List<Architect> SuperTrustedArchitects { get; set; } = new List<Architect>();
 
         public List<(string, int)> XPValues { get; set; } = new List<(string, int)>
-        {
-            ("slashing", 0),
-            ("piercing", 0),
-            ("bashing", 0),
-            ("scourging", 0),
-            ("dodging", 0),
-            ("blocking", 0),
-            ("disarming", 0),
-            ("redirection", 0),
-            ("throwing", 0),
-            ("parrying", 0)
-        };
+{
+    ("slashing", 0),
+    ("piercing", 0),
+    ("bashing", 0),
+    ("scourging", 0),
+    ("dodging", 0),
+    ("blocking", 0),
+    ("disarming", 0),
+    ("redirection", 0),
+    ("throwing", 0),
+    ("parrying", 0)
+};
+
+
 
         public void ChangeXP(string proficiencyName, int xpChange)
         {
@@ -2192,7 +1649,7 @@ namespace Lightrealm
             Focus = shuffledSkills[6];
 
             //give him a ton of alligned domains.
-            AlignedDomains = Game1.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)).ToList();
+            AlignedDomains = Game1.GameWorld.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)).ToList();
 
             
 
@@ -2365,6 +1822,558 @@ namespace Lightrealm
                     O.Owner = this;
                     BodyParts.Add(O);
                 }
+            }
+        }
+
+        public Object FindBodyPart(string objectType)
+        {
+            foreach (var bodyPart in BodyParts)
+            {
+                if (bodyPart.Type == objectType)
+                {
+                    return bodyPart;
+                }
+            }
+
+            return null;
+        }
+
+        public string GetNonZeroPathLevels()
+        {
+            var paths = new List<string>();
+
+            if (PathOfShadowLevel > 0) paths.Add($"Shadow LVL {PathOfShadowLevel}");
+            if (PathOfLifeLevel > 0) paths.Add($"Life LVL {PathOfLifeLevel}");
+            if (PathOfDeathLevel > 0) paths.Add($"Death LVL {PathOfDeathLevel}");
+            if (PathOfTimeLevel > 0) paths.Add($"Time LVL {PathOfTimeLevel}");
+            if (PathOfStarsLevel > 0) paths.Add($"Stars LVL {PathOfStarsLevel}");
+            if (PathOfHeatLevel > 0) paths.Add($"Heat LVL {PathOfHeatLevel}");
+            if (PathOfIllusionsLevel > 0) paths.Add($"Illusions LVL {PathOfIllusionsLevel}");
+            if (PathOfEtherealityLevel > 0) paths.Add($"Ethereality LVL {PathOfEtherealityLevel}");
+            if (PathOfVoidLevel > 0) paths.Add($"Void LVL {PathOfVoidLevel}");
+            if (PathOfStormsLevel > 0) paths.Add($"Storms LVL {PathOfStormsLevel}");
+            if (PathOfForgeLevel > 0) paths.Add($"Forge LVL {PathOfForgeLevel}");
+            if (PathOfLoreLevel > 0) paths.Add($"Lore LVL {PathOfLoreLevel}");
+            if (PathOfMindLevel > 0) paths.Add($"Mind LVL {PathOfMindLevel}");
+            if (PathOfSoulLevel > 0) paths.Add($"Soul LVL {PathOfSoulLevel}");
+            if (PathOfBodyLevel > 0) paths.Add($"Body LVL {PathOfBodyLevel}");
+            if (PathOfSpaceLevel > 0) paths.Add($"Space LVL {PathOfSpaceLevel}");
+            if (PathOfRealityLevel > 0) paths.Add($"Reality LVL {PathOfRealityLevel}");
+            if (PathOfLightLevel > 0) paths.Add($"Light LVL {PathOfLightLevel}");
+
+            return paths.Count > 0 ? $"PATHS: {string.Join(", ", paths)}" : "No paths have levels above 0.";
+        }
+
+        public int EscapeChance()
+        {
+            int Chance = Math.Min(Agility * 4 + PathOfShadowLevel * 3 + (CyclesSinceMoved / 50) * 2, 100);
+
+            if (DismissalCycles > 0)
+            {
+                Chance += 40;
+            }
+
+            return Math.Min(Chance, 100);
+        }
+
+        public void AssignSpells()
+        {
+            if (Race == Game1.GameWorld.GetRace("debtshiba"))
+            {
+                SpellcastingPower = 10;
+                for (int i = 0; i < 4; i++)
+                {
+                    AddSpell();
+                }
+            }
+            else if (Profession == "archbard" || Profession == "archluminary" ||
+            Profession == "archartificer" || Profession == "archduelist")
+            {
+                SpellcastingPower = 4;
+                for (int i = 0; i < 4; i++)
+                {
+                    AddSpell();
+                }
+            }
+            else if (Profession == "warlock" || Profession == "sorcerer" ||
+                     Profession == "necromancer" || Profession == "spatiomancer" ||
+                     Profession == "perceptomancer" || Profession == "conjumancer" ||
+                     Profession == "fractalmancer")
+            {
+                SpellcastingPower = 3;
+                for (int i = 0; i < 3; i++)
+                {
+                    AddSpell();
+                }
+            }
+            else if (Profession == "elemental")
+            {
+                SpellcastingPower = 3;
+                AddSpell();
+            }
+            else if (Profession == "archmage")
+            {
+                SpellcastingPower = 2;
+                for (int i = 0; i < 2; i++)
+                {
+                    AddSpell();
+                }
+            }
+            else if (Profession == "mage" || Profession == "magician")
+            {
+                SpellcastingPower = 1;
+                for (int i = 0; i < 2; i++)
+                {
+                    AddSpell();
+                }
+            }
+        }
+
+        public void AddSpell()
+        {
+            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock" };
+
+            List<Entity> unknownSpells = Game1.GameWorld.AllSpells
+                .Where(spell => OffensiveSpells.Contains(spell.Metadata) && !SpellsKnown.Contains(spell))
+                .ToList();
+
+            if (unknownSpells.Count > 0)
+            {
+                SpellsKnown.Add(unknownSpells[Game1.r.Next(unknownSpells.Count)]);
+            }
+        }
+
+
+        public double Speed()
+        {
+            const double BaseSpeed = 1.0; // Normalized average speed
+            const double WeightEffectModifier = 0.5; // Constant to adjust the total effect of weight
+
+            int numberOfLegs = BodyParts.Count(part => new[] { "leg", "tentacle", "wing", "fin", "sludge", "sphere", "shard" }
+                                              .Any(term => part.Type.Contains(term)));
+            double legSpeedModifier = CalculateLegSpeedModifier(numberOfLegs);
+            double agilityModifier = CalculateAgilityModifier(Agility); // Adjusted to keep speed not too high
+            double totalWeight = Inventory.Sum(item => item.IsMagical ? item.Weight * 0.2 : item.Weight)
+                      + Clothing.Sum(item => item.IsMagical ? item.Weight * 0.2 : item.Weight * 0.5);
+            double weightPenaltyModifier = CalculateWeightPenaltyModifier(totalWeight, Endurance, WeightEffectModifier);
+            double radiantPenalty = RadiantCycles > 0 ? 0.6 : 1.0;
+            double bodyPathBonus = PathOfBodyLevel >= 8 ? 1.5 : 1.0;
+
+            double rawSpeed = BaseSpeed * legSpeedModifier * agilityModifier * weightPenaltyModifier * radiantPenalty * bodyPathBonus;
+
+            if (OnGround)
+            {
+                rawSpeed = (int)Math.Round(rawSpeed / 2);
+            }
+
+            return Math.Max(0.1, Math.Round(rawSpeed, 2)); // Rounding to the nearest two decimal places
+
+            double CalculateLegSpeedModifier(int numberOfLegs)
+            {
+                // Adjusting for new effects of leg counts
+                if (numberOfLegs == 0) return 0.1; // 1/10 speed if no legs
+                else if (numberOfLegs == 1) return 0.6; // 3/5 speed if one leg
+                else if (numberOfLegs == 2) return 1.0; // Full speed if two legs
+                else // Diminishing returns for each leg above 2
+                {
+                    double extraLegsModifier = 0.1 * (numberOfLegs - 2); // 0.1 boost per additional leg
+                    return 1.0 + Math.Min(extraLegsModifier, 0.5); // Cap at an additional 0.5
+                }
+            }
+
+            double CalculateAgilityModifier(int agility)
+            {
+                // Adjusting the agility effect to start from 0.9 and increase by 0.05 for each point
+                double baseModifier = 0.9;
+                double increment = 0.05;
+                return baseModifier + (agility * increment);
+            }
+
+
+            double CalculateWeightPenaltyModifier(double totalWeight, int endurance, double weightEffectModifier)
+            {
+                double excessWeight = Math.Max(0, totalWeight - 1000); // Considering weight above 1000g
+                double penalty = excessWeight / 10000; // Halved penalty for weight
+                double enduranceModifier = 1 - (0.025 * (endurance - 1)); // Halved impact of endurance
+                return Math.Max(0.3, 1 - (penalty * enduranceModifier * weightEffectModifier)); // Ensuring a minimum 75% speed
+            }
+        }
+
+
+
+        public string GetDescription(int value)
+        {
+            switch (value)
+            {
+                case 0: return "non-existent";
+                case 1: return "terrible";
+                case 2: return "poor";
+                case 3: return "average";
+                case 4: return "good";
+                case 5: return "excellent";
+                case 6: return "superior";
+                case 7: return "exceptional";
+                case 8: return "unbelievable";
+                case 9: return "unfathomable";
+                case 10: return "mythical";
+                default: return "archancient"; // In case of greater than 10 value
+            }
+        }
+        public string CheckEnergyLevel()
+        {
+            double ratio = (double)(Energy / MaxEnergy());
+            if (ratio == 0)
+            {
+                return (Pronoun + " is dead.");
+            }
+            if (ratio < 0.2)
+            {
+                return (Pronoun + " appears on the verge of collapse.");
+            }
+            else if (ratio < 0.4)
+            {
+                return (Pronoun + " is not looking very healthy.");
+            }
+            else if (ratio < 0.6)
+            {
+                return (Pronoun + " is looking somewhat dim.");
+            }
+            else if (ratio < 0.8)
+            {
+                return (Pronoun + " is looking just fine.");
+            }
+            else
+            {
+                return (Pronoun + " looks perfectly healthy.");
+            }
+        }
+        public string DescribeArchitectInventory()
+        {
+            var inventoryItemCounts = new Dictionary<string, int>();
+            var clothingItemCounts = new Dictionary<string, int>();
+
+            // Function to add an item to the dictionary
+            void AddItem(Dictionary<string, int> itemCounts, Object item)
+            {
+                if (item != null && item.ReferredToNames.Any())
+                {
+                    string itemName = item.ReferredToNames[0];
+                    if (!itemCounts.ContainsKey(itemName))
+                        itemCounts[itemName] = 0;
+                    itemCounts[itemName]++;
+                }
+            }
+
+            // Add right and left hand objects
+            AddItem(inventoryItemCounts, MainHeldObject);
+            AddItem(inventoryItemCounts, OffHeldObject);
+
+            // Add inventory items
+            foreach (Object o in Inventory)
+            {
+                AddItem(inventoryItemCounts, o);
+            }
+
+            // Add clothing items
+            foreach (Object c in Clothing)
+            {
+                AddItem(clothingItemCounts, c);
+            }
+
+            // Describe hand objects
+            string DescribeAppendageObject(Object appendageObject, string appendage)
+            {
+                if (appendageObject != null && appendageObject.ReferredToNames.Any())
+                {
+                    string article = "aeiouAEIOU".Contains(appendageObject.ReferredToNames[0][0]) ? "an " : "a ";
+                    return $"{Pronoun} has {article}{appendageObject.ReferredToNames[0]} in {PossessivePronoun} {appendage}";
+                }
+                else
+                {
+                    return $"{PossessivePronoun} {appendage} is empty";
+                }
+            }
+
+            // Get the dominant and off appendages
+            Object dominantAppendage = MainInteractionAppendage; // or whichever property refers to the dominant appendage
+            Object dominantHeldObject = MainHeldObject;
+            string dominantAppendageName = MainInteractionAppendage.Type;
+
+            Object offAppendage = OffInteractionAppendage;
+            Object offHeldObject = OffHeldObject;
+            string offAppendageName = OffInteractionAppendage.Type;
+
+            // Append the description
+            StringBuilder description = new StringBuilder();
+            description.Append(DescribeAppendageObject(dominantHeldObject, dominantAppendageName));
+            description.Append(", and ");
+            description.Append(DescribeAppendageObject(offHeldObject, offAppendageName));
+            description.Append(".");
+
+            // Describe inventory
+            if (inventoryItemCounts.Count > 0)
+            {
+                description.Append($" {Pronoun} is carrying ");
+                var inventoryDescriptions = inventoryItemCounts.Select(kvp =>
+                {
+                    string itemName = kvp.Key;
+                    int count = kvp.Value;
+                    string article = "aeiouAEIOU".Contains(itemName[0]) ? "an " : "a ";
+                    string pluralForm = itemName.EndsWith("s") ? itemName + "es" : itemName + "s";
+                    return count == 1 ? $"{article}{itemName}" : $"{count} {pluralForm}";
+                }).ToList();
+
+                if (inventoryDescriptions.Count > 1)
+                {
+                    var lastItem = inventoryDescriptions.Last();
+                    inventoryDescriptions.RemoveAt(inventoryDescriptions.Count - 1);
+                    description.Append(string.Join(", ", inventoryDescriptions));
+                    description.Append(", and " + lastItem);
+                }
+                else
+                {
+                    description.Append(inventoryDescriptions[0]);
+                }
+            }
+
+            // Describe clothing
+            if (clothingItemCounts.Count > 0)
+            {
+                description.Append($". {Game1.Capitalize(Pronoun)} is wearing ");
+                var clothingDescriptions = clothingItemCounts.Select(kvp =>
+                {
+                    string itemName = kvp.Key;
+                    int count = kvp.Value;
+                    string article = "aeiouAEIOU".Contains(itemName[0]) ? "an " : "a ";
+                    string pluralForm = itemName.EndsWith("s") ? itemName + "es" : itemName + "s";
+                    return count == 1 ? $"{article}{itemName}" : $"{count} {pluralForm}";
+                }).ToList();
+
+                if (clothingDescriptions.Count > 1)
+                {
+                    var lastClothingItem = clothingDescriptions.Last();
+                    clothingDescriptions.RemoveAt(clothingDescriptions.Count - 1);
+                    description.Append(string.Join(", ", clothingDescriptions));
+                    description.Append(", and " + lastClothingItem);
+                }
+                else
+                {
+                    description.Append(clothingDescriptions[0]);
+                }
+            }
+
+            return description.ToString() + ".";
+        }
+
+        public (int sustain, int parry, int block, int duck, int jump, int roll, int disarm, int redirect) CalculateSuccessChances(Attack attack, int reactionModifierInt, Architect Attacker, int attackersProficiency)
+        {
+            // Assuming you have methods to get these values from imbuements
+            int extraDodgeChance = ExtraDodgeChance + (DismissalCycles > 0 ? 5 : 0);
+            int extraRedirectionChance = ExtraRedirectionChance;
+            int extraShieldEffectiveness = ExtraShieldEffectiveness;
+
+            if (UnconsciousCycles > 0 || HoldCycles > 0)
+            {
+                return (0, 0, 0, 0, 0, 0, 0, 0);
+            }
+
+            int GetResistance(string DamageType)
+            {
+                return DamageType switch
+                {
+                    "scourging" => ExtraScourgingResistance,
+                    "piercing" => ExtraPiercingResistance,
+                    "slashing" => ExtraSlashingResistance,
+                    _ => ExtraBashingResistance,
+                };
+            }
+
+            float resistanceMultiplier = 1 + (GetResistance(attack.Weapon?.DamageType ?? "bashing") / 100f);
+
+            int CalculateChance(int proficiency, int baseChance, int multiplier)
+            {
+                int chance = baseChance + (proficiency * multiplier);
+                chance = (int)(chance * resistanceMultiplier); // Apply resistance
+                return Math.Clamp(chance, 0, 100); // Clamp the chance between 0 and 100
+            }
+
+            int sustainChance = 0; // Sustain means taking the hit, so 0% chance to evade
+
+            // Target-based modifications
+            bool targetAffectsJump = attack.Target.Type.Contains("head") || attack.Target.Type.Contains("neck") || attack.Target.Type.Contains("eye") || attack.Target.Type.Contains("tooth") || attack.Target.Type.Contains("core") || attack.Target.Type.Contains("shoulder");
+            bool targetAffectsDuck = attack.Target.Type.Contains("shard") || attack.Target.Type.Contains("leg") || attack.Target.Type.Contains("foot");
+
+            int ModifyChanceBasedOnTarget(int chance, bool decrease)
+            {
+                return (int)(chance * (decrease ? 0.8 : 1.0));
+            }
+
+            // Check if the attack target's type is a necessary body part
+            bool isNecessaryBodyPart = this.Race.NecessaryBodyParts.Contains(attack.Target.Type);
+            float necessaryBodyPartMultiplier = isNecessaryBodyPart ? 1.15f : 1.0f;
+
+            // Get the target owner as Architect
+            Architect targetOwner = (Architect)attack.Target.Owner;
+
+            // Calculate chances with uniqueness
+            int parryChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("parrying") + extraRedirectionChance, 50, 4), reactionModifierInt, 1);
+            string[] parryWeaponTypes = { "shortsword", "greatsword", "battle axe", "rapier", "mace" };
+            // Adjust parry chance if NOT holding parry weapons
+            bool leftHandParryWeapon = targetOwner.OffHeldObject != null && parryWeaponTypes.Contains(targetOwner.OffHeldObject.Type);
+            bool rightHandParryWeapon = targetOwner.MainHeldObject != null && parryWeaponTypes.Contains(targetOwner.MainHeldObject.Type);
+
+            if (!leftHandParryWeapon) parryChance = (int)(parryChance * 0.9); // 10% reduction for not having left-hand parrying weapon
+            if (!rightHandParryWeapon) parryChance = (int)(parryChance * 0.9); // 10% reduction for not having right-hand parrying weapon
+
+            int blockChance = 0;
+            if (targetOwner.OffHeldObject?.Type == "shield" || targetOwner.MainHeldObject?.Type == "shield")
+            {
+                int shieldToughness = (targetOwner.OffHeldObject?.Materials?[0].Toughness ?? 0) + (targetOwner.MainHeldObject?.Materials?[0].Toughness ?? 0);
+                blockChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("blocking") + extraShieldEffectiveness, 50 + shieldToughness, 4), reactionModifierInt, 2);
+            }
+
+            int baseDuckChance = CalculateChance(GetProficiency("dodging") + extraDodgeChance, 50, 4);
+            int baseJumpChance = CalculateChance(GetProficiency("dodging") + extraDodgeChance, 50, 4);
+
+            // Adjust jump and duck chances based on the attack target
+            int duckChance = targetAffectsDuck ? ModifyChanceBasedOnTarget(baseDuckChance, true) : baseDuckChance;
+            int jumpChance = targetAffectsJump ? ModifyChanceBasedOnTarget(baseJumpChance, true) : baseJumpChance;
+
+            int rollChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("dodging") + extraDodgeChance, 40, 4), reactionModifierInt, 5);
+            int disarmChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("disarming"), 0, 6), reactionModifierInt, 6);
+            int redirectChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("redirection") + extraRedirectionChance, 50, 4), reactionModifierInt, 7);
+
+            // Apply multipliers
+            float multiplier = 1.0f;
+            if (DestabilizedCycles > 0) multiplier *= 0.5f; // Reduce chances by half if destabilized
+            if (Attacker.IsCoveredInPlants) multiplier *= 1.5f; // Increase chances by 1.5x if attacker is covered in plants
+
+            foreach (Object o in Attacker.Clothing)
+            {
+                if (!o.IsWearable) multiplier *= 0.95f; // Reduce success chances by 5% for each non-wearable clothing object
+            }
+
+            float attackersProficiencyImpact = 1.0f - (attackersProficiency * 0.03f); // Each proficiency level reduces defender's success chance by 3%
+
+            // Apply the multiplier and ensuring the value stays within 0-100
+            parryChance = (int)(parryChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+            blockChance = (int)(blockChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+            duckChance = (int)(duckChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+            jumpChance = (int)(jumpChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+            rollChance = (int)(rollChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+            disarmChance = (int)(disarmChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+            redirectChance = (int)(redirectChance * multiplier * attackersProficiencyImpact * necessaryBodyPartMultiplier);
+
+            // Apply Weight Reduction
+            int CalculateTotalWeight(IEnumerable<Object> objects)
+            {
+                int totalWeight = 0;
+                foreach (var obj in objects)
+                {
+                    totalWeight += (int)(obj.Weight);
+                    if (obj.ContainedObjects != null && obj.ContainedObjects.Any())
+                    {
+                        totalWeight += CalculateTotalWeight(obj.ContainedObjects); // Recursively add the weight of contained objects
+                    }
+                }
+                return totalWeight;
+            }
+
+            int totalWeight = CalculateTotalWeight(this.Inventory)
+                              + CalculateTotalWeight(this.Clothing)
+                              + (this.OffHeldObject != null ? CalculateTotalWeight(new[] { this.OffHeldObject }) : 0)
+                              + (this.MainHeldObject != null ? CalculateTotalWeight(new[] { this.MainHeldObject }) : 0);
+
+            float weightImpact = 1.0f - (totalWeight / 1000 * 0.02f);
+            multiplier *= weightImpact;
+
+            // Apply Exposure
+            int exposure = attack.Target.Exposure; // Assuming Exposure is an int property of the Target
+            float exposureImpact = 1.0f - (exposure / 100f);
+
+            // Ensuring values are clamped between 0 and 100 after final adjustments
+            int backflipBonus = ReactionBoostCycles > 0 ? 30 : 0;
+
+            return (
+                sustainChance, // Sustain chance isn't affected by proficiency as it's always 0
+                Math.Clamp(parryChance + backflipBonus, 0, 100),
+                Math.Clamp(blockChance + backflipBonus, 0, 100),
+                Math.Clamp(duckChance + backflipBonus, 0, 100),
+                Math.Clamp(jumpChance + backflipBonus, 0, 100),
+                Math.Clamp(rollChance + backflipBonus, 0, 100),
+                Math.Clamp(disarmChance + backflipBonus, 0, 100),
+                Math.Clamp(redirectChance + backflipBonus, 0, 100)
+            );
+        }
+
+
+        // Random multiplier function
+        private int ApplyRandomMultiplier(int baseChance, int reactionModifierInt, int actionIndex)
+        {
+            // Create a unique seed based on reactionModifierInt and actionIndex
+            int uniqueSeed = reactionModifierInt + actionIndex * 1000; // Ensure actionIndex significantly changes the seed
+            Random random = new Random(uniqueSeed);
+
+            // Generate a multiplier in the range of -15 to +15
+            int adjustment = random.Next(-15, 16); // Random number between -15 and 15 (inclusive)
+
+            // Apply this adjustment to the base chance
+            int adjustedChance = baseChance + adjustment;
+
+            // Ensure the adjusted chance is between 0 and 100
+            return Math.Clamp(adjustedChance, 0, 100);
+        }
+
+
+        public bool CanBeNotOnGround()
+        {
+            // List of valid body part types for standing/flying
+            List<string> validTypes = new List<string> { "leg", "tentacle", "wing", "fin", "sludge", "sphere", "shard" };
+
+            // Find all body parts that match the valid types and have Integrity >= 30
+            var eligibleParts = BodyParts.Where(bp =>
+                validTypes.Any(type => bp.Type.Contains(type)) &&
+                bp.Integrity >= 30).ToList();
+
+            // Check if there are at least two such body parts
+            return eligibleParts.Count >= 2;
+        }
+
+        public int MaxEnergy()
+        {
+            int Max = (Endurance * 4) + 100;
+
+            if (Race == Game1.GameWorld.GetRace("luminarch"))
+            {
+                Max += Max * (1 / 10);
+            }
+            else if (Race == Game1.GameWorld.GetRace("nightfell"))
+            {
+                Max -= Max * (1 / 10);
+            }
+
+            if (Game1.EnergySizeMultipliers.ContainsKey(Size))
+            {
+                Max = (int)(Max * Game1.EnergySizeMultipliers[Size]);
+            }
+
+            Max += MaxEnergyMod;
+            Max += MaxEnergyInspiration ? 5 : 0;
+
+            return Max;
+        }
+
+
+
+        public bool TemporarilyIncapacitated()
+        {
+            if (CooldownCycles == 0 && FractalCycles == 0)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
             }
         }
 
@@ -3952,9 +3961,9 @@ namespace Lightrealm
                                 {
                                     //chance to add in domains IF you can talk about a domain
 
-                                    foreach (string domain in Game1.Domains)
+                                    foreach (Entity domain in Game1.GameWorld.Domains)
                                     {
-                                        AllImportantEntities.Add(new Entity(domain));
+                                        AllImportantEntities.Add(domain);
                                     }
                                 }
                                 else
@@ -4345,25 +4354,25 @@ namespace Lightrealm
 
                             if ((SpellsKnown.Count > 0 && Game1.r.Next(2) == 0) || Profession == "sorcerer" || Profession == "warlock" || Race == Game1.GameWorld.GetRace("debtshiba"))
                             {
-                                List<string> offensiveSpellsInKit;
+                                List<Entity> offensiveSpellsInKit;
 
                                 if (Race == Game1.GameWorld.GetRace("debtshiba"))
                                 {
                                     SpellcastingPower = 25;
-                                    offensiveSpellsInKit = Game1.AllSpells.Where(spell => OffensiveSpells.Contains(spell)).ToList();
+                                    offensiveSpellsInKit = Game1.GameWorld.AllSpells.Where(spell => OffensiveSpells.Contains(spell.Metadata)).ToList();
                                 }
                                 else
                                 {
-                                    offensiveSpellsInKit = SpellsKnown.Where(spell => OffensiveSpells.Contains(spell)).ToList();
+                                    offensiveSpellsInKit = SpellsKnown.Where(spell => OffensiveSpells.Contains(spell.Metadata)).ToList();
                                 }
 
                                 if (offensiveSpellsInKit.Any() && GetDistance(TargetArchitect) <= SpellCastingDistance)
                                 {
                                     for (int i = SpellcastingPower; i != 0; i--)
                                     {
-                                        string spellToCast = offensiveSpellsInKit[Game1.r.Next(offensiveSpellsInKit.Count)];
+                                        Entity spellToCast = offensiveSpellsInKit[Game1.r.Next(offensiveSpellsInKit.Count)];
                                         CastedASpell = true;
-                                        Game1.Announcements.AddRange(CastSpell(spellToCast, new List<Entity>() { TargetArchitect }));
+                                        Game1.Announcements.AddRange(CastSpell(spellToCast.Metadata, new List<Entity>() { TargetArchitect }));
                                     }
                                 }
                             }
@@ -5019,7 +5028,7 @@ namespace Lightrealm
                 Energy -= Math.Max(1, (10 - (SpellcastingPower + (Focus / 2))));
             }
 
-            if (Game1.AllLegendarySpells.Contains(Spell))
+            if (Game1.GameWorld.AllLegendarySpells.Any(s => s.Metadata == Spell))
             {
                 int Month = ((int)Math.Round((decimal)(Location.Region.World.Cycle / 24192000)) % 12) + 1;
                 int Year = (int)Math.Round((decimal)(Location.Region.World.Cycle / 290304000), MidpointRounding.ToZero);
@@ -5512,17 +5521,17 @@ namespace Lightrealm
                             }
                         }
                     }
-                    else if (Game1.AllSpells.Contains(CurrentTarget.Metadata))
+                    else if (Game1.GameWorld.AllSpells.Contains(CurrentTarget))
                     {
                         Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new List<Entity>() { CurrentTarget }));
-                        Game1.GameWorld.DeletedSpells.Add(CurrentTarget.Metadata);
+                        Game1.GameWorld.DeletedSpells.Add(CurrentTarget);
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
                         {
-                            a.SpellsKnown.Remove(CurrentTarget.Metadata);
+                            a.SpellsKnown.Remove(CurrentTarget);
                         }
                     }
-                    else if (Game1.AllLegendarySpells.Contains(CurrentTarget.Metadata))
+                    else if (Game1.GameWorld.AllLegendarySpells.Contains(CurrentTarget))
                     {
                         Announcements.Add(new TextStorage($"An accursed relic locks this spell away. Perhaps you can find and banish this artifact instead.", Color.Purple, new List<Entity>()));
                     }

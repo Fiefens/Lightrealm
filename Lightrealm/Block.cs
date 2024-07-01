@@ -8,8 +8,18 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class Block
+    public class Block : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public List<Structure> Structures { get; set; } = new List<Structure>();
         public List<Structure> StructuresToRemove { get; set; } = new List<Structure>();
         public List<Architect> Architects { get; set; } = new List<Architect>();

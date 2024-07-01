@@ -13,6 +13,16 @@ namespace Lightrealm
     [Serializable]
     public class Structure : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public string Type { get; set; }
         public string GUID { get; set; }
         public Entity Owner { get; set; } = null;

@@ -33,6 +33,16 @@ namespace Lightrealm
 
     public class World : Entity
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public List<string> ItemTypesInCirculation = new List<string>();
 
         public int NextUniqueID = 0;
@@ -52,6 +62,147 @@ namespace Lightrealm
                         { "entertainment", "decided that merging their talents would entertain more people" }
                     };
 
+        public List<Entity> AllSpells = new List<Entity>()
+        {
+            new Entity("water bolt"),
+            new Entity("chaos flare"),
+            new Entity("concentrated ignition"),
+            new Entity("tremor"),
+            new Entity("ice shock"),
+            // new Entity("immobile illusion"),
+            // new Entity("shadow veil"),
+            // new Entity("mobile illusion"),
+            // new Entity("reactive illusion"),
+            new Entity("truthfulness"),
+            new Entity("rise"),
+            new Entity("hold"),
+            new Entity("force throw"),
+            new Entity("shatter"),
+            new Entity("clone"),
+            new Entity("intercept"),
+            new Entity("expel"),
+            new Entity("extract"),
+            new Entity("emergent growth"),
+            new Entity("animate"),
+            new Entity("immortalize"),
+            new Entity("revive"),
+            new Entity("resurrect")
+        };
+
+        public List<Entity> AllBodyParts = new List<Entity>();
+
+        public List<Entity> Domains = new List<Entity>
+        {
+            new Entity("shadows"),
+            new Entity("life"),
+            new Entity("death"),
+            new Entity("time"),
+            new Entity("stars"),
+            new Entity("heat"),
+            new Entity("void"),
+            new Entity("storms"),
+            new Entity("lore"),
+            new Entity("mind"),
+            new Entity("soul"),
+            new Entity("body"),
+            new Entity("space"),
+            new Entity("reality"),
+            new Entity("chaos"),
+            new Entity("order"),
+            new Entity("nature"),
+            new Entity("earth"),
+            new Entity("water"),
+            new Entity("fire"),
+            new Entity("air"),
+            new Entity("dreams"),
+            new Entity("music"),
+            new Entity("war"),
+            new Entity("peace"),
+            new Entity("fate"),
+            new Entity("luck"),
+            new Entity("craftsmanship"),
+            new Entity("wisdom"),
+            new Entity("mountains"),
+            new Entity("forests"),
+            new Entity("seas"),
+            new Entity("rivers"),
+            new Entity("deserts"),
+            new Entity("skies"),
+            new Entity("twilight"),
+            new Entity("dusk"),
+            new Entity("dawn"),
+            new Entity("justice"),
+            new Entity("mercy"),
+            new Entity("vengeance"),
+            new Entity("joy"),
+            new Entity("beauty"),
+            new Entity("fear"),
+            new Entity("courage"),
+            new Entity("mystery"),
+            new Entity("knowledge"),
+            new Entity("exploration"),
+            new Entity("civilization"),
+            new Entity("wilderness"),
+            new Entity("magic"),
+            new Entity("art"),
+            new Entity("celebration"),
+            new Entity("silence"),
+            new Entity("echoes"),
+            new Entity("decay"),
+            new Entity("balance"),
+            new Entity("creation"),
+            new Entity("destruction"),
+            new Entity("power"),
+            new Entity("eternity"),
+            new Entity("nightmares"),
+            new Entity("stability"),
+            new Entity("change"),
+            new Entity("harmony"),
+            new Entity("discord"),
+            new Entity("vision"),
+            new Entity("memory"),
+            new Entity("truth"),
+            new Entity("deception"),
+            new Entity("hope"),
+            new Entity("despair"),
+            new Entity("wealth"),
+            new Entity("poverty"),
+            new Entity("disease"),
+            new Entity("youth"),
+            new Entity("beginnings"),
+            new Entity("endings"),
+            new Entity("exile"),
+            new Entity("theft"),
+            new Entity("victory"),
+            new Entity("defeat"),
+            new Entity("secrets"),
+            new Entity("ruin")
+        };
+
+
+        public List<Entity> AllSkills = new List<Entity>
+        {
+            // new Entity("deflect"), // temporarily removing because it doesn't do anything for you.
+            new Entity("dropkick"),
+            new Entity("double strike"),
+            new Entity("quick strike"),
+            new Entity("severing strike"),
+            new Entity("backflip"),
+            new Entity("escape"),
+            new Entity("finale"),
+            new Entity("concentration"),
+            new Entity("body slam"),
+            new Entity("leg sweep")
+        };
+
+        public List<Entity> AllLegendarySpells = new List<Entity>()
+        {
+            new Entity("ethereal rupture"),
+            new Entity("emergence"),
+            new Entity("eternal bind"),
+            new Entity("expunge"),
+            new Entity("echo")
+        };
 
         public int ConvertLevelToToughness(int level)
         {
@@ -104,6 +255,31 @@ namespace Lightrealm
             { "brown", new List<Material>{ new Material("tree bark", "wood", 1, 1, "brown"), new Material("cocoa bean", "plant", 1, 1, "brown"), new Material("hazel nut", "nut", 1, 1, "brown") } }
 
             //fix this later but I don't want to right now
+        };
+
+        public List<Entity> ExtraEntities = new List<Entity>
+        {
+            new Entity("tavern"), new Entity("prism"), new Entity("well"), new Entity("shrine"),
+            new Entity("library"), new Entity("watchtower"), new Entity("forge"), new Entity("market"),
+            new Entity("north"), new Entity("south"), new Entity("east"), new Entity("west"),
+            new Entity("up"), new Entity("down"), new Entity("southeast"), new Entity("southwest"),
+            new Entity("northeast"), new Entity("northwest"), new Entity("shadow storage"),
+            new Entity("relationships"), new Entity("mining"), new Entity("combat"),
+            new Entity("crafting"), new Entity("trading"), new Entity("stealth"), new Entity("alchemy"),
+            new Entity("cooking"), new Entity("fishing"), new Entity("hunting"), new Entity("quests"),
+            new Entity("gathering"), new Entity("imbuement"), new Entity("healing"), new Entity("navigation"),
+            new Entity("tactics"), new Entity("survival"), new Entity("diplomacy"), new Entity("lockpicking"),
+            new Entity("animal taming"), new Entity("herbalism"), new Entity("herbs"), new Entity("blacksmithing"),
+            new Entity("tailoring"), new Entity("carpentry"), new Entity("architecture"), new Entity("history"),
+            new Entity("sailing"), new Entity("farming"), new Entity("brewing"), new Entity("divination"),
+            new Entity("spellcasting"), new Entity("negotiation"), new Entity("investigation"),
+            new Entity("potions"), new Entity("archery"), new Entity("swordsmanship"), new Entity("armor crafting"),
+            new Entity("thievery"), new Entity("mountaineering"), new Entity("cartography"),
+            new Entity("astronomy"), new Entity("necromancy"), new Entity("spatiomancy"),
+            new Entity("conjuromancy"), new Entity("fractalmancy"), new Entity("perceptomancy"),
+            new Entity("beasts"), new Entity("divinity"), new Entity("illusion"), new Entity("mechanics"),
+            new Entity("engineering"), new Entity("book"), new Entity("poem"), new Entity("song"),
+            new Entity("spells"), new Entity("skills"), new Entity("all")
         };
 
         public bool LostPlaced = false;
@@ -303,7 +479,7 @@ namespace Lightrealm
         public List<Race> ConstructRaces { get; set; } = new List<Race>();
         public List<Race> WildRaces { get; set; } = new List<Race>();
 
-        public List<string> DeletedSpells = new List<string>();
+        public List<Entity> DeletedSpells = new List<Entity>();
         public List<Race> DeletedRaces = new List<Race>();
         public List<Composition> DeletedCompositions = new List<Composition>();
         public List<Material> DeletedMaterials = new List<Material>();
@@ -772,7 +948,7 @@ namespace Lightrealm
                 if (Game1.r.Next(20) == 1)
                 {
                     Object o = new Object(null, "skill scroll", new List<Material>() { Cloths[Game1.r.Next(Cloths.Count)] }, null);
-                    o.SpecialKnowledge = Game1.AllSkills[Game1.r.Next(Game1.AllSkills.Count)];
+                    o.SpecialKnowledge = Game1.GameWorld.AllSkills[Game1.r.Next(Game1.GameWorld.AllSkills.Count)];
                     list.Add(o);
                 }
 
@@ -1026,10 +1202,10 @@ namespace Lightrealm
 
         public int LostFoundingYear { get; set; }
 
-        public List<string> UndiscoveredSpells { get; set; } = new List<string>();
-        public List<string> UndiscoveredLegendarySpells { get; set; } = new List<string>();
-        public List<string> DiscoveredSpells { get; set; } = new List<string>();
-        public List<string> DiscoveredLegendarySpells { get; set; } = new List<string>();
+        public List<Entity> UndiscoveredSpells { get; set; } = new List<Entity>();
+        public List<Entity> UndiscoveredLegendarySpells { get; set; } = new List<Entity>();
+        public List<Entity> DiscoveredSpells { get; set; } = new List<Entity>();
+        public List<Entity> DiscoveredLegendarySpells { get; set; } = new List<Entity>();
 
         public List<string> WritingStyles { get; set; } = new List<string> { "profound", "poignant", "thought-provoking", "insightful", "captivating", "masterful", "evocative", "compelling", "engaging", "unique", "innovative", "skillful", "artistic", "authentic", "impactful", "riveting", "meticulous", "expressive" };
         public List<string> WritingMoods { get; set; } = new List<string> { "joyful", "melancholic", "humorous", "mysterious", "reflective", "suspenseful", "inspirational", "eloquent", "soothing", "serious", "optimistic", "nostalgic", "intense", "dark", "hopeful", "whimsical", "enthusiastic", "provocative" };
@@ -1843,8 +2019,8 @@ namespace Lightrealm
                 Unknown = new Architect("Someone lost to time", null, GetRace(""), 0, null, null, null, null, null, null, 0);
                 SubjectCatalogue.Add("Someone lost to time", Unknown);
 
-                UndiscoveredSpells.AddRange(Game1.AllSpells);
-                UndiscoveredLegendarySpells.AddRange(Game1.AllLegendarySpells);
+                UndiscoveredSpells.AddRange(Game1.GameWorld.AllSpells);
+                UndiscoveredLegendarySpells.AddRange(Game1.GameWorld.AllLegendarySpells);
 
                 foreach (Civilization c in Civilizations)
                 {
@@ -3160,7 +3336,7 @@ namespace Lightrealm
                                         }
                                         if (Calamitizer.KilledChildren + Calamitizer.KilledMen + Calamitizer.KilledWomen + Calamitizer.KilledPeopleWhoActuallyMatter.Count > 100 && Calamitizer.SpellsKnown.Count < 3)
                                         {
-                                            Calamitizer.SpellsKnown = Game1.AllSpells.Union(Game1.AllLegendarySpells).ToList();
+                                            Calamitizer.SpellsKnown = Game1.GameWorld.AllSpells.Union(Game1.GameWorld.AllLegendarySpells).ToList();
                                             Calamitizer.Focus = 15;
                                             LogEvent("After harvesting enough energy and renouncing the deities of the land, " + Calamitizer.Name + " became infused with unfathomable power from an unknown origin, but continued on to tempt the universe further.");
                                         }
@@ -5077,7 +5253,7 @@ namespace Lightrealm
                                     else
                                     {
                                         // 50% chance to write about a general domain
-                                        Entity domainEntity = new Entity(a.AlignedDomains[Game1.r.Next(a.AlignedDomains.Count)]);
+                                        Entity domainEntity = a.AlignedDomains[Game1.r.Next(a.AlignedDomains.Count)];
                                         newWork = new Composition(writingType, a, domainEntity);
                                     }
 
@@ -5105,7 +5281,7 @@ namespace Lightrealm
                                             if (a.SpellsKnown.Count > 0 && r.Next(5) == 1)
                                             {
                                                 o.SpecialKnowledge = a.SpellsKnown[r.Next(a.SpellsKnown.Count)];
-                                                Spell = o.SpecialKnowledge;
+                                                Spell = o.SpecialKnowledge.Metadata;
 
                                                 o.Materials.Clear();
                                                 o.Materials.Add(Enchromalite);
@@ -5815,7 +5991,7 @@ namespace Lightrealm
                         {
                             if (!a.HasMadeALegendaryArtifact && r.Next(1, 10000 * MonthToDayConstant) == 1 && UndiscoveredLegendarySpells.Count > 1)
                             {
-                                string Spell = UndiscoveredLegendarySpells[r.Next(UndiscoveredLegendarySpells.Count)];
+                                Entity Spell = UndiscoveredLegendarySpells[r.Next(UndiscoveredLegendarySpells.Count)];
                                 UndiscoveredLegendarySpells.Remove(Spell);
                                 DiscoveredLegendarySpells.Add(Spell);
 
@@ -5826,23 +6002,23 @@ namespace Lightrealm
 
                                 string MagicPhrase = "";
 
-                                if (Spell == "ethereal rupture")
+                                if (Spell.Metadata == "ethereal rupture")
                                 {
                                     MagicPhrase = "ravaging the land with fractal exposure";
                                 }
-                                else if (Spell == "emergence")
+                                else if (Spell.Metadata == "emergence")
                                 {
                                     MagicPhrase = "summoning the fallen";
                                 }
-                                else if (Spell == "eternal bind")
+                                else if (Spell.Metadata == "eternal bind")
                                 {
                                     MagicPhrase = "enslaving all to its will";
                                 }
-                                else if (Spell == "expunge")
+                                else if (Spell.Metadata == "expunge")
                                 {
                                     MagicPhrase = "banishing legends and the memories of them";
                                 }
-                                else if (Spell == "echo")
+                                else if (Spell.Metadata == "echo")
                                 {
                                     MagicPhrase = "assembling an echo of a legend";
                                 }

@@ -10,6 +10,16 @@ namespace Lightrealm
     [Serializable]
     public class TextStorage
     {
+        public static T Entity<T>(int entityId) where T : Entity
+        {
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            }
+
+            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        }
+
         public string Data { get; set; }
         public Color Color { get; set; }
         public List<Entity> Entities { get; set; }
