@@ -20,19 +20,24 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public string Size;
-        public List<(string, Material)> BodyParts;
-        public string Color;
-        public List<string> NecessaryBodyParts;
-        public string RaceLetter;
-        public List<string> OppositionTags = new List<string>();
-        public string Description;
-        public int NaturalArmor = 0;
+        public string Size { get; set; }
 
-        public List<string> Powers = new List<string>();
+        private List<(string, int)> _bodyParts = new List<(string, int)>();
+        public List<(string, Material)> BodyParts
+        {
+            get => _bodyParts.Select(tuple => (tuple.Item1, Entity<Material>(tuple.Item2))).ToList();
+            set => _bodyParts = value.Select(tuple => (tuple.Item1, tuple.Item2.ID)).ToList();
+        }
 
-        public string MainInteractionAppendage = "";
-        public string OffInteractionAppendage = "";
+        public string Color { get; set; }
+        public List<string> NecessaryBodyParts { get; set; } = new List<string>();
+        public string RaceLetter { get; set; }
+        public List<string> OppositionTags { get; set; } = new List<string>();
+        public string Description { get; set; }
+        public int NaturalArmor { get; set; } = 0;
+        public List<string> Powers { get; set; } = new List<string>();
+        public string MainInteractionAppendage { get; set; } = "";
+        public string OffInteractionAppendage { get; set; } = "";
 
         public Race(string name, string size, List<(string, Material)> bodyParts, string color, List<string> necessaryBodyParts, List<string> oppositionTags, int naturalArmor, string mainInteractionAppendage, string offInteractionAppendage)
         {
@@ -178,7 +183,7 @@ namespace Lightrealm
 
 
 
-        public static string GenerateUniqueAbbreviation(string raceName, List<Race> existingRaces)
+        public static string GenerateUniqueAbbreviation(string raceName, EntityList<Race> existingRaces)
         {
             // Priority abbreviations (these races have seniority)
             Dictionary<string, string> priorityAbbreviations = new Dictionary<string, string>

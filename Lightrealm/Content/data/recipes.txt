@@ -1,0 +1,84 @@
+bolt,fiber,fiber
+sheet,sand,sand
+bar,ore,ore
+helmet,metal,metal
+chestplate,metal,metal,metal
+left gauntlet,metal,metal
+right gauntlet,metal,metal
+leggings,metal,metal,metal
+left boot,metal,metal
+right boot,metal,metal
+shortsword,metal,metal
+knife,metal,metal
+dagger,metal,metal
+greatsword,metal,metal,metal
+battle axe,metal,metal,metal
+axe,metal,metal
+greataxe,metal,metal,metal
+rapier,metal,metal
+spear,metal,metal
+pike,metal,metal
+pickaxe,metal,metal
+mace,metal,metal
+hammer,metal,metal
+staff,wood,gemstone
+shield,metal,metal
+whip,fiber,fiber
+scourge,fiber,fiber
+flail,metal,fiber,fiber
+chain,metal,metal
+small hat,cloth,cloth
+large hat,cloth,cloth,cloth
+hood,cloth,cloth
+cape,cloth,cloth,cloth
+robe,cloth,cloth,cloth,cloth
+amulet,metal,gemstone
+flair,cloth,cloth
+left glove,cloth,cloth,cloth
+right glove,cloth,cloth,cloth
+left wristwrap,cloth,cloth
+right wristwrap,cloth,cloth
+skirt,cloth,cloth,cloth
+shortsleeve shirt,cloth,cloth
+longsleeve shirt,cloth,cloth,cloth
+uppershirt,cloth,cloth,cloth
+brassiere,cloth,cloth
+undergarment,cloth,cloth
+straps,cloth,cloth
+pants,cloth,cloth,cloth
+shorts,cloth,cloth
+kilt,cloth,cloth,cloth
+wraps,cloth,cloth
+left shoe,cloth,cloth
+right shoe,cloth,cloth
+small urn,stone,stone
+big urn,stone,stone,stone
+small pot,stone,stone
+big pot,stone,stone,stone
+small mug,stone,stone
+big mug,stone,stone,stone
+small bowl,stone,stone
+big bowl,stone,stone,stone
+small cup,glass,glass
+big cup,glass,glass
+urn,stone,stone
+pot,stone,stone
+mug,stone,stone
+bowl,stone,stone
+cup,glass,glass
+small chalice,metal,gemstone
+big chalice,metal,gemstone,gemstone
+bookcase,wood,wood,wood
+altar,stone,stone,stone
+table,wood,wood
+chair,wood,wood
+door,wood,wood,wood
+bed,wood,cloth,cloth
+keg,wood,metal
+chest,wood,metal,metal
+weapon rack,wood,metal
+tool rack,wood,metal
+armor stand,wood,metal
+pedestal,stone,stone
+pillar,stone,stone,stone
+rug,cloth,cloth

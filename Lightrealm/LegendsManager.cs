@@ -91,7 +91,7 @@ namespace Lightrealm
 
                     if (a.LegendaryTarget == null)
                     {
-                        List<Architect> shuffledArchitects = World.AllArchitects.OrderBy(a => Guid.NewGuid()).ToList();
+                        EntityList<Architect> shuffledArchitects = World.AllArchitects.ShuffleNew();
 
                         // Get the first item where Profession is "beast", "animal", or "end"
                         Architect targetArchitect =
@@ -190,7 +190,7 @@ namespace Lightrealm
 
                     if (a.LegendaryTarget == null && Decider == 1)
                     {
-                        List<Architect> shuffledArchitects = World.AllArchitects.OrderBy(a => Guid.NewGuid()).ToList();
+                        EntityList<Architect> shuffledArchitects = World.AllArchitects.ShuffleNew();
 
                         // Get the first item where Race is in HumanoidRaces, Reputation < -49, and not in Calamity
                         Architect targetArchitect = shuffledArchitects.FirstOrDefault(target =>
@@ -457,7 +457,7 @@ namespace Lightrealm
                         }
 
                         // Convert the item string to an Object and take one item from the stack
-                        List<Object> objects = Game1.ConvertStringToObjects(selectedItemString);
+                        EntityList<Object> objects = Game1.ConvertStringToObjects(selectedItemString);
                         Object o = objects.First(); // Taking only one object from the list
 
                         // Perform the enchanting
@@ -586,13 +586,12 @@ namespace Lightrealm
                                 }
                                 else if (decider < 7)
                                 {
-                                    List<Structure> structures = a.Location.AllStructures;
+                                    EntityList<Structure> structures = a.Location.AllStructures;
                                     Random rand = new Random();
                                     Structure selectedStructure = null;
                                     Object selectedArtifact = null;
 
-                                    // Shuffle the list of structures to ensure randomness
-                                    structures = structures.OrderBy(x => rand.Next()).ToList();
+                                    structures.Shuffle();
 
                                     foreach (var structure in structures)
                                     {
@@ -614,7 +613,7 @@ namespace Lightrealm
                                 }
                                 else if (decider < 20) // Decreased chance of general item looting
                                 {
-                                    List<Object> o = World.LootTableMachine("general");
+                                    EntityList<Object> o = World.LootTableMachine("general");
                                     a.Location.Wealth -= Game1.r.Next(50, 100);
 
                                     a.Inventory.AddRange(o);
@@ -663,7 +662,7 @@ namespace Lightrealm
                                 }
                                 else if (decider < 7)
                                 {
-                                    List<Object> o = World.LootTableMachine("general");
+                                    EntityList<Object> o = World.LootTableMachine("general");
                                     a.Location.Wealth += Game1.r.Next(20, 50);
                                     a.Inventory.AddRange(o);
                                     LogEvent(a.Name + " purchased some general items from " + a.Location.Name + ".");
@@ -687,10 +686,9 @@ namespace Lightrealm
                         int currentZ = a.Location.Region.Z;
 
                         // Filter locations based on whether they have been explored and their type
-                        List<Location> potentialLocations = World.AllLocations
+                        EntityList<Location> potentialLocations = World.AllLocations
                             .Where(loc => !a.ExploredLocations.Contains(loc)
-                                          && (AdventuringLocations.Contains(loc.Type) || VisitationLocations.Contains(loc.Type)))
-                            .ToList();
+                                          && (AdventuringLocations.Contains(loc.Type) || VisitationLocations.Contains(loc.Type)));
 
                         if (potentialLocations.Any())
                         {

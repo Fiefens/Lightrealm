@@ -30,47 +30,68 @@ namespace Lightrealm
         public string PossessivePronoun { get; set; }
         public string ObjectivePronoun { get; set; }
 
-        public string FalsifiedName = "";
+        public string FalsifiedName { get; set; } = "";
 
-        public int PulseCharge = 0;
+        public int PulseCharge { get; set; } = 0;
 
-        public int HairID = Game1.r.Next(0, 10) switch
+        private int _hairID = Game1.r.Next(0, 10) switch
         {
             < 4 => 0,   // 40% chance for HairID to be 0
             < 7 => 1,   // 30% chance for HairID to be 1
             < 9 => 3,   // 20% chance for HairID to be 2
             _ => 2      // 10% chance for HairID to be 3
         };
+        public int HairID
+        {
+            get => _hairID;
+            set => _hairID = value;
+        }
 
+        public List<string> RevitalizedDates { get; set; } = new List<string>();
+        public List<string> SplitDates { get; set; } = new List<string>();
 
-        public List<string> RevitalizedDates = new List<string>();
-        public List<string> SplitDates = new List<string>();
+        public string NextMoveOrder { get; set; } = "";
 
-        public string NextMoveOrder = "";
+        public string TryDropItemType { get; set; } = "";
+        public string TryPickUpItemType { get; set; } = "";
 
-        public string TryDropItemType = "";
-        public string TryPickUpItemType = "";
-        public List<Material> TryDropMaterials = new List<Material>();
-        public List<Material> TryPickUpMaterials = new List<Material>();
+        public EntityList<Material> TryDropMaterials { get; set; } = new EntityList<Material>();
+        public EntityList<Material> TryPickUpMaterials { get; set; } = new EntityList<Material>();
 
-        private Dictionary<string, List<Entity>> messageDatabase = new Dictionary<string, List<Entity>>();
-        private Dictionary<string, string> responseDatabase = new Dictionary<string, string>();
+        private Dictionary<string, List<int>> _messageDatabase = new Dictionary<string, List<int>>();
 
-        public Entity RealityBlipFocus;
-        public int RealityFocusTries;
+        public Dictionary<string, EntityList<Entity>> MessageDatabase
+        {
+            get => _messageDatabase.ToDictionary(kvp => kvp.Key, kvp => new EntityList<Entity>(kvp.Value.Select(id => Entity<Entity>(id))));
+            set => _messageDatabase = value?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(e => e?.ID ?? 0).ToList()) ?? new Dictionary<string, List<int>>();
+        }
 
-        public List<Message> MessagesNotRespondedTo = new List<Message>();
+        public Dictionary<string, string> ResponseDatabase { get; set; } = new Dictionary<string, string>();
 
-        public List<(string, Architect)> Intrigue = new List<(string, Architect)>();
+        private int _realityBlipFocus;
+        public Entity RealityBlipFocus
+        {
+            get => Entity<Entity>(_realityBlipFocus);
+            set => _realityBlipFocus = value?.ID ?? 0;
+        }
+        public int RealityFocusTries { get; set; }
 
-        public bool RuptureMode = false;
-        public bool PickUpMode = false;
+        public EntityList<Message> MessagesNotRespondedTo { get; set; } = new EntityList<Message>();
+
+        private List<(string, int)> _intrigue = new List<(string, int)>();
+        public List<(string, Architect)> Intrigue
+        {
+            get => _intrigue.Select(tuple => (tuple.Item1, Entity<Architect>(tuple.Item2))).ToList();
+            set => _intrigue = value?.Select(tuple => (tuple.Item1, tuple.Item2?.ID ?? 0)).ToList() ?? new List<(string, int)>();
+        }
+
+        public bool RuptureMode { get; set; } = false;
+        public bool PickUpMode { get; set; } = false;
 
         private string _deathCause = "";
-
         public string DeathCause
         {
-            get { return _deathCause; }
+            get => _deathCause;
             set
             {
                 if (string.IsNullOrEmpty(_deathCause))
@@ -80,154 +101,180 @@ namespace Lightrealm
             }
         }
 
-        public bool BroadcastedDeathMessage = false;
+        public bool BroadcastedDeathMessage { get; set; } = false;
 
-        public bool Crafting = false;
+        public bool Crafting { get; set; } = false;
+        public bool TryingToTravel { get; set; } = false;
+        public int SpellcastingPower { get; set; } = 1;
 
-        public bool TryingToTravel = false;
+        public bool DoubleStrikeReady { get; set; } = false;
+        public bool QuickStrikeReady { get; set; } = false;
+        public bool SeveringStrikeReady { get; set; } = false;
+        public bool FinaleReady { get; set; } = false;
+        public bool BodySlamReady { get; set; } = false;
+        public bool LegSweepReady { get; set; } = false;
+        public bool DropKickReady { get; set; } = false;
+        public int CyclesSinceJump { get; set; } = 0;
+        public int ReactionBoostCycles { get; set; } = 0;
 
-        public int SpellcastingPower = 1;
+        public int ExtraFocusTicks { get; set; } = 0;
+        public int HalfFocusTicks { get; set; } = 0;
 
-        public bool DoubleStrikeReady = false;
-        public bool QuickStrikeReady = false;
-        public bool SeveringStrikeReady = false;
-        public bool FinaleReady = false;
-        public bool BodySlamReady = false;
-        public bool LegSweepReady = false;
-        public bool DropKickReady = false;
-        public int CyclesSinceJump = 0;
-        public int ReactionBoostCycles = 0;
+        private (int, int, int, int, int) _savePoint = (0, 0, 0, 0, 0);
+        public (Location, District, Block, Structure, Room) SavePoint
+        {
+            get => (_savePoint.Item1 != 0 ? Entity<Location>(_savePoint.Item1) : null,
+                    _savePoint.Item2 != 0 ? Entity<District>(_savePoint.Item2) : null,
+                    _savePoint.Item3 != 0 ? Entity<Block>(_savePoint.Item3) : null,
+                    _savePoint.Item4 != 0 ? Entity<Structure>(_savePoint.Item4) : null,
+                    _savePoint.Item5 != 0 ? Entity<Room>(_savePoint.Item5) : null);
+            set => _savePoint = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0);
+        }
+        public int SavePointTicks { get; set; } = 0;
 
-        public int ExtraFocusTicks = 0;
+        public EntityList<Entity> AlignedDomains { get; set; } = new EntityList<Entity>();
+        public EntityList<Composition> CultureBank { get; set; } = new EntityList<Composition>();
+        public EntityList<Location> ExploredLocations { get; set; } = new EntityList<Location>();
+        public EntityList<Architect> ArchitectsWhoSurrenderedToMe { get; set; } = new EntityList<Architect>();
+        public EntityList<Architect> ArchitectsWhoISurrenderedTo { get; set; } = new EntityList<Architect>();
+        public EntityList<Architect> ArchitectsWhoIAttemptedToSurrenderTo { get; set; } = new EntityList<Architect>();
+        public EntityList<Architect> ArchitectsIWillTellTruthTo { get; set; } = new EntityList<Architect>();
 
-        public int HalfFocusTicks = 0;
+        public bool Bound { get; set; }
+        public double AdventureCooldown { get; set; } = 0;
+        public double DiplomacyCooldown { get; set; } = 0;
 
-        public (Location, District, Block, Structure, Room) SavePoint = (null, null, null, null, null);
-        public int SavePointTicks = 0;
+        public Dictionary<string, int> BackupProfessionToLevel { get; set; } = new Dictionary<string, int>
+    {
+        // Level 1
+        {"baker", 1},
+        {"blacksmith", 1},
+        {"brewer", 1},
+        {"butcher", 1},
+        {"carpenter", 1},
+        {"child", 1},
+        {"craftsman", 1},
+        {"elder", 1},
+        {"fisherman", 1},
+        {"leader", 1},
+        {"mason", 1},
+        {"merchant", 1},
+        {"miller", 1},
+        {"miner", 1},
+        {"musician", 1},
+        {"indolent", 1},
+        {"peasant", 1},
+        {"political figure", 1},
+        {"potter", 1},
+        {"prestiged", 1},
+        {"prophet", 1},
+        {"scribe", 1},
+        {"tailor", 1},
+        {"tanner", 1},
+        {"trader", 1},
+        {"weaver", 1},
 
-        public List<Entity> AlignedDomains = new List<Entity>();
+        // Level 2
+        {"animal", 2},
+        {"beast", 2},
+        {"embezzler", 2},
+        {"hunter", 2},
+        {"knight", 2},
+        {"magician", 2},
+        {"mercenary", 2},
+        {"scout", 2},
+        {"soldier", 2},
+        {"thief", 2},
 
-        public List<Composition> CultureBank = new List<Composition>();
-        public List<Location> ExploredLocations = new List<Location>();
+        // Level 4
+        {"artificer", 4},
+        {"bard", 4},
+        {"duelist", 4},
+        {"luminary", 4},
+        {"mage", 4},
 
-        public List<Architect> ArchitectsWhoSurrenderedToMe = new List<Architect>();
-        public List<Architect> ArchitectsWhoISurrenderedTo = new List<Architect>();
-        public List<Architect> ArchitectsWhoIAttemptedToSurrenderTo = new List<Architect>();
-        public List<Architect> ArchitectsIWillTellTruthTo = new List<Architect>();
+        // Level 6
+        {"alpha", 6},
+        {"anarchist", 6},
+        {"archmage", 6},
+        {"beastmaster", 6},
+        {"commander", 6},
+        {"diplomancer", 6},
+        {"largebeast", 6},
+        {"outlaw", 6},
+        {"spy", 6},
 
-        public bool Bound;
+        // Level 8
+        {"archartificer", 8},
+        {"archbard", 8},
+        {"archduelist", 8},
+        {"archluminary", 8},
+        {"conjumancer", 8},
+        {"elemental", 8},
+        {"fractalmancer", 8},
+        {"hypernexus", 8},
+        {"icosidodecahedron", 8},
+        {"necromancer", 8},
+        {"perceptomancer", 8},
+        {"shadeheart", 8},
+        {"sorcerer", 8},
+        {"spatiomancer", 8},
+        {"warlock", 8}
+    };
 
-        public double AdventureCooldown = 0;
-        public double DiplomacyCooldown = 0;
+        private int _interactionLocation;
+        public Location InteractionLocation
+        {
+            get => Entity<Location>(_interactionLocation);
+            set => _interactionLocation = value?.ID ?? 0;
+        }
 
-        Dictionary<string, int> BackupProfessionToLevel = new Dictionary<string, int>
-{
-    // Level 1
-    {"baker", 1},
-    {"blacksmith", 1},
-    {"brewer", 1},
-    {"butcher", 1},
-    {"carpenter", 1},
-    {"child", 1},
-    {"craftsman", 1},
-    {"elder", 1},
-    {"fisherman", 1},
-    {"leader", 1},
-    {"mason", 1},
-    {"merchant", 1},
-    {"miller", 1},
-    {"miner", 1},
-    {"musician", 1},
-    {"indolent", 1},
-    {"peasant", 1},
-    {"political figure", 1},
-    {"potter", 1},
-    {"prestiged", 1},
-    {"prophet", 1},
-    {"scribe", 1},
-    {"tailor", 1},
-    {"tanner", 1},
-    {"trader", 1},
-    {"weaver", 1},
+        public string Prompt { get; set; } = "";
+        public List<string> PreviousPrompts { get; set; } = new List<string>() { "" }; // Start with an empty slate
+        public int PromptIndex { get; set; } = 0;
+        public string SavedPrompt { get; set; } = "";
 
-    // Level 2
-    {"animal", 2},
-    {"beast", 2},
-    {"embezzler", 2},
-    {"hunter", 2},
-    {"knight", 2},
-    {"magician", 2},
-    {"mercenary", 2},
-    {"scout", 2},
-    {"soldier", 2},
-    {"thief", 2},
+        public bool RecievedBodyPhysicalStatIncrease { get; set; } = false;
+        public bool RecievedBodyPhysicalStatIncreaseTwo { get; set; } = false;
 
-    // Level 4
-    {"artificer", 4},
-    {"bard", 4},
-    {"duelist", 4},
-    {"luminary", 4},
-    {"mage", 4},
+        private Dictionary<int, int> _distances = new Dictionary<int, int>();
+        public Dictionary<Architect, int> Distances
+        {
+            get => _distances.ToDictionary(kvp => Entity<Architect>(kvp.Key), kvp => kvp.Value);
+            set => _distances = value?.ToDictionary(kvp => kvp.Key?.ID ?? 0, kvp => kvp.Value) ?? new Dictionary<int, int>();
+        }
 
-    // Level 6
-    {"alpha", 6},
-    {"anarchist", 6},
-    {"archmage", 6},
-    {"beastmaster", 6},
-    {"commander", 6},
-    {"diplomancer", 6},
-    {"largebeast", 6},
-    {"outlaw", 6},
-    {"spy", 6},
+        private int _legendaryTarget;
+        public Entity LegendaryTarget
+        {
+            get => Entity<Entity>(_legendaryTarget);
+            set => _legendaryTarget = value?.ID ?? 0;
+        }
 
-    // Level 8
-    {"archartificer", 8},
-    {"archbard", 8},
-    {"archduelist", 8},
-    {"archluminary", 8},
-    {"conjumancer", 8},
-    {"elemental", 8},
-    {"fractalmancer", 8},
-    {"hypernexus", 8},
-    {"icosidodecahedron", 8},
-    {"necromancer", 8},
-    {"perceptomancer", 8},
-    {"shadeheart", 8},
-    {"sorcerer", 8},
-    {"spatiomancer", 8},
-    {"warlock", 8}
-};
+        private int _legendaryTargetStructure;
+        public Structure LegendaryTargetStructure
+        {
+            get => Entity<Structure>(_legendaryTargetStructure);
+            set => _legendaryTargetStructure = value?.ID ?? 0;
+        }
+        public int HuntingProgress { get; set; } = 0;
 
-        public Location InteractionLocation = null;
+        public EntityList<Architect> ShieldTokens { get; set; } = new EntityList<Architect>();
 
-        public string Prompt = "";
-        public List<string> PreviousPrompts = new List<string>() { "" }; // Start with an empty slate
-        public int PromptIndex = 0;
-        public string SavedPrompt = "";
+        public int DivineProtection { get; set; } = 0;
+        public int DivineMight { get; set; } = 0;
+        public bool Diplomakitted { get; set; } = false;
 
-        public bool RecievedBodyPhysicalStatIncrease = false;
-        public bool RecievedBodyPhysicalStatIncreaseTwo = false;
+        private List<(int, string)> _grievances = new List<(int, string)>();
+        public List<(Entity, string)> Grievances
+        {
+            get => _grievances.Select(tuple => (Entity<Entity>(tuple.Item1), tuple.Item2)).ToList();
+            set => _grievances = value?.Select(tuple => (tuple.Item1?.ID ?? 0, tuple.Item2)).ToList() ?? new List<(int, string)>();
+        }
 
-
-        public Dictionary<Architect, int> Distances = new Dictionary<Architect, int>();
-
-        public Entity LegendaryTarget = null;
-        public Structure LegendaryTargetStructure = null;
-        public int HuntingProgress = 0;
-
-        public List<Architect> ShieldTokens = new List<Architect>();
-
-        public int DivineProtection = 0;
-        public int DivineMight = 0;
-
-        public bool Diplomakitted = false;
-
-        public List<(Entity, string)> Grievances = new List<(Entity, string)>();
-
-        public int CooldownCycles = 0;
-
-        public bool IsCalamity = false;
-        public bool BuiltSpire = false;
+        public int CooldownCycles { get; set; } = 0;
+        public bool IsCalamity { get; set; } = false;
+        public bool BuiltSpire { get; set; } = false;
 
         public void DistanceFromArchitect(Architect otherArchitect, int distanceModifier)
         {
@@ -251,7 +298,6 @@ namespace Lightrealm
                 otherArchitect.Distances[this] = Math.Clamp(distanceModifier, 0, 5);
             }
         }
-
 
         public int GetDistance(object entity)
         {
@@ -301,63 +347,95 @@ namespace Lightrealm
             return 0;
         }
 
-        public int NaturalArmor = 0; //number from 1-100, dependent on race, chance of blocking an attack simply with natural ability
+        public int NaturalArmor { get; set; } = 0; //number from 1-100, dependent on race, chance of blocking an attack simply with natural ability
 
-        public int Level = 0;
-        public int SpendableLevels;
+        public int Level { get; set; } = 0;
+        public int SpendableLevels { get; set; }
 
-        public List<Object> Sparks = new List<Object>();
+        public EntityList<Object> Sparks { get; set; } = new EntityList<Object>();
 
-        public Architect UndeadCreator = null;
+        private int _undeadCreator;
+        public Architect UndeadCreator
+        {
+            get => Entity<Architect>(_undeadCreator);
+            set => _undeadCreator = value?.ID ?? 0;
+        }
 
-        public bool Invisible = false;
+        public bool Invisible { get; set; } = false;
+        public int CombatCycles { get; set; } = 0;
 
-        public int CombatCycles = 0;
+        public int PathOfShadowLevel { get; set; } = 0;
+        public int PathOfLifeLevel { get; set; } = 0;
+        public int PathOfDeathLevel { get; set; } = 0;
+        public int PathOfTimeLevel { get; set; } = 0;
+        public int PathOfStarsLevel { get; set; } = 0;
+        public int PathOfHeatLevel { get; set; } = 0;
+        public int PathOfIllusionsLevel { get; set; } = 0;
+        public int PathOfEtherealityLevel { get; set; } = 0;
+        public int PathOfVoidLevel { get; set; } = 0;
+        public int PathOfStormsLevel { get; set; } = 0;
+        public int PathOfForgeLevel { get; set; } = 0;
+        public int PathOfLoreLevel { get; set; } = 0;
+        public int PathOfMindLevel { get; set; } = 0;
+        public int PathOfSoulLevel { get; set; } = 0;
+        public int PathOfBodyLevel { get; set; } = 0;
+        public int PathOfSpaceLevel { get; set; } = 0;
+        public int PathOfRealityLevel { get; set; } = 0;
+        public int PathOfLightLevel { get; set; } = 0;
 
-        public int PathOfShadowLevel = 0;
-        public int PathOfLifeLevel = 0;
-        public int PathOfDeathLevel = 0;
-        public int PathOfTimeLevel = 0;
-        public int PathOfStarsLevel = 0;
-        public int PathOfHeatLevel = 0;
-        public int PathOfIllusionsLevel = 0;
-        public int PathOfEtherealityLevel = 0;
-        public int PathOfVoidLevel = 0;
-        public int PathOfStormsLevel = 0;
-        public int PathOfForgeLevel = 0;
-        public int PathOfLoreLevel = 0;
-        public int PathOfMindLevel = 0;
-        public int PathOfSoulLevel = 0;
-        public int PathOfBodyLevel = 0;
-        public int PathOfSpaceLevel = 0;
-        public int PathOfRealityLevel = 0;
-        public int PathOfLightLevel = 0;
+        private int _master;
+        public Architect Master
+        {
+            get => Entity<Architect>(_master);
+            set => _master = value?.ID ?? 0;
+        }
+        public string MasterRelation { get; set; } = "";
 
-        public Architect Master = null;
-        public string MasterRelation = "";
+        private int _spouse;
+        public Architect Spouse
+        {
+            get => Entity<Architect>(_spouse);
+            set => _spouse = value?.ID ?? 0;
+        }
 
-        public Architect Spouse = null;
+        public bool Augment { get; set; } = false;
 
-        public bool Augment = false;
+        public EntityList<Object> ShadowStorage { get; set; } = new EntityList<Object>();
 
-        public List<Object> ShadowStorage = new List<Object>();
+        public int Wealth { get; set; } = 0;
+        public double CalamityAge { get; set; } = 0;
+        public int CalamitySpawnTime { get; set; } = Game1.r.Next(25, 36);
 
-        public int Wealth = 0;
+        public bool TriggeredLock { get; set; } = false;
+        public int CyclesSinceMoved { get; set; } = 0;
 
-        public double CalamityAge = 0;
-        public int CalamitySpawnTime = Game1.r.Next(25, 36);
+        private int _blockLastCycle;
+        public Block BlockLastCycle
+        {
+            get => Entity<Block>(_blockLastCycle);
+            set => _blockLastCycle = value?.ID ?? 0;
+        }
 
-        public bool TriggeredLock = false;
-        public int CyclesSinceMoved = 0;
+        private int _roomLastCycle;
+        public Room RoomLastCycle
+        {
+            get => Entity<Room>(_roomLastCycle);
+            set => _roomLastCycle = value?.ID ?? 0;
+        }
 
+        public int BarrierStacks { get; set; } = 0;
 
-        public Block BlockLastCycle = null;
-        public Room RoomLastCycle = null;
-
-        public int BarrierStacks = 0;
-
-
-        public (Region, Location, District, Block, Structure, Room) RematerializeLocation = (null, null, null, null, null, null);
+        private (int, int, int, int, int, int) _rematerializeLocation = (0, 0, 0, 0, 0, 0);
+        public (Region, Location, District, Block, Structure, Room) RematerializeLocation
+        {
+            get => (_rematerializeLocation.Item1 != 0 ? Entity<Region>(_rematerializeLocation.Item1) : null,
+                    _rematerializeLocation.Item2 != 0 ? Entity<Location>(_rematerializeLocation.Item2) : null,
+                    _rematerializeLocation.Item3 != 0 ? Entity<District>(_rematerializeLocation.Item3) : null,
+                    _rematerializeLocation.Item4 != 0 ? Entity<Block>(_rematerializeLocation.Item4) : null,
+                    _rematerializeLocation.Item5 != 0 ? Entity<Structure>(_rematerializeLocation.Item5) : null,
+                    _rematerializeLocation.Item6 != 0 ? Entity<Room>(_rematerializeLocation.Item6) : null);
+            set => _rematerializeLocation = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0, value.Item6?.ID ?? 0);
+        }
 
         public Race Race { get; set; }
 
@@ -385,84 +463,129 @@ namespace Lightrealm
             }
         }
 
-        public List<Architect> MeldedShibas = new List<Architect>();
+        public EntityList<Architect> MeldedShibas { get; set; } = new EntityList<Architect>();
 
         public bool IsAlive { get; set; } = true;
 
-        public int MoralCompass = 0;
-        public int StabilityCompass = 0;
-        public int PropertyValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int FamilyValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int PowerValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int MoneyValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int KnowledgeValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int SpiritualityValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int ProwessValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int PatriotismValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int CourageValue = Math.Max(0, Game1.r.Next(-4, 6));
-        public int CreativityValue = Math.Max(0, Game1.r.Next(-4, 6));
+        public int MoralCompass { get; set; } = 0;
+        public int StabilityCompass { get; set; } = 0;
+        public int PropertyValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int FamilyValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int PowerValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int MoneyValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int KnowledgeValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int SpiritualityValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int ProwessValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int PatriotismValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int CourageValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
+        public int CreativityValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
 
-        public Location NextMigrationLocation { get; set; }
+        private int _nextMigrationLocation;
+        public Location NextMigrationLocation
+        {
+            get => Entity<Location>(_nextMigrationLocation);
+            set => _nextMigrationLocation = value?.ID ?? 0;
+        }
 
-        public List<Imbuement> CurrentlyActiveImbuements = new List<Imbuement>();
+        public EntityList<Imbuement> CurrentlyActiveImbuements { get; set; } = new EntityList<Imbuement>();
 
         public bool RecievedImmortalityBuff { get; set; }
 
-        public int DistrictPoints = 0;
+        public int DistrictPoints { get; set; } = 0;
 
-        public Structure StudyBuilding { get; set; }
+        private int _studyBuilding;
+        public Structure StudyBuilding
+        {
+            get => Entity<Structure>(_studyBuilding);
+            set => _studyBuilding = value?.ID ?? 0;
+        }
 
-        public bool HasMadeALegendaryArtifact = false;
-
-        public bool HadChildren = false;
-
+        public bool HasMadeALegendaryArtifact { get; set; } = false;
+        public bool HadChildren { get; set; } = false;
         public string FavoriteColor { get; set; }
-        public Material FavoriteGemstone { get; set; }
-        public Material FavoriteStone { get; set; }
-        public Material FavoriteWood { get; set; }
-        public Material FavoriteMetal { get; set; }
-        public Material FavoriteCloth { get; set; }
-        public Object FavoriteBook { get; set; }
+        private int _favoriteGemstone;
+        public Material FavoriteGemstone
+        {
+            get => Entity<Material>(_favoriteGemstone);
+            set => _favoriteGemstone = value?.ID ?? 0;
+        }
+        private int _favoriteStone;
+        public Material FavoriteStone
+        {
+            get => Entity<Material>(_favoriteStone);
+            set => _favoriteStone = value?.ID ?? 0;
+        }
+        private int _favoriteWood;
+        public Material FavoriteWood
+        {
+            get => Entity<Material>(_favoriteWood);
+            set => _favoriteWood = value?.ID ?? 0;
+        }
+        private int _favoriteMetal;
+        public Material FavoriteMetal
+        {
+            get => Entity<Material>(_favoriteMetal);
+            set => _favoriteMetal = value?.ID ?? 0;
+        }
+        private int _favoriteCloth;
+        public Material FavoriteCloth
+        {
+            get => Entity<Material>(_favoriteCloth);
+            set => _favoriteCloth = value?.ID ?? 0;
+        }
+        private int _favoriteBook;
+        public Object FavoriteBook
+        {
+            get => Entity<Object>(_favoriteBook);
+            set => _favoriteBook = value?.ID ?? 0;
+        }
 
-
-        public Group Group { get; set; } = null;
+        private int _group;
+        public Group Group
+        {
+            get => Entity<Group>(_group);
+            set => _group = value?.ID ?? 0;
+        }
         public int GroupLoyalty { get; set; } = -1;
         public int TerminalAge { get; set; } = 0;
         public bool DoIDieOfOldAge { get; set; } = true;
+        public bool IsLoadedTrader { get; set; } = false;
+        public int Reputation { get; set; } = 0;
+        public int PurifiedBurnedCities { get; set; } = 0;
+        private int _blightManipulated;
+        public Blight BlightManipulated
+        {
+            get => Entity<Blight>(_blightManipulated);
+            set => _blightManipulated = value?.ID ?? 0;
+        }
+        public int KilledPeopleWithBlight { get; set; } = 0;
 
-        public bool IsLoadedTrader = false;
+        public EntityList<Location> TakenLocations { get; set; } = new EntityList<Location>();
 
-        public int Reputation = 0;
+        public int KilledWomen { get; set; } = 0;
+        public int KilledMen { get; set; } = 0;
+        public int KilledChildren { get; set; } = 0;
+        public int KidnappedMen { get; set; } = 0;
+        public int KidnappedWomen { get; set; } = 0;
+        public int KidnappedChildren { get; set; } = 0;
 
-        public int PurifiedBurnedCities = 0;
-        public Blight BlightManipulated = null;
-        public int KilledPeopleWithBlight = 0;
-        public List<Location> TakenLocations = new List<Location>();
-        public int KilledWomen = 0;
-        public int KilledMen = 0;
-        public int KilledChildren = 0;
-        public int KidnappedWomen = 0;
-        public int KidnappedMen = 0;
-        public int KidnappedChildren = 0;
+        public bool MaxEnergyInspiration { get; set; } = false;
 
-        public bool MaxEnergyInspiration = false;
+        public EntityList<Architect> KilledPeopleWhoActuallyMatter { get; set; } = new EntityList<Architect>();
+        public EntityList<Architect> KidnappedPeopleWhoActuallyMatter { get; set; } = new EntityList<Architect>();
 
-        public List<Architect> KilledPeopleWhoActuallyMatter = new List<Architect>();
-        public List<Architect> KidnappedPeopleWhoActuallyMatter = new List<Architect>();
+        public int CorruptedCities { get; set; } = 0;
+        public int Deceived { get; set; } = 0;
+        public string PowerType { get; set; } = "";
 
-        public int CorruptedCities = 0;
-        public int Decieved = 0;
-        public string PowerType = "";
-
-        public int Strength;
-        public int Dexterity;
-        public int Agility;
-        public int Endurance;
-        public int Creativity;
-        public int Charisma;
+        public int Strength { get; set; }
+        public int Dexterity { get; set; }
+        public int Agility { get; set; }
+        public int Endurance { get; set; }
+        public int Creativity { get; set; }
+        public int Charisma { get; set; }
 
         private int _focus;
-
         public int Focus
         {
             get
@@ -485,81 +608,101 @@ namespace Lightrealm
 
                 return baseFocus;
             }
-            set
-            {
-                _focus = value;
-            }
+            set => _focus = value;
         }
 
+        private int _room;
+        private int _block;
 
-        private Room _room;
-        private Block _block;
+        private int _location;
+        public Location Location
+        {
+            get => Entity<Location>(_location);
+            set => _location = value?.ID ?? 0;
+        }
 
-        public Location Location { get; set; }
-        public District District { get; set; }
+        private int _district;
+        public District District
+        {
+            get => Entity<District>(_district);
+            set => _district = value?.ID ?? 0;
+        }
 
         public Structure Structure
         {
-            get
-            {
-                return _room?.Structure;
-            }
+            get => _room != 0 ? Entity<Room>(_room).Structure : null;
             set
             {
                 // Ignore the set operation for Structure
             }
         }
+
         public Room Room
         {
-            get
-            {
-                return _room;
-            }
-            set
-            {
-                _room = value;
-            }
+            get => Entity<Room>(_room);
+            set => _room = value?.ID ?? 0;
         }
+
         public Block Block
         {
             get
             {
-                if (_block != null)
+                if (_block != 0)
                 {
-                    return _block;
+                    return Entity<Block>(_block);
                 }
-                if (_room != null)
+                if (_room != 0)
                 {
-                    return _room.Structure.Block;
+                    return Entity<Room>(_room).Structure.Block;
                 }
                 return null;
             }
-            set
-            {
-                _block = value;
-            }
+            set => _block = value?.ID ?? 0;
         }
 
         public string Size { get; set; } = "average";
 
-        public Location HomeLocation { get; set; }
-        public District HomeDistrict { get; set; }
-        public Structure HomeStructure { get; set; }
+        private int _homeLocation;
+        public Location HomeLocation
+        {
+            get => Entity<Location>(_homeLocation);
+            set => _homeLocation = value?.ID ?? 0;
+        }
+
+        private int _homeDistrict;
+        public District HomeDistrict
+        {
+            get => Entity<District>(_homeDistrict);
+            set => _homeDistrict = value?.ID ?? 0;
+        }
+
+        private int _homeStructure;
+        public Structure HomeStructure
+        {
+            get => Entity<Structure>(_homeStructure);
+            set => _homeStructure = value?.ID ?? 0;
+        }
 
         public string Destiny { get; set; } = "none";
         public int DestinyArrivalYear { get; set; } = 999;
 
-        public string CurrentlyMovingPlace = "none";
+        public string CurrentlyMovingPlace { get; set; } = "none";
 
-        public int MessageCooldown = 0;
+        public int MessageCooldown { get; set; } = 0;
 
-        public List<(Architect, int)> ArchitectOpinions { get; set; } = new List<(Architect, int)>();
-        public List<Architect> KnownArchitects = new List<Architect>();
+        private List<(int, int)> _architectOpinions = new List<(int, int)>();
+        public List<(Architect, int)> ArchitectOpinions
+        {
+            get => _architectOpinions.Select(tuple => (Entity<Architect>(tuple.Item1), tuple.Item2)).ToList();
+            set => _architectOpinions = value?.Select(tuple => (tuple.Item1?.ID ?? 0, tuple.Item2)).ToList() ?? new List<(int, int)>();
+        }
+
+        public EntityList<Architect> KnownArchitects { get; set; } = new EntityList<Architect>();
 
         public bool IsStudying { get; set; }
         public bool Loaded { get; set; }
 
-        public List<Object> Clothing = new List<Object>();
+        public EntityList<Object> Clothing { get; set; } = new EntityList<Object>();
 
         public string ScholarType { get; set; } = "";
         public string FavoriteScienceField { get; set; } = "";
@@ -570,9 +713,9 @@ namespace Lightrealm
         public int CultureStudyPoints { get; set; } = 0;
         public int ScienceStudyPoints { get; set; } = 0;
 
-        public List<Entity> SpellsKnown { get; set; } = new List<Entity>();
-        public List<Entity> SkillsKnown { get; set; } = new List<Entity>();
-        public List<Entity> UsedSkills { get; set; } = new List<Entity>();
+        public EntityList<Entity> SpellsKnown { get; set; } = new EntityList<Entity>();
+        public EntityList<Entity> SkillsKnown { get; set; } = new EntityList<Entity>();
+        public EntityList<Entity> UsedSkills { get; set; } = new EntityList<Entity>();
 
         public bool DiscoveredASpell { get; set; } = false;
 
@@ -587,9 +730,7 @@ namespace Lightrealm
         public int HoldCycles { get; set; } = 0;
         public int DismissalCycles { get; set; } = 0;
 
-
         public bool OnGround { get; set; } = false;
-
         public bool IsImmortal { get; set; } = false;
         public bool IsCoveredInPlants { get; set; } = false;
 
@@ -606,67 +747,111 @@ namespace Lightrealm
         public int DaysSincePerforming { get; set; } = 0;
         public int DaysSincePlayingGame { get; set; } = 0;
 
-        public Architect TargetArchitect { get; set; }
-        public Object TargetObject { get; set; }
-        public (Region, Location, District, Block, Room, string) Target { get; set; } = (null, null, null, null, null, "");
+        private int _targetArchitect;
+        public Architect TargetArchitect
+        {
+            get => Entity<Architect>(_targetArchitect);
+            set => _targetArchitect = value?.ID ?? 0;
+        }
+
+        private int _targetObject;
+        public Object TargetObject
+        {
+            get => Entity<Object>(_targetObject);
+            set => _targetObject = value?.ID ?? 0;
+        }
+
+        private (int, int, int, int, int, string) _target = (0, 0, 0, 0, 0, "");
+        public (Region, Location, District, Block, Room, string) Target
+        {
+            get => (_target.Item1 != 0 ? Entity<Region>(_target.Item1) : null,
+                    _target.Item2 != 0 ? Entity<Location>(_target.Item2) : null,
+                    _target.Item3 != 0 ? Entity<District>(_target.Item3) : null,
+                    _target.Item4 != 0 ? Entity<Block>(_target.Item4) : null,
+                    _target.Item5 != 0 ? Entity<Room>(_target.Item5) : null,
+                    _target.Item6);
+            set => _target = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0, value.Item6);
+        }
 
         public string Task { get; set; } = "";
         public int CyclesLeftInTask { get; set; } = 0;
 
-        public decimal Energy;
-        public int MaxEnergyMod = 0;
+        public decimal Energy { get; set; }
+        public int MaxEnergyMod { get; set; } = 0;
 
-        public decimal Bleeding = 0;
-        public double Pain = 0;
+        public decimal Bleeding { get; set; } = 0;
+        public double Pain { get; set; } = 0;
 
-        public List<Object> BodyParts { get; set; } = new List<Object>();
-        public Object MainInteractionAppendage;
-        public Object OffInteractionAppendage;
-        public List<Object> Inventory { get; set; }
-        public Object OffHeldObject { get; set; }
-        public Object MainHeldObject { get; set; }
+        public EntityList<Object> BodyParts { get; set; } = new EntityList<Object>();
+
+        private int _mainInteractionAppendage;
+        public Object MainInteractionAppendage
+        {
+            get => Entity<Object>(_mainInteractionAppendage);
+            set => _mainInteractionAppendage = value?.ID ?? 0;
+        }
+
+        private int _offInteractionAppendage;
+        public Object OffInteractionAppendage
+        {
+            get => Entity<Object>(_offInteractionAppendage);
+            set => _offInteractionAppendage = value?.ID ?? 0;
+        }
+
+        public EntityList<Object> Inventory { get; set; } = new EntityList<Object>();
+
+        private int _offHeldObject;
+        public Object OffHeldObject
+        {
+            get => Entity<Object>(_offHeldObject);
+            set => _offHeldObject = value?.ID ?? 0;
+        }
+
+        private int _mainHeldObject;
+        public Object MainHeldObject
+        {
+            get => Entity<Object>(_mainHeldObject);
+            set => _mainHeldObject = value?.ID ?? 0;
+        }
 
         public bool PrefersCoffeeIfTrue { get; set; } = false;
-
         public bool IsColossal { get; set; } = false;
 
         public int ColossalMinefieldX { get; set; }
         public int ColossalMinefieldZ { get; set; }
 
-        public int ExtraShieldEffectiveness = 0;
-        public int ExtraAttackPower = 0;
-        public int ExtraDodgeChance = 0;
-        public int ExtraRedirectionChance = 0;
-        public int ExtraBashingResistance = 0;
-        public int ExtraSlashingResistance = 0;
-        public int ExtraPiercingResistance = 0;
-        public int ExtraScourgingResistance = 0;
-        public int ExtraStealth = 0;
-        public int ExtraEnergyRegen = 0;
+        public int ExtraShieldEffectiveness { get; set; } = 0;
+        public int ExtraAttackPower { get; set; } = 0;
+        public int ExtraDodgeChance { get; set; } = 0;
+        public int ExtraRedirectionChance { get; set; } = 0;
+        public int ExtraBashingResistance { get; set; } = 0;
+        public int ExtraSlashingResistance { get; set; } = 0;
+        public int ExtraPiercingResistance { get; set; } = 0;
+        public int ExtraScourgingResistance { get; set; } = 0;
+        public int ExtraStealth { get; set; } = 0;
+        public int ExtraEnergyRegen { get; set; } = 0;
 
-        public bool IsofractalThief = false;
-
+        public bool IsofractalThief { get; set; } = false;
 
         public int ArmorProficiency { get; set; } = 0;
 
-        public List<string> OppositionTags { get; set; } = new List<string>() { };
-        public List<Architect> SuperTrustedArchitects { get; set; } = new List<Architect>();
+        public List<string> OppositionTags { get; set; } = new List<string>();
+
+        public EntityList<Architect> SuperTrustedArchitects { get; set; } = new EntityList<Architect>();
 
         public List<(string, int)> XPValues { get; set; } = new List<(string, int)>
-{
-    ("slashing", 0),
-    ("piercing", 0),
-    ("bashing", 0),
-    ("scourging", 0),
-    ("dodging", 0),
-    ("blocking", 0),
-    ("disarming", 0),
-    ("redirection", 0),
-    ("throwing", 0),
-    ("parrying", 0)
-};
-
-
+        {
+            ("slashing", 0),
+            ("piercing", 0),
+            ("bashing", 0),
+            ("scourging", 0),
+            ("dodging", 0),
+            ("blocking", 0),
+            ("disarming", 0),
+            ("redirection", 0),
+            ("throwing", 0),
+            ("parrying", 0)
+        };
 
         public void ChangeXP(string proficiencyName, int xpChange)
         {
@@ -736,7 +921,7 @@ namespace Lightrealm
                 // Add each item to the Clothing list
                 foreach (string item in items)
                 {
-                    Object newClothing = new Object(null, item.Trim(), new List<Material>() { material }, null);
+                    Object newClothing = new Object(null, item.Trim(), new EntityList<Material>() { material }, null);
                     Clothing.Add(newClothing);
 
                     // Apply dye to the newly added clothing item
@@ -758,7 +943,7 @@ namespace Lightrealm
                 // If addUpperShirt is true, add "uppershirt" to the Clothing list
                 if (addUpperShirt)
                 {
-                    Object upperShirt = new Object(null, "uppershirt", new List<Material>() { material }, null);
+                    Object upperShirt = new Object(null, "uppershirt", new EntityList<Material>() { material }, null);
                     Clothing.Add(upperShirt);
 
                     // Apply dye to the upper shirt
@@ -895,7 +1080,7 @@ namespace Lightrealm
                 // Create a weapon
                 Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
-                Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
+                Object weapon = new Object(null, weaponType, new EntityList<Material>() { weaponMaterial }, null);
 
                 MainHeldObject = weapon;
 
@@ -921,7 +1106,7 @@ namespace Lightrealm
                             string fullArmorType = (pieces == 2) ? side + armorType : armorType;
 
                             // Create armor object
-                            Object armor = new Object(null, fullArmorType, new List<Material>() { armorMaterial }, null);
+                            Object armor = new Object(null, fullArmorType, new EntityList<Material>() { armorMaterial }, null);
 
                             // Equip the armor to the architect
                             // This method needs to be implemented according to your game's logic
@@ -962,7 +1147,7 @@ namespace Lightrealm
                 // Equip with a weapon
                 Material weaponMaterial = FavoriteMetal;
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
-                Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
+                Object weapon = new Object(null, weaponType, new EntityList<Material>() { weaponMaterial }, null);
 
                 MainHeldObject = weapon;
 
@@ -977,16 +1162,16 @@ namespace Lightrealm
                         if (armorType == "gauntlet" || armorType == "boot")
                         {
                             // Create left and right variants for gauntlets or boots
-                            Object leftArmor = new Object(null, "left " + armorType, new List<Material>() { armorMaterial }, null);
+                            Object leftArmor = new Object(null, "left " + armorType, new EntityList<Material>() { armorMaterial }, null);
                             Clothing.Add(leftArmor);
 
-                            Object rightArmor = new Object(null, "right " + armorType, new List<Material>() { armorMaterial }, null);
+                            Object rightArmor = new Object(null, "right " + armorType, new EntityList<Material>() { armorMaterial }, null);
                             Clothing.Add(rightArmor);
                         }
                         else
                         {
                             // For other armor types, just create one object
-                            Object armor = new Object(null, armorType, new List<Material>() { armorMaterial }, null);
+                            Object armor = new Object(null, armorType, new EntityList<Material>() { armorMaterial }, null);
                             Clothing.Add(armor);
                         }
                     }
@@ -1003,15 +1188,15 @@ namespace Lightrealm
                 {
                     Material cupMaterial = FavoriteStone; // Material for the cup
                     Material drinkMaterial = random.Next(2) == 0 ? Game1.GameWorld.Coffee : Game1.GameWorld.Tea; // Randomly choose between coffee or tea
-                    Object cup = new Object(null, "small cup", new List<Material>() { cupMaterial }, null);
-                    cup.ContainedObjects.Add(new Object(null, "drink", new List<Material>() { drinkMaterial }, null));
+                    Object cup = new Object(null, "small cup", new EntityList<Material>() { cupMaterial }, null);
+                    cup.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material>() { drinkMaterial }, null));
                     Inventory.Add(cup);
                 }
 
                 // Add cut gems (50% chance)
                 if (random.Next(2) == 0)
                 {
-                    Object gem = new Object(null, "cut gem", new List<Material>() { FavoriteGemstone }, null);
+                    Object gem = new Object(null, "cut gem", new EntityList<Material>() { FavoriteGemstone }, null);
                     Inventory.Add(gem);
                 }
 
@@ -1019,28 +1204,28 @@ namespace Lightrealm
                 if (random.Next(2) == 0)
                 {
                     string WeaponType = Game1.AllWeapons[random.Next(Game1.AllWeapons.Count())];
-                    Object extraWeapon = new Object(null, WeaponType, new List<Material>() { FavoriteMetal }, null);
+                    Object extraWeapon = new Object(null, WeaponType, new EntityList<Material>() { FavoriteMetal }, null);
                     Inventory.Add(extraWeapon);
                 }
 
                 // Add a wax tablet (50% chance)
                 if (random.Next(2) == 0)
                 {
-                    Object waxTablet = new Object(null, "waxtablet", new List<Material>() { FavoriteWood }, null);
+                    Object waxTablet = new Object(null, "waxtablet", new EntityList<Material>() { FavoriteWood }, null);
                     Inventory.Add(waxTablet);
                 }
 
                 // Add jars (50% chance)
                 if (random.Next(2) == 0)
                 {
-                    Object jar = new Object(null, "jar", new List<Material>() { Game1.GameWorld.Glass }, null);
+                    Object jar = new Object(null, "jar", new EntityList<Material>() { Game1.GameWorld.Glass }, null);
                     Inventory.Add(jar);
                 }
 
                 // Add fragments made of Game1.Vitalium (50% chance)
                 if (random.Next(2) == 0)
                 {
-                    Object fragment = new Object(null, "fragment", new List<Material>() { Game1.GameWorld.Vitalium }, null);
+                    Object fragment = new Object(null, "fragment", new EntityList<Material>() { Game1.GameWorld.Vitalium }, null);
                     Inventory.Add(fragment);
                 }
 
@@ -1052,19 +1237,19 @@ namespace Lightrealm
             {
                 // Assigning a staff as a weapon
                 Material staffMaterial = Location.HomeCivilization.CulturalWood;
-                Object staff = new Object(null, "staff", new List<Material>() { staffMaterial }, null);
+                Object staff = new Object(null, "staff", new EntityList<Material>() { staffMaterial }, null);
                 staff.Rarity = "rare";
                 staff.ApplyImbuements(1); // Assuming 1 indicates a minor magical enhancement
                 MainHeldObject = staff;
 
                 // Wearing a robe made from cultural cloth
                 Material robeMaterial = Location.HomeCivilization.CulturalCloth;
-                Object robe = new Object(null, "robe", new List<Material>() { robeMaterial }, null);
+                Object robe = new Object(null, "robe", new EntityList<Material>() { robeMaterial }, null);
                 Clothing.Add(robe);
 
                 // Carrying a magical tome as an inventory item
                 Material bookMaterial = Location.HomeCivilization.CulturalSheet;
-                Object book = new Object(null, "book", new List<Material>() { bookMaterial }, null);
+                Object book = new Object(null, "book", new EntityList<Material>() { bookMaterial }, null);
                 book.Rarity = "uncommon";
                 book.ApplyImbuements(2); // Assuming 2 indicates magical texts or spells
                 Inventory.Add(book);
@@ -1074,29 +1259,29 @@ namespace Lightrealm
 
                 // Assigning a whip as a weapon, indicating control over beasts
                 Material whipMaterial = Location.HomeCivilization.CulturalCloth; // Assuming there's a CulturalLeather not listed but logically present
-                Object whip = new Object(null, "whip", new List<Material>() { whipMaterial }, null);
+                Object whip = new Object(null, "whip", new EntityList<Material>() { whipMaterial }, null);
                 MainHeldObject = whip;
 
                 // Equipping boots for traversing wild terrains
                 Material bootsMaterial = Location.HomeCivilization.CulturalCloth; // Assuming again the presence of CulturalLeather
-                Object boots = new Object(null, "left boot", new List<Material>() { bootsMaterial }, null);
+                Object boots = new Object(null, "left boot", new EntityList<Material>() { bootsMaterial }, null);
                 Clothing.Add(boots);
                 // Repeating for right boot
-                boots = new Object(null, "right boot", new List<Material>() { bootsMaterial }, null);
+                boots = new Object(null, "right boot", new EntityList<Material>() { bootsMaterial }, null);
                 Clothing.Add(boots);
             }
             else if (Type == "warlock")
             {
                 // Assigning a dark tome as a weapon/source of power
                 Material tomeMaterial = Location.HomeCivilization.CulturalSheet;
-                Object tome = new Object(null, "book", new List<Material>() { tomeMaterial }, null);
+                Object tome = new Object(null, "book", new EntityList<Material>() { tomeMaterial }, null);
                 tome.Rarity = "rare";
                 tome.ApplyImbuements(3); // Assuming 3 indicates dark or forbidden knowledge
                 MainHeldObject = tome;
 
                 // Equipping an amulet as a source of magical protection or power
                 Material amuletMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object amulet = new Object(null, "amulet", new List<Material>() { amuletMaterial }, null);
+                Object amulet = new Object(null, "amulet", new EntityList<Material>() { amuletMaterial }, null);
                 amulet.Rarity = "rare";
                 amulet.ApplyImbuements(1); // Minor magical protection
                 Clothing.Add(amulet);
@@ -1117,7 +1302,7 @@ namespace Lightrealm
                 {
                     string weaponType = possibleWeapons[Game1.r.Next(possibleWeapons.Count)];
                     Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2); ; // Assuming all weapons are made of the civilization's cultural metal
-                    Object weapon = new Object(null, weaponType, new List<Material>() { weaponMaterial }, null);
+                    Object weapon = new Object(null, weaponType, new EntityList<Material>() { weaponMaterial }, null);
 
                     // For the first weapon, assign it to the right hand if right-handed, otherwise add to inventory
 
@@ -1137,13 +1322,13 @@ namespace Lightrealm
 
                 // Cool items addition - A lightweight cloak for agility and some mystique
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
-                Object cloak = new Object(null, "cape", new List<Material>() { cloakMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { cloakMaterial }, null);
                 cloak.Rarity = "uncommon";
                 Clothing.Add(cloak);
 
                 // Adding a small, easily concealable magical item for surprise or utility
                 Material gemMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object magicalAmulet = new Object(null, "amulet", new List<Material>() { gemMaterial }, null); // A magical amulet for an unexpected advantage
+                Object magicalAmulet = new Object(null, "amulet", new EntityList<Material>() { gemMaterial }, null); // A magical amulet for an unexpected advantage
                 magicalAmulet.Rarity = "rare";
                 magicalAmulet.ApplyImbuements(1); // Imbuement for agility or other duelist-favorable attributes
                 Inventory.Add(magicalAmulet);
@@ -1153,21 +1338,21 @@ namespace Lightrealm
             {
                 // Assigning a wand as a magical implement
                 Material orbmat = Location.HomeCivilization.CulturalGemstone;
-                Object orb = new Object(null, "orb", new List<Material>() { orbmat }, null);
+                Object orb = new Object(null, "orb", new EntityList<Material>() { orbmat }, null);
                 orb.Rarity = "rare";
                 orb.ApplyImbuements(2); // Assuming this imbues the wand with specific magical properties
                 MainHeldObject = orb;
 
                 // Wearing a robe made from cultural cloth, indicative of a mage's status
                 Material robeMaterial = Location.HomeCivilization.CulturalCloth;
-                Object robe = new Object(null, "robe", new List<Material>() { robeMaterial }, null);
+                Object robe = new Object(null, "robe", new EntityList<Material>() { robeMaterial }, null);
                 robe.Rarity = "uncommon";
                 robe.ApplyImbuements(1); // Possibly for protection or augmentation of magical abilities
                 Clothing.Add(robe);
 
                 // Carrying a magical tome for spells
                 Material bookMaterial = Location.HomeCivilization.CulturalSheet;
-                Object book = new Object(null, "book", new List<Material>() { bookMaterial }, null);
+                Object book = new Object(null, "book", new EntityList<Material>() { bookMaterial }, null);
                 book.Rarity = "rare";
                 book.ApplyImbuements(3); // Indicating a book of powerful spells or arcane knowledge
                 Inventory.Add(book);
@@ -1176,21 +1361,21 @@ namespace Lightrealm
             {
                 // Equipping with a staff as a primary magical conduit
                 Material staffMaterial = Location.HomeCivilization.CulturalWood;
-                Object staff = new Object(null, "staff", new List<Material>() { staffMaterial }, null);
+                Object staff = new Object(null, "staff", new EntityList<Material>() { staffMaterial }, null);
                 staff.Rarity = "uncommon";
                 staff.ApplyImbuements(2); // Assume this enhances magical power
                 MainHeldObject = staff;
 
                 // Carrying a tome of spells
                 Material tomeMaterial = Location.HomeCivilization.CulturalSheet;
-                Object tome = new Object(null, "book", new List<Material>() { tomeMaterial }, null);
+                Object tome = new Object(null, "book", new EntityList<Material>() { tomeMaterial }, null);
                 tome.Rarity = "rare";
                 tome.ApplyImbuements(0); // Assuming this contains high-level spells
                 Inventory.Add(tome);
 
                 // A magical amulet for defense or power boost
                 Material amuletMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object amulet = new Object(null, "amulet", new List<Material>() { amuletMaterial }, null);
+                Object amulet = new Object(null, "amulet", new EntityList<Material>() { amuletMaterial }, null);
                 amulet.Rarity = "rare";
                 amulet.ApplyImbuements(0); // Providing magical protection or power boost
                 Inventory.Add(amulet);
@@ -1199,7 +1384,7 @@ namespace Lightrealm
             {
                 // Carrying a gemstone that resonates with their elemental nature
                 Material gemMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object elementalGem = new Object(null, "gem", new List<Material>() { gemMaterial }, null);
+                Object elementalGem = new Object(null, "gem", new EntityList<Material>() { gemMaterial }, null);
                 elementalGem.Rarity = "rare"; // Elemental gems are precious and powerful
                 elementalGem.ApplyImbuements(2); // Assuming this enhances their control over their element
                 Inventory.Add(elementalGem);
@@ -1208,12 +1393,12 @@ namespace Lightrealm
             {
                 // A dagger for close, silent attacks or utility
                 Material daggerMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object dagger = new Object(null, "dagger", new List<Material>() { daggerMaterial }, null);
+                Object dagger = new Object(null, "dagger", new EntityList<Material>() { daggerMaterial }, null);
                 MainHeldObject = dagger;
 
                 // A cloak for blending into shadows
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
-                Object cloak = new Object(null, "cape", new List<Material>() { cloakMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { cloakMaterial }, null);
                 cloak.Rarity = "uncommon";
                 Clothing.Add(cloak);
             }
@@ -1221,14 +1406,14 @@ namespace Lightrealm
             {
                 // Equipping with a multi-tool device
                 Material toolMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
+                Object multiTool = new Object(null, "hammer", new EntityList<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
                 MainHeldObject = multiTool;
 
                 // Carrying a blueprint or schematic for a masterpiece
                 Material schematicMaterial = Location.HomeCivilization.CulturalSheet;
-                Object schematic = new Object(null, "sheet", new List<Material>() { schematicMaterial }, null);
+                Object schematic = new Object(null, "sheet", new EntityList<Material>() { schematicMaterial }, null);
                 schematic.Rarity = "uncommon";
                 Inventory.Add(schematic);
             }
@@ -1236,14 +1421,14 @@ namespace Lightrealm
             {
                 // Equipping with a multi-tool device
                 Material toolMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
+                Object multiTool = new Object(null, "hammer", new EntityList<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
                 MainHeldObject = multiTool;
 
                 // Carrying a blueprint or schematic for a masterpiece
                 Material schematicMaterial = Location.HomeCivilization.CulturalSheet;
-                Object schematic = new Object(null, "sheet", new List<Material>() { schematicMaterial }, null);
+                Object schematic = new Object(null, "sheet", new EntityList<Material>() { schematicMaterial }, null);
                 schematic.Rarity = "uncommon";
                 Inventory.Add(schematic);
             }
@@ -1251,7 +1436,7 @@ namespace Lightrealm
             {
                 // Equipping with a cloak that enhances their charismatic presence
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
-                Object cloak = new Object(null, "cape", new List<Material>() { cloakMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { cloakMaterial }, null);
                 cloak.Rarity = "uncommon";
                 Clothing.Add(cloak);
             }
@@ -1262,14 +1447,14 @@ namespace Lightrealm
 
                 // Equipping with a masterfully crafted rapier or sword
                 Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object weapon = new Object(null, "rapier", new List<Material>() { weaponMaterial }, null);
+                Object weapon = new Object(null, "rapier", new EntityList<Material>() { weaponMaterial }, null);
                 weapon.Rarity = "epic";
                 weapon.ApplyImbuements(3); // For superior finesse and damage
                 MainHeldObject = weapon;
 
                 // Carrying a talisman for luck or protection in duels
                 Material talismanMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object talisman = new Object(null, "amulet", new List<Material>() { talismanMaterial }, null);
+                Object talisman = new Object(null, "amulet", new EntityList<Material>() { talismanMaterial }, null);
                 talisman.Rarity = "uncommon";
                 Inventory.Add(talisman);
             }
@@ -1277,20 +1462,20 @@ namespace Lightrealm
             {
                 // Bearing a symbol of office or authority
                 Material symbolMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object symbol = new Object(null, "amulet", new List<Material>() { symbolMaterial }, null);
+                Object symbol = new Object(null, "amulet", new EntityList<Material>() { symbolMaterial }, null);
                 symbol.Rarity = "epic";
                 symbol.ApplyImbuements(2); // Signifying power or protection
                 MainHeldObject = symbol;
 
                 // Wearing a robe that denotes their high rank
                 Material robeMaterial = Location.HomeCivilization.CulturalCloth;
-                Object robe = new Object(null, "robe", new List<Material>() { robeMaterial }, null);
+                Object robe = new Object(null, "robe", new EntityList<Material>() { robeMaterial }, null);
                 robe.Rarity = "rare";
                 Clothing.Add(robe);
 
                 // Carrying a tome of ancient wisdom or law
                 Material tomeMaterial = Location.HomeCivilization.CulturalSheet;
-                Object tome = new Object(null, "book", new List<Material>() { tomeMaterial }, null);
+                Object tome = new Object(null, "book", new EntityList<Material>() { tomeMaterial }, null);
                 tome.Rarity = "rare";
                 tome.ApplyImbuements(3); // Containing knowledge or spells of governance and influence
                 Inventory.Add(tome);
@@ -1299,7 +1484,7 @@ namespace Lightrealm
             {
                 // Wearing a garment that enhances their allure
                 Material garmentMaterial = Location.HomeCivilization.CulturalCloth;
-                Object garment = new Object(null, "cape", new List<Material>() { garmentMaterial }, null);
+                Object garment = new Object(null, "cape", new EntityList<Material>() { garmentMaterial }, null);
                 garment.Rarity = "uncommon";
                 Clothing.Add(garment);
             }
@@ -1307,14 +1492,14 @@ namespace Lightrealm
             {
                 // Holding a summoning crystal
                 Material crystalMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object crystal = new Object(null, "orb", new List<Material>() { crystalMaterial }, null); // "Orb" used here to represent a crystal with summoning power
+                Object crystal = new Object(null, "orb", new EntityList<Material>() { crystalMaterial }, null); // "Orb" used here to represent a crystal with summoning power
                 crystal.Rarity = "rare";
                 crystal.ApplyImbuements(2); // Assume this enhances summoning power
                 MainHeldObject = crystal;
 
                 // Wearing a cloak that conceals their presence, aiding in summoning rituals
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
-                Object cloak = new Object(null, "cape", new List<Material>() { cloakMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { cloakMaterial }, null);
                 cloak.Rarity = "uncommon";
                 Clothing.Add(cloak);
             }
@@ -1322,19 +1507,19 @@ namespace Lightrealm
             {
                 // Bearing a medallion that signifies their diplomatic status
                 Material medallionMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object medallion = new Object(null, "amulet", new List<Material>() { medallionMaterial }, null);
+                Object medallion = new Object(null, "amulet", new EntityList<Material>() { medallionMaterial }, null);
                 medallion.Rarity = "uncommon";
                 Inventory.Add(medallion);
 
                 // Carrying a scroll of truce or treaties
                 Material scrollMaterial = Location.HomeCivilization.CulturalSheet;
-                Object scroll = new Object(null, "scroll", new List<Material>() { scrollMaterial }, null);
+                Object scroll = new Object(null, "scroll", new EntityList<Material>() { scrollMaterial }, null);
                 scroll.Rarity = "common";
                 Inventory.Add(scroll);
 
                 // Wearing attire that reflects their diplomatic role
                 Material attireMaterial = Location.HomeCivilization.CulturalCloth;
-                Object attire = new Object(null, "robe", new List<Material>() { attireMaterial }, null); // "Robe" here symbolizes formal diplomatic wear
+                Object attire = new Object(null, "robe", new EntityList<Material>() { attireMaterial }, null); // "Robe" here symbolizes formal diplomatic wear
                 attire.Rarity = "uncommon";
                 Clothing.Add(attire);
             }
@@ -1342,14 +1527,14 @@ namespace Lightrealm
             {
                 // Holding a fractal orb that embodies their control over patterns
                 Material fractalOrbMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object fractalOrb = new Object(null, "orb", new List<Material>() { fractalOrbMaterial }, null);
+                Object fractalOrb = new Object(null, "orb", new EntityList<Material>() { fractalOrbMaterial }, null);
                 fractalOrb.Rarity = "rare";
                 fractalOrb.ApplyImbuements(3); // Enhancing their reality-manipulating powers
                 MainHeldObject = fractalOrb;
 
                 // Wearing attire that seems to shift and change patterns
                 Material attireMaterial = Location.HomeCivilization.CulturalCloth;
-                Object attire = new Object(null, "robe", new List<Material>() { attireMaterial }, null);
+                Object attire = new Object(null, "robe", new EntityList<Material>() { attireMaterial }, null);
                 attire.Rarity = "uncommon";
                 Clothing.Add(attire);
             }
@@ -1357,22 +1542,22 @@ namespace Lightrealm
             {
                 // Equipped with a knife for skinning and close combat
                 Material knifeMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object knife = new Object(null, "knife", new List<Material>() { knifeMaterial }, null);
+                Object knife = new Object(null, "knife", new EntityList<Material>() { knifeMaterial }, null);
                 knife.Rarity = "common";
                 Inventory.Add(knife);
 
                 // Wearing boots suitable for tracking through various terrains
                 Material bootsMaterial = Location.HomeCivilization.CulturalCloth; // Assuming for thematic consistency
-                Object boots = new Object(null, "left boot", new List<Material>() { bootsMaterial }, null);
+                Object boots = new Object(null, "left boot", new EntityList<Material>() { bootsMaterial }, null);
                 Clothing.Add(boots);
-                boots = new Object(null, "right boot", new List<Material>() { bootsMaterial }, null);
+                boots = new Object(null, "right boot", new EntityList<Material>() { bootsMaterial }, null);
                 Clothing.Add(boots);
             }
             else if (Type.ToLower() == "knight")
             {
                 // Equipped with a sword, the knight's primary weapon
                 Material swordMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object sword = new Object(null, "shortsword", new List<Material>() { swordMaterial }, null);
+                Object sword = new Object(null, "shortsword", new EntityList<Material>() { swordMaterial }, null);
                 sword.Rarity = "common";
                 MainHeldObject = sword;
 
@@ -1381,7 +1566,7 @@ namespace Lightrealm
                 List<string> armorPieces = new List<string> { "helmet", "chestplate", "left gauntlet", "right gauntlet", "leggings" };
                 foreach (var piece in armorPieces)
                 {
-                    Object armor = new Object(null, piece, new List<Material>() { armorMaterial }, null);
+                    Object armor = new Object(null, piece, new EntityList<Material>() { armorMaterial }, null);
                     armor.Rarity = "uncommon";
                     Clothing.Add(armor);
                 }
@@ -1390,14 +1575,14 @@ namespace Lightrealm
             {
                 // Holding a summoning crystal
                 Material crystalMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object crystal = new Object(null, "orb", new List<Material>() { crystalMaterial }, null); // "Orb" used here to represent a crystal with summoning power
+                Object crystal = new Object(null, "orb", new EntityList<Material>() { crystalMaterial }, null); // "Orb" used here to represent a crystal with summoning power
                 crystal.Rarity = "uncommon";
                 crystal.ApplyImbuements(0); // Assume this enhances summoning power
                 MainHeldObject = crystal;
 
                 // Wearing a cloak that provides some magical protection
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
-                Object cloak = new Object(null, "cape", new List<Material>() { cloakMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { cloakMaterial }, null);
                 cloak.Rarity = "uncommon";
                 Clothing.Add(cloak);
             }
@@ -1405,13 +1590,13 @@ namespace Lightrealm
             {
                 // Equipped with a versatile weapon, such as a sword or axe
                 Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object weapon = new Object(null, "shortsword", new List<Material>() { weaponMaterial }, null); // "shortsword" can be replaced with "axe" or another weapon based on preference
+                Object weapon = new Object(null, "shortsword", new EntityList<Material>() { weaponMaterial }, null); // "shortsword" can be replaced with "axe" or another weapon based on preference
                 weapon.Rarity = "common";
                 MainHeldObject = weapon;
 
                 // Wearing durable leather armor for protection and mobility
                 Material armorMaterial = Location.HomeCivilization.CulturalMetal;
-                Object armor = new Object(null, "chestplate", new List<Material>() { armorMaterial }, null);
+                Object armor = new Object(null, "chestplate", new EntityList<Material>() { armorMaterial }, null);
                 armor.Rarity = "common";
                 Clothing.Add(armor);
             }
@@ -1419,14 +1604,14 @@ namespace Lightrealm
             {
                 // Holding a dark tome containing necromantic spells
                 Material tomeMaterial = Location.HomeCivilization.CulturalSheet;
-                Object tome = new Object(null, "book", new List<Material>() { tomeMaterial }, null);
+                Object tome = new Object(null, "book", new EntityList<Material>() { tomeMaterial }, null);
                 tome.Rarity = "rare";
                 tome.ApplyImbuements(3); // Enhances dark magic abilities
                 MainHeldObject = tome;
 
                 // Wearing a cloak that signifies their macabre affinity
                 Material cloakMaterial = Location.HomeCivilization.CulturalCloth;
-                Object cloak = new Object(null, "cape", new List<Material>() { cloakMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { cloakMaterial }, null);
                 cloak.Rarity = "uncommon";
                 Clothing.Add(cloak);
             }
@@ -1434,7 +1619,7 @@ namespace Lightrealm
             {
                 // Equipped with an amulet that enhances sensory perception
                 Material amuletMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object amulet = new Object(null, "amulet", new List<Material>() { amuletMaterial }, null);
+                Object amulet = new Object(null, "amulet", new EntityList<Material>() { amuletMaterial }, null);
                 amulet.Rarity = "uncommon";
                 amulet.ApplyImbuements(2); // Boosts perceptual abilities
                 Inventory.Add(amulet);
@@ -1443,18 +1628,18 @@ namespace Lightrealm
             {
                 // Carrying a short sword or dagger for self-defense
                 Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object weapon = new Object(null, "dagger", new List<Material>() { weaponMaterial }, null);
+                Object weapon = new Object(null, "dagger", new EntityList<Material>() { weaponMaterial }, null);
                 weapon.Rarity = "common";
                 MainHeldObject = weapon;
 
                 // Equipped with light armor for mobility
                 Material armorMaterial = Location.HomeCivilization.CulturalMetal;
-                Object armor = new Object(null, "chestplate", new List<Material>() { armorMaterial }, null);
+                Object armor = new Object(null, "chestplate", new EntityList<Material>() { armorMaterial }, null);
                 armor.Rarity = "common";
                 Clothing.Add(armor);
 
                 // Using a cloak for camouflage
-                Object cloak = new Object(null, "cape", new List<Material>() { armorMaterial }, null);
+                Object cloak = new Object(null, "cape", new EntityList<Material>() { armorMaterial }, null);
                 cloak.Rarity = "common";
                 Clothing.Add(cloak);
             }
@@ -1466,14 +1651,14 @@ namespace Lightrealm
             {
                 // Equipped with a spatial ring
                 Material ringMaterial = Location.HomeCivilization.CulturalGemstone;
-                Object ring = new Object(null, "amulet", new List<Material>() { ringMaterial }, null); // Assuming "amulet" can represent a ring in this context
+                Object ring = new Object(null, "amulet", new EntityList<Material>() { ringMaterial }, null); // Assuming "amulet" can represent a ring in this context
                 ring.Rarity = "epic";
                 ring.ApplyImbuements(4); // For spatial manipulation and teleportation
                 Inventory.Add(ring);
 
                 // Carrying a tome on spatial theories
                 Material bookMaterial = Location.HomeCivilization.CulturalSheet;
-                Object book = new Object(null, "book", new List<Material>() { bookMaterial }, null);
+                Object book = new Object(null, "book", new EntityList<Material>() { bookMaterial }, null);
                 book.Rarity = "uncommon";
                 Inventory.Add(book);
             }
@@ -1481,20 +1666,20 @@ namespace Lightrealm
             {
                 // Equipping with a multi-tool device
                 Material toolMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object multiTool = new Object(null, "hammer", new List<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
+                Object multiTool = new Object(null, "hammer", new EntityList<Material>() { toolMaterial }, null); // Assuming "small tool" represents a versatile device
                 multiTool.Rarity = "rare";
                 multiTool.ApplyImbuements(0); // Enhancements for crafting or magical tinkering
                 MainHeldObject = multiTool;
 
                 // Equipped with a small dagger for self-defense and utility
                 Material daggerMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
-                Object dagger = new Object(null, "dagger", new List<Material>() { daggerMaterial }, null);
+                Object dagger = new Object(null, "dagger", new EntityList<Material>() { daggerMaterial }, null);
                 dagger.Rarity = "common";
                 MainHeldObject = dagger;
 
                 // Wearing dark clothing for stealth
                 Material clothingMaterial = Location.HomeCivilization.CulturalCloth;
-                Object clothing = new Object(null, "robe", new List<Material>() { clothingMaterial }, null);
+                Object clothing = new Object(null, "robe", new EntityList<Material>() { clothingMaterial }, null);
                 clothing.Rarity = "common";
                 Clothing.Add(clothing);
             }
@@ -1502,7 +1687,7 @@ namespace Lightrealm
 
 
 
-        public Architect(string name, string sex, Race race, int age, string role, List<Object> inventory, Location location, District district, Block block, string destiny, int level) //leave level at 0 to autodetermine
+        public Architect(string name, string sex, Race race, int age, string role, EntityList<Object> inventory, Location location, District district, Block block, string destiny, int level) //leave level at 0 to autodetermine
         {
             Location = location;
             Block = block;
@@ -1569,12 +1754,12 @@ namespace Lightrealm
                     Cloth = Game1.GameWorld.Civilizations[Game1.r.Next(Game1.GameWorld.Civilizations.Count)].CulturalCloth;
                 }
 
-                Clothing.Add(new Object(null, "undergarment", new List<Material>() { Cloth }, null));
+                Clothing.Add(new Object(null, "undergarment", new EntityList<Material>() { Cloth }, null));
                 ApplyDye(Clothing[0]);
 
                 if (Sex == "female")
                 {
-                    Clothing.Add(new Object(null, "brassiere", new List<Material>() { Cloth }, null));
+                    Clothing.Add(new Object(null, "brassiere", new EntityList<Material>() { Cloth }, null));
                     ApplyDye(Clothing[1]);
 
                 }
@@ -1626,7 +1811,7 @@ namespace Lightrealm
                             randomItem = generalClothingItems[Game1.r.Next(generalClothingItems.Count)];
                         } while (Clothing.Any(c => c.Type == randomItem && randomItem != "amulet"));
 
-                        Clothing.Add(new Object(null, randomItem, new List<Material>() { Cloth }, null));
+                        Clothing.Add(new Object(null, randomItem, new EntityList<Material>() { Cloth }, null));
                     }
                 }
             }
@@ -1674,7 +1859,7 @@ namespace Lightrealm
 
             if (inventory == null)
             {
-                Inventory = new List<Object>();
+                Inventory = new EntityList<Object>();
             }
             else
             {
@@ -1818,7 +2003,7 @@ namespace Lightrealm
             {
                 foreach ((string, Material) o in Race.BodyParts)
                 {
-                    Object O = new Object(Name + "'s " + o.Item1, o.Item1, new List<Material> { o.Item2 }, false, false, null, this, 5, false, null, null, null, false);
+                    Object O = new Object(Name + "'s " + o.Item1, o.Item1, new EntityList<Material> { o.Item2 }, false, false, null, this, 5, false, null, null, null, false);
                     O.Owner = this;
                     BodyParts.Add(O);
                 }
@@ -1933,9 +2118,8 @@ namespace Lightrealm
         {
             List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "concentrated ignition", "tremor", "ice shock" };
 
-            List<Entity> unknownSpells = Game1.GameWorld.AllSpells
-                .Where(spell => OffensiveSpells.Contains(spell.Metadata) && !SpellsKnown.Contains(spell))
-                .ToList();
+            EntityList<Entity> unknownSpells = Game1.GameWorld.AllSpells
+                .Where(spell => OffensiveSpells.Contains(spell.Metadata) && !SpellsKnown.Contains(spell));
 
             if (unknownSpells.Count > 0)
             {
@@ -2379,14 +2563,14 @@ namespace Lightrealm
 
         public void DropInventory(bool dropUndergarments)
         {
-            List<Object> filteredClothing;
+            EntityList<Object> filteredClothing;
             if (dropUndergarments)
             {
-                filteredClothing = new List<Object>(Clothing);
+                filteredClothing = new EntityList<Object>(Clothing);
             }
             else
             {
-                filteredClothing = Clothing.Where(o => o.Type != "brassiere" && o.Type != "undergarment").ToList();
+                filteredClothing = Clothing.Where(o => o.Type != "brassiere" && o.Type != "undergarment");
             }
 
             if (Room != null)
@@ -2435,7 +2619,7 @@ namespace Lightrealm
 
             if (!dropUndergarments)
             {
-                Clothing = Clothing.Where(o => o.Type == "brassiere" || o.Type == "undergarment").ToList();
+                Clothing = Clothing.Where(o => o.Type == "brassiere" || o.Type == "undergarment");
             }
             else
             {
@@ -2460,7 +2644,7 @@ namespace Lightrealm
 
             if (IsAlive == false && (Block == executor.Block && Room == executor.Room) && shadeCount < effectivePathOfDeathLevel)
             {
-                Game1.Announcements.Add(new TextStorage(referredToName + " rises with a putrid, dark energy!", Color.Purple, new List<Entity>() { this }));
+                Game1.Announcements.Add(new TextStorage(referredToName + " rises with a putrid, dark energy!", Color.Purple, new EntityList<Entity>() { this }));
                 IsAlive = true;
                 IsImmortal = true;
                 UnconsciousCycles = 0;
@@ -2481,7 +2665,7 @@ namespace Lightrealm
             }
             else
             {
-                Game1.Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                Game1.Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
             }
         }
 
@@ -2670,7 +2854,7 @@ namespace Lightrealm
 
 
 
-        public void AnnounceToParty(string announcement, Color color, List<Entity> Entities)
+        public void AnnounceToParty(string announcement, Color color, EntityList<Entity> Entities)
         {
             foreach (Architect a in Game1.GamePlayerParty.Architects)
             {
@@ -2682,7 +2866,7 @@ namespace Lightrealm
             }
         }
 
-        public List<Attack> UpdateSelfActionsAndSuch()
+        public EntityList<Attack> UpdateSelfActionsAndSuch()
         {
 
             //reset imbuements
@@ -2703,7 +2887,7 @@ namespace Lightrealm
             if (Block == null && Room == null)
             {
                 //idk whats happening but I actually want to play my game;
-                return new List<Attack>();
+                return new EntityList<Attack>();
             }
 
             foreach (Object b in BodyParts)
@@ -2711,8 +2895,8 @@ namespace Lightrealm
                 b.Owner = this;
             }
 
-            List<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
-            List<Attack> Attacks = new List<Attack>();
+            EntityList<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
+            EntityList<Attack> Attacks = new EntityList<Attack>();
 
             //distancing
 
@@ -2763,11 +2947,11 @@ namespace Lightrealm
 
                 this.Pain = 50;
 
-                AnnounceToParty(this.ReferredToNames[0] + " goes unconscious in pain.", Color.DarkRed, new List<Entity>() { this });
+                AnnounceToParty(this.ReferredToNames[0] + " goes unconscious in pain.", Color.DarkRed, new EntityList<Entity>() { this });
             }
             else if (Game1.r.Next(1, 1000) < (Pain - Focus * 10) && !Race.Name.StartsWith("shade") && IsAlive)
             {
-                AnnounceToParty(this.ReferredToNames[0] + " falters in pain!", Color.DarkRed, new List<Entity>() { this });
+                AnnounceToParty(this.ReferredToNames[0] + " falters in pain!", Color.DarkRed, new EntityList<Entity>() { this });
                 CooldownCycles += 5;
             }
 
@@ -2819,7 +3003,7 @@ namespace Lightrealm
             if (CanBeNotOnGround() == false && OnGround == false)
             {
                 OnGround = true;
-                AnnounceToParty(ReferredToNames[0] + " has fallen on the ground.", Color.Cyan, new List<Entity>() { this });
+                AnnounceToParty(ReferredToNames[0] + " has fallen on the ground.", Color.Cyan, new EntityList<Entity>() { this });
             }
 
             //die lmaoooo
@@ -2831,7 +3015,7 @@ namespace Lightrealm
                 Bleeding += 10;
                 if (Game1.GamePlayerParty.Architects.Contains(this))
                 {
-                    AnnounceToParty(this.Name + " is critically wounded and bleeding heavily!", Color.Red, new List<Entity>() { this });
+                    AnnounceToParty(this.Name + " is critically wounded and bleeding heavily!", Color.Red, new EntityList<Entity>() { this });
                 }
             }
 
@@ -2865,7 +3049,7 @@ namespace Lightrealm
 
                 if (canRevitalize)
                 {
-                    AnnounceToParty(this.Name + " revitalizes in a dark cloud!", Color.DarkRed, new List<Entity>() { this });
+                    AnnounceToParty(this.Name + " revitalizes in a dark cloud!", Color.DarkRed, new EntityList<Entity>() { this });
                     RevitalizedDates.Add(currentDate);
                     Energy = 30;
                 }
@@ -2876,35 +3060,35 @@ namespace Lightrealm
 
                     if (Game1.GamePlayerParty.Architects.Contains(this))
                     {
-                        AnnounceToParty(this.Name + " has fallen. ", Color.Red, new List<Entity>() { this });
+                        AnnounceToParty(this.Name + " has fallen. ", Color.Red, new EntityList<Entity>() { this });
                         Game1.GamePlayerParty.Architects.Remove(this);
                     }
                     else
                     {
-                        AnnounceToParty(this.Name + " has fallen. ", Color.Goldenrod, new List<Entity>() { this });
+                        AnnounceToParty(this.Name + " has fallen. ", Color.Goldenrod, new EntityList<Entity>() { this });
                         if (Master != null)
                         {
                             switch (new Random().Next(1, 6))
                             {
                                 case 1:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", forgive me... I could not succeed...", Color.Goldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", forgive me... I could not succeed...", Color.Goldenrod, new EntityList<Entity>() { this, Master });
                                     break;
                                 case 2:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", my journey ends here...", Color.Goldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", my journey ends here...", Color.Goldenrod, new EntityList<Entity>() { this, Master });
                                     break;
                                 case 3:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", alas, I have fallen...", Color.Goldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", alas, I have fallen...", Color.Goldenrod, new EntityList<Entity>() { this, Master });
                                     break;
                                 case 4:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", I apologize, I've let you down...", Color.Goldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", I apologize, I've let you down...", Color.Goldenrod, new EntityList<Entity>() { this, Master });
                                     break;
                                 case 5:
-                                    AnnounceToParty(this.Name + ": " + Master.Name + ", the end has come for me...", Color.Goldenrod, new List<Entity>() { this, Master });
+                                    AnnounceToParty(this.Name + ": " + Master.Name + ", the end has come for me...", Color.Goldenrod, new EntityList<Entity>() { this, Master });
                                     break;
                             }
 
-                            AnnounceToParty("You sense something odd about the name " + Master.Name + "...", Color.Aqua, new List<Entity>() { Master });
-                            AnnounceToParty("[Intrigue Updated]", Color.Aqua, new List<Entity>());
+                            AnnounceToParty("You sense something odd about the name " + Master.Name + "...", Color.Aqua, new EntityList<Entity>() { Master });
+                            AnnounceToParty("[Intrigue Updated]", Color.Aqua, new EntityList<Entity>());
 
                             foreach (Architect a in Game1.GamePlayerParty.Architects)
                             {
@@ -2919,11 +3103,11 @@ namespace Lightrealm
                         }
                         else if (this == Game1.GameWorld.Calamity[0])
                         {
-                            AnnounceToParty(this.Name + ": So... This is how it ends...", Color.PaleGoldenrod, new List<Entity>());
-                            AnnounceToParty(this.Name + ": My legacy, ending just like that, to a pitiful fool such as yourself.", Color.PaleGoldenrod, new List<Entity>());
-                            AnnounceToParty(this.Name + ": My ideology must live on though...", Color.PaleGoldenrod, new List<Entity>());
-                            AnnounceToParty(this.Name + ": Won't it...?", Color.PaleGoldenrod, new List<Entity>());
-                            AnnounceToParty("The primeval source of evil throughout the land, " + this.Name + ", has finally fallen. The continent is filled with rest and hope.", Color.Coral, new List<Entity>() { this });
+                            AnnounceToParty(this.Name + ": So... This is how it ends...", Color.PaleGoldenrod, new EntityList<Entity>());
+                            AnnounceToParty(this.Name + ": My legacy, ending just like that, to a pitiful fool such as yourself.", Color.PaleGoldenrod, new EntityList<Entity>());
+                            AnnounceToParty(this.Name + ": My ideology must live on though...", Color.PaleGoldenrod, new EntityList<Entity>());
+                            AnnounceToParty(this.Name + ": Won't it...?", Color.PaleGoldenrod, new EntityList<Entity>());
+                            AnnounceToParty("The primeval source of evil throughout the land, " + this.Name + ", has finally fallen. The continent is filled with rest and hope.", Color.Coral, new EntityList<Entity>() { this });
 
                             foreach (Architect a in Game1.GameWorld.Calamity)
                             {
@@ -2951,13 +3135,13 @@ namespace Lightrealm
                     {
                         if (a != this)
                         {
-                            AnnounceToParty(a.Name + " has absorbed some of their essence! ", Color.PaleGoldenrod, new List<Entity>() { a });
+                            AnnounceToParty(a.Name + " has absorbed some of their essence! ", Color.PaleGoldenrod, new EntityList<Entity>() { a });
                             a.Energy += 20;
                             a.CombatCycles = 0;
 
                             if (a.Level < Level)
                             {
-                                AnnounceToParty(a.Name + " has defeated a powerful foe and has become stronger...", Color.PaleGoldenrod, new List<Entity>() { a });
+                                AnnounceToParty(a.Name + " has defeated a powerful foe and has become stronger...", Color.PaleGoldenrod, new EntityList<Entity>() { a });
                                 a.Level++;
                                 a.SpendableLevels++;
                             }
@@ -3030,7 +3214,7 @@ namespace Lightrealm
                 if (Energy <= 0)
                 {
                     DeathCause = "was lost to the shadows";
-                    AnnounceToParty(this.ReferredToNames[0] + " was lost to the shadows.", Color.DarkRed, new List<Entity>() { this });
+                    AnnounceToParty(this.ReferredToNames[0] + " was lost to the shadows.", Color.DarkRed, new EntityList<Entity>() { this });
                 }
 
 
@@ -3054,7 +3238,7 @@ namespace Lightrealm
                 {
                     if (isSameRoomOrBlockMatch)
                     {
-                        Game1.MakeObservation("The " + OffHeldObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s " + Race.OffInteractionAppendage + " is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new List<Entity>() { OffHeldObject, this, this });
+                        Game1.MakeObservation("The " + OffHeldObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s " + Race.OffInteractionAppendage + " is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new EntityList<Entity>() { OffHeldObject, this, this });
                     }
                     if (Room != null)
                     {
@@ -3072,7 +3256,7 @@ namespace Lightrealm
                 {
                     if (isSameRoomOrBlockMatch)
                     {
-                        Game1.MakeObservation("The " + MainHeldObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s " + Race.MainInteractionAppendage + " is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new List<Entity>() { MainHeldObject, this, this });
+                        Game1.MakeObservation("The " + MainHeldObject.ReferredToNames[0] + " in " + ReferredToNames[0] + "'s " + Race.MainInteractionAppendage + " is too hot! " + ReferredToNames[0] + " drops it in pain.", Color.Orange, new EntityList<Entity>() { MainHeldObject, this, this });
                     }
                     if (Room != null)
                     {
@@ -3096,7 +3280,7 @@ namespace Lightrealm
 
                             if (isSameRoomOrBlockMatch)
                             {
-                                Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singing their skin!", Color.Orange, new List<Entity>() { clothingItem, this, this });
+                                Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singing their skin!", Color.Orange, new EntityList<Entity>() { clothingItem, this, this });
                             }
 
                             if (Energy <= 0)
@@ -3192,7 +3376,7 @@ namespace Lightrealm
             }
 
 
-            CurrentlyActiveImbuements = new List<Imbuement>();
+            CurrentlyActiveImbuements = new EntityList<Imbuement>();
 
             foreach (Object o in Clothing)
             {
@@ -3262,7 +3446,7 @@ namespace Lightrealm
             {
                 if (!RecievedBodyPhysicalStatIncrease)
                 {
-                    AnnounceToParty(Name + " has gained increases to all physical stats.", Color.Pink, new List<Entity>() { this });
+                    AnnounceToParty(Name + " has gained increases to all physical stats.", Color.Pink, new EntityList<Entity>() { this });
                     Strength++;
                     Dexterity++;
                     Agility++;
@@ -3274,7 +3458,7 @@ namespace Lightrealm
             {
                 if (!RecievedBodyPhysicalStatIncreaseTwo)
                 {
-                    AnnounceToParty(Name + " has gained an increased agility!", Color.Pink, new List<Entity>() { this });
+                    AnnounceToParty(Name + " has gained an increased agility!", Color.Pink, new EntityList<Entity>() { this });
                     Agility++;
                     Agility++;
                     RecievedBodyPhysicalStatIncreaseTwo = true;
@@ -3451,6 +3635,7 @@ namespace Lightrealm
             if (DestabilizedCycles > 0)
             {
                 DestabilizedCycles--;
+                DestabilizedCycles--;
             }
             if (UnconsciousCycles > 0)
             {
@@ -3483,7 +3668,7 @@ namespace Lightrealm
                     {
                         Object o = this.BodyParts[Game1.r.Next(BodyParts.Count)];
 
-                        Game1.MakeObservation(o.ReferredToNames[0] + " is crushed by the impact!", Color.Orange, new List<Entity>() { o });
+                        Game1.MakeObservation(o.ReferredToNames[0] + " is crushed by the impact!", Color.Orange, new EntityList<Entity>() { o });
                         o.Integrity = Math.Max(0, o.Integrity - 25); // Ensure integrity doesn't go below zero
                     }
                 }
@@ -3504,10 +3689,10 @@ namespace Lightrealm
                 // Respond to messages
                 foreach (Message m in MessagesNotRespondedTo)
                 {
-                    if (messageDatabase.ContainsKey(m.MessageContent) && m.MessageType == "question")
+                    if (MessageDatabase.ContainsKey(m.MessageContent) && m.MessageType == "question")
                     {
                         // Message has been seen before, respond with the same response
-                        AnnounceToParty(ReferredToNames[0] + ": " + responseDatabase[m.MessageContent], new Color(0, 255, 0), new List<Entity> { this }.Union(m.Subjects).ToList());
+                        AnnounceToParty(ReferredToNames[0] + ": " + ResponseDatabase[m.MessageContent], new Color(0, 255, 0), new EntityList<Entity> { this }.Union(m.Subjects).ToList());
                         continue;
                     }
 
@@ -3521,7 +3706,7 @@ namespace Lightrealm
 
                     if ((CombatCycles > 0 && !(m.MessageID == "surrender" || m.MessageID == "demand_surrender")) || !canReceiveMessage)
                     {
-                        AnnounceToParty(ReferredToNames[0] + " does not reply.", Color.Yellow, new List<Entity>() { this });
+                        AnnounceToParty(ReferredToNames[0] + " does not reply.", Color.Yellow, new EntityList<Entity>() { this });
                         continue;
                     }
 
@@ -3655,7 +3840,7 @@ namespace Lightrealm
                     if (!conditionMet)
                     {
                         // Respond with the IgnorantResponse if conditions are not met
-                        AnnounceToParty(ReferredToNames[0] + ": " + m.IgnorantResponse, new Color(255, 0, 0), new List<Entity>() { this });
+                        AnnounceToParty(ReferredToNames[0] + ": " + m.IgnorantResponse, new Color(255, 0, 0), new EntityList<Entity>() { this });
                         Game1.MessageWorldEdit(m.Sender, this, m.MessageID, m.Subjects, m.IgnorantResponse, m.StoredRevealLocations);
                         continue;
                     }
@@ -3685,11 +3870,11 @@ namespace Lightrealm
                         response = m.FlatteringResponse;
                     }
 
-                    AnnounceToParty(ReferredToNames[0] + ": " + response, ResponseColor, new List<Entity> { this }.Union(m.Subjects).ToList());
+                    AnnounceToParty(ReferredToNames[0] + ": " + response, ResponseColor, new EntityList<Entity> { this }.Union(m.Subjects));
 
                     // Store the message and response
-                    messageDatabase[m.MessageContent] = m.Subjects;
-                    responseDatabase[m.MessageContent] = response;
+                    MessageDatabase[m.MessageContent] = m.Subjects;
+                    ResponseDatabase[m.MessageContent] = response;
 
                     Game1.MessageWorldEdit(m.Sender, m.Receiver, m.MessageID, m.Subjects, response, m.StoredRevealLocations);
 
@@ -3766,7 +3951,7 @@ namespace Lightrealm
                             isOpposed = true;
                         }
 
-                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GamePlayerParty.CurrentEvent != null && (Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(this) && !Game1.GamePlayerParty.CurrentEvent.GuarranteedArchitects.Contains(a)))))
+                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GamePlayerParty.CurrentEvent != null && (Game1.GamePlayerParty.CurrentEvent.GuaranteedArchitects.Contains(this) && !Game1.GamePlayerParty.CurrentEvent.GuaranteedArchitects.Contains(a)))))
                         {
                             FinalOpinion = Math.Min(FinalOpinion, -247);
                             isOpposed = true;
@@ -3812,7 +3997,7 @@ namespace Lightrealm
                 {
                     OnGround = false;
                     CooldownCycles += (int)Math.Round((20 - Agility) * Speed());
-                    AnnounceToParty(ReferredToNames[0] + " gets back up.", Color.Cyan, new List<Entity>() { this });
+                    AnnounceToParty(ReferredToNames[0] + " gets back up.", Color.Cyan, new EntityList<Entity>() { this });
                 }
 
 
@@ -3849,7 +4034,7 @@ namespace Lightrealm
 
                     if (canSendMessage)
                     {
-                        CommandProcessor.SendMessage("surrender", this, TargetArchitect, new List<Entity> { }, Game1.GameWorld);
+                        CommandProcessor.SendMessage("surrender", this, TargetArchitect, new EntityList<Entity> { }, Game1.GameWorld);
                     }
                 }
 
@@ -3955,7 +4140,7 @@ namespace Lightrealm
 
                                 //if you're asking news, history, or telling a story don't include domains. otherwise do.
 
-                                List<Entity> AllImportantEntities = new List<Entity>();
+                                EntityList<Entity> AllImportantEntities = new EntityList<Entity>();
 
                                 if (!new List<string>() { "tell_story_about", "ask_news", "ask_history" }.Contains(MType) && Game1.r.Next(2) == 0)
                                 {
@@ -3968,12 +4153,15 @@ namespace Lightrealm
                                 }
                                 else
                                 {
-                                    AllImportantEntities = (Game1.GameWorld.AllLocations
-                                    .SelectMany(location => location.AllStructures.Concat(new List<Entity> { location }))
-                                    .Concat(Game1.GameWorld.AllArchitects)).ToList<Entity>();
+                                    AllImportantEntities = new EntityList<Entity>(
+                                        Game1.GameWorld.AllLocations
+                                        .SelectMany(location => location.AllStructures.Concat(new EntityList<Entity> { location }))
+                                        .Concat(Game1.GameWorld.AllArchitects)
+                                    );
+
                                 }
 
-                                CommandProcessor.SendMessage(MType, this, ChosenArchitect, new List<Entity> { AllImportantEntities[Game1.r.Next(AllImportantEntities.Count)] }, Game1.GameWorld);
+                                CommandProcessor.SendMessage(MType, this, ChosenArchitect, new EntityList<Entity> { AllImportantEntities[Game1.r.Next(AllImportantEntities.Count)] }, Game1.GameWorld);
                             }
                         }
                     }
@@ -4198,7 +4386,7 @@ namespace Lightrealm
 
                 if ((Task == "disabletarget" || Task == "killtarget") && ShieldTokens.Contains(TargetArchitect) && TargetArchitect.Energy < 60)
                 {
-                    AnnounceToParty(ReferredToNames[0] + " has defeated his opponent, proclaiming victory.", Color.DeepPink, new List<Entity>() { this });
+                    AnnounceToParty(ReferredToNames[0] + " has defeated his opponent, proclaiming victory.", Color.DeepPink, new EntityList<Entity>() { this });
                     ShieldTokens.Remove(TargetArchitect);
                     TargetArchitect.ShieldTokens.Remove(this);
                     Task = "";
@@ -4210,7 +4398,7 @@ namespace Lightrealm
                 }
                 else if ((Task == "disabletarget" || Task == "killtarget") && TargetArchitect.ShieldTokens.Contains(this) && Energy < 60)
                 {
-                    AnnounceToParty(ReferredToNames[0] + ": Okay! You win!", Color.DeepPink, new List<Entity>() { this });
+                    AnnounceToParty(ReferredToNames[0] + ": Okay! You win!", Color.DeepPink, new EntityList<Entity>() { this });
                     ShieldTokens.Remove(TargetArchitect);
                     TargetArchitect.ShieldTokens.Remove(this);
                     Task = "";
@@ -4274,7 +4462,7 @@ namespace Lightrealm
                             break;
                         case "industry":
                             var generatedItemStrings = District.GenerateItems(District.Industry, 1);
-                            List<Object> generatedItems = new List<Object>();
+                            EntityList<Object> generatedItems = new EntityList<Object>();
 
                             foreach (var itemString in generatedItemStrings)
                             {
@@ -4335,7 +4523,7 @@ namespace Lightrealm
 
                             if (Game1.r.Next(50) == 1)
                             {
-                                AnnounceToParty(ReferredToNames[0] + " repositions!", Color.MediumPurple, new List<Entity>() { this });
+                                AnnounceToParty(ReferredToNames[0] + " repositions!", Color.MediumPurple, new EntityList<Entity>() { this });
 
                                 CooldownCycles += (int)Math.Round(3 * Speed());
 
@@ -4354,16 +4542,16 @@ namespace Lightrealm
 
                             if ((SpellsKnown.Count > 0 && Game1.r.Next(2) == 0) || Profession == "sorcerer" || Profession == "warlock" || Race == Game1.GameWorld.GetRace("debtshiba"))
                             {
-                                List<Entity> offensiveSpellsInKit;
+                                EntityList<Entity> offensiveSpellsInKit;
 
                                 if (Race == Game1.GameWorld.GetRace("debtshiba"))
                                 {
                                     SpellcastingPower = 25;
-                                    offensiveSpellsInKit = Game1.GameWorld.AllSpells.Where(spell => OffensiveSpells.Contains(spell.Metadata)).ToList();
+                                    offensiveSpellsInKit = Game1.GameWorld.AllSpells.Where(spell => OffensiveSpells.Contains(spell.Metadata));
                                 }
                                 else
                                 {
-                                    offensiveSpellsInKit = SpellsKnown.Where(spell => OffensiveSpells.Contains(spell.Metadata)).ToList();
+                                    offensiveSpellsInKit = SpellsKnown.Where(spell => OffensiveSpells.Contains(spell.Metadata));
                                 }
 
                                 if (offensiveSpellsInKit.Any() && GetDistance(TargetArchitect) <= SpellCastingDistance)
@@ -4372,7 +4560,7 @@ namespace Lightrealm
                                     {
                                         Entity spellToCast = offensiveSpellsInKit[Game1.r.Next(offensiveSpellsInKit.Count)];
                                         CastedASpell = true;
-                                        Game1.Announcements.AddRange(CastSpell(spellToCast.Metadata, new List<Entity>() { TargetArchitect }));
+                                        Game1.Announcements.AddRange(CastSpell(spellToCast.Metadata, new EntityList<Entity>() { TargetArchitect }));
                                     }
                                 }
                             }
@@ -4382,7 +4570,7 @@ namespace Lightrealm
                                 if (Race.Name.EndsWith("guardian") && Game1.r.Next(4) != 0)
                                 {
                                     //use epic ability
-                                    List<Object> objects = Room != null ? Room.Objects : Block.Objects;
+                                    EntityList<Object> objects = Room != null ? Room.Objects : Block.Objects;
 
                                     CooldownCycles += (int)Math.Round(10 / Speed());
 
@@ -4392,26 +4580,26 @@ namespace Lightrealm
                                     {
                                         for (int i = Game1.r.Next(3, 6); i != 0; i--)
                                         {
-                                            Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
+                                            Object o = new Object(null, "energy bolt", new EntityList<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                                             objects.Add(o);
                                             o.Owner = this;
                                             o.Thrower = this; //whatever...
                                             o.AirborneTarget = TargetArchitect;
                                             o.AirborneCyclesToHitTarget = 15 - Focus;
-                                            AnnounceToParty(ReferredToNames[0] + " fires a bolt at " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, TargetArchitect });
+                                            AnnounceToParty(ReferredToNames[0] + " fires a bolt at " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, TargetArchitect });
                                         }
                                     }
                                     else if (Ability == "cloaking")
                                     {
                                         CloakCycles += Game1.r.Next(5, 15);
-                                        AnnounceToParty(ReferredToNames[0] + " partially phases out of reality!", Color.Magenta, new List<Entity>() { this });
+                                        AnnounceToParty(ReferredToNames[0] + " partially phases out of reality!", Color.Magenta, new EntityList<Entity>() { this });
                                     }
                                     else if (Ability == "magneticfield")
                                     {
-                                        AnnounceToParty(ReferredToNames[0] + " radiates magnetic energy!", Color.Magenta, new List<Entity>() { this });
+                                        AnnounceToParty(ReferredToNames[0] + " radiates magnetic energy!", Color.Magenta, new EntityList<Entity>() { this });
                                         foreach (Object o in objects)
                                         {
-                                            AnnounceToParty(o.ReferredToNames[0] + " falls to the ground!", Color.Magenta, new List<Entity>() { o });
+                                            AnnounceToParty(o.ReferredToNames[0] + " falls to the ground!", Color.Magenta, new EntityList<Entity>() { o });
                                             if (o.Owner != this)
                                             {
                                                 o.AirborneTarget = null;
@@ -4422,44 +4610,44 @@ namespace Lightrealm
                                     }
                                     else if (Ability == "shockwave")
                                     {
-                                        AnnounceToParty(ReferredToNames[0] + " radiates an explosive shockwave!", Color.Magenta, new List<Entity>() { this });
+                                        AnnounceToParty(ReferredToNames[0] + " radiates an explosive shockwave!", Color.Magenta, new EntityList<Entity>() { this });
                                         foreach (Architect a in ArchitectsToUse)
                                         {
                                             if (!a.Race.Name.EndsWith("guardian"))
                                             {
-                                                AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Magenta, new List<Entity>() { a });
+                                                AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Magenta, new EntityList<Entity>() { a });
                                                 a.DestabilizedCycles += Game1.r.Next(10, 25);
                                             }
                                         }
                                     }
                                     else if (Ability == "slowray")
                                     {
-                                        AnnounceToParty(ReferredToNames[0] + " fires an array of brilliant white beams!", Color.Magenta, new List<Entity>() { this });
+                                        AnnounceToParty(ReferredToNames[0] + " fires an array of brilliant white beams!", Color.Magenta, new EntityList<Entity>() { this });
                                         foreach (Architect a in ArchitectsToUse)
                                         {
                                             if (!a.Race.Name.EndsWith("guardian"))
                                             {
-                                                AnnounceToParty(a.ReferredToNames[0] + " is frozen temporarily!", Color.Magenta, new List<Entity>() { this });
+                                                AnnounceToParty(a.ReferredToNames[0] + " is frozen temporarily!", Color.Magenta, new EntityList<Entity>() { this });
                                                 a.HoldCycles += Game1.r.Next(4, 8);
                                             }
                                         }
                                     }
                                     else if (Ability == "pulsebash")
                                     {
-                                        AnnounceToParty(ReferredToNames[0] + " charges up a devastating energy bash!", Color.Magenta, new List<Entity>() { this });
+                                        AnnounceToParty(ReferredToNames[0] + " charges up a devastating energy bash!", Color.Magenta, new EntityList<Entity>() { this });
                                         PulseCharge += 1;
 
                                         if (PulseCharge == 2)
                                         {
                                             PulseCharge = 0;
-                                            AnnounceToParty(TargetArchitect.ReferredToNames[0] + " pulse bashes " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this });
+                                            AnnounceToParty(TargetArchitect.ReferredToNames[0] + " pulse bashes " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this });
                                             TargetArchitect.DestabilizedCycles += 200;
                                             TargetArchitect.Energy -= 30;
                                         }
                                     }
                                     else if (Ability == "harvest")
                                     {
-                                        AnnounceToParty(ReferredToNames[0] + " siphons energy from " + TargetArchitect.ReferredToNames[0] + " with a translucent beam!", Color.Magenta, new List<Entity>() { this, TargetArchitect });
+                                        AnnounceToParty(ReferredToNames[0] + " siphons energy from " + TargetArchitect.ReferredToNames[0] + " with a translucent beam!", Color.Magenta, new EntityList<Entity>() { this, TargetArchitect });
                                         TargetArchitect.Energy -= 5;
                                         if (Energy <= 0)
                                         {
@@ -4521,7 +4709,7 @@ namespace Lightrealm
                                         DistanceFromArchitect(TargetArchitect, -2); // Decrease distance by 2
                                         CooldownCycles += (int)(15 / Math.Round(Speed()));
 
-                                        AnnounceToParty(ReferredToNames[0] + " gets closer to " + TargetArchitect.ReferredToNames[0] + "!", Color.DarkMagenta, new List<Entity>() { this, TargetArchitect });
+                                        AnnounceToParty(ReferredToNames[0] + " gets closer to " + TargetArchitect.ReferredToNames[0] + "!", Color.DarkMagenta, new EntityList<Entity>() { this, TargetArchitect });
                                     }
                                 }
 
@@ -4569,9 +4757,9 @@ namespace Lightrealm
 
                                         int count = Game1.r.Next(1, 4);
 
-                                        AnnounceToParty(this.ReferredToNames[0] + " erupts sentinels from an ancient era!", Color.OrangeRed, new List<Entity>());
+                                        AnnounceToParty(this.ReferredToNames[0] + " erupts sentinels from an ancient era!", Color.OrangeRed, new EntityList<Entity>());
 
-                                        Architect A = new Architect("", "male", Location.PrimaryRace, 0, "sentinel", new List<Object>(), Location, District, Block, "none", 4);
+                                        Architect A = new Architect("", "male", Location.PrimaryRace, 0, "sentinel", new EntityList<Object>(), Location, District, Block, "none", 4);
                                         A.Name = Game1.GameWorld.GenerateUniqueArchitectName(A);
 
                                         A.Room = this.Room;
@@ -4594,7 +4782,7 @@ namespace Lightrealm
                     {
                         if (CyclesLeftInTask % 10 == 1)
                         {
-                            List<Entity> targetEntities = new List<Entity>();
+                            EntityList<Entity> targetEntities = new EntityList<Entity>();
                             string spellName = "emergentgrowth";
 
                             if (this.Block.Objects.Count > 0)
@@ -4610,7 +4798,7 @@ namespace Lightrealm
 
                             if (targetEntities.Count > 0)
                             {
-                                List<TextStorage> spellResults = CastSpell(spellName, targetEntities);
+                                EntityList<TextStorage> spellResults = CastSpell(spellName, targetEntities);
                                 foreach (var result in spellResults)
                                 {
                                     AnnounceToParty(result.Data, result.Color, result.Entities);
@@ -4801,7 +4989,7 @@ namespace Lightrealm
                         {
                             // Handle escape failure
                             CooldownCycles += (int)(Math.Round(25 / Speed()));
-                            AnnounceToParty(ReferredToNames[0] + " failed to escape!", Color.LimeGreen, new List<Entity>() { this });
+                            AnnounceToParty(ReferredToNames[0] + " failed to escape!", Color.LimeGreen, new EntityList<Entity>() { this });
                         }
                     }
                     else
@@ -4814,13 +5002,13 @@ namespace Lightrealm
                             // Optionally, make an observation if it's not the first move attempt.
                             if (CombatCycles != 0)
                             {
-                                AnnounceToParty(ReferredToNames[0] + " is preparing to move...", Color.Red, new List<Entity>() { this });
+                                AnnounceToParty(ReferredToNames[0] + " is preparing to move...", Color.Red, new EntityList<Entity>() { this });
                             }
                         }
                         else
                         {
                             CooldownCycles += (int)(Math.Round(25 / Speed()));
-                            AnnounceToParty(ReferredToNames[0] + " failed to escape!", Color.Red, new List<Entity>() { this });
+                            AnnounceToParty(ReferredToNames[0] + " failed to escape!", Color.Red, new EntityList<Entity>() { this });
                         }
                     }
                 }
@@ -4845,13 +5033,13 @@ namespace Lightrealm
                         }
                         else
                         {
-                            AnnounceToParty(ReferredToNames[0] + " struggles to escape, but fails!", Color.OrangeRed, new List<Entity> { this });
+                            AnnounceToParty(ReferredToNames[0] + " struggles to escape, but fails!", Color.OrangeRed, new EntityList<Entity> { this });
                             CooldownCycles += (int)Math.Round(25 / Speed());
                         }
                     }
                     else
                     {
-                        AnnounceToParty(ReferredToNames[0] + " cannot escape...", Color.Red, new List<Entity> { this });
+                        AnnounceToParty(ReferredToNames[0] + " cannot escape...", Color.Red, new EntityList<Entity> { this });
                     }
                 }
 
@@ -4984,9 +5172,9 @@ namespace Lightrealm
             //for serialization
         }
 
-        public List<TextStorage> CastSpell(string Spell, List<Entity> Targets) //the list of strings are the announcements
+        public EntityList<TextStorage> CastSpell(string Spell, EntityList<Entity> Targets) //the list of strings are the announcements
         {
-            List<TextStorage> Announcements = new List<TextStorage>();
+            EntityList<TextStorage> Announcements = new EntityList<TextStorage>();
 
             string casterName = this.ReferredToNames[0];
 
@@ -5003,12 +5191,12 @@ namespace Lightrealm
             }
 
 
-            List<Entity> TargetsToPurge = new List<Entity>();
+            EntityList<Entity> TargetsToPurge = new EntityList<Entity>();
             foreach (Entity e in Targets)
             {
                 if (GetDistance(e) >= 4)
                 {
-                    Announcements.Add(new TextStorage($"{e.ReferredToNames[0]} is outside of casting range.", Color.Yellow, new List<Entity>() { e }));
+                    Announcements.Add(new TextStorage($"{e.ReferredToNames[0]} is outside of casting range.", Color.Yellow, new EntityList<Entity>() { e }));
                     TargetsToPurge.Add(e);
                 }
             }
@@ -5021,7 +5209,7 @@ namespace Lightrealm
             {
                 Energy = 1;
                 HalfFocusTicks = 5000;
-                Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed, new List<Entity>()));
+                Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed, new EntityList<Entity>()));
             }
             else
             {
@@ -5055,8 +5243,8 @@ namespace Lightrealm
                     {
                         if (a.Room == this.Room && a.Block == this.Block)
                         {
-                            Announcements.Add(new TextStorage($"{casterName} curves their hand inwards, accumulating vapor. They hurl the concentrated sphere...", Color.Purple, new List<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"It crashes into {CurrentTarget.ReferredToNames[0]}, splashing into them!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                            Announcements.Add(new TextStorage($"{casterName} curves their hand inwards, accumulating vapor. They hurl the concentrated sphere...", Color.Purple, new EntityList<Entity>() { this }));
+                            Announcements.Add(new TextStorage($"It crashes into {CurrentTarget.ReferredToNames[0]}, splashing into them!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                             break;
                         }
                     }
@@ -5089,8 +5277,8 @@ namespace Lightrealm
                     {
                         if (a.Room == this.Room && a.Block == this.Block)
                         {
-                            Announcements.Add(new TextStorage($"{casterName} makes a fist and jerks their arm inwards, conjuring two spheres of light and dark rotating it. They throw them...", Color.Purple, new List<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"They crash into {CurrentTarget.ReferredToNames[0]}, and react explosively!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                            Announcements.Add(new TextStorage($"{casterName} makes a fist and jerks their arm inwards, conjuring two spheres of light and dark rotating it. They throw them...", Color.Purple, new EntityList<Entity>() { this }));
+                            Announcements.Add(new TextStorage($"They crash into {CurrentTarget.ReferredToNames[0]}, and react explosively!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                             break;
                         }
                     }
@@ -5122,8 +5310,8 @@ namespace Lightrealm
                     {
                         if (a.Room == this.Room && a.Block == this.Block)
                         {
-                            Announcements.Add(new TextStorage($"{casterName} lifts up frozen particles...", Color.Purple, new List<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"A swirl of icy magic envelops {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                            Announcements.Add(new TextStorage($"{casterName} lifts up frozen particles...", Color.Purple, new EntityList<Entity>() { this }));
+                            Announcements.Add(new TextStorage($"A swirl of icy magic envelops {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                             break;
                         }
                     }
@@ -5154,8 +5342,8 @@ namespace Lightrealm
                     {
                         if (a.Room == this.Room && a.Block == this.Block)
                         {
-                            Announcements.Add(new TextStorage($"{casterName} holds their palms one over the other facing each other, and gathers heat energy...", Color.Purple, new List<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"It quickly dissipates, reassembling itself at {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                            Announcements.Add(new TextStorage($"{casterName} holds their palms one over the other facing each other, and gathers heat energy...", Color.Purple, new EntityList<Entity>() { this }));
+                            Announcements.Add(new TextStorage($"It quickly dissipates, reassembling itself at {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         }
                     }
 
@@ -5172,18 +5360,18 @@ namespace Lightrealm
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
 
-                    Announcements.Add(new TextStorage($"{casterName} holds out their hands palms down and shoves into the ground...", Color.Purple, new List<Entity>() { this }));
-                    Announcements.Add(new TextStorage($"A massive tremor shakes the ground, but {CurrentTarget.ReferredToNames[0]} is unshaken!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} holds out their hands palms down and shoves into the ground...", Color.Purple, new EntityList<Entity>() { this }));
+                    Announcements.Add(new TextStorage($"A massive tremor shakes the ground, but {CurrentTarget.ReferredToNames[0]} is unshaken!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
-                    List<Object> Objects = Room != null ? Room.Objects : Block.Objects;
-                    List<Architect> Architects = Room != null ? Room.Architects : Block.Architects;
+                    EntityList<Object> Objects = Room != null ? Room.Objects : Block.Objects;
+                    EntityList<Architect> Architects = Room != null ? Room.Architects : Block.Architects;
 
                     foreach (Object o in Objects)
                     {
                         if (!Targets.Contains(o))
                         {
                             o.DestabilizedCycles += Game1.r.Next(100, 200);
-                            Announcements.Add(new TextStorage($"{o.ReferredToNames[0]} is destabilized!", Color.Magenta, new List<Entity>() { o }));
+                            Announcements.Add(new TextStorage($"{o.ReferredToNames[0]} is destabilized!", Color.Magenta, new EntityList<Entity>() { o }));
                         }
                     }
                     foreach (Architect a in Architects)
@@ -5191,42 +5379,42 @@ namespace Lightrealm
                         if (!Targets.Contains(a))
                         {
                             a.DestabilizedCycles += Game1.r.Next(100, 200);
-                            Announcements.Add(new TextStorage($"{a.ReferredToNames[0]} is destabilized!", Color.Magenta, new List<Entity>() { a }));
+                            Announcements.Add(new TextStorage($"{a.ReferredToNames[0]} is destabilized!", Color.Magenta, new EntityList<Entity>() { a }));
                         }
                     }
                 }
                 else if (Spell == "immobile illusion")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new List<Entity>()));
+                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
                 }
                 else if (Spell == "shadow veil")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new List<Entity>()));
+                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
                 }
                 else if (Spell == "mobile illusion")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new List<Entity>()));
+                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
                 }
                 else if (Spell == "reactive illusion")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new List<Entity>()));
+                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
                 }
                 else if (Spell == "truthfulness")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} waves across {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} waves across {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                     else if (CurrentTarget is Architect)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} looks at you with a loyal complexion...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} looks at you with a loyal complexion...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         ((Architect)CurrentTarget).ArchitectsIWillTellTruthTo.Add(this);
                     }
@@ -5234,8 +5422,8 @@ namespace Lightrealm
                 else if (Spell == "rise")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} gestures their hand towards the sky...", Color.Purple, new List<Entity>() { this }));
-                    Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " flies into the air!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} gestures their hand towards the sky...", Color.Purple, new EntityList<Entity>() { this }));
+                    Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " flies into the air!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                     if (CurrentTarget is Object)
                     {
@@ -5249,23 +5437,23 @@ namespace Lightrealm
                 else if (Spell == "hold")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} clenches their fist violently...", Color.Purple, new List<Entity>() { this }));
+                    Announcements.Add(new TextStorage($"{casterName} clenches their fist violently...", Color.Purple, new EntityList<Entity>() { this }));
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " stagnates.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " stagnates.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Object)CurrentTarget).AirborneTarget = null;
                         ((Object)CurrentTarget).AirborneCyclesToHitTarget = 0;
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " freezes in time!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " freezes in time!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Architect)CurrentTarget).HoldCycles = 40 + Focus * 5;
                     }
                 }
                 else if (Spell == "force throw")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} clenches their fist at " + CurrentTarget.ReferredToNames[0] + ", gathering material. They thrust it at " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new List<Entity>() { this, CurrentTarget, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} clenches their fist at " + CurrentTarget.ReferredToNames[0] + ", gathering material. They thrust it at " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget, CurrentTarget }));
 
                     Entity MainTarget = CurrentTarget;
                     Targets.RemoveAt(0);
@@ -5280,13 +5468,13 @@ namespace Lightrealm
                         {
                             if (o is Object)
                             {
-                                Announcements.Add(new TextStorage(o.ReferredToNames[0] + " flies at " + CurrentTarget.ReferredToNames[0] + "!", Color.Purple, new List<Entity>() { o, CurrentTarget }));
+                                Announcements.Add(new TextStorage(o.ReferredToNames[0] + " flies at " + CurrentTarget.ReferredToNames[0] + "!", Color.Purple, new EntityList<Entity>() { o, CurrentTarget }));
                                 ((Object)o).AirborneTarget = MainTarget;
                                 ((Object)CurrentTarget).AirborneCyclesToHitTarget = 15 - Focus;
                             }
                             else
                             {
-                                Announcements.Add(new TextStorage(o.ReferredToNames[0] + " stumbles, but isnt yielding to your force!", Color.Purple, new List<Entity>() { o }));
+                                Announcements.Add(new TextStorage(o.ReferredToNames[0] + " stumbles, but isnt yielding to your force!", Color.Purple, new EntityList<Entity>() { o }));
                                 ((Architect)o).DestabilizedCycles += 50;
                             }
                         }
@@ -5295,109 +5483,109 @@ namespace Lightrealm
                 else if (Spell == "shatter")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} brings his arms inward and swings them outward violently...", Color.Purple, new List<Entity>() { this }));
+                    Announcements.Add(new TextStorage($"{casterName} brings his arms inward and swings them outward violently...", Color.Purple, new EntityList<Entity>() { this }));
 
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissipates across the area!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissipates across the area!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         Block.Objects.Remove((Object)CurrentTarget);
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " struggles to hold together, destabilizing...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " struggles to hold together, destabilizing...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Architect)CurrentTarget).DestabilizedCycles += 100;
                     }
                 }
                 else if (Spell == "intercept")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} reaches their hand towards " + CurrentTarget.ReferredToNames[0] + " and grasps...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} reaches their hand towards " + CurrentTarget.ReferredToNames[0] + " and grasps...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Object && ((Object)CurrentTarget).AirborneTarget != null)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget + " dissapears in a web of fractals!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget + " dissapears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Object)CurrentTarget).Fractallize(999999);
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
                 else if (Spell == "expel")
                 {
                     CooldownCycles += (int)Math.Round(20 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} reaches their hand towards " + CurrentTarget.ReferredToNames[0] + " and grasps...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} reaches their hand towards " + CurrentTarget.ReferredToNames[0] + " and grasps...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Object)CurrentTarget).Fractallize(999999);
                     }
                     else if (CurrentTarget is Architect)
                     {
                         if (((Architect)CurrentTarget).Energy < (((Architect)CurrentTarget).MaxEnergy() / 3))
                         {
-                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                             ((Architect)CurrentTarget).Fractallize(999999);
                         }
                         else
                         {
-                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " resists the fractallization!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " resists the fractallization!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         }
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " is enveloped in fractals, but does not fade.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " is enveloped in fractals, but does not fade.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                     }
                 }
                 else if (Spell == "extract")
                 {
                     CooldownCycles += (int)Math.Round(20 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Object && Game1.GameWorld.FractalObjects.Contains((Object)CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " reappears in a web of fractals!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " reappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Object)CurrentTarget).RematerializeLocation = (Location.Region, Location, District, Block, Structure, Room);
                         ((Object)CurrentTarget).FractalCycles = 0;
 
                     }
                     else if (CurrentTarget is Architect && Game1.GameWorld.FractalArchitects.Contains((Architect)CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " reappears in a web of fractals!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " reappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Architect)CurrentTarget).RematerializeLocation = (Location.Region, Location, District, Block, Structure, Room);
                         ((Architect)CurrentTarget).FractalCycles = 0;
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
                 else if (Spell == "revive")
                 {
                     CooldownCycles += (int)Math.Round(100 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Architect && ((Architect)CurrentTarget).IsAlive == false && (((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == this.Room))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " rises from the dead!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " rises from the dead!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Architect)CurrentTarget).IsAlive = true;
                         ((Architect)CurrentTarget).IsImmortal = true;
                         ((Architect)CurrentTarget).Energy = Math.Min(50, ((Architect)CurrentTarget).MaxEnergy());
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
                 else if (Spell == "ressurect")
                 {
                     CooldownCycles += (int)Math.Round(500 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + " and meditates...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + " and meditates...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Architect && ((Architect)CurrentTarget).IsAlive == false && (((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == this.Room))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " is surrounded in crystals and returns from the dead!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " is surrounded in crystals and returns from the dead!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         ((Architect)CurrentTarget).IsAlive = true;
                         ((Architect)CurrentTarget).IsImmortal = true;
                         ((Architect)CurrentTarget).Energy = 100;
@@ -5409,13 +5597,13 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
                 else if (Spell == "animate")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} conjures a spark of necromantic energy and passes it to " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} conjures a spark of necromantic energy and passes it to " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (CurrentTarget is Architect architect)
                     {
@@ -5431,7 +5619,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
 
@@ -5442,25 +5630,25 @@ namespace Lightrealm
                 else if (Spell == "emergence")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} holds out a hand and speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} holds out a hand and speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if (!(CurrentTarget is Architect) || ((Architect)CurrentTarget).IsAlive == true)
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                     else
                     {
                         Architect target = (Architect)CurrentTarget;
 
-                        Announcements.Add(new TextStorage(CurrentTarget.Name + " appears in front of them!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.Name + " appears in front of them!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         target.Block = Block;
 
                         target.BodyParts.Clear();
                         target.AddBodyParts();
 
-                        target.Inventory = new List<Object>();
-                        target.Clothing = new List<Object>();
+                        target.Inventory = new EntityList<Object>();
+                        target.Clothing = new EntityList<Object>();
                         target.Energy = target.MaxEnergy();
 
                         if (Room != null)
@@ -5477,17 +5665,17 @@ namespace Lightrealm
                 else if (Spell == "eternal bind")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} stares deeply into " + CurrentTarget.ReferredToNames[0] + "'s eyes...", Color.Purple, new List<Entity>() { this, CurrentTarget }));
+                    Announcements.Add(new TextStorage($"{casterName} stares deeply into " + CurrentTarget.ReferredToNames[0] + "'s eyes...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
 
                     if ((!(CurrentTarget is Architect) || ((Architect)CurrentTarget).IsAlive == false) && ((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == Room)
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                     else
                     {
                         Architect target = (Architect)CurrentTarget;
 
-                        Announcements.Add(new TextStorage(CurrentTarget.Name + " stares back in awe...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage(CurrentTarget.Name + " stares back in awe...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         target.ChangeOpinion(this, 999999);
 
@@ -5506,12 +5694,12 @@ namespace Lightrealm
                 else if (Spell == "expunge")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} gestures agressively...", Color.Purple, new List<Entity>() { this }));
+                    Announcements.Add(new TextStorage($"{casterName} gestures agressively...", Color.Purple, new EntityList<Entity>() { this }));
 
 
                     if (CurrentTarget is Civilization)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} and its legacy have fallen...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} and its legacy have fallen...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         foreach (Location l in Game1.GameWorld.AllLocations)
                         {
@@ -5523,7 +5711,7 @@ namespace Lightrealm
                     }
                     else if (Game1.GameWorld.AllSpells.Contains(CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         Game1.GameWorld.DeletedSpells.Add(CurrentTarget);
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
@@ -5533,11 +5721,11 @@ namespace Lightrealm
                     }
                     else if (Game1.GameWorld.AllLegendarySpells.Contains(CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage($"An accursed relic locks this spell away. Perhaps you can find and banish this artifact instead.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage($"An accursed relic locks this spell away. Perhaps you can find and banish this artifact instead.", Color.Purple, new EntityList<Entity>()));
                     }
                     else if (CurrentTarget is Blight)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} has been entirely purified...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} has been entirely purified...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         for (int x = 0; x < Game1.GameWorld.Width; x++)
                         {
@@ -5552,7 +5740,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Composition)
                     {
-                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
                         {
@@ -5563,12 +5751,12 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Deity)
                     {
-                        Announcements.Add(new TextStorage($"You feel an intense pain...", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage($"You feel an intense pain...", Color.Purple, new EntityList<Entity>()));
                         Energy = 1;
                     }
                     else if (CurrentTarget is District)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         ((District)CurrentTarget).Location.Districts.Remove(((District)CurrentTarget));
 
@@ -5578,7 +5766,7 @@ namespace Lightrealm
                             {
                                 if (a.District == CurrentTarget)
                                 {
-                                    Game1.MakeObservation(a.Name + " was successfully teleported into oblivion. How embarrassing...", Color.Magenta, new List<Entity>() { a });
+                                    Game1.MakeObservation(a.Name + " was successfully teleported into oblivion. How embarrassing...", Color.Magenta, new EntityList<Entity>() { a });
                                     a.IsAlive = false;
                                     Game1.GamePlayerParty.Architects.Remove(a);
 
@@ -5597,7 +5785,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Location)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         ((Location)CurrentTarget).Region.MyLocation = null;
 
@@ -5607,7 +5795,7 @@ namespace Lightrealm
                             {
                                 if (a.Location == (Location)CurrentTarget)
                                 {
-                                    Game1.MakeObservation(a.Name + " was successfully teleported into oblivion. How embarrassing...", Color.Magenta, new List<Entity>() { a });
+                                    Game1.MakeObservation(a.Name + " was successfully teleported into oblivion. How embarrassing...", Color.Magenta, new EntityList<Entity>() { a });
                                     a.IsAlive = false;
                                     if (Game1.GamePlayerParty.Architects.Contains(a))
                                     {
@@ -5629,9 +5817,9 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Party)
                     {
-                        Announcements.Add(new TextStorage($"Your party has disbanded.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage($"Your party has disbanded.", Color.Purple, new EntityList<Entity>()));
 
-                        List<Architect> ArchitectsToBanish = new List<Architect>();
+                        EntityList<Architect> ArchitectsToBanish = new EntityList<Architect>();
                         foreach (Architect a in Game1.GamePlayerParty.Architects)
                         {
                             if (a != this)
@@ -5648,7 +5836,7 @@ namespace Lightrealm
                     else if (CurrentTarget is Group)
                     {
                         //disbands the group, removes it from any power, does not kill the members
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
                         Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
@@ -5668,7 +5856,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Architect)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} is banished and forgotten.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} is banished and forgotten.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
 
                         Architect a = (Architect)CurrentTarget;
@@ -5709,9 +5897,9 @@ namespace Lightrealm
                             {
                                 foreach (InteractableEvent e in Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width].Events)
                                 {
-                                    if (e.GuarranteedArchitects.Contains(a))
+                                    if (e.GuaranteedArchitects.Contains(a))
                                     {
-                                        e.GuarranteedArchitects.Remove(a);
+                                        e.GuaranteedArchitects.Remove(a);
                                         break;
                                     }
                                 }
@@ -5745,7 +5933,7 @@ namespace Lightrealm
                             if (a.Group.Leader == a)
                             {
                                 //disbands the group, removes it from any power, does not kill the members
-                                Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                                Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                                 Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
                                 Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
@@ -5785,7 +5973,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} collapses into a singularity.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} collapses into a singularity.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         //delete it from all architects, historical objects, and other stuff. If it ever exists in the world elsewhere, we will just delete it when it gets loaded.
 
@@ -5813,20 +6001,20 @@ namespace Lightrealm
                     else if (CurrentTarget is Material)
                     {
                         //add the material to a list of banished materials. Replace objects iwth these materials with Void Energy, a new material when they update. You cannot cast this spell on Void Material.
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s properties have been reduced to void.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s properties have been reduced to void.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         Game1.GameWorld.DeletedMaterials.Add((Material)CurrentTarget);
                     }
                     else if (CurrentTarget is Race)
                     {
-                        Announcements.Add(new TextStorage($"The members of {CurrentTarget.ReferredToNames[0]} have been reduced to indistinguishable lifeforms.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"The members of {CurrentTarget.ReferredToNames[0]} have been reduced to indistinguishable lifeforms.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                         //a banished race makes all members of that race shades. this is stored in a static list.
 
                         Game1.GameWorld.DeletedRaces.Add((Race)CurrentTarget);
                     }
                     else if (CurrentTarget is Structure)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} vanishes.", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} vanishes.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
 
                         Structure s = ((Structure)CurrentTarget);
 
@@ -5860,18 +6048,18 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
                 else if (Spell == "echo")
                 {
-                    Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new List<Entity>()));
+                    Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new EntityList<Entity>()));
 
                     if (CurrentTarget is Architect)
                     {
                         Architect Base = (Architect)CurrentTarget;
                         string NameAlteration = Game1.GameWorld.GenerateUniqueName("1S6s", new Entity("this is a tag for a clone"));
-                        Architect Clone = new Architect(CurrentTarget.Name + " " + NameAlteration, Base.Sex, Base.Race, Base.Age, Base.Profession, new List<Object>(), Base.Location, Base.District, Base.Block, Base.Destiny, Base.Level);
+                        Architect Clone = new Architect(CurrentTarget.Name + " " + NameAlteration, Base.Sex, Base.Race, Base.Age, Base.Profession, new EntityList<Object>(), Base.Location, Base.District, Base.Block, Base.Destiny, Base.Level);
                         Game1.GameWorld.AllArchitects.Add(Clone);
 
                         Clone.Clothing.Clear();
@@ -5898,7 +6086,7 @@ namespace Lightrealm
                         Clone.Agility = Base.Agility;
 
 
-                        Clone.CultureBank = new List<Composition>(Base.CultureBank);
+                        Clone.CultureBank = new EntityList<Composition>(Base.CultureBank);
 
                         // Cloning XPValues
                         Clone.XPValues = new List<(string, int)>(Base.XPValues);
@@ -5923,20 +6111,20 @@ namespace Lightrealm
                         }
 
 
-                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.ReferredToNames[0] + " appears!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.ReferredToNames[0] + " appears!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                     }
                     else if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new EntityList<Entity>()));
                         Object Base = (Object)CurrentTarget;
                         Object Clone = new Object();
 
                         // Cloning simple properties
                         Clone.Type = Base.Type;
-                        Clone.Materials = new List<Material>(Base.Materials); // Assuming Material objects do not need deep cloning
+                        Clone.Materials = new EntityList<Material>(Base.Materials); // Assuming Material objects do not need deep cloning
                         Clone.Description = Base.Description;
                         Clone.IsContainer = Base.IsContainer;
-                        Clone.ContainedObjects = new List<Object>(Base.ContainedObjects); // Shallow copy of the list
+                        Clone.ContainedObjects = new EntityList<Object>(Base.ContainedObjects); // Shallow copy of the list
                         Clone.IfTrueUseInIfFalseUseOn = Base.IfTrueUseInIfFalseUseOn;
                         Clone.YLevelInFeet = Base.YLevelInFeet;
                         Clone.YVelocity = Base.YVelocity;
@@ -6042,12 +6230,12 @@ namespace Lightrealm
                             }
                         }
 
-                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.ReferredToNames[0] + " appears!", Color.Purple, new List<Entity>() { CurrentTarget }));
+                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.ReferredToNames[0] + " appears!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new List<Entity>()));
-                        Announcements.Add(new TextStorage("...but they just aren't strong enough. The spell only works on Architects and Objects.", Color.Purple, new List<Entity>()));
+                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new EntityList<Entity>()));
+                        Announcements.Add(new TextStorage("...but they just aren't strong enough. The spell only works on Architects and Objects.", Color.Purple, new EntityList<Entity>()));
                     }
                 }
             }
@@ -6069,7 +6257,7 @@ namespace Lightrealm
 
         public TextStorage ActivatePower(string Power)
         {
-            List<Architect> hostiles = new List<Architect>();
+            EntityList<Architect> hostiles = new EntityList<Architect>();
             IEnumerable<Architect> architects = Room != null ? Room.Architects : Block.Architects;
 
             foreach (Architect a in architects)
@@ -6085,40 +6273,40 @@ namespace Lightrealm
             if (Power == "barrier")
             {
                 BarrierStacks++;
-                return new TextStorage(ReferredToNames[0] + " generates a barrier stack!", Color.Magenta, new List<Entity>() { this });
+                return new TextStorage(ReferredToNames[0] + " generates a barrier stack!", Color.Magenta, new EntityList<Entity>() { this });
             }
             else if (Power == "projectile" && hostiles.Count > 0)
             {
-                List<Object> objects = Room != null ? Room.Objects : Block.Objects;
+                EntityList<Object> objects = Room != null ? Room.Objects : Block.Objects;
                 Architect target = hostiles[0];
 
-                Object o = new Object(null, "energy bolt", new List<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
+                Object o = new Object(null, "energy bolt", new EntityList<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                 objects.Add(o);
                 o.AirborneTarget = target;
                 o.Thrower = this;
                 o.AirborneCyclesToHitTarget = 15 - Focus;
-                return new TextStorage(ReferredToNames[0] + " fires a bolt at " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
+                return new TextStorage(ReferredToNames[0] + " fires a bolt at " + target.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, target });
             }
             else if (Power == "ignite" && hostiles.Count > 0)
             {
                 Architect target = hostiles[0];
                 target.FireSeconds += 3;
-                return new TextStorage(ReferredToNames[0] + " ignites " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
+                return new TextStorage(ReferredToNames[0] + " ignites " + target.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, target });
             }
             else if (Power == "destabilize" && hostiles.Count > 0)
             {
                 Architect target = hostiles[0];
                 target.DestabilizedCycles += 20;
-                return new TextStorage(ReferredToNames[0] + " destabilizes " + target.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { this, target });
+                return new TextStorage(ReferredToNames[0] + " destabilizes " + target.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, target });
             }
             else if (Power == "dismiss")
             {
                 DismissalCycles += 30;
-                return new TextStorage(ReferredToNames[0] + " becomes partially intangible!", Color.Magenta, new List<Entity>() { this });
+                return new TextStorage(ReferredToNames[0] + " becomes partially intangible!", Color.Magenta, new EntityList<Entity>() { this });
             }
             else
             {
-                return new TextStorage("unknown", Color.Magenta, new List<Entity>() { this });
+                return new TextStorage("unknown", Color.Magenta, new EntityList<Entity>() { this });
             }
         }
 
@@ -6241,7 +6429,7 @@ namespace Lightrealm
                                 {
                                     if(Game1.GamePlayerParty.Architects.Contains(this))
                                     {
-                                        AnnounceToParty(s.GetStructureDescription(), Color.DarkGray, new List<Entity>() { s });
+                                        AnnounceToParty(s.GetStructureDescription(), Color.DarkGray, new EntityList<Entity>() { s });
                                     }
                                 }
                             }
@@ -6253,7 +6441,7 @@ namespace Lightrealm
                         {
                             if (Game1.GamePlayerParty.Architects.Contains(this))
                             {
-                                AnnounceToParty("You struggle to escape, and fail!", Color.OrangeRed, new List<Entity>());
+                                AnnounceToParty("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
                             }
                             CooldownCycles += (int)Math.Round(25 / Speed());
                         }
@@ -6268,7 +6456,7 @@ namespace Lightrealm
             } 
             else
             {
-                AnnounceToParty("You can't go that \"way\".", Color.Yellow, new List<Entity>());
+                AnnounceToParty("You can't go that \"way\".", Color.Yellow, new EntityList<Entity>());
             }
         }
 
@@ -6286,7 +6474,7 @@ namespace Lightrealm
                     {
                         if (Game1.GamePlayerParty.Architects.Contains(a))
                         {
-                            AnnounceToParty($"{ReferredToNames[0]} exits the room.", Color.OrangeRed, new List<Entity> { this });
+                            AnnounceToParty($"{ReferredToNames[0]} exits the room.", Color.OrangeRed, new EntityList<Entity> { this });
                         }
                     }
 
@@ -6299,7 +6487,7 @@ namespace Lightrealm
                     {
                         if (Game1.GamePlayerParty.Architects.Contains(a))
                         {
-                            AnnounceToParty($"{ReferredToNames[0]} enters the room.", Color.Yellow, new List<Entity> { this });
+                            AnnounceToParty($"{ReferredToNames[0]} enters the room.", Color.Yellow, new EntityList<Entity> { this });
                         }
                     }
 
@@ -6307,13 +6495,13 @@ namespace Lightrealm
                 }
                 else
                 {
-                    AnnounceToParty($"{ReferredToNames[0]} struggles to escape, but fails!", Color.OrangeRed, new List<Entity> { this });
+                    AnnounceToParty($"{ReferredToNames[0]} struggles to escape, but fails!", Color.OrangeRed, new EntityList<Entity> { this });
                     CooldownCycles += (int)Math.Round(25 / Speed());
                 }
             }
             else
             {
-                AnnounceToParty($"{ReferredToNames[0]} couldn't find anything like that in the area to enter.", Color.Yellow, new List<Entity> { this });
+                AnnounceToParty($"{ReferredToNames[0]} couldn't find anything like that in the area to enter.", Color.Yellow, new EntityList<Entity> { this });
             }
         }
     }

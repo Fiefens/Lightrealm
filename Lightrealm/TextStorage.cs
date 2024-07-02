@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class TextStorage
+    public class TextStorage : Entity
     {
         public static T Entity<T>(int entityId) where T : Entity
         {
@@ -22,9 +22,10 @@ namespace Lightrealm
 
         public string Data { get; set; }
         public Color Color { get; set; }
-        public List<Entity> Entities { get; set; }
 
-        public TextStorage(string data, Color color, List<Entity> Entities)
+        public EntityList<Entity> Entities { get; set; } = new EntityList<Entity>();
+
+        public TextStorage(string data, Color color, EntityList<Entity> Entities)
         {
             this.Data = data;
             this.Color = color;

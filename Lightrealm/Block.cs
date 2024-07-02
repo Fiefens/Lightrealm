@@ -20,19 +20,52 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public List<Structure> Structures { get; set; } = new List<Structure>();
-        public List<Structure> StructuresToRemove { get; set; } = new List<Structure>();
-        public List<Architect> Architects { get; set; } = new List<Architect>();
-        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
+        private List<int> _structures = new List<int>();
+        public EntityList<Structure> Structures
+        {
+            get => new EntityList<Structure>(_structures.Select(id => Entity<Structure>(id)));
+            set => _structures = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
+        }
 
-        public string Biome = "";
+        private List<int> _structuresToRemove = new List<int>();
+        public EntityList<Structure> StructuresToRemove
+        {
+            get => new EntityList<Structure>(_structuresToRemove.Select(id => Entity<Structure>(id)));
+            set => _structuresToRemove = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
+        }
 
-        public List<Object> Objects { get; set; } = new List<Object>();
+        private List<int> _architects = new List<int>();
+        public EntityList<Architect> Architects
+        {
+            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)));
+            set => _architects = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
+        }
+
+        private List<int> _architectsToRemove = new List<int>();
+        public EntityList<Architect> ArchitectsToRemove
+        {
+            get => new EntityList<Architect>(_architectsToRemove.Select(id => Entity<Architect>(id)));
+            set => _architectsToRemove = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
+        }
+
+        public string Biome { get; set; } = "";
+
+        private List<int> _objects = new List<int>();
+        public EntityList<Object> Objects
+        {
+            get => new EntityList<Object>(_objects.Select(id => Entity<Object>(id)));
+            set => _objects = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
+        }
 
         public int X { get; set; }
         public int Z { get; set; }
 
-        public District District { get; set; }
+        private int _districtId;
+        public District District
+        {
+            get => Entity<District>(_districtId);
+            set => _districtId = value?.ID ?? 0;
+        }
 
         public Block(int x, int z, District d)
         {
@@ -42,10 +75,12 @@ namespace Lightrealm
 
             Biome = d.Location.Region.Biome;
         }
+
         public Block()
         {
 
         }
+
 
         public bool HasWell()
         {
@@ -58,6 +93,7 @@ namespace Lightrealm
             }
             return false;
         }
+
         public (bool, string) HasStructure(string Type)
         {
             foreach (Structure s in Structures)
@@ -69,6 +105,7 @@ namespace Lightrealm
             }
             return (false, "");
         }
+
 
         public (Region, Location, District, Block, Room, string) FindNearestThing(string thing)
         {

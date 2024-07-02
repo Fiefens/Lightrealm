@@ -23,63 +23,162 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public string Type { get; set; } //city<10000, town <1000, village<200, camp <10
+        public string Type { get; set; } // city<10000, town <1000, village<200, camp <10
         public Race PrimaryRace { get; set; } = Game1.GameWorld.GetRace("");
 
-        public bool Explored = false;
+        public bool Explored { get; set; } = false;
 
-        public List<District> DistrictsToAdd { get; set; } = new List<District>();
-        public List<District> Districts { get; set; } = new List<District>();
+        private List<int> _districtsToAdd = new List<int>();
+        public EntityList<District> DistrictsToAdd
+        {
+            get => new EntityList<District>(_districtsToAdd.Select(id => Entity<District>(id)));
+            set => _districtsToAdd = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public List<(Entity, int)> Embezzlements = new List<(Entity, int)>();
+        private List<int> _districts = new List<int>();
+        public EntityList<District> Districts
+        {
+            get => new EntityList<District>(_districts.Select(id => Entity<District>(id)));
+            set => _districts = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public Structure Market;
-        public Structure Library;
-        public Structure Prism;
+        private List<(int, int)> _embezzlements = new List<(int, int)>();
+        public List<(Entity, int)> Embezzlements
+        {
+            get => _embezzlements.Select(tuple => (Entity<Entity>(tuple.Item1), tuple.Item2)).ToList();
+            set => _embezzlements = value.Select(tuple => (tuple.Item1.ID, tuple.Item2)).ToList();
+        }
 
-        public string Color;
+        private int _marketId;
+        public Structure Market
+        {
+            get => Entity<Structure>(_marketId);
+            set => _marketId = value?.ID ?? 0;
+        }
 
-        public string Layout = "";
+        private int _libraryId;
+        public Structure Library
+        {
+            get => Entity<Structure>(_libraryId);
+            set => _libraryId = value?.ID ?? 0;
+        }
 
-        public string Dockside = "none";
+        private int _prismId;
+        public Structure Prism
+        {
+            get => Entity<Structure>(_prismId);
+            set => _prismId = value?.ID ?? 0;
+        }
 
-        public List<Unit> Units = new List<Unit>();
+        public string Color { get; set; }
+
+        public string Layout { get; set; } = "";
+
+        public string Dockside { get; set; } = "none";
+
+        private List<int> _units = new List<int>();
+        public EntityList<Unit> Units
+        {
+            get => new EntityList<Unit>(_units.Select(id => Entity<Unit>(id)));
+            set => _units = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
         public bool Active { get; set; } = false;
         public bool IsSavingUpToSettle { get; set; } = false;
 
-        public List<Structure> AllStructures { get; set; } = new List<Structure>();
+        private List<int> _allStructures = new List<int>();
+        public EntityList<Structure> AllStructures
+        {
+            get => new EntityList<Structure>(_allStructures.Select(id => Entity<Structure>(id)));
+            set => _allStructures = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
         public List<string> PrimaryLightingStyles { get; set; } = new List<string>();
 
         public List<string> LocationHistoricalEvents { get; set; } = new List<string>();
         public int Wealth { get; set; } // value is measured in Shobes, an arbitrary unit
-        public Civilization HomeCivilization { get; set; }
+
+        private int _homeCivilizationId;
+        public Civilization HomeCivilization
+        {
+            get => Entity<Civilization>(_homeCivilizationId);
+            set => _homeCivilizationId = value?.ID ?? 0;
+        }
+
         public int ColonizationDesire { get; set; }
         public int MaxColonizationDesire { get; set; }
 
-        public bool IsCapitol = false;
+        public bool IsCapitol { get; set; } = false;
 
-        public List<Architect> DebtShibas = new List<Architect>();
+        private List<int> _debtShibas = new List<int>();
+        public EntityList<Architect> DebtShibas
+        {
+            get => new EntityList<Architect>(_debtShibas.Select(id => Entity<Architect>(id)));
+            set => _debtShibas = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public List<Group> TradersAtThisLocation { get; set; } = new List<Group>();
-        public List<Group> TradersAtThisLocationToRemove { get; set; } = new List<Group>();
-        public List<Group> TradersAtThisLocationToAdd { get; set; } = new List<Group>();
+        private List<int> _tradersAtThisLocation = new List<int>();
+        public EntityList<Group> TradersAtThisLocation
+        {
+            get => new EntityList<Group>(_tradersAtThisLocation.Select(id => Entity<Group>(id)));
+            set => _tradersAtThisLocation = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public Race GuardianType;
-        public int GuardiansInNetwork;
+        private List<int> _tradersAtThisLocationToRemove = new List<int>();
+        public EntityList<Group> TradersAtThisLocationToRemove
+        {
+            get => new EntityList<Group>(_tradersAtThisLocationToRemove.Select(id => Entity<Group>(id)));
+            set => _tradersAtThisLocationToRemove = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public List<Group> GroupsAtThisLocation { get; set; } = new List<Group>();
-        public List<Group> GroupsAtThisLocationToRemove { get; set; } = new List<Group>();
+        private List<int> _tradersAtThisLocationToAdd = new List<int>();
+        public EntityList<Group> TradersAtThisLocationToAdd
+        {
+            get => new EntityList<Group>(_tradersAtThisLocationToAdd.Select(id => Entity<Group>(id)));
+            set => _tradersAtThisLocationToAdd = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public List<Object> UnplacedArtifacts { get; set; } = new List<Object>();
+        public Race GuardianType { get; set; }
+        public int GuardiansInNetwork { get; set; }
+
+        private List<int> _groupsAtThisLocation = new List<int>();
+        public EntityList<Group> GroupsAtThisLocation
+        {
+            get => new EntityList<Group>(_groupsAtThisLocation.Select(id => Entity<Group>(id)));
+            set => _groupsAtThisLocation = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
+
+        private List<int> _groupsAtThisLocationToRemove = new List<int>();
+        public EntityList<Group> GroupsAtThisLocationToRemove
+        {
+            get => new EntityList<Group>(_groupsAtThisLocationToRemove.Select(id => Entity<Group>(id)));
+            set => _groupsAtThisLocationToRemove = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
+
+        private List<int> _unplacedArtifacts = new List<int>();
+        public EntityList<Object> UnplacedArtifacts
+        {
+            get => new EntityList<Object>(_unplacedArtifacts.Select(id => Entity<Object>(id)));
+            set => _unplacedArtifacts = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
         public int X { get; set; }
         public int Z { get; set; }
 
-        public Entity Government { get; set; }
+        private int _governmentId;
+        public Entity Government
+        {
+            get => Entity<Entity>(_governmentId);
+            set => _governmentId = value?.ID ?? 0;
+        }
 
-        public Region Region;
+        private int _regionId;
+        public Region Region
+        {
+            get => Entity<Region>(_regionId);
+            set => _regionId = value?.ID ?? 0;
+        }
+
 
         // THESE VALUES ARE USED IF THE LOCATION IS LOADED
 

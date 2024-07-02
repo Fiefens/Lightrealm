@@ -21,24 +21,35 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public Architect Sender;
-        public Architect Receiver;
+        private int _senderId;
+        public Architect Sender
+        {
+            get => Entity<Architect>(_senderId);
+            set => _senderId = value?.ID ?? 0;
+        }
 
-        public List<Entity> Subjects = new List<Entity>();
+        private int _receiverId;
+        public Architect Receiver
+        {
+            get => Entity<Architect>(_receiverId);
+            set => _receiverId = value?.ID ?? 0;
+        }
 
-        public string MessageContent = "";
-        public string MessageType = "";
-        public string MessageID = "";
+        public string MessageContent { get; set; } = "";
+        public string MessageType { get; set; } = "";
+        public string MessageID { get; set; } = "";
 
-        public string PositiveResponse = "";
-        public string DirectRefusalResponse = "";
-        public string IgnorantResponse = "";
-        public string DerailingResponse = "";
-        public string FlatteringResponse = "";
+        public string PositiveResponse { get; set; } = "";
+        public string DirectRefusalResponse { get; set; } = "";
+        public string IgnorantResponse { get; set; } = "";
+        public string DerailingResponse { get; set; } = "";
+        public string FlatteringResponse { get; set; } = "";
 
-        public List<Location> StoredRevealLocations = new List<Location>();
+        public EntityList<Location> StoredRevealLocations { get; set; } = new EntityList<Location>();
+        public EntityList<Entity> Subjects { get; set; } = new EntityList<Entity>();
 
-        public Message(Architect sender, Architect reciever, List<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
+
+        public Message(Architect sender, Architect reciever, EntityList<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
         {
             Sender = sender;
             MessageID = messageID;

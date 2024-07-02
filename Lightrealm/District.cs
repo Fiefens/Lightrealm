@@ -27,35 +27,63 @@ namespace Lightrealm
         }
 
         public bool IsPrimary { get; set; } = false;
-        public Location Location { get; set; }
 
-        public List<Architect> AllArchitectsInDistrict()
+        private int _locationId;
+        public Location Location
         {
-            List<Architect> Architects = new List<Architect>();
-            for(int i = 0; i < 7; i++)
+            get => Entity<Location>(_locationId);
+            set => _locationId = value?.ID ?? 0;
+        }
+
+        public EntityList<Architect> AllArchitectsInDistrict()
+        {
+            EntityList<Architect> architects = new EntityList<Architect>();
+            for (int i = 0; i < 7; i++)
             {
                 for (int j = 0; j < 7; j++)
                 {
-                    Architects.AddRange(DistrictMap[i + j*7].Architects);
+                    architects.AddRange(DistrictMap[i + j * 7].Architects);
                 }
             }
-            return Architects;
+            return architects;
         }
 
         public int UnplacedPopulation { get; set; }
-        public List<Architect> Architects { get; set; } = new List<Architect>();
-        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
-        public List<Architect> ArchitectsToAdd { get; set; } = new List<Architect>();
+
+        private List<int> _architects = new List<int>();
+        public EntityList<Architect> Architects
+        {
+            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)));
+            set => _architects = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
+
+        private List<int> _architectsToRemove = new List<int>();
+        public EntityList<Architect> ArchitectsToRemove
+        {
+            get => new EntityList<Architect>(_architectsToRemove.Select(id => Entity<Architect>(id)));
+            set => _architectsToRemove = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
+
+        private List<int> _architectsToAdd = new List<int>();
+        public EntityList<Architect> ArchitectsToAdd
+        {
+            get => new EntityList<Architect>(_architectsToAdd.Select(id => Entity<Architect>(id)));
+            set => _architectsToAdd = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
         public List<string> GeneralItemsWeHave { get; set; } = new List<string>();
 
         public bool IsLoaded { get; set; } = false;
         public bool HasBeenLoadedEver { get; set; } = false;
 
+        private int[] _districtMap = new int[49];
+        public Block[] DistrictMap
+        {
+            get => _districtMap.Select(id => Entity<Block>(id)).ToArray();
+            set => _districtMap = value.Select(e => e?.ID ?? 0).ToArray();
+        }
 
-        public Block[] DistrictMap { get; set; } = new Block[49];
-
-        public string Industry = "";
+        public string Industry { get; set; } = "";
 
         public bool HasBeenLoaded { get; set; }
 
@@ -638,9 +666,9 @@ namespace Lightrealm
 
 
 
-        List<Structure> GetPossibleStructures(Architect a)
+        EntityList<Structure> GetPossibleStructures(Architect a)
         {
-            List<Structure> possibleStructures = new List<Structure>();
+            EntityList<Structure> possibleStructures = new EntityList<Structure>();
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
             {
                 for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
@@ -658,7 +686,7 @@ namespace Lightrealm
             return possibleStructures;
         }
 
-        Room GetRandomRoom(List<Structure> structures)
+        Room GetRandomRoom(EntityList<Structure> structures)
         {
             // Filter structures to include only those with at least one room
             var structuresWithRooms = structures.Where(s => s.Rooms.Count > 0).ToList();
@@ -684,16 +712,16 @@ namespace Lightrealm
 
             Game1.AllSubjects = Game1.CollectAllSubjects(Game1.MostRecentPartyTurnArchitect, "none");
 
-            List<Architect> allArchitects = new List<Architect>();
+            EntityList<Architect> allArchitects = new EntityList<Architect>();
             allArchitects.AddRange(Architects);
 
-            HashSet<Structure> allDistrictStructures = new HashSet<Structure>();
+            EntityList<Structure> allDistrictStructures = new EntityList<Structure>();
 
             for (int x = 0; x < 7; x++)
             {
                 for (int z = 0; z < 7; z++)
                 {
-                    allDistrictStructures.UnionWith(DistrictMap[x + z * 7].Structures);
+                    allDistrictStructures.AddRange(DistrictMap[x + z * 7].Structures);
                 }
             }
 
@@ -717,7 +745,7 @@ namespace Lightrealm
                     for(int I = Game1.r.Next(40, 80); I != 0; I--)
                     {
                         string Type = new List<string>() { "tree", "plant", "bush" }[Game1.r.Next(3)];
-                        Object o = new Object(null, Type, new List<Material>() { Game1.GameWorld.Membrane }, null);
+                        Object o = new Object(null, Type, new EntityList<Material>() { Game1.GameWorld.Membrane }, null);
                         DistrictMap[Game1.r.Next(49)].Objects.Add(o);
                     }
                 }
@@ -725,7 +753,7 @@ namespace Lightrealm
 
                 foreach (Structure s in allDistrictStructures)
                 {
-                    Room coreRoom = new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>());
+                    Room coreRoom = new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>());
                     s.Rooms.Add(coreRoom);
 
                     string Layout = s.Type;
@@ -747,7 +775,7 @@ namespace Lightrealm
 
                     for (int i = 0; i < extraRoomCount; i++)
                     {
-                        s.Rooms.Add(new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>()));
+                        s.Rooms.Add(new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>()));
                     }
 
                     foreach (Room r in s.Rooms)
@@ -770,7 +798,7 @@ namespace Lightrealm
                     int shibas = Game1.r.Next(4, 8);
                     for (int i = 0; i < shibas; i++)
                     {
-                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Location.Region.World.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new List<Object>(), Location, this, Location.Market.Block, "", 4);
+                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Location.Region.World.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new EntityList<Object>(), Location, this, Location.Market.Block, "", 4);
                         a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                         a.HomeStructure = Location.Market;
                         a.Block = Location.Market.Block;
@@ -808,7 +836,7 @@ namespace Lightrealm
                     else
                     {
                         // Pick one of the other two humanoid races
-                        List<Race> otherHumanoidRaces = Location.Region.World.HumanoidRaces.Where(r => r.Name != Location.PrimaryRace.Name && (r.Name == "luminarch" || r.Name == "nightfell" || r.Name == "archaix")).ToList();
+                        EntityList<Race> otherHumanoidRaces = Location.Region.World.HumanoidRaces.Where(r => r.Name != Location.PrimaryRace.Name && (r.Name == "luminarch" || r.Name == "nightfell" || r.Name == "archaix")).ToList();
                         race = otherHumanoidRaces[Game1.r.Next(otherHumanoidRaces.Count)];
                     }
                 }
@@ -864,7 +892,7 @@ namespace Lightrealm
                     }
                 }
 
-                Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new List<Object>(), Location, this, null, destiny, 1);
+                Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new EntityList<Object>(), Location, this, null, destiny, 1);
                 a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                 allArchitects.Add(a);
             }
@@ -896,8 +924,8 @@ namespace Lightrealm
                     a.Loaded = true;
                     a.UpdateNames();
 
-                    List<Structure> possibleStructures = (a.Bound && this.Location.AllStructures.Count > 0)
-                        ? new List<Structure> { this.Location.AllStructures.FirstOrDefault(s => s.Block.District == this) }
+                    EntityList<Structure> possibleStructures = (a.Bound && this.Location.AllStructures.Count > 0)
+                        ? new EntityList<Structure> { this.Location.AllStructures.FirstOrDefault(s => s.Block.District == this) }
                         : GetPossibleStructures(a);
 
                     if (possibleStructures.Count > 0)
@@ -967,7 +995,7 @@ namespace Lightrealm
                             ? Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count)]
                             : Location.GuardianType;
 
-                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], race, 10, "construct", new List<Object>(), Location, this, b, "", 5);
+                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], race, 10, "construct", new EntityList<Object>(), Location, this, b, "", 5);
                         a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(Game1.r.Next(3, 7)));
                         a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
                         a.Room = structureInSameDistrict.Rooms[Game1.r.Next(structureInSameDistrict.Rooms.Count)];
@@ -980,10 +1008,10 @@ namespace Lightrealm
             }
 
             // Load General Items
-            List<Object> itemsToAdd = new List<Object>();
+            EntityList<Object> itemsToAdd = new EntityList<Object>();
             foreach (string itemString in GeneralItemsWeHave)
             {
-                List<Object> items = Game1.ConvertStringToObjects(itemString);
+                EntityList<Object> items = Game1.ConvertStringToObjects(itemString);
                 itemsToAdd.AddRange(items);
             }
 
@@ -992,7 +1020,7 @@ namespace Lightrealm
             {
                 Room targetRoom = Location.Market != null && Location.Market.Block.District == this && Game1.r.Next(1, 3) == 1
                     ? Location.Market.Rooms[0]
-                    : GetRandomRoom(allDistrictStructures.ToList());
+                    : GetRandomRoom(allDistrictStructures);
 
                 targetRoom.Objects.Add(item);
                 item.UpdateNames();
@@ -1073,7 +1101,7 @@ namespace Lightrealm
             HasBeenLoadedEver = true;
             Game1.TicksSinceLoad = 0;
 
-            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
+            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct();
         }
 
         void AddOrUpdateItemString(List<string> itemList, string itemString)
@@ -1149,7 +1177,7 @@ namespace Lightrealm
                     DistrictMap[DistrictX + DistrictZ * 7].Architects.Clear();
 
                     // Create a list to hold the objects to remove
-                    List<Object> objectsToRemove = new List<Object>();
+                    EntityList<Object> objectsToRemove = new EntityList<Object>();
 
                     foreach (Object o in DistrictMap[DistrictX + DistrictZ * 7].Objects)
                     {
@@ -1194,7 +1222,7 @@ namespace Lightrealm
                     {
                         foreach (Room r in s.Rooms)
                         {
-                            List<Architect> ArchitectsToRemove = new List<Architect>();
+                            EntityList<Architect> ArchitectsToRemove = new EntityList<Architect>();
                             foreach (Architect a in r.Architects)
                             {
                                 if (!Game1.GamePlayerParty.Architects.Contains(a) && !a.IsLoadedTrader)
@@ -1218,7 +1246,7 @@ namespace Lightrealm
                             r.Architects.Clear();
 
                             // Create a list to hold objects that are general goods
-                            List<Object> RoomObjectsToRemove = new List<Object>();
+                            EntityList<Object> RoomObjectsToRemove = new EntityList<Object>();
 
                             // Handle objects in the room
                             foreach (Object o in r.Objects)

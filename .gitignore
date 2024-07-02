@@ -396,3 +396,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Ignore Vosk files, also bin because it has vosk files inside.
+Lightrealm/Content/vosk-model-en-us-0.22/
+# Lightrealm/bin/

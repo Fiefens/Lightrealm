@@ -25,20 +25,41 @@ namespace Lightrealm
 
         public string Type { get; set; }
         public string GUID { get; set; }
-        public Entity Owner { get; set; } = null;
 
-        public string FakeIsofractalColor;
+        private int _ownerId;
+        public Entity Owner
+        {
+            get => Entity<Entity>(_ownerId);
+            set => _ownerId = value?.ID ?? 0;
+        }
 
-        public List<Room> Rooms { get; set; } = new List<Room>();
+        public string FakeIsofractalColor { get; set; }
 
-        public List<Object> HistoricalObjects { get; set; } = new List<Object>();
+        private List<int> _rooms = new List<int>();
+        public EntityList<Room> Rooms
+        {
+            get => new EntityList<Room>(_rooms.Select(id => Entity<Room>(id)));
+            set => _rooms = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
-        public List<Material> Materials { get; set; } = new List<Material>();
+        private List<int> _historicalObjects = new List<int>();
+        public EntityList<Object> HistoricalObjects
+        {
+            get => new EntityList<Object>(_historicalObjects.Select(id => Entity<Object>(id)));
+            set => _historicalObjects = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
+
+        private List<int> _materials = new List<int>();
+        public EntityList<Material> Materials
+        {
+            get => new EntityList<Material>(_materials.Select(id => Entity<Material>(id)));
+            set => _materials = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
+
         public List<string> PrimarySmells { get; set; } = new List<string>();
         public List<string> LightingMethods { get; set; } = new List<string>();
         public int LightLevelOf5 { get; set; } = 0;
         public int Windows { get; set; }
-
         public int ConstructionYear { get; set; } = 0;
 
         public int Age
@@ -50,16 +71,26 @@ namespace Lightrealm
             }
         }
 
-        public int MarketDebt = 0;
+        public int MarketDebt { get; set; } = 0;
 
-        public Deity PrayingDeity;
+        private int _prayingDeityId;
+        public Deity PrayingDeity
+        {
+            get => Entity<Deity>(_prayingDeityId);
+            set => _prayingDeityId = value?.ID ?? 0;
+        }
 
-        public Block Block { get; set; }
+        private int _blockId;
+        public Block Block
+        {
+            get => Entity<Block>(_blockId);
+            set => _blockId = value?.ID ?? 0;
+        }
 
         public int XInDistrict { get; set; }
         public int ZInDistrict { get; set; }
 
-        public Structure(string type, List<Object> Objects, List<Room> rooms, Block block, List<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
+        public Structure(string type, EntityList<Object> Objects, EntityList<Room> rooms, Block block, EntityList<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
         {
             Type = type;
 
@@ -131,11 +162,11 @@ namespace Lightrealm
 
         public string GetRoomStructure()
         {
-            var graph = new Dictionary<Room, List<Room>>();
+            var graph = new Dictionary<Room, EntityList<Room>>();
             foreach (Room room in Rooms)
             {
                 // Initialize the adjacency list for each room
-                graph[room] = new List<Room>();
+                graph[room] = new EntityList<Room>();
             }
 
             // Map door connections to room-to-room connections

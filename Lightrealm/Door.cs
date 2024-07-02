@@ -9,28 +9,29 @@ namespace Lightrealm
     [Serializable]
     public class Door : Object
     {
-        public static T Entity<T>(int entityId) where T : Entity
+        private int _sourceRoomId;
+        public Room SourceRoom
         {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+            get => Entity<Room>(_sourceRoomId);
+            set => _sourceRoomId = value?.ID ?? 0;
         }
 
-        public Room SourceRoom { get; set; }
-        public Room DestinationRoom { get; set; }
+        private int _destinationRoomId;
+        public Room DestinationRoom
+        {
+            get => Entity<Room>(_destinationRoomId);
+            set => _destinationRoomId = value?.ID ?? 0;
+        }
+
         public string Direction { get; set; }
 
-        public int Number;
+        public int Number { get; set; }
 
         public static List<string> OrthogonalDoorDirections { get; set; } = new List<string>() { "north", "south", "east", "west" };
         public static List<string> VerticalDoorDirections { get; set; } = new List<string>() { "up", "down" };
-        public static List<string> AllDoorDirections { get; set; } = new List<string>() { "north", "south", "east", "west", "up", "down"};
+        public static List<string> AllDoorDirections { get; set; } = new List<string>() { "north", "south", "east", "west", "up", "down" };
 
-
-        public Door(Room sourceRoom, Room destinationRoom, string direction, string name, string type, List<Material> materials, bool InOrOn, bool isContainer, Composition content, Architect creator, int weight, bool isGeneralGood, int number, Block b, Structure s, Room r) : base(name, type, materials, InOrOn, isContainer, content, creator, weight, isGeneralGood, b, s, r, false)
+        public Door(Room sourceRoom, Room destinationRoom, string direction, string name, string type, EntityList<Material> materials, bool InOrOn, bool isContainer, Composition content, Architect creator, int weight, bool isGeneralGood, int number, Block b, Structure s, Room r) : base(name, type, materials, InOrOn, isContainer, content, creator, weight, isGeneralGood, b, s, r, false)
         {
             Number = number;
             SourceRoom = sourceRoom;

@@ -19,25 +19,30 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public string Name;
-        public string Description;
+        public string Name { get; set; }
+        public string Description { get; set; }
 
-        public Entity Base;
+        private int _baseId;
+        public Entity Base
+        {
+            get => Entity<Entity>(_baseId);
+            set => _baseId = value?.ID ?? 0;
+        }
 
-        public int Power = 0;
+        public int Power { get; set; } = 0;
 
-        public int MoralCompass = 0;
-        public int StabilityCompass = 0;
-        public int PropertyValue = 0;
-        public int FamilyValue = 0;
-        public int PowerValue = 0;
-        public int MoneyValue = 0;
-        public int KnowledgeValue = 0;
-        public int SpiritualityValue = 0;
-        public int ProwessValue = 0;
-        public int PatriotismValue = 0;
-        public int CourageValue = 0;
-        public int CreativityValue = 0;
+        public int MoralCompass { get; set; } = 0;
+        public int StabilityCompass { get; set; } = 0;
+        public int PropertyValue { get; set; } = 0;
+        public int FamilyValue { get; set; } = 0;
+        public int PowerValue { get; set; } = 0;
+        public int MoneyValue { get; set; } = 0;
+        public int KnowledgeValue { get; set; } = 0;
+        public int SpiritualityValue { get; set; } = 0;
+        public int ProwessValue { get; set; } = 0;
+        public int PatriotismValue { get; set; } = 0;
+        public int CourageValue { get; set; } = 0;
+        public int CreativityValue { get; set; } = 0;
 
         public Force(string name, string description, int power, int moralCompass, int stabilityCompass, int propertyValue, int familyValue, int powerValue, int moneyValue, int knowledgeValue, int spiritualityValue, int prowessValue, int patriotismValue, int courageValue, int creativityValue, Entity basee)
         {

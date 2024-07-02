@@ -19,14 +19,34 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public Architect Leader;
-        public List<Architect> Architects;
-        public int OtherSoldiers;
-        public Location HomeLocation;
-        public string Style = new List<string>() { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
+        private int _leaderId;
+        public Architect Leader
+        {
+            get => Entity<Architect>(_leaderId);
+            set => _leaderId = value?.ID ?? 0;
+        }
+
+        private List<int> _architects = new List<int>();
+        public EntityList<Architect> Architects
+        {
+            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)));
+            set => _architects = value?.Select(e => e.ID).ToList() ?? new List<int>();
+        }
 
 
-        public Unit(Architect leader, List<Architect> architects, int otherSoldiers, Location homeLocation)
+        public int OtherSoldiers { get; set; }
+
+        private int _homeLocationId;
+        public Location HomeLocation
+        {
+            get => Entity<Location>(_homeLocationId);
+            set => _homeLocationId = value?.ID ?? 0;
+        }
+
+        public string Style { get; set; } = new List<string>() { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
+
+
+        public Unit(Architect leader, EntityList<Architect> architects, int otherSoldiers, Location homeLocation)
         {
             Leader = leader;
             Architects = architects;

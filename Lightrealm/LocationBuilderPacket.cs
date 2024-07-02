@@ -20,19 +20,49 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public Entity Government { get; set; }
+        private int _governmentId;
+        public Entity Government
+        {
+            get => Entity<Entity>(_governmentId);
+            set => _governmentId = value?.ID ?? 0;
+        }
+
         public int X { get; set; }
         public int Z { get; set; }
-        public Race PrimaryRace { get; set; }
+
+        private int _primaryRaceId;
+        public Race PrimaryRace
+        {
+            get => Entity<Race>(_primaryRaceId);
+            set => _primaryRaceId = value?.ID ?? 0;
+        }
+
         public int MiscPopulation { get; set; }
         public int ColonizationDesire { get; set; }
-        public Civilization HomeCivilization { get; set; }
+
+        private int _homeCivilizationId;
+        public Civilization HomeCivilization
+        {
+            get => Entity<Civilization>(_homeCivilizationId);
+            set => _homeCivilizationId = value?.ID ?? 0;
+        }
+
         public string Type { get; set; }
-        public List<Object> Artifacts { get; set; }
-        public Location BaseLocation { get; set; }
+
+        public EntityList<Object> Artifacts { get; set; } = new EntityList<Object>();
+
+        private int _baseLocationId;
+        public Location BaseLocation
+        {
+            get => Entity<Location>(_baseLocationId);
+            set => _baseLocationId = value?.ID ?? 0;
+        }
+
         public string Dockside { get; set; }
 
-        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization HomeCiv, List<Object> artifacts, Location OriginalLocationYouAreComingFrom, string dockside)
+
+
+        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization HomeCiv, EntityList<Object> artifacts, Location OriginalLocationYouAreComingFrom, string dockside)
         {
             BaseLocation = OriginalLocationYouAreComingFrom;
             Type = locationType;

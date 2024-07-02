@@ -21,44 +21,112 @@ namespace Lightrealm
         }
 
         //nightfell, luminarch, lost
-        public Race PrimaryInhabiantRace { get; set; }
+        private int _primaryInhabitantRaceId;
+        public Race PrimaryInhabiantRace
+        {
+            get => Entity<Race>(_primaryInhabitantRaceId);
+            set => _primaryInhabitantRaceId = value?.ID ?? 0;
+        }
+
         public int StartX { get; set; }
         public int StartZ { get; set; }
 
-        public string Type;
-        public string WarType;
+        public string Type { get; set; }
+        public string WarType { get; set; }
 
-        public Material CulturalCloth { get; set; }
-        public Material CulturalWood { get; set; }
-        public Material CulturalStone { get; set; }
-        public Material CulturalMetal { get; set; }
-        public Material CulturalGemstone { get; set; }
-        public Material CulturalSheet { get; set; }
+        private int _culturalClothId;
+        public Material CulturalCloth
+        {
+            get => Entity<Material>(_culturalClothId);
+            set => _culturalClothId = value?.ID ?? 0;
+        }
 
-        public int ElectionFrequency = Game1.r.Next(1401520000, 1501520000);
+        private int _culturalWoodId;
+        public Material CulturalWood
+        {
+            get => Entity<Material>(_culturalWoodId);
+            set => _culturalWoodId = value?.ID ?? 0;
+        }
+
+        private int _culturalStoneId;
+        public Material CulturalStone
+        {
+            get => Entity<Material>(_culturalStoneId);
+            set => _culturalStoneId = value?.ID ?? 0;
+        }
+
+        private int _culturalMetalId;
+        public Material CulturalMetal
+        {
+            get => Entity<Material>(_culturalMetalId);
+            set => _culturalMetalId = value?.ID ?? 0;
+        }
+
+        private int _culturalGemstoneId;
+        public Material CulturalGemstone
+        {
+            get => Entity<Material>(_culturalGemstoneId);
+            set => _culturalGemstoneId = value?.ID ?? 0;
+        }
+
+        private int _culturalSheetId;
+        public Material CulturalSheet
+        {
+            get => Entity<Material>(_culturalSheetId);
+            set => _culturalSheetId = value?.ID ?? 0;
+        }
+
+        public int ElectionFrequency { get; set; } = Game1.r.Next(1401520000, 1501520000);
         public Dictionary<string, int> HatredPoints { get; set; } = new Dictionary<string, int>();
 
-        public int CyclesTillElection = 0;
+        public int CyclesTillElection { get; set; } = 0;
+        private EntityList<Architect> _citizens = new EntityList<Architect>();
+        public EntityList<Architect> Citizens
+        {
+            get => _citizens;
+            set => _citizens = value ?? new EntityList<Architect>();
+        }
 
-        public List<Architect> Citizens = new List<Architect>();
-        public Architect Alpha = null;
+        private int _alphaId;
+        public Architect Alpha
+        {
+            get => Entity<Architect>(_alphaId);
+            set => _alphaId = value?.ID ?? 0;
+        }
 
-        public int WakeUpAndChooseViolencePoints = 0;
+        public int WakeUpAndChooseViolencePoints { get; set; } = 0;
 
-        public List<Unit> UnitsAtCommand = new List<Unit>();
+        private EntityList<Unit> _unitsAtCommand = new EntityList<Unit>();
+        public EntityList<Unit> UnitsAtCommand
+        {
+            get => _unitsAtCommand;
+            set => _unitsAtCommand = value ?? new EntityList<Unit>();
+        }
 
-        public string CulturalHeadwear = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count)];
-        public string CulturalNeckwear = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count)];
-        public string CulturalBodywear = Game1.Bodywear[Game1.r.Next(Game1.Bodywear.Count)];
-        public string CulturalLegwear = Game1.Legwear[Game1.r.Next(Game1.Legwear.Count)];
-        public string CulturalHandwear = Game1.Handwear[Game1.r.Next(Game1.Handwear.Count)];
-        public string CulturalFootwear = Game1.Footwear[Game1.r.Next(Game1.Footwear.Count)];
+        public string CulturalHeadwear { get; set; } = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count)];
+        public string CulturalNeckwear { get; set; } = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count)];
+        public string CulturalBodywear { get; set; } = Game1.Bodywear[Game1.r.Next(Game1.Bodywear.Count)];
+        public string CulturalLegwear { get; set; } = Game1.Legwear[Game1.r.Next(Game1.Legwear.Count)];
+        public string CulturalHandwear { get; set; } = Game1.Handwear[Game1.r.Next(Game1.Handwear.Count)];
+        public string CulturalFootwear { get; set; } = Game1.Footwear[Game1.r.Next(Game1.Footwear.Count)];
 
-        public World World { get; set; }
+        private int _worldId;
+        public World World
+        {
+            get => Entity<World>(_worldId);
+            set => _worldId = value?.ID ?? 0;
+        }
 
-        public Location Capitol;
+        private int _capitolId;
+        public Location Capitol
+        {
+            get => Entity<Location>(_capitolId);
+            set => _capitolId = value?.ID ?? 0;
+        }
 
-        public string Color;
+        public string Color { get; set; }
+
+
 
         public Civilization(Race race, string type, int Startx, int Startz, World world)
         {

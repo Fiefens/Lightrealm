@@ -26,28 +26,91 @@ namespace Lightrealm
         public int Heat { get; set; }
         public int X { get; set; }
         public int Z { get; set; }
-        public Location MyLocation { get; set; }
-        public World World;
 
-        public List<(int, int)> TragedyPoints = new List<(int, int)>();
+        private int _myLocationId;
+        public Location MyLocation
+        {
+            get => Entity<Location>(_myLocationId);
+            set => _myLocationId = value?.ID ?? 0;
+        }
 
-        public bool Explored = false;
-        public bool RegionallyExplored = false;
+        private int _worldId;
+        public World World
+        {
+            get => Entity<World>(_worldId);
+            set => _worldId = value?.ID ?? 0;
+        }
 
-        public Blight Blight;
+        public List<(int, int)> TragedyPoints { get; set; } = new List<(int, int)>();
 
-        public string PortName = "";
+        public bool Explored { get; set; } = false;
+        public bool RegionallyExplored { get; set; } = false;
 
-        public Material HarvestableWood;
-        public Material HarvestableStone;
-        public Material HarvestableMetal;
-        public Material HarvestableSand;
-        public Material HarvestableIce;
-        public Material HarvestableFiber;
+        private int _blightId;
+        public Blight Blight
+        {
+            get => Entity<Blight>(_blightId);
+            set => _blightId = value?.ID ?? 0;
+        }
 
-        public List<InteractableEvent> Events = new List<InteractableEvent>(); 
+        public string PortName { get; set; } = "";
 
-        public Civilization Owner;
+        private int _harvestableWoodId;
+        public Material HarvestableWood
+        {
+            get => Entity<Material>(_harvestableWoodId);
+            set => _harvestableWoodId = value?.ID ?? 0;
+        }
+
+        private int _harvestableStoneId;
+        public Material HarvestableStone
+        {
+            get => Entity<Material>(_harvestableStoneId);
+            set => _harvestableStoneId = value?.ID ?? 0;
+        }
+
+        private int _harvestableMetalId;
+        public Material HarvestableMetal
+        {
+            get => Entity<Material>(_harvestableMetalId);
+            set => _harvestableMetalId = value?.ID ?? 0;
+        }
+
+        private int _harvestableSandId;
+        public Material HarvestableSand
+        {
+            get => Entity<Material>(_harvestableSandId);
+            set => _harvestableSandId = value?.ID ?? 0;
+        }
+
+        private int _harvestableIceId;
+        public Material HarvestableIce
+        {
+            get => Entity<Material>(_harvestableIceId);
+            set => _harvestableIceId = value?.ID ?? 0;
+        }
+
+        private int _harvestableFiberId;
+        public Material HarvestableFiber
+        {
+            get => Entity<Material>(_harvestableFiberId);
+            set => _harvestableFiberId = value?.ID ?? 0;
+        }
+
+        private List<int> _events = new List<int>();
+        public EntityList<InteractableEvent> Events
+        {
+            get => _events.Select(id => Entity<InteractableEvent>(id)).ToList();
+            set => _events = value.Select(e => e.ID).ToList();
+        }
+
+        private int _ownerId;
+        public Civilization Owner
+        {
+            get => Entity<Civilization>(_ownerId);
+            set => _ownerId = value?.ID ?? 0;
+        }
+
 
         public Region(string biome, int elevation, int heat, int x, int z, World w)
         {

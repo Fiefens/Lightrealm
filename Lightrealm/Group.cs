@@ -20,73 +20,105 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public List<Architect> Architects { get; set; } = new List<Architect>();
-        public Architect Leader { get; set; }
-        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
+        private List<int> _architects = new List<int>();
+        public EntityList<Architect> Architects
+        {
+            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)).ToList());
+            set => _architects = value.Select(e => e.ID).ToList();
+        }
+
+        private List<int> _architectsToRemove = new List<int>();
+        public EntityList<Architect> ArchitectsToRemove
+        {
+            get => new EntityList<Architect>(_architectsToRemove.Select(id => Entity<Architect>(id)).ToList());
+            set => _architectsToRemove = value.Select(e => e.ID).ToList();
+        }
+
+        private int _leaderId;
+        public Architect Leader
+        {
+            get => Entity<Architect>(_leaderId);
+            set => _leaderId = value?.ID ?? 0;
+        }
+
         public string Type { get; set; }
 
         public double CycleLastTraded { get; set; } = 0;
         public double CycleLastMoved { get; set; } = 0;
 
-        public int Stability { get; set; } = 50; //100 is a very solid group. 0 is cause for disbandment.
-        public int Reputation { get; set; } = 0; //The better a group is, the more likely it will attack and destroy bad groups, the less likely it will be attacked regardless of its evil reputation, and the more stable it is.
+        public int Stability { get; set; } = 50; // 100 is a very solid group. 0 is cause for disbandment.
+        public int Reputation { get; set; } = 0; // The better a group is, the more likely it will attack and destroy bad groups, the less likely it will be attacked regardless of its evil reputation, and the more stable it is.
 
         private double _daysOld; // Store age in days
 
         public int MonthsOld
         {
-            get
-            {
-                return (int)(_daysOld / 28.0); // Return the age in months
-            }
-            set
-            {
-                _daysOld = value * 28.0; // Allow setting age in months, if needed
-            }
+            get => (int)(_daysOld / 28.0); // Return the age in months
+            set => _daysOld = value * 28.0; // Allow setting age in months, if needed
         }
 
         public double DaysOld
         {
-            get
-            {
-                return _daysOld; // Accessor for the age in days
-            }
-            set
-            {
-                _daysOld = value; // Mutator for the age in days
-            }
+            get => _daysOld; // Accessor for the age in days
+            set => _daysOld = value; // Mutator for the age in days
         }
 
-        public Location Base { get; set; } = null;
+        private int _baseId;
+        public Location Base
+        {
+            get => Entity<Location>(_baseId);
+            set => _baseId = value?.ID ?? 0;
+        }
 
-        public List<Architect> Enemies { get; set; } = new List<Architect>();
-        public List<Architect> ArchitectsWhoDeclined { get; set; } = new List<Architect>();
+        private List<int> _enemies = new List<int>();
+        public EntityList<Architect> Enemies
+        {
+            get => new EntityList<Architect>(_enemies.Select(id => Entity<Architect>(id)).ToList());
+            set => _enemies = value.Select(e => e.ID).ToList();
+        }
+
+        private List<int> _architectsWhoDeclined = new List<int>();
+        public EntityList<Architect> ArchitectsWhoDeclined
+        {
+            get => new EntityList<Architect>(_architectsWhoDeclined.Select(id => Entity<Architect>(id)).ToList());
+            set => _architectsWhoDeclined = value.Select(e => e.ID).ToList();
+        }
 
         public List<string> CaravanItems { get; set; } = new List<string>();
 
-        // groups with both a good and bad reputation can fall more easily...
+        private List<int> _groupsIKnowAbout = new List<int>();
+        public EntityList<Group> GroupsIKnowAbout
+        {
+            get => new EntityList<Group>(_groupsIKnowAbout.Select(id => Entity<Group>(id)).ToList());
+            set => _groupsIKnowAbout = value.Select(e => e.ID).ToList();
+        }
 
-        public List<Group> GroupsIKnowAbout { get; set; } = new List<Group>();
+        private List<int> _tradeRoute = new List<int>();
+        public EntityList<Location> TradeRoute
+        {
+            get => new EntityList<Location>(_tradeRoute.Select(id => Entity<Location>(id)).ToList());
+            set => _tradeRoute = value.Select(e => e.ID).ToList();
+        }
 
-        public List<Location> TradeRoute = new List<Location>();
-        public int MaxTradeRouteLength = Game1.r.Next(3, 10);
-        public bool WaitingForCooldownToTrade = false;
+        public int MaxTradeRouteLength { get; set; } = Game1.r.Next(3, 10);
+        public bool WaitingForCooldownToTrade { get; set; } = false;
 
-        public int MoralCompass = 0;
-        public int StabilityCompass = 0;
+        public int MoralCompass { get; set; } = 0;
+        public int StabilityCompass { get; set; } = 0;
 
-        public int Wealth = 0;
+        public int Wealth { get; set; } = 0;
 
-        public int PropertyValue = 0;
-        public int FamilyValue = 0;
-        public int PowerValue = 0;
-        public int MoneyValue = 0;
-        public int KnowledgeValue = 0;
-        public int SpiritualityValue = 0;
-        public int ProwessValue = 0;
-        public int PatriotismValue = 0;
-        public int CourageValue = 0;
-        public int CreativityValue = 0;
+        public int PropertyValue { get; set; } = 0;
+        public int FamilyValue { get; set; } = 0;
+        public int PowerValue { get; set; } = 0;
+        public int MoneyValue { get; set; } = 0;
+        public int KnowledgeValue { get; set; } = 0;
+        public int SpiritualityValue { get; set; } = 0;
+        public int ProwessValue { get; set; } = 0;
+        public int PatriotismValue { get; set; } = 0;
+        public int CourageValue { get; set; } = 0;
+        public int CreativityValue { get; set; } = 0;
+
 
         public string CaravanCatalogue()
         {
@@ -119,7 +151,7 @@ namespace Lightrealm
             return catalogueBuilder.ToString().Trim();
         }
 
-        public Group(List<Architect> architects, string type, Architect leader, Location Basee)
+        public Group(EntityList<Architect> architects, string type, Architect leader, Location Basee)
         {
             Name = leader.Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 6)) + "s", this);
             Architects = architects;

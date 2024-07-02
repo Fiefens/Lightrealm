@@ -22,18 +22,36 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public Region Region;
-        public int MonthsBeforeDecay;
-        public string Type;
-        public Civilization HomeCivilization;
-        public string Info;
-        public string Intrigue;
+        private int _regionId;
+        public Region Region
+        {
+            get => Entity<Region>(_regionId);
+            set => _regionId = value?.ID ?? 0;
+        }
 
-        public List<Architect> GuarranteedArchitects = new List<Architect>();
+        public int MonthsBeforeDecay { get; set; }
+        public string Type { get; set; }
 
-        public int Luminosity = 0;
+        private int _homeCivilizationId;
+        public Civilization HomeCivilization
+        {
+            get => Entity<Civilization>(_homeCivilizationId);
+            set => _homeCivilizationId = value?.ID ?? 0;
+        }
 
-        public InteractableEvent(Region region, int monthsBeforeDecay, string type, Civilization civ, List<Architect> guarranteedArchitects)
+        public string Info { get; set; }
+        public string Intrigue { get; set; }
+
+        private List<int> _guaranteedArchitects = new List<int>();
+        public EntityList<Architect> GuaranteedArchitects
+        {
+            get => _guaranteedArchitects.Select(id => Entity<Architect>(id)).ToList();
+            set => _guaranteedArchitects = value.Select(e => e.ID).ToList();
+        }
+
+        public int Luminosity { get; set; } = 0;
+
+        public InteractableEvent(Region region, int monthsBeforeDecay, string type, Civilization civ, EntityList<Architect> guaranteedArchitects)
         {
             Region = region;
             Name = Region.World.GenerateUniqueName("1S9s", this);
@@ -41,7 +59,7 @@ namespace Lightrealm
             Type = type;
             HomeCivilization = civ;
 
-            GuarranteedArchitects = guarranteedArchitects;
+            GuaranteedArchitects = guaranteedArchitects;
 
             Dictionary<string, List<string>> BiomeToIntrigue = new Dictionary<string, List<string>>
                             {
@@ -162,7 +180,7 @@ namespace Lightrealm
                     break;
                 // Code for priest
                 case "colossal": 
-                    Info = new List<string>() { "You had only heard of the legendary " + GuarranteedArchitects[0].Race.Name + " " + GuarranteedArchitects[0].Name + ", but it stands before you now...", "That, that is a big " + GuarranteedArchitects[0].Race.Name + "... you've heard of " + GuarranteedArchitects[0].Name + " before, but seeing it is different. It hasn't spotted you yet.", }[Game1.r.Next(0, 2)];
+                    Info = new List<string>() { "You had only heard of the legendary " + GuaranteedArchitects[0].Race.Name + " " + GuaranteedArchitects[0].Name + ", but it stands before you now...", "That, that is a big " + GuaranteedArchitects[0].Race.Name + "... you've heard of " + GuaranteedArchitects[0].Name + " before, but seeing it is different. It hasn't spotted you yet.", }[Game1.r.Next(0, 2)];
                     break;
                 default:
                     // Code for the default case (if DecidedType doesn't match any of the specified cases)

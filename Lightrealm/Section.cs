@@ -19,15 +19,24 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
         }
 
-        public int Length;
-        public List<Entity> Domains;
-        public List<string> Perspectives;
-        public string Tone;
-        public int Quality;
-        public string Type;
-        public string Description;
-        public Composition Parent;
-        public int Number;
+        public int Length { get; set; }
+
+        public EntityList<Entity> Domains { get; set; } = new EntityList<Entity>();
+
+        public List<string> Perspectives { get; set; } = new List<string>();
+        public string Tone { get; set; }
+        public int Quality { get; set; }
+        public string Type { get; set; }
+        public string Description { get; set; }
+
+        private int _parentId;
+        public Composition Parent
+        {
+            get => Entity<Composition>(_parentId);
+            set => _parentId = value?.ID ?? 0;
+        }
+
+        public int Number { get; set; }
 
         public Section(string compositionType, Composition parent, int QualityMod, int number, string sectionType = "none")
         {
@@ -91,7 +100,7 @@ namespace Lightrealm
 
             this.Tone = tones[Game1.r.Next(tones.Count)];
             this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };
-            this.Domains = new List<Entity> { Parent.Subject };
+            this.Domains = new EntityList<Entity> { Parent.Subject };
 
             this.Type = sectionType;
 
@@ -165,9 +174,9 @@ namespace Lightrealm
             Description = format;
         }
 
-        private List<Entity> GenerateDomains()
+        private EntityList<Entity> GenerateDomains()
         {
-            List<Entity> generatedDomains = new List<Entity>();
+            EntityList<Entity> generatedDomains = new EntityList<Entity>();
 
             if (Game1.r.NextDouble() < 0.8)
             {
