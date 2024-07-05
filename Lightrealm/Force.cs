@@ -9,25 +9,35 @@ namespace Lightrealm
     [Serializable]
     public class Force
     {
-        public static T Entity<T>(int entityId) where T : Entity
+        private int _baseId;
+        public Entity Base
         {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            get
             {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+                var baseEntity = Entity.EntityGet<Entity>(_baseId);
+                if (baseEntity is Group)
+                {
+                    return (Group)baseEntity;
+                }
+                else if (baseEntity is Architect)
+                {
+                    return (Architect)baseEntity;
+                }
+                else
+                {
+                    return null; // or handle as needed if neither type matches
+                }
             }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+            set => _baseId = value?.ID ?? 0;
         }
+
+        private Group BaseAsGroup => Entity.EntityGet<Group>(_baseId);
+        private Architect BaseAsArchitect => Entity.EntityGet<Architect>(_baseId);
+
 
         public string Name { get; set; }
         public string Description { get; set; }
 
-        private int _baseId;
-        public Entity Base
-        {
-            get => Entity<Entity>(_baseId);
-            set => _baseId = value?.ID ?? 0;
-        }
 
         public int Power { get; set; } = 0;
 

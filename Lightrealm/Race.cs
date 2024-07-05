@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Lightrealm
@@ -10,24 +11,9 @@ namespace Lightrealm
     [Serializable]
     public class Race : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public string Size { get; set; }
-
-        private List<(string, int)> _bodyParts = new List<(string, int)>();
-        public List<(string, Material)> BodyParts
-        {
-            get => _bodyParts.Select(tuple => (tuple.Item1, Entity<Material>(tuple.Item2))).ToList();
-            set => _bodyParts = value.Select(tuple => (tuple.Item1, tuple.Item2.ID)).ToList();
-        }
+        public List<string> BodyPartNames { get; set; } = new List<string>();
+        public EntityList<Material> BodyPartMaterials { get; set; } = new EntityList<Material>();
 
         public string Color { get; set; }
         public List<string> NecessaryBodyParts { get; set; } = new List<string>();
@@ -43,46 +29,41 @@ namespace Lightrealm
         {
             Name = name;
             Size = size;
-            BodyParts = bodyParts;
+            foreach (var bodyPart in bodyParts)
+            {
+                BodyPartNames.Add(bodyPart.Item1);
+                BodyPartMaterials.Add(bodyPart.Item2);
+            }
             Color = color;
             NecessaryBodyParts = necessaryBodyParts;
             OppositionTags = oppositionTags;
             NaturalArmor = naturalArmor;
-
             MainInteractionAppendage = mainInteractionAppendage;
             OffInteractionAppendage = offInteractionAppendage;
 
             if (Name.EndsWith("guardian"))
             {
-                List<string> PowerTypes = new List<string>() { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
+                List<string> PowerTypes = new List<string> { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
                 int numberOfPowers = Game1.r.Next(1, 4);
                 Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers).ToList();
             }
 
             AddReferredToName(Name);
-
             Description = GenerateDescription();
 
-            // Add body parts to the appropriate list
-            foreach (var bodyPart in bodyParts.Select(bp => bp.Item1))
+            foreach (var bodyPart in BodyPartNames)
             {
-                if (Game1.GameWorld != null)
+                if (!Game1.GameWorld?.AllEntities.Any(e => e.Value.Name == bodyPart) == true && !Game1.TemporaryEntities.Any(e => e.Value.Metadata == bodyPart))
                 {
-                    if (!Game1.GameWorld.AllEntities.Any(e => e.Value.Name == bodyPart) && !Game1.TemporaryEntities.Any(e => e.Value.Metadata == bodyPart))
-                    {
-                        Entity bodyPartEntity = new Entity(bodyPart);
-                    }
-                }
-                else
-                {
-                    if (!Game1.TemporaryEntities.Any(e => e.Value.Metadata == bodyPart))
-                    {
-                        Entity bodyPartEntity = new Entity(bodyPart);
-                    }
+                    new Entity(bodyPart);
                 }
             }
         }
 
+        public Race()
+        {
+
+        }
 
         private string GenerateDescription()
         {
@@ -107,91 +88,48 @@ namespace Lightrealm
                 _ => "A " + Size + "-sized creature of some sort."
             };
 
-
             if (Name.EndsWith("guardian"))
             {
-                baseDescription = "A guardian construct, built from pure " + BodyParts[0].Item2.Name + ", dedicated to an unknown purpose.";
+                baseDescription = "A guardian construct, built from pure " + BodyPartMaterials[0].Name + ", dedicated to an unknown purpose.";
             }
 
-            string partsDescription = GenerateBodyPartsDescription();
-            return baseDescription + " " + partsDescription;
+            return baseDescription + " " + GenerateBodyPartsDescription();
         }
 
         private string GenerateBodyPartsDescription()
         {
             var commonParts = new HashSet<string> { "leg", "wing", "arm", "eye", "antenna", "tentacle", "tail", "hump", "fin", "tusk", "spike", "tooth", "hand", "foot", "shoulder" };
-            var groupedParts = new Dictionary<string, int>();
+            var groupedParts = BodyPartNames.GroupBy(bp => commonParts.Contains(bp.Split(' ').Last()) ? bp.Split(' ').Last() : bp)
+                                            .ToDictionary(g => g.Key, g => g.Count());
+
+            if (!groupedParts.Any())
+            {
+                return "";
+            }
+
             var irregularPlurals = new Dictionary<string, string>
             {
-                {"tooth", "teeth"},
-                {"foot", "feet"}
+                { "tooth", "teeth" },
+                { "foot", "feet" }
             };
 
-            foreach (var bodyPart in BodyParts)
+            var partsDescription = groupedParts.Select(part =>
             {
-                var partNameSplit = bodyPart.Item1.Split(' ');
-                var lastWord = partNameSplit[partNameSplit.Length - 1];
+                string partName = part.Value > 1 ? irregularPlurals.GetValueOrDefault(part.Key, part.Key + "s") : part.Key;
+                return $"{part.Value} {partName}";
+            }).ToList();
 
-                if (commonParts.Contains(lastWord))
-                {
-                    if (!groupedParts.ContainsKey(lastWord))
-                    {
-                        groupedParts[lastWord] = 0;
-                    }
-                    groupedParts[lastWord]++;
-                }
-                else
-                {
-                    if (!groupedParts.ContainsKey(bodyPart.Item1))
-                    {
-                        groupedParts[bodyPart.Item1] = 0;
-                    }
-                    groupedParts[bodyPart.Item1]++;
-                }
-            }
-
-            var partsDescription = new List<string>();
-            foreach (var part in groupedParts)
-            {
-                string partName;
-                if (part.Value > 1)
-                {
-                    partName = irregularPlurals.ContainsKey(part.Key) ? irregularPlurals[part.Key] : part.Key + "s";
-                }
-                else
-                {
-                    partName = part.Key;
-                }
-                partsDescription.Add($"{part.Value} {partName}");
-            }
-
-            // Handling the formatting for different list lengths
-            string description;
-            if (partsDescription.Count > 1)
-            {
-                var allButLast = partsDescription.Take(partsDescription.Count - 1);
-                var last = partsDescription.Last();
-                description = string.Join(", ", allButLast) + ", and " + last;
-            }
-            else
-            {
-                description = partsDescription.FirstOrDefault() ?? "";
-            }
-
-            return "It has " + description + ".";
+            return "It has " + string.Join(", ", partsDescription.Take(partsDescription.Count - 1)) + (partsDescription.Count > 1 ? ", and " : "") + partsDescription.Last() + ".";
         }
-
-
 
         public static string GenerateUniqueAbbreviation(string raceName, EntityList<Race> existingRaces)
         {
-            // Priority abbreviations (these races have seniority)
-            Dictionary<string, string> priorityAbbreviations = new Dictionary<string, string>
+            var priorityAbbreviations = new Dictionary<string, string>
             {
-                {"nightfell", "N"}, {"luminarch", "L"}, {"archaix", "A"},
-                {"isofractal", "I"}, {"photonexus", "P"}, {"shade", "S"},
-                {"shadebeast", "SB"}, {"", "?"}, {"icosidodecahedron", "ID"},{"hypernexus", "HN"},{"shadeheart", "SH"},
-                {"cassartrae", "CA"}, {"moari", "MO"}
+                { "nightfell", "N" }, { "luminarch", "L" }, { "archaix", "A" },
+                { "isofractal", "I" }, { "photonexus", "P" }, { "shade", "S" },
+                { "shadebeast", "SB" }, { "", "?" }, { "icosidodecahedron", "ID" }, { "hypernexus", "HN" }, { "shadeheart", "SH" },
+                { "cassartrae", "CA" }, { "moari", "MO" }
             };
 
             if (priorityAbbreviations.TryGetValue(raceName.ToLower(), out string abbreviation))
@@ -199,7 +137,6 @@ namespace Lightrealm
                 return abbreviation;
             }
 
-            // Generate a unique abbreviation for new race
             for (int i = 1; i < raceName.Length; i++)
             {
                 string potentialAbbreviation = raceName.Substring(0, i + 1).ToUpper();
@@ -210,7 +147,6 @@ namespace Lightrealm
                 }
             }
 
-            // Fallback if no unique abbreviation found (very unlikely with long race names)
             return raceName.Substring(0, 2).ToUpper();
         }
     }

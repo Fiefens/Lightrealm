@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,16 +12,6 @@ namespace Lightrealm
     [Serializable]
     public class Region : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public string Biome { get; set; }
         public int Elevation { get; set; }
         public int Heat { get; set; }
@@ -28,16 +19,18 @@ namespace Lightrealm
         public int Z { get; set; }
 
         private int _myLocationId;
+        [JsonIgnore]
         public Location MyLocation
         {
-            get => Entity<Location>(_myLocationId);
+            get => EntityGet<Location>(_myLocationId);
             set => _myLocationId = value?.ID ?? 0;
         }
 
         private int _worldId;
+        [JsonIgnore]
         public World World
         {
-            get => Entity<World>(_worldId);
+            get => EntityGet<World>(_worldId);
             set => _worldId = value?.ID ?? 0;
         }
 
@@ -47,70 +40,72 @@ namespace Lightrealm
         public bool RegionallyExplored { get; set; } = false;
 
         private int _blightId;
+        [JsonIgnore]
         public Blight Blight
         {
-            get => Entity<Blight>(_blightId);
+            get => EntityGet<Blight>(_blightId);
             set => _blightId = value?.ID ?? 0;
         }
 
         public string PortName { get; set; } = "";
 
         private int _harvestableWoodId;
+        [JsonIgnore]
         public Material HarvestableWood
         {
-            get => Entity<Material>(_harvestableWoodId);
+            get => EntityGet<Material>(_harvestableWoodId);
             set => _harvestableWoodId = value?.ID ?? 0;
         }
 
         private int _harvestableStoneId;
+        [JsonIgnore]
         public Material HarvestableStone
         {
-            get => Entity<Material>(_harvestableStoneId);
+            get => EntityGet<Material>(_harvestableStoneId);
             set => _harvestableStoneId = value?.ID ?? 0;
         }
 
         private int _harvestableMetalId;
+        [JsonIgnore]
         public Material HarvestableMetal
         {
-            get => Entity<Material>(_harvestableMetalId);
+            get => EntityGet<Material>(_harvestableMetalId);
             set => _harvestableMetalId = value?.ID ?? 0;
         }
 
         private int _harvestableSandId;
+        [JsonIgnore]
         public Material HarvestableSand
         {
-            get => Entity<Material>(_harvestableSandId);
+            get => EntityGet<Material>(_harvestableSandId);
             set => _harvestableSandId = value?.ID ?? 0;
         }
 
         private int _harvestableIceId;
+        [JsonIgnore]
         public Material HarvestableIce
         {
-            get => Entity<Material>(_harvestableIceId);
+            get => EntityGet<Material>(_harvestableIceId);
             set => _harvestableIceId = value?.ID ?? 0;
         }
 
         private int _harvestableFiberId;
+        [JsonIgnore]
         public Material HarvestableFiber
         {
-            get => Entity<Material>(_harvestableFiberId);
+            get => EntityGet<Material>(_harvestableFiberId);
             set => _harvestableFiberId = value?.ID ?? 0;
         }
 
-        private List<int> _events = new List<int>();
-        public EntityList<InteractableEvent> Events
-        {
-            get => _events.Select(id => Entity<InteractableEvent>(id)).ToList();
-            set => _events = value.Select(e => e.ID).ToList();
-        }
+        public EntityHashSet<InteractableEvent> Events { get; set; } = new EntityHashSet<InteractableEvent>();
 
         private int _ownerId;
+        [JsonIgnore]
         public Civilization Owner
         {
-            get => Entity<Civilization>(_ownerId);
+            get => EntityGet<Civilization>(_ownerId);
             set => _ownerId = value?.ID ?? 0;
         }
-
 
         public Region(string biome, int elevation, int heat, int x, int z, World w)
         {
@@ -122,12 +117,13 @@ namespace Lightrealm
             World = w;
 
             HarvestableWood = w.Woods[Game1.r.Next(w.Woods.Count)];
-            HarvestableFiber = w.Fibers[Game1.r.Next(w.Fibers.Count)]; 
+            HarvestableFiber = w.Fibers[Game1.r.Next(w.Fibers.Count)];
             HarvestableStone = w.Stones[Game1.r.Next(w.Stones.Count)];
             HarvestableMetal = w.Metals[Game1.r.Next(w.Metals.Count)];
             HarvestableSand = w.Sands[Game1.r.Next(w.Sands.Count)];
             HarvestableIce = w.Ices[Game1.r.Next(w.Ices.Count)];
         }
+
         public Region()
         {
             //default constructor for serialization
@@ -136,16 +132,11 @@ namespace Lightrealm
         public Rectangle BoundingBox()
         {
             return new Rectangle(
-                            (Game1.RegionXMod + X * Game1.TileXDistance) + ((Z % 2 == 1) ? Game1.TileXDistance / 2 : 0),
-                            Game1.RegionYMod + Z * Game1.TileZDistance,
-                            Game1.TileSize,
-                            Game1.TileSize
-                        );
+                (Game1.RegionXMod + X * Game1.TileXDistance) + ((Z % 2 == 1) ? Game1.TileXDistance / 2 : 0),
+                Game1.RegionYMod + Z * Game1.TileZDistance,
+                Game1.TileSize,
+                Game1.TileSize
+            );
         }
-
-
-
-
-
     }
 }

@@ -8,7 +8,7 @@ namespace Lightrealm
 {
     public static class LegendsManager
     {
-        public static T Entity<T>(int entityId) where T : Entity
+        public static T EntityGet<T>(int entityId) where T : Entity
         {
             if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
             {
@@ -104,84 +104,86 @@ namespace Lightrealm
                             LogEvent(a.Name + " started tracking " + targetArchitect.Name + ".");
                         }
                     }
-
-                    if (Decider < 5)
+                    else
                     {
-                        a.HuntingProgress += 5;
-                    }
-                    else if (Decider < 8)
-                    {
-                        a.HuntingProgress -= 3;
-                    }
-
-                    if (a.HuntingProgress > 100)
-                    {
-                        string[] approaches = new string[]
+                        if (Decider < 5)
                         {
+                            a.HuntingProgress += 5;
+                        }
+                        else if (Decider < 8)
+                        {
+                            a.HuntingProgress -= 3;
+                        }
+
+                        if (a.HuntingProgress > 100)
+                        {
+                            string[] approaches = new string[]
+                            {
                             "cautiously stalked the target from the shadows",
                             "moved in, hoping for a swift kill",
                             "set up an ambush using the nearby terrain",
                             "patiently waited for the perfect moment to strike"
-                        };
-                        string[] fightDetails = new string[]
-                        {
+                            };
+                            string[] fightDetails = new string[]
+                            {
                             "The battle was fierce and relentless",
                             "The target put up a strong resistance",
                             "The fight was over quickly",
                             "The fight was a struggle that lasted for hours"
-                        };
-                        string[] victories = new string[]
-                        {
+                            };
+                            string[] victories = new string[]
+                            {
                             "In the end, the hunter emerged victorious",
                             "The hunter triumphed with ease",
                             "The hunter claimed victory after a hard-fought battle",
                             "Ultimately, the hunter stood victorious"
-                        };
-                        string[] failures = new string[]
-                        {
+                            };
+                            string[] failures = new string[]
+                            {
                             "Unfortunately, the hunter was defeated, though still alive",
                             "The target managed to escape",
                             "The hunter was forced to retreat",
                             "Despite their efforts, the hunter failed"
-                        };
-                        string[] deaths = new string[]
-                        {
+                            };
+                            string[] deaths = new string[]
+                            {
                             "Tragically, the hunter was slain",
                             "The target overpowered and killed the hunter",
                             "The hunter met their demise in the encounter",
                             "Sadly, the hunter did not survive the battle"
-                        };
+                            };
 
-                        string approach = approaches[Game1.r.Next(approaches.Length)];
-                        string fightDetail = fightDetails[Game1.r.Next(fightDetails.Length)];
-                        string outcome;
+                            string approach = approaches[Game1.r.Next(approaches.Length)];
+                            string fightDetail = fightDetails[Game1.r.Next(fightDetails.Length)];
+                            string outcome;
 
-                        int outcomeRoll = Game1.r.Next(100); // Get a number between 0 and 99
+                            int outcomeRoll = Game1.r.Next(100); // Get a number between 0 and 99
 
-                        if (outcomeRoll < 60)
-                        {
-                            // 60% chance of success
-                            outcome = victories[Game1.r.Next(victories.Length)];
+                            if (outcomeRoll < 60)
+                            {
+                                // 60% chance of success
+                                outcome = victories[Game1.r.Next(victories.Length)];
 
-                            ((Architect)(a.LegendaryTarget)).IsAlive = false;
+                                ((Architect)(a.LegendaryTarget)).IsAlive = false;
+                            }
+                            else if (outcomeRoll < 95)
+                            {
+                                // 35% chance of failure and escape
+                                outcome = failures[Game1.r.Next(failures.Length)];
+                            }
+                            else
+                            {
+                                // 5% chance of death
+                                outcome = deaths[Game1.r.Next(deaths.Length)];
+                                a.IsAlive = false;
+                            }
+
+                            string logMessage = $"{a.Name} located {a.LegendaryTarget.Name}. {a.Name} {approach}. {fightDetail}. {outcome}.";
+                            LogEvent(logMessage);
+
+                            a.LegendaryTarget = null;
+                            a.HuntingProgress = 0;
                         }
-                        else if (outcomeRoll < 95)
-                        {
-                            // 35% chance of failure and escape
-                            outcome = failures[Game1.r.Next(failures.Length)];
-                        }
-                        else
-                        {
-                            // 5% chance of death
-                            outcome = deaths[Game1.r.Next(deaths.Length)];
-                            a.IsAlive = false;
-                        }
-
-                        string logMessage = $"{a.Name} located {a.LegendaryTarget.Name}. {a.Name} {approach}. {fightDetail}. {outcome}.";
-                        LogEvent(logMessage);
-
-                        a.LegendaryTarget = null;
-                        a.HuntingProgress = 0;
                     }
                 }
                 else if (a.Profession == "assassin")
@@ -655,7 +657,7 @@ namespace Lightrealm
 
                                     if (selectedDistrict.Architects.Count > 0)
                                     {
-                                        Architect selectedArch = selectedDistrict.Architects[Game1.r.Next(selectedDistrict.Architects.Count)];
+                                        Architect selectedArch = selectedDistrict.Architects.GetRandomItem();
 
                                         LogEvent(a.Name + " had a lovely chat about " + shobeSubjects[Game1.r.Next(shobeSubjects.Count)] + " in " + a.Location.Name + " with " + selectedArch.Name + ".");
                                     }

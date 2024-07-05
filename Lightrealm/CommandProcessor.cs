@@ -14,7 +14,7 @@ namespace Lightrealm
 {
     public class CommandProcessor
     {
-        public static T Entity<T>(int entityId) where T : Entity
+        public static T EntityGet<T>(int entityId) where T : Entity
         {
             if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
             {
@@ -496,11 +496,11 @@ namespace Lightrealm
                         {
                             if (architect == targetArchitect) // The target architect
                             {
-                                Executor.DistanceFromArchitect(architect, -1); // Decrease distance by 1
+                                Executor.ModifyDistance(architect, -1); // Decrease distance by 1
                             }
                             else
                             {
-                                Executor.DistanceFromArchitect(architect, 2); // Increase distance with all others by 1
+                                Executor.ModifyDistance(architect, 2); // Increase distance with all others by 2
                             }
                         }
                         MakeObservation("You focus your target, shifting distances.", Color.Green, new EntityList<Entity>());
@@ -516,13 +516,14 @@ namespace Lightrealm
                     MakeObservation("The target is not an architect.", Color.Red, new EntityList<Entity>());
                 }
             }
+
             else if (CommandID == "approach_target")
             {
                 if (Subjects[0] is Architect targetArchitect)
                 {
                     if (ArchitectsToUse.Contains(targetArchitect))
                     {
-                        Executor.DistanceFromArchitect(targetArchitect, -2); // Decrease distance by 2
+                        Executor.ModifyDistance(targetArchitect, -2); // Decrease distance by 2
                         MakeObservation("You move closer to the target.", Color.Green, new EntityList<Entity>());
                         Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
                     }
@@ -542,7 +543,7 @@ namespace Lightrealm
                 {
                     if (ArchitectsToUse.Contains(targetArchitect))
                     {
-                        Executor.DistanceFromArchitect(targetArchitect, 2); // Increase distance by 2
+                        Executor.ModifyDistance(targetArchitect, 2); // Increase distance by 2
                         MakeObservation("You increase your distance from the target.", Color.Green, new EntityList<Entity>());
                         Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
                     }
@@ -1132,8 +1133,13 @@ namespace Lightrealm
                             {
                                 Executor.TryPickUpItemType = ((Object)Subjects[0]).Type;
                                 Executor.TryPickUpMaterials.Clear();
-                                Executor.TryPickUpMaterials.AddRange(((Object)Subjects[0]).Materials);
+
+                                foreach (var material in ((Object)Subjects[0]).Materials)
+                                {
+                                    Executor.TryPickUpMaterials.Add(material);
+                                }
                             }
+
                         }
                         else
                         {
@@ -1313,8 +1319,13 @@ namespace Lightrealm
                         {
                             Executor.TryDropItemType = itemToDrop.Type;
                             Executor.TryDropMaterials.Clear();
-                            Executor.TryDropMaterials.AddRange(itemToDrop.Materials);
+
+                            foreach (var material in itemToDrop.Materials)
+                            {
+                                Executor.TryDropMaterials.Add(material);
+                            }
                         }
+
                         else
                         {
                             // Proceed as normal
@@ -1965,7 +1976,7 @@ namespace Lightrealm
                     MakeObservation("You aim at the " + targetObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
                 }
 
-    ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, r.Next(12, 20) - Executor.Dexterity);
+                ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, r.Next(12, 20) - Executor.Dexterity);
                 ((Object)Subjects[0]).Thrower = Executor;
                 ((Object)Subjects[0]).AirbornePower = Executor.Dexterity + Executor.GetDistance(Subjects[0]) + 3;
 
@@ -3728,7 +3739,7 @@ namespace Lightrealm
                             {
                                 // Inside, teleport through an adjacent door.
                                 bool Success = false;
-                                EntityList<Object> doors = Executor.Room.Objects.Where(o => o.Type == "door").ToList();
+                                EntityList<Object> doors = Executor.Room.Objects.Where(o => o.Type == "door");
 
                                 if (doors.Count > 0)
                                 {

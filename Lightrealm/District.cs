@@ -16,76 +16,45 @@ namespace Lightrealm
     [Serializable]
     public class District : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public bool IsPrimary { get; set; } = false;
 
         private int _locationId;
+
+        [JsonIgnore]
         public Location Location
         {
-            get => Entity<Location>(_locationId);
+            get => EntityGet<Location>(_locationId);
             set => _locationId = value?.ID ?? 0;
         }
 
-        public EntityList<Architect> AllArchitectsInDistrict()
+        public EntityHashSet<Architect> AllArchitectsInDistrict()
         {
-            EntityList<Architect> architects = new EntityList<Architect>();
-            for (int i = 0; i < 7; i++)
+            EntityHashSet<Architect> architects = new EntityHashSet<Architect>();
+            foreach (var block in DistrictMap)
             {
-                for (int j = 0; j < 7; j++)
-                {
-                    architects.AddRange(DistrictMap[i + j * 7].Architects);
-                }
+                architects = architects.Union(block.Architects);
             }
             return architects;
         }
 
         public int UnplacedPopulation { get; set; }
 
-        private List<int> _architects = new List<int>();
-        public EntityList<Architect> Architects
-        {
-            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)));
-            set => _architects = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
+        public EntityHashSet<Architect> Architects { get; set; } = new EntityHashSet<Architect>();
 
-        private List<int> _architectsToRemove = new List<int>();
-        public EntityList<Architect> ArchitectsToRemove
-        {
-            get => new EntityList<Architect>(_architectsToRemove.Select(id => Entity<Architect>(id)));
-            set => _architectsToRemove = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
+        public EntityHashSet<Architect> ArchitectsToRemove { get; set; } = new EntityHashSet<Architect>();
 
-        private List<int> _architectsToAdd = new List<int>();
-        public EntityList<Architect> ArchitectsToAdd
-        {
-            get => new EntityList<Architect>(_architectsToAdd.Select(id => Entity<Architect>(id)));
-            set => _architectsToAdd = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
+        public EntityHashSet<Architect> ArchitectsToAdd { get; set; } = new EntityHashSet<Architect>();
 
         public List<string> GeneralItemsWeHave { get; set; } = new List<string>();
 
         public bool IsLoaded { get; set; } = false;
         public bool HasBeenLoadedEver { get; set; } = false;
 
-        private int[] _districtMap = new int[49];
-        public Block[] DistrictMap
-        {
-            get => _districtMap.Select(id => Entity<Block>(id)).ToArray();
-            set => _districtMap = value.Select(e => e?.ID ?? 0).ToArray();
-        }
+        public EntityList<Block> DistrictMap = new EntityList<Block>();
 
         public string Industry { get; set; } = "";
 
-        public bool HasBeenLoaded { get; set; }
+        public bool HasBeenLoaded { get; set; } = false;
 
         public District(bool isPrimary, Location l, int unplacedPopulation)
         {
@@ -93,6 +62,16 @@ namespace Lightrealm
             Name = Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 4) - 1) + "s", this);
             AddReferredToName(Name);
             IsPrimary = isPrimary;
+
+            int index = 0;
+            for (int z = 0; z < 7; z++) // z is south, so it increases as we go down the rows
+            {
+                for (int x = 0; x < 7; x++) // x is east, so it increases as we go across the columns
+                {
+                    DistrictMap.Add(new Block(x, z, this));
+                    index++;
+                }
+            }
 
             string dockside = Location.Dockside;
 
@@ -675,11 +654,20 @@ namespace Lightrealm
                 {
                     if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
                     {
-                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures.Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]));
+                        var structures = DistrictMap[DistrictX + DistrictZ * 7].Structures
+                                            .Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]);
+                        foreach (var structure in structures)
+                        {
+                            possibleStructures.Add(structure);
+                        }
                     }
                     else
                     {
-                        possibleStructures.AddRange(DistrictMap[DistrictX + DistrictZ * 7].Structures);
+                        var structures = DistrictMap[DistrictX + DistrictZ * 7].Structures;
+                        foreach (var structure in structures)
+                        {
+                            possibleStructures.Add(structure);
+                        }
                     }
                 }
             }
@@ -703,7 +691,6 @@ namespace Lightrealm
             // Randomly select a room from the selected structure
             return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
         }
-
 
 
         public void Load()
@@ -836,7 +823,7 @@ namespace Lightrealm
                     else
                     {
                         // Pick one of the other two humanoid races
-                        EntityList<Race> otherHumanoidRaces = Location.Region.World.HumanoidRaces.Where(r => r.Name != Location.PrimaryRace.Name && (r.Name == "luminarch" || r.Name == "nightfell" || r.Name == "archaix")).ToList();
+                        EntityList<Race> otherHumanoidRaces = Location.Region.World.HumanoidRaces.Where(r => r.Name != Location.PrimaryRace.Name && (r.Name == "luminarch" || r.Name == "nightfell" || r.Name == "archaix"));
                         race = otherHumanoidRaces[Game1.r.Next(otherHumanoidRaces.Count)];
                     }
                 }

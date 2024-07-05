@@ -3,48 +3,32 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace Lightrealm
 {
     [Serializable]
     public class Unit : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         private int _leaderId;
         public Architect Leader
         {
-            get => Entity<Architect>(_leaderId);
+            get => EntityGet<Architect>(_leaderId);
             set => _leaderId = value?.ID ?? 0;
         }
 
-        private List<int> _architects = new List<int>();
-        public EntityList<Architect> Architects
-        {
-            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)));
-            set => _architects = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
-
+        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
 
         public int OtherSoldiers { get; set; }
 
         private int _homeLocationId;
         public Location HomeLocation
         {
-            get => Entity<Location>(_homeLocationId);
+            get => EntityGet<Location>(_homeLocationId);
             set => _homeLocationId = value?.ID ?? 0;
         }
 
-        public string Style { get; set; } = new List<string>() { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
-
+        public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
 
         public Unit(Architect leader, EntityList<Architect> architects, int otherSoldiers, Location homeLocation)
         {
@@ -54,6 +38,11 @@ namespace Lightrealm
             HomeLocation = homeLocation;
 
             Name = Game1.GameWorld.GenerateUniqueName("1W1w", this);
+        }
+
+        public Unit()
+        {
+
         }
 
         public int CombatStrength()
@@ -207,7 +196,6 @@ namespace Lightrealm
 
                 loser.Architects.RemoveRange(0, architectLosses);
             }
-
 
             if (soldierLosses > 0)
             {

@@ -18,16 +18,6 @@ namespace Lightrealm
     [Serializable]
     public class Object : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public string Type { get; set; }
 
         public EntityList<Material> Materials { get; set; } = new EntityList<Material>();
@@ -36,7 +26,6 @@ namespace Lightrealm
         public bool IsContainer { get; set; }
 
         public EntityList<Object> ContainedObjects { get; set; } = new EntityList<Object>();
-
 
         public bool IfTrueUseInIfFalseUseOn { get; set; }
         public double LatestUpdateCycle { get; set; } = 0;
@@ -49,22 +38,25 @@ namespace Lightrealm
         public int WeaponMaximumRange { get; set; } = 0;
         public bool RealityAugmented { get; set; } = false;
 
+        [JsonIgnore]
         public Structure Structure
         {
             get => Room?.Structure;
         }
 
         private int _blockId;
+        [JsonIgnore]
         public Block Block
         {
-            get => Entity<Block>(_blockId);
+            get => EntityGet<Block>(_blockId);
             set => _blockId = value?.ID ?? 0;
         }
 
         private int _roomId;
+        [JsonIgnore]
         public Room Room
         {
-            get => Entity<Room>(_roomId);
+            get => EntityGet<Room>(_roomId);
             set => _roomId = value?.ID ?? 0;
         }
 
@@ -82,9 +74,10 @@ namespace Lightrealm
         public bool MajorArteryIsSevered { get; set; } = false;
 
         private int _airborneTargetId;
+        [JsonIgnore]
         public Entity AirborneTarget
         {
-            get => Entity<Entity>(_airborneTargetId);
+            get => EntityGet<Entity>(_airborneTargetId);
             set => _airborneTargetId = value?.ID ?? 0;
         }
 
@@ -92,16 +85,18 @@ namespace Lightrealm
         public int AirborneCyclesToHitTarget { get; set; } = 0;
 
         private int _throwerId;
+        [JsonIgnore]
         public Architect Thrower
         {
-            get => Entity<Architect>(_throwerId);
+            get => EntityGet<Architect>(_throwerId);
             set => _throwerId = value?.ID ?? 0;
         }
 
         private int _creatorId;
+        [JsonIgnore]
         public Entity Creator
         {
-            get => Entity<Entity>(_creatorId);
+            get => EntityGet<Entity>(_creatorId);
             set => _creatorId = value?.ID ?? 0;
         }
 
@@ -111,15 +106,16 @@ namespace Lightrealm
         public int FractalCycles { get; set; } = 0;
 
         private (int, int, int, int, int, int) _rematerializeLocation = (0, 0, 0, 0, 0, 0);
+        [JsonIgnore]
         public (Region, Location, District, Block, Structure, Room) RematerializeLocation
         {
             get => (
-                _rematerializeLocation.Item1 != 0 ? Entity<Region>(_rematerializeLocation.Item1) : null,
-                _rematerializeLocation.Item2 != 0 ? Entity<Location>(_rematerializeLocation.Item2) : null,
-                _rematerializeLocation.Item3 != 0 ? Entity<District>(_rematerializeLocation.Item3) : null,
-                _rematerializeLocation.Item4 != 0 ? Entity<Block>(_rematerializeLocation.Item4) : null,
-                _rematerializeLocation.Item5 != 0 ? Entity<Structure>(_rematerializeLocation.Item5) : null,
-                _rematerializeLocation.Item6 != 0 ? Entity<Room>(_rematerializeLocation.Item6) : null
+                _rematerializeLocation.Item1 != 0 ? EntityGet<Region>(_rematerializeLocation.Item1) : null,
+                _rematerializeLocation.Item2 != 0 ? EntityGet<Location>(_rematerializeLocation.Item2) : null,
+                _rematerializeLocation.Item3 != 0 ? EntityGet<District>(_rematerializeLocation.Item3) : null,
+                _rematerializeLocation.Item4 != 0 ? EntityGet<Block>(_rematerializeLocation.Item4) : null,
+                _rematerializeLocation.Item5 != 0 ? EntityGet<Structure>(_rematerializeLocation.Item5) : null,
+                _rematerializeLocation.Item6 != 0 ? EntityGet<Room>(_rematerializeLocation.Item6) : null
             );
             set => _rematerializeLocation = (
                 value.Item1?.ID ?? 0,
@@ -146,25 +142,28 @@ namespace Lightrealm
         public bool IsWritable { get; set; } = false;
 
         private int _compositionContentId;
+        [JsonIgnore]
         public Composition CompositionContent
         {
-            get => Entity<Composition>(_compositionContentId);
+            get => EntityGet<Composition>(_compositionContentId);
             set => _compositionContentId = value?.ID ?? 0;
         }
 
         private int _specialKnowledgeId;
+        [JsonIgnore]
         public Entity SpecialKnowledge
         {
-            get => Entity<Entity>(_specialKnowledgeId);
+            get => EntityGet<Entity>(_specialKnowledgeId);
             set => _specialKnowledgeId = value?.ID ?? 0;
         }
 
         public bool IsGeneralGood { get; set; } = false;
 
         private int _ownerId;
+        [JsonIgnore]
         public Entity Owner
         {
-            get => Entity<Entity>(_ownerId);
+            get => EntityGet<Entity>(_ownerId);
             set => _ownerId = value?.ID ?? 0;
         }
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Lightrealm
@@ -14,7 +15,6 @@ namespace Lightrealm
         public string BuffOrResult { get; set; }
         public int FirstPower { get; set; }
         public int SecondPower { get; set; }
-
         public bool IsSatisfied { get; set; }
 
         public Imbuement(bool isTrigger, string conditionOrTrigger, string buffOrResult, int firstPower, int secondPower)
@@ -24,6 +24,10 @@ namespace Lightrealm
             BuffOrResult = buffOrResult;
             FirstPower = firstPower;
             SecondPower = secondPower;
+        }
+        public Imbuement()
+        {
+
         }
 
         public string GetDescription()
@@ -40,39 +44,35 @@ namespace Lightrealm
             if (IsTrigger)
             {
                 // Logic for triggers
-                if (IsTrigger)
+                switch (ConditionOrTrigger)
                 {
-                    // Logic for triggers
-                    switch (ConditionOrTrigger)
-                    {
-                        case "onjump":
-                            description = "When you jump over an attack, ";
-                            break;
-                        case "onduck":
-                            description = "When you duck under an attack, ";
-                            break;
-                        case "onroll":
-                            description = "When you roll away from an attack, ";
-                            break;
-                        case "onblock":
-                            description = "When you block an attack with a shield, ";
-                            break;
-                        case "onparry":
-                            description = "When you parry an attack, ";
-                            break;
-                        case "onredirect":
-                            description = "When you redirect an attack, ";
-                            break;
-                        case "oncast":
-                            description = "When you cast a spell, ";
-                            break;
-                        case "ondamage":
-                            description = "When you are successfully attacked, ";
-                            break;
-                        case "onattack":
-                            description = "When you successfully attack, ";
-                            break;
-                    }
+                    case "onjump":
+                        description = "When you jump over an attack, ";
+                        break;
+                    case "onduck":
+                        description = "When you duck under an attack, ";
+                        break;
+                    case "onroll":
+                        description = "When you roll away from an attack, ";
+                        break;
+                    case "onblock":
+                        description = "When you block an attack with a shield, ";
+                        break;
+                    case "onparry":
+                        description = "When you parry an attack, ";
+                        break;
+                    case "onredirect":
+                        description = "When you redirect an attack, ";
+                        break;
+                    case "oncast":
+                        description = "When you cast a spell, ";
+                        break;
+                    case "ondamage":
+                        description = "When you are successfully attacked, ";
+                        break;
+                    case "onattack":
+                        description = "When you successfully attack, ";
+                        break;
                 }
             }
             else
@@ -168,6 +168,5 @@ namespace Lightrealm
             }
             return description;
         }
-
     }
 }

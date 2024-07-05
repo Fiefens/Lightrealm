@@ -8,32 +8,46 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class LocationBuilderPacket
+    public class LocationBuilderPacket : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         private int _governmentId;
+
+        [JsonIgnore]
         public Entity Government
         {
-            get => Entity<Entity>(_governmentId);
+            get
+            {
+                if (GovernmentAsGroup != null)
+                {
+                    return GovernmentAsGroup;
+                }
+                else if (GovernmentAsArchitect != null)
+                {
+                    return GovernmentAsArchitect;
+                }
+                else
+                {
+                    return null; // or handle as needed if neither type matches
+                }
+            }
             set => _governmentId = value?.ID ?? 0;
         }
+
+        [JsonIgnore]
+        private Group GovernmentAsGroup => EntityGet<Group>(_governmentId);
+
+        [JsonIgnore]
+        private Architect GovernmentAsArchitect => EntityGet<Architect>(_governmentId);
 
         public int X { get; set; }
         public int Z { get; set; }
 
         private int _primaryRaceId;
+
+        [JsonIgnore]
         public Race PrimaryRace
         {
-            get => Entity<Race>(_primaryRaceId);
+            get => EntityGet<Race>(_primaryRaceId);
             set => _primaryRaceId = value?.ID ?? 0;
         }
 
@@ -41,30 +55,31 @@ namespace Lightrealm
         public int ColonizationDesire { get; set; }
 
         private int _homeCivilizationId;
+
+        [JsonIgnore]
         public Civilization HomeCivilization
         {
-            get => Entity<Civilization>(_homeCivilizationId);
+            get => EntityGet<Civilization>(_homeCivilizationId);
             set => _homeCivilizationId = value?.ID ?? 0;
         }
 
         public string Type { get; set; }
-
         public EntityList<Object> Artifacts { get; set; } = new EntityList<Object>();
 
         private int _baseLocationId;
+
+        [JsonIgnore]
         public Location BaseLocation
         {
-            get => Entity<Location>(_baseLocationId);
+            get => EntityGet<Location>(_baseLocationId);
             set => _baseLocationId = value?.ID ?? 0;
         }
 
         public string Dockside { get; set; }
 
-
-
-        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization HomeCiv, EntityList<Object> artifacts, Location OriginalLocationYouAreComingFrom, string dockside)
+        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization homeCiv, EntityList<Object> artifacts, Location originalLocationYouAreComingFrom, string dockside)
         {
-            BaseLocation = OriginalLocationYouAreComingFrom;
+            BaseLocation = originalLocationYouAreComingFrom;
             Type = locationType;
             Government = government;
             X = x;
@@ -72,13 +87,13 @@ namespace Lightrealm
             PrimaryRace = primaryRace;
             MiscPopulation = miscPopulation;
             ColonizationDesire = colonizationDesire;
-            HomeCivilization = HomeCiv;
+            HomeCivilization = homeCiv;
             Artifacts = artifacts;
             Dockside = dockside;
         }
+
         public LocationBuilderPacket()
         {
-
         }
     }
 }

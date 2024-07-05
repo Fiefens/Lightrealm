@@ -1,28 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Lightrealm
 {
     [Serializable]
     public class Composition : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public string Type { get; set; }
 
         private int _subjectId;
+
+        [JsonIgnore]
         public Entity Subject
         {
-            get => Entity<Entity>(_subjectId);
+            get => EntityGet<Entity>(_subjectId);
             set => _subjectId = value?.ID ?? 0;
         }
 
@@ -218,8 +211,6 @@ namespace Lightrealm
             return sections;
         }
 
-
-
         private Entity GenerateRandomSubject()
         {
             var random = new Random();
@@ -255,6 +246,11 @@ namespace Lightrealm
                 .ToList();
 
             return events;
+        }
+
+        public Composition()
+        {
+
         }
     }
 }

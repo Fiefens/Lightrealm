@@ -30,6 +30,8 @@ using static System.Net.Mime.MediaTypeNames;
 using System.Drawing.Drawing2D;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Microsoft.Xna.Framework.Content;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 #pragma warning disable SYSLIB0011
 
@@ -73,8 +75,8 @@ namespace Lightrealm
         public static Rectangle RectangleNW;
         public static Rectangle RectangleCenter;
 
-        public static int TemporaryNextUniqueID = 100;
         public static Dictionary<int, Entity> TemporaryEntities = new Dictionary<int, Entity>();
+        public static int TemporaryNextUniqueID = 100;
 
         public bool MassTravelOrderMode = false;
 
@@ -120,35 +122,35 @@ namespace Lightrealm
 
         public static EntityList<Entity> CollectAllSubjects(Architect executor, string Modifier)
         {
-            HashSet<Entity> subjects = new HashSet<Entity>(); // Using HashSet to avoid duplicates
+            EntityList<Entity> subjects = new EntityList<Entity>();
 
             // Entities around
             foreach (Block b in executor.District.DistrictMap)
             {
-                subjects.UnionWith(b.Structures);
-                subjects.UnionWith(b.Objects);
-                subjects.UnionWith(b.Architects);
+                subjects.AddRange(b.Structures);
+                subjects.AddRange(b.Objects);
+                subjects.AddRange(b.Architects);
 
                 foreach (Structure s in b.Structures)
                 {
                     foreach (Room r in s.Rooms)
                     {
-                        subjects.UnionWith(r.Objects);
-                        subjects.UnionWith(r.Architects);
+                        subjects.AddRange(r.Objects);
+                        subjects.AddRange(r.Architects);
                     }
                 }
             }
 
-            subjects.UnionWith(LoadedArchitects);
+            subjects.AddRange(LoadedArchitects);
 
             // Add the items in the inventories of people who actually matter
             EntityList<Entity> subjectsToAdd = new EntityList<Entity>();
 
             foreach (Entity e in subjects)
             {
-                if (e is Architect architect) // Using pattern matching to cast 'e' to 'Architect'
+                if (e is Architect architect)
                 {
-                    if(Modifier != "get")
+                    if (Modifier != "get")
                     {
                         subjectsToAdd.AddRange(architect.Inventory);
                         subjectsToAdd.AddRange(architect.Clothing);
@@ -166,27 +168,31 @@ namespace Lightrealm
 
                     subjectsToAdd.AddRange(architect.CultureBank);
 
-                    if(GamePlayerParty.Architects.Contains(architect))
+                    if (GamePlayerParty.Architects.Contains(architect))
                     {
                         subjectsToAdd.AddRange(architect.ShadowStorage);
                     }
                 }
             }
 
-            subjects.UnionWith(subjectsToAdd);
+            subjects.AddRange(subjectsToAdd);
 
             // Entities not around
             foreach (Architect a in GameWorld.AllArchitects)
             {
-                subjects.Add(a);
+                if (!subjects.Contains(a))
+                {
+                    subjects.Add(a);
+                }
             }
 
             foreach (Location l in GameWorld.AllLocations)
             {
-                if (subjects.Add(l))
+                if (!subjects.Contains(l))
                 {
-                    subjects.UnionWith(l.Districts);
-                    subjects.UnionWith(l.AllStructures);
+                    subjects.Add(l);
+                    subjects.AddRange(l.Districts);
+                    subjects.AddRange(l.AllStructures);
                 }
             }
 
@@ -198,45 +204,71 @@ namespace Lightrealm
             // Spells known to the architect
             foreach (var spell in GameWorld.AllSpells)
             {
-                subjects.Add(spell);
-            }
-            foreach (var skill in GameWorld.AllSkills)
-            {
-                subjects.Add(skill);
-            }
-            foreach (var spell in GameWorld.AllLegendarySpells)
-            {
-                subjects.Add(spell);
-            }
-
-            // Add types of body parts
-            foreach (Race r in GameWorld.Races)
-            {
-                foreach ((string part, Material material) in r.BodyParts)
+                if (!subjects.Contains(spell))
                 {
-                    subjects.Add(new Entity(part));
+                    subjects.Add(spell);
                 }
             }
 
-            GameWorld.ExtraEntities = GameWorld.ExtraEntities.Except(GameWorld.Domains);
-            subjects.UnionWith(GameWorld.ExtraEntities);
-            subjects.UnionWith(GameWorld.Domains); // Ensure all domains are also added as entities if not already covered
-            subjects.UnionWith(GameWorld.Blights);
+            foreach (var skill in GameWorld.AllSkills)
+            {
+                if (!subjects.Contains(skill))
+                {
+                    subjects.Add(skill);
+                }
+            }
+
+            foreach (var spell in GameWorld.AllLegendarySpells)
+            {
+                if (!subjects.Contains(spell))
+                {
+                    subjects.Add(spell);
+                }
+            }
+
+            // Add types of body parts
+            var uniqueBodyPartNames = new HashSet<string>();
+
+            foreach (Race r in GameWorld.Races)
+            {
+                foreach (string part in r.BodyPartNames)
+                {
+                    if (uniqueBodyPartNames.Add(part)) // Adds part and returns true if it was not already in the set
+                    {
+                        subjects.Add(new Entity(part));
+                    }
+                }
+            }
+
+
+            var extraEntities = GameWorld.ExtraEntities.Except(GameWorld.Domains).ToList();
+            subjects.AddRange(extraEntities);
+
+            foreach (var domain in GameWorld.Domains)
+            {
+                if (!subjects.Contains(domain))
+                {
+                    subjects.Add(domain);
+                }
+            }
+
+            subjects.AddRange(GameWorld.Blights);
             subjects.Add(GameWorld.DarkDeity);
             subjects.Add(GameWorld.LightDeity);
-            subjects.UnionWith(GameWorld.Groups);
-            subjects.UnionWith(GameWorld.CoreMaterials());
-            subjects.UnionWith(GameWorld.Races);
+            subjects.AddRange(GameWorld.Groups);
+            subjects.AddRange(GameWorld.CoreMaterials());
+            subjects.AddRange(GameWorld.Races);
             subjects.Add(GameWorld);
 
             // Collect the objects hiding inside containers
-            HashSet<Entity> allObjects = new HashSet<Entity>();
+            EntityList<Entity> allObjects = new EntityList<Entity>();
 
             // Method to recursively retrieve all objects
             void RetrieveAllObjects(Object obj)
             {
-                if (allObjects.Add(obj))
+                if (!allObjects.Contains(obj))
                 {
+                    allObjects.Add(obj);
                     foreach (Entity containedEntity in obj.ContainedObjects)
                     {
                         if (containedEntity is Object containedObject)
@@ -255,12 +287,13 @@ namespace Lightrealm
                 }
             }
 
-            subjects.UnionWith(allObjects);
+            subjects.AddRange(allObjects);
 
             return subjects;
         }
 
-        
+
+
         public static EntityList<Entity> AllSubjects = new EntityList<Entity>();
 
         public static Dictionary<string, string> CalamityIdeologicalObsessionMapping = new Dictionary<string, string>()
@@ -983,7 +1016,7 @@ namespace Lightrealm
                                 // Ensure the list is initialized
                                 if (Reciever.ArchitectsWhoSurrenderedToMe == null)
                                 {
-                                    Reciever.ArchitectsWhoSurrenderedToMe = new EntityList<Architect>();
+                                    Reciever.ArchitectsWhoSurrenderedToMe = new EntityHashSet<Architect>();
                                 }
 
                                 // Add the sender to the receiver's list of those who surrendered to them
@@ -2143,11 +2176,11 @@ namespace Lightrealm
 
             // Save the world
             string worldPath = Path.Combine(saveFolder, $"{world.Name}.json");
-            SerializeObjectToBinaryFile(worldPath, world);
+            SerializeObjectToJsonFile(worldPath, world);
 
             // Save the player
             string playerPath = Path.Combine(saveFolder, $"{player.Name}.json");
-            SerializeObjectToBinaryFile(playerPath, player);
+            SerializeObjectToJsonFile(playerPath, player);
 
             List<string> versionData = new List<string>() { Version, "Modification of the above line may lead to world corruption." };
             File.WriteAllLines(Path.Combine(saveFolder, $"version.txt"), versionData);
@@ -2185,10 +2218,10 @@ namespace Lightrealm
             string playerFilePath = files.First(f => f != worldFilePath);
 
             // Load the world
-            World loadedWorld = DeserializeObjectFromBinaryFile<World>(worldFilePath);
+            World loadedWorld = DeserializeObjectFromJsonFile<World>(worldFilePath);
 
             // Load the player
-            Party loadedPlayer = DeserializeObjectFromBinaryFile<Party>(playerFilePath);
+            Party loadedPlayer = DeserializeObjectFromJsonFile<Party>(playerFilePath);
 
             GamePlayerParty = loadedPlayer;
             GameWorld = loadedWorld;
@@ -2215,79 +2248,88 @@ namespace Lightrealm
 
 
 
-        private static void SerializeObjectToBinaryFile(string filePath, object obj)
+        private static void SerializeObjectToJsonFile(string filePath, object obj)
         {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true, // This is optional, it formats the JSON with indentation for readability
+                ReferenceHandler = ReferenceHandler.Preserve // This preserves object references
+            };
+
             using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
             {
-                BinaryFormatter binaryFormatter = new BinaryFormatter();
-                binaryFormatter.Serialize(fileStream, obj);
+                JsonSerializer.Serialize(fileStream, obj, obj.GetType(), options);
             }
         }
 
-        private static T DeserializeObjectFromBinaryFile<T>(string filePath)
+        private static T DeserializeObjectFromJsonFile<T>(string filePath)
         {
+            var options = new JsonSerializerOptions
+            {
+                ReferenceHandler = ReferenceHandler.Preserve // This preserves object references
+            };
+
             using (FileStream fileStream = new FileStream(filePath, FileMode.Open))
             {
-                BinaryFormatter binaryFormatter = new BinaryFormatter();
-                return (T)binaryFormatter.Deserialize(fileStream);
+                return JsonSerializer.Deserialize<T>(fileStream, options);
             }
         }
 
         List<Keys> ValidNumpadKeys = new List<Keys>
-{
-    Keys.NumPad8, // North
-    Keys.NumPad9, // Northeast
-    Keys.NumPad6, // East
-    Keys.NumPad3, // Southeast
-    Keys.NumPad2, // South
-    Keys.NumPad1, // Southwest
-    Keys.NumPad4, // West
-    Keys.NumPad7, // Northw
-        };
+        {
+            Keys.NumPad8, // North
+            Keys.NumPad9, // Northeast
+            Keys.NumPad6, // East
+            Keys.NumPad3, // Southeast
+            Keys.NumPad2, // South
+            Keys.NumPad1, // Southwest
+            Keys.NumPad4, // West
+            Keys.NumPad7, // Northw
+                };
 
         Dictionary<Keys, (int dx, int dz)> directionOffsets = new Dictionary<Keys, (int dx, int dz)>
-{
-    // Existing NumPad directions
-    { Keys.NumPad8, (0, -1) },  // North
-    { Keys.NumPad9, (1, -1) },  // Northeast
-    { Keys.NumPad6, (1, 0) },   // East
-    { Keys.NumPad3, (1, 1) },   // Southeast
-    { Keys.NumPad2, (0, 1) },   // South
-    { Keys.NumPad1, (-1, 1) },  // Southwest
-    { Keys.NumPad4, (-1, 0) },  // West
-    { Keys.NumPad7, (-1, -1) }, // Northwest
-    // New ALT + QWEADZXC directions
-    { Keys.Q, (-1, -1) }, // Northwest
-    { Keys.W, (0, -1) },  // North
-    { Keys.E, (1, -1) },  // Northeast
-    { Keys.A, (-1, 0) },  // West
-    { Keys.D, (1, 0) },   // East
-    { Keys.Z, (-1, 1) },  // Southwest
-    { Keys.X, (0, 1) },   // South
-    { Keys.C, (1, 1) }    // Southeast
-};
+        {
+            // Existing NumPad directions
+            { Keys.NumPad8, (0, -1) },  // North
+            { Keys.NumPad9, (1, -1) },  // Northeast
+            { Keys.NumPad6, (1, 0) },   // East
+            { Keys.NumPad3, (1, 1) },   // Southeast
+            { Keys.NumPad2, (0, 1) },   // South
+            { Keys.NumPad1, (-1, 1) },  // Southwest
+            { Keys.NumPad4, (-1, 0) },  // West
+            { Keys.NumPad7, (-1, -1) }, // Northwest
+            // New ALT + QWEADZXC directions
+            { Keys.Q, (-1, -1) }, // Northwest
+            { Keys.W, (0, -1) },  // North
+            { Keys.E, (1, -1) },  // Northeast
+            { Keys.A, (-1, 0) },  // West
+            { Keys.D, (1, 0) },   // East
+            { Keys.Z, (-1, 1) },  // Southwest
+            { Keys.X, (0, 1) },   // South
+            { Keys.C, (1, 1) }    // Southeast
+        };
 
-        Dictionary<Keys, string> KeyDirections = new Dictionary<Keys, string>
-{
-    // Existing NumPad directions
-    { Keys.NumPad8, "north" },
-    { Keys.NumPad9, "northeast" },
-    { Keys.NumPad6, "east" },
-    { Keys.NumPad3, "southeast" },
-    { Keys.NumPad2, "south" },
-    { Keys.NumPad1, "southwest" },
-    { Keys.NumPad4, "west" },
-    { Keys.NumPad7, "northwest" },
-    // New ALT + QWEADZXC directions
-    { Keys.Q, "northwest" },
-    { Keys.W, "north" },
-    { Keys.E, "northeast" },
-    { Keys.A, "west" },
-    { Keys.D, "east" },
-    { Keys.Z, "southwest" },
-    { Keys.X, "south" },
-    { Keys.C, "southeast" }
-};
+                Dictionary<Keys, string> KeyDirections = new Dictionary<Keys, string>
+        {
+            // Existing NumPad directions
+            { Keys.NumPad8, "north" },
+            { Keys.NumPad9, "northeast" },
+            { Keys.NumPad6, "east" },
+            { Keys.NumPad3, "southeast" },
+            { Keys.NumPad2, "south" },
+            { Keys.NumPad1, "southwest" },
+            { Keys.NumPad4, "west" },
+            { Keys.NumPad7, "northwest" },
+            // New ALT + QWEADZXC directions
+            { Keys.Q, "northwest" },
+            { Keys.W, "north" },
+            { Keys.E, "northeast" },
+            { Keys.A, "west" },
+            { Keys.D, "east" },
+            { Keys.Z, "southwest" },
+            { Keys.X, "south" },
+            { Keys.C, "southeast" }
+        };
 
         public static EntityList<TextStorage> Exposition = new EntityList<TextStorage>();
 
@@ -2732,10 +2774,11 @@ namespace Lightrealm
             else
             {
                 string lastItem = items[count - 1].ReferredToNames[0];
-                string otherItems = string.Join(", ", items.GetRange(0, count - 1).ConvertAll(item => item.ReferredToNames[0]).ToList());
+                string otherItems = string.Join(", ", items.GetRange(0, count - 1).Select(item => item.ReferredToNames[0]));
                 return $"{otherItems}, and {lastItem}";
             }
         }
+
 
         public static string FormatMaterialList(EntityList<Material> materials)
         {
@@ -4647,8 +4690,15 @@ namespace Lightrealm
                             RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "north" || e.Metadata == "south" || e.Metadata == "east" || e.Metadata == "west" || e.Metadata == "northeast" || e.Metadata == "southeast" || e.Metadata == "southwest" || e.Metadata == "northwest"));
                             break;
                         case "body_part_type":
-                            RelevantEntities.AddRange(GameWorld.Races.SelectMany(race => race.BodyParts.Select(bp => bp.Item1)).Distinct().Select(bp => AllSubjects.FirstOrDefault(e => e.Metadata == bp)));
+                            var uniqueBodyPartNames = GameWorld.Races
+                                .SelectMany(race => race.BodyPartNames)
+                                .Distinct();
+
+                            RelevantEntities.AddRange(uniqueBodyPartNames
+                                .Select(bpName => AllSubjects.FirstOrDefault(e => e.Metadata == bpName))
+                                .Where(e => e != null));
                             break;
+
                         case "clothing":
                             RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Clothing);
                             break;
@@ -5201,7 +5251,7 @@ namespace Lightrealm
 
                             foreach (Civilization c in GameWorld.Civilizations)
                             {
-                                if (c.PrimaryInhabiantRace == GameWorld.Races[CurrentlySelectingRace])
+                                if (c.PrimaryInhabitantRace == GameWorld.Races[CurrentlySelectingRace])
                                 {
                                     GamePlayerCivilization = c;
                                     MapCursorX = c.StartX;
@@ -5422,21 +5472,18 @@ namespace Lightrealm
                                     a.Race == GameWorld.HumanoidRaces[CurrentlySelectingRace - 1] &&
                                     a.Location.TradersAtThisLocation.Count > 0 &&
                                     a.Reputation > -40 &&
-                                    a.Grievances.Any(g => GameWorld.Calamity.Contains(g.Item1)))
+                                    a.Grievances.Any(g => GameWorld.Calamity.Any(c => c.ID == g.Item1)))
                                 {
-                                    // Store the string of the grievance
-                                    var grievance = a.Grievances.First(g => GameWorld.Calamity.Contains(g.Item1));
-                                    GrievanceDoer = grievance.Item1.Name;
+                                    var grievance = a.Grievances.First(g => GameWorld.Calamity.Any(c => c.ID == g.Item1));
+                                    GrievanceDoer = World.EntityGet<Entity>(grievance.Item1).Name;
                                     GrievanceReason = grievance.Item2;
 
-
-                                    // Additional logic here
-                                    // For example, compare histories or ages
                                     TheChosenOne = a;
                                     break;
                                 }
                             }
                         }
+
 
                         if (TheChosenOne != null)
                         {
@@ -7003,14 +7050,14 @@ namespace Lightrealm
                             }
                         }
 
-                        int GetHalfCount(string itemType, EntityList<Material> itemMaterials)
+                        int GetHalfCount(string itemType, EntityHashSet<Material> itemMaterials)
                         {
                             int totalCount = (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
                                 .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
                             return (int)Math.Ceiling(totalCount / 2.0);
                         }
 
-                        int GetFullCount(string itemType, EntityList<Material> itemMaterials)
+                        int GetFullCount(string itemType, EntityHashSet<Material> itemMaterials)
                         {
                             return (MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Objects : MostRecentPartyTurnArchitect.Block.Objects)
                                 .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
@@ -7020,7 +7067,7 @@ namespace Lightrealm
                         {
                             PickUpItems(1); // Pick up one item of the selected type and material
                             MostRecentPartyTurnArchitect.TryPickUpItemType = "";
-                            MostRecentPartyTurnArchitect.TryPickUpMaterials = new EntityList<Material>();
+                            MostRecentPartyTurnArchitect.TryPickUpMaterials = new EntityHashSet<Material>();
                             IncrementAndCycleWorld();
                             GameState = "otherturn";
                         }
@@ -7028,7 +7075,7 @@ namespace Lightrealm
                         {
                             PickUpItems(GetHalfCount(MostRecentPartyTurnArchitect.TryPickUpItemType, MostRecentPartyTurnArchitect.TryPickUpMaterials)); // Pick up half of the items of the selected type and material
                             MostRecentPartyTurnArchitect.TryPickUpItemType = "";
-                            MostRecentPartyTurnArchitect.TryPickUpMaterials = new EntityList<Material>();
+                            MostRecentPartyTurnArchitect.TryPickUpMaterials = new EntityHashSet<Material>();
                             IncrementAndCycleWorld();
                             GameState = "otherturn";
                         }
@@ -7036,7 +7083,7 @@ namespace Lightrealm
                         {
                             PickUpItems(GetFullCount(MostRecentPartyTurnArchitect.TryPickUpItemType, MostRecentPartyTurnArchitect.TryPickUpMaterials)); // Pick up all items of the selected type and material
                             MostRecentPartyTurnArchitect.TryPickUpItemType = "";
-                            MostRecentPartyTurnArchitect.TryPickUpMaterials = new EntityList<Material>();
+                            MostRecentPartyTurnArchitect.TryPickUpMaterials = new EntityHashSet<Material>();
                             IncrementAndCycleWorld();
                             GameState = "otherturn";
                         }
@@ -7076,13 +7123,13 @@ namespace Lightrealm
                             }
                         }
 
-                        int GetHalfCount(string itemType, EntityList<Material> itemMaterials)
+                        int GetHalfCount(string itemType, EntityHashSet<Material> itemMaterials)
                         {
                             int totalCount = MostRecentPartyTurnArchitect.Inventory.Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
                             return (int)Math.Ceiling(totalCount / 2.0);
                         }
 
-                        int GetFullCount(string itemType, EntityList<Material> itemMaterials)
+                        int GetFullCount(string itemType, EntityHashSet<Material> itemMaterials)
                         {
                             return MostRecentPartyTurnArchitect.Inventory.Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
                         }
@@ -7091,21 +7138,21 @@ namespace Lightrealm
                         {
                             DropItems(1); // Drop one item of the selected type and material
                             MostRecentPartyTurnArchitect.TryDropItemType = "";
-                            MostRecentPartyTurnArchitect.TryDropMaterials = new EntityList<Material>();
+                            MostRecentPartyTurnArchitect.TryDropMaterials = new EntityHashSet<Material>();
                             GameState = "otherturn";
                         }
                         else if (KeysNewlyPressed.Contains(Keys.D2))
                         {
                             DropItems(GetHalfCount(MostRecentPartyTurnArchitect.TryDropItemType, MostRecentPartyTurnArchitect.TryDropMaterials)); // Drop half of the items of the selected type and material
                             MostRecentPartyTurnArchitect.TryDropItemType = "";
-                            MostRecentPartyTurnArchitect.TryDropMaterials = new EntityList<Material>();
+                            MostRecentPartyTurnArchitect.TryDropMaterials = new EntityHashSet<Material>();
                             GameState = "otherturn";
                         }
                         else if (KeysNewlyPressed.Contains(Keys.D3))
                         {
                             DropItems(GetFullCount(MostRecentPartyTurnArchitect.TryDropItemType, MostRecentPartyTurnArchitect.TryDropMaterials)); // Drop all items of the selected type and material
                             MostRecentPartyTurnArchitect.TryDropItemType = "";
-                            MostRecentPartyTurnArchitect.TryDropMaterials = new EntityList<Material>();
+                            MostRecentPartyTurnArchitect.TryDropMaterials = new EntityHashSet<Material>();
                             GameState = "otherturn";
                         }
                     }
@@ -7850,8 +7897,7 @@ namespace Lightrealm
                                 .ToList();
 
                             EntityList<Object> relevantItems = MostRecentPartyTurnArchitect.Inventory
-                                .Where(obj => currentRecipeMaterials.Contains(obj.Type))
-                                .ToList();
+                                .Where(obj => currentRecipeMaterials.Contains(obj.Type));
 
                             if (KeysNewlyPressed.Contains(Keys.Up) || KeysNewlyPressed.Contains(Keys.NumPad8))
                             {
@@ -10588,14 +10634,14 @@ namespace Lightrealm
 
                         else if (GameState == "trydrop")
                         {
-                            int GetHalfCount(string itemType, EntityList<Material> itemMaterials)
+                            int GetHalfCount(string itemType, EntityHashSet<Material> itemMaterials)
                             {
                                 int totalCount = MostRecentPartyTurnArchitect.Inventory
                                     .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
                                 return (int)Math.Ceiling(totalCount / 2.0);
                             }
 
-                            int GetFullCount(string itemType, EntityList<Material> itemMaterials)
+                            int GetFullCount(string itemType, EntityHashSet<Material> itemMaterials)
                             {
                                 return MostRecentPartyTurnArchitect.Inventory
                                     .Count(item => item.Type == itemType && item.Materials.SequenceEqual(itemMaterials));
@@ -10907,22 +10953,21 @@ namespace Lightrealm
                         }
 
                         line = 0;
-                        if (MostRecentPartyTurnArchitect.Intrigue.Count == 0)
+                        if (GamePlayerParty.Intrigue.Count == 0)
                         {
                             DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1625, 1150, BabyShibafont, Color.White);
                         }
                         else
                         {
-                            foreach (var intrigue in MostRecentPartyTurnArchitect.Intrigue)
+                            foreach (var intrigue in GamePlayerParty.Intrigue)
                             {
-                                var (text, architect) = intrigue;
                                 Vector2 textPosition = new Vector2(1640, 1150 + 15 * line);
-                                DrawCenteredTextAtPosition(_spriteBatch, text, (int)textPosition.X, (int)textPosition.Y, BabyShibafont, Color.White);
+                                DrawCenteredTextAtPosition(_spriteBatch, intrigue.Data, (int)textPosition.X, (int)textPosition.Y, BabyShibafont, intrigue.Color);
 
                                 // Create hitbox for the intrigue text
-                                Vector2 textSize = Shibafont.MeasureString(text);
+                                Vector2 textSize = Shibafont.MeasureString(intrigue.Data);
                                 Rectangle hitbox = new Rectangle(textPosition.ToPoint(), textSize.ToPoint());
-                                EntityHitboxes.Add((hitbox, architect));
+                                EntityHitboxes.Add((hitbox, intrigue.Entities[1]));
 
                                 line++;
                             }
@@ -12579,8 +12624,7 @@ namespace Lightrealm
                         .ToList();
 
                     EntityList<Object> relevantItems = MostRecentPartyTurnArchitect.Inventory
-                        .Where(obj => currentRecipeMaterials.Contains(obj.Type))
-                        .ToList();
+                        .Where(obj => currentRecipeMaterials.Contains(obj.Type));
 
                     int inventorySectionIndex = InventoryCraftingIndex / 30;
                     int inventoryStartIndex = inventorySectionIndex * 30;

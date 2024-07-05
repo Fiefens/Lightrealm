@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Lightrealm
@@ -9,16 +10,6 @@ namespace Lightrealm
     [Serializable]
     public class Section : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public int Length { get; set; }
 
         public EntityList<Entity> Domains { get; set; } = new EntityList<Entity>();
@@ -30,9 +21,11 @@ namespace Lightrealm
         public string Description { get; set; }
 
         private int _parentId;
+
+        [JsonIgnore]
         public Composition Parent
         {
-            get => Entity<Composition>(_parentId);
+            get => EntityGet<Composition>(_parentId);
             set => _parentId = value?.ID ?? 0;
         }
 
@@ -80,6 +73,11 @@ namespace Lightrealm
             GenerateDescription();
         }
 
+        public Section()
+        {
+
+        }
+
         public Section(string compositionType, Composition parent, int QualityMod, int number, string eventDescription = null, string sectionType = "none")
         {
             this.Parent = parent;
@@ -87,16 +85,16 @@ namespace Lightrealm
             this.Quality = Game1.r.Next(0, 8) + QualityMod;
 
             List<string> tones = new List<string>
-    {
-        "passionate", "depressed", "indignant", "joyful", "sombre", "optimistic", "angry",
-        "serene", "excited", "pensive", "skeptical", "amused", "anxious", "hopeful"
-    };
+            {
+                "passionate", "depressed", "indignant", "joyful", "sombre", "optimistic", "angry",
+                "serene", "excited", "pensive", "skeptical", "amused", "anxious", "hopeful"
+            };
 
             List<string> perspectives = new List<string>
-    {
-        "admirable", "criticizing", "neutral", "nostalgic", "skeptical", "affectionate",
-        "disdainful", "curious", "enthusiastic", "contemptuous"
-    };
+            {
+                "admirable", "criticizing", "neutral", "nostalgic", "skeptical", "affectionate",
+                "disdainful", "curious", "enthusiastic", "contemptuous"
+            };
 
             this.Tone = tones[Game1.r.Next(tones.Count)];
             this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };

@@ -3,17 +3,43 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
+[Serializable]
 public class EntityList<T> : IList<T> where T : Entity
 {
     private List<int> _entityIds = new List<int>();
 
+    [JsonIgnore]
     public T this[int index]
     {
-        get => Game1.GameWorld != null && Game1.GameWorld.AllEntities != null
-            ? (T)Game1.GameWorld.AllEntities[_entityIds[index]]
-            : (T)Game1.TemporaryEntities[_entityIds[index]];
-        set => _entityIds[index] = value.ID;
+        get
+        {
+            if (index < 0 || index >= _entityIds.Count)
+            {
+                throw new IndexOutOfRangeException($"Index {index} is out of range for entity IDs list.");
+            }
+
+            int entityId = _entityIds[index];
+            if (Game1.GameWorld != null && Game1.GameWorld.AllEntities != null && Game1.GameWorld.AllEntities.ContainsKey(entityId))
+            {
+                return (T)Game1.GameWorld.AllEntities[entityId];
+            }
+            else if (Game1.TemporaryEntities.ContainsKey(entityId))
+            {
+                return (T)Game1.TemporaryEntities[entityId];
+            }
+            throw new KeyNotFoundException($"Entity ID {entityId} not found in either AllEntities or TemporaryEntities.");
+        }
+        set
+        {
+            if (index < 0 || index >= _entityIds.Count)
+            {
+                throw new IndexOutOfRangeException($"Index {index} is out of range for entity IDs list.");
+            }
+
+            _entityIds[index] = value.ID;
+        }
     }
 
     public EntityList() { }
@@ -36,15 +62,14 @@ public class EntityList<T> : IList<T> where T : Entity
     {
         var distinctEntityList = new EntityList<T>();
         var distinctIds = _entityIds.Distinct().ToList();
-        distinctEntityList.AddRange(distinctIds.Select(id => Entity<T>(id)));
+        distinctEntityList.AddRange(distinctIds.Select(id => EntityGet<T>(id)));
         return distinctEntityList;
     }
-
 
     public EntityList<T> Take(int count)
     {
         var takenEntityList = new EntityList<T>();
-        takenEntityList.AddRange(_entityIds.Take(count).Select(id => Entity<T>(id)));
+        takenEntityList.AddRange(_entityIds.Take(count).Select(id => EntityGet<T>(id)));
         return takenEntityList;
     }
 
@@ -73,27 +98,31 @@ public class EntityList<T> : IList<T> where T : Entity
 
     public EntityList<T> ShuffleNew()
     {
-        var shuffledEntityList = new EntityList<T>(); 
+        var shuffledEntityList = new EntityList<T>();
         shuffledEntityList.Shuffle();
         return shuffledEntityList;
     }
 
     public bool Contains(T item)
     {
+        if (item == null)
+        {
+            return false;
+        }
         return _entityIds.Contains(item.ID);
     }
 
     public EntityList<TResult> Select<TResult>(Func<T, TResult> selector) where TResult : Entity
     {
         var selectedEntityList = new EntityList<TResult>();
-        selectedEntityList.AddRange(_entityIds.Select(id => selector(Entity<T>(id))));
+        selectedEntityList.AddRange(_entityIds.Select(id => selector(EntityGet<T>(id))));
         return selectedEntityList;
     }
 
     public EntityList<TResult> SelectMany<TResult>(Func<T, IEnumerable<TResult>> selector) where TResult : Entity
     {
         var selectedEntityList = new EntityList<TResult>();
-        selectedEntityList.AddRange(_entityIds.SelectMany(id => selector(Entity<T>(id)).Select(e => e.ID)).Select(Entity<TResult>));
+        selectedEntityList.AddRange(_entityIds.SelectMany(id => selector(EntityGet<T>(id)).Select(e => e.ID)).Select(EntityGet<TResult>));
         return selectedEntityList;
     }
 
@@ -108,7 +137,7 @@ public class EntityList<T> : IList<T> where T : Entity
     public EntityList<TResult> Cast<TResult>() where TResult : Entity
     {
         var castedEntityList = new EntityList<TResult>();
-        castedEntityList.AddRange(_entityIds.Select(id => (TResult)(Entity<Entity>(id))));
+        castedEntityList.AddRange(_entityIds.Select(id => (TResult)(EntityGet<Entity>(id))));
         return castedEntityList;
     }
 
@@ -116,7 +145,7 @@ public class EntityList<T> : IList<T> where T : Entity
     {
         var rangeEntityList = new EntityList<T>();
         var rangeIds = _entityIds.GetRange(index, count);
-        rangeEntityList.AddRange(rangeIds.Select(id => Entity<T>(id)));
+        rangeEntityList.AddRange(rangeIds.Select(id => EntityGet<T>(id)));
         return rangeEntityList;
     }
 
@@ -125,7 +154,9 @@ public class EntityList<T> : IList<T> where T : Entity
         var convertedEntityList = new EntityList<U>();
         foreach (var id in _entityIds)
         {
-            convertedEntityList.Add(converter(Entity<T>(id)));
+            var entity = EntityGet<T>(id);
+            var convertedEntity = converter(entity);
+            convertedEntityList.Add(convertedEntity);
         }
         return convertedEntityList;
     }
@@ -133,7 +164,7 @@ public class EntityList<T> : IList<T> where T : Entity
     public EntityList<T> OrderBy<TKey>(Func<T, TKey> keySelector) where TKey : IComparable<TKey>
     {
         var orderedEntities = _entityIds
-            .Select(id => Entity<T>(id))
+            .Select(id => EntityGet<T>(id))
             .OrderBy(keySelector)
             .ToList();
 
@@ -146,7 +177,7 @@ public class EntityList<T> : IList<T> where T : Entity
     public EntityList<T> OrderByDescending<TKey>(Func<T, TKey> keySelector) where TKey : IComparable<TKey>
     {
         var orderedEntities = _entityIds
-            .Select(id => Entity<T>(id))
+            .Select(id => EntityGet<T>(id))
             .OrderByDescending(keySelector)
             .ToList();
 
@@ -165,7 +196,10 @@ public class EntityList<T> : IList<T> where T : Entity
 
     public IEnumerator<T> GetEnumerator()
     {
-        return _entityIds.Select(id => this[id]).GetEnumerator();
+        foreach (var id in _entityIds)
+        {
+            yield return this[_entityIds.IndexOf(id)];
+        }
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -195,12 +229,25 @@ public class EntityList<T> : IList<T> where T : Entity
 
     public void AddRange(IEnumerable<T> items)
     {
-        _entityIds.AddRange(items.Select(item => item.ID));
+        if (items == null)
+        {
+            throw new ArgumentNullException(nameof(items), "Items collection cannot be null.");
+        }
+
+        foreach (var item in items)
+        {
+            if (item == null)
+            {
+                throw new ArgumentException("Cannot add null item to the entity list.");
+            }
+            _entityIds.Add(item.ID);
+        }
     }
 
     public void RemoveAll(Predicate<T> match)
     {
-        _entityIds.RemoveAll(id => match(this[id]));
+        var idsToRemove = _entityIds.Where(id => match(EntityGet<T>(id))).ToList();
+        _entityIds.RemoveAll(id => idsToRemove.Contains(id));
     }
 
     public void Sort(Comparison<T> comparison)
@@ -232,9 +279,10 @@ public class EntityList<T> : IList<T> where T : Entity
         return this.GroupBy(keySelector)
                    .ToDictionary(g => g.Key.ToString(), g => new EntityList<T>(g));
     }
+
     public List<T> ToList()
     {
-        return _entityIds.Select(id => Entity<T>(id)).ToList();
+        return _entityIds.Select(id => EntityGet<T>(id)).ToList();
     }
 
     public void RemoveRange(int index, int count)
@@ -247,14 +295,17 @@ public class EntityList<T> : IList<T> where T : Entity
         _entityIds.RemoveRange(index, count);
     }
 
-    private T Entity<T>(int entityId) where T : Entity
+    private TE EntityGet<TE>(int entityId) where TE : Entity
     {
-        if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+        if (Game1.GameWorld != null && Game1.GameWorld.AllEntities != null && Game1.GameWorld.AllEntities.ContainsKey(entityId))
         {
-            return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
+            return (TE)Game1.GameWorld.AllEntities[entityId];
         }
-
-        return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        if (Game1.TemporaryEntities.ContainsKey(entityId))
+        {
+            return (TE)Game1.TemporaryEntities[entityId];
+        }
+        throw new KeyNotFoundException("Entity ID not found in either AllEntities or TemporaryEntities.");
     }
 
     public EntityList<T> Where(Func<T, bool> predicate)
@@ -262,7 +313,7 @@ public class EntityList<T> : IList<T> where T : Entity
         var filteredEntityList = new EntityList<T>();
         foreach (var id in _entityIds)
         {
-            var entity = Entity<T>(id);
+            var entity = EntityGet<T>(id);
             if (predicate(entity))
             {
                 filteredEntityList.Add(entity);
@@ -270,5 +321,4 @@ public class EntityList<T> : IList<T> where T : Entity
         }
         return filteredEntityList;
     }
-
 }

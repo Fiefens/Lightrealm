@@ -2,36 +2,29 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-
 
 namespace Lightrealm
 {
     [Serializable]
-
     public class Message : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         private int _senderId;
+
+        [JsonIgnore]
         public Architect Sender
         {
-            get => Entity<Architect>(_senderId);
+            get => EntityGet<Architect>(_senderId);
             set => _senderId = value?.ID ?? 0;
         }
 
         private int _receiverId;
+
+        [JsonIgnore]
         public Architect Receiver
         {
-            get => Entity<Architect>(_receiverId);
+            get => EntityGet<Architect>(_receiverId);
             set => _receiverId = value?.ID ?? 0;
         }
 
@@ -48,12 +41,11 @@ namespace Lightrealm
         public EntityList<Location> StoredRevealLocations { get; set; } = new EntityList<Location>();
         public EntityList<Entity> Subjects { get; set; } = new EntityList<Entity>();
 
-
-        public Message(Architect sender, Architect reciever, EntityList<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
+        public Message(Architect sender, Architect receiver, EntityList<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
         {
             Sender = sender;
             MessageID = messageID;
-            Receiver = reciever;
+            Receiver = receiver;
             Subjects = subjects;
             MessageType = messageType;
             MessageContent = Game1.Capitalize(messageContent);
@@ -62,6 +54,11 @@ namespace Lightrealm
             IgnorantResponse = Game1.Capitalize(ignorantResponse);
             DerailingResponse = Game1.Capitalize(derailingResponse);
             FlatteringResponse = Game1.Capitalize(flatteringResponse);
+        }
+
+        public Message()
+        {
+
         }
     }
 }

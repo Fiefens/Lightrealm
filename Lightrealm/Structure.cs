@@ -13,48 +13,24 @@ namespace Lightrealm
     [Serializable]
     public class Structure : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         public string Type { get; set; }
         public string GUID { get; set; }
 
         private int _ownerId;
+        [JsonIgnore]
         public Entity Owner
         {
-            get => Entity<Entity>(_ownerId);
+            get => EntityGet<Entity>(_ownerId);
             set => _ownerId = value?.ID ?? 0;
         }
 
         public string FakeIsofractalColor { get; set; }
 
-        private List<int> _rooms = new List<int>();
-        public EntityList<Room> Rooms
-        {
-            get => new EntityList<Room>(_rooms.Select(id => Entity<Room>(id)));
-            set => _rooms = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
+        public EntityList<Room> Rooms { get; set; } = new EntityList<Room>();
 
-        private List<int> _historicalObjects = new List<int>();
-        public EntityList<Object> HistoricalObjects
-        {
-            get => new EntityList<Object>(_historicalObjects.Select(id => Entity<Object>(id)));
-            set => _historicalObjects = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
+        public EntityList<Object> HistoricalObjects { get; set; } = new EntityList<Object>();
 
-        private List<int> _materials = new List<int>();
-        public EntityList<Material> Materials
-        {
-            get => new EntityList<Material>(_materials.Select(id => Entity<Material>(id)));
-            set => _materials = value?.Select(e => e.ID).ToList() ?? new List<int>();
-        }
+        public EntityList<Material> Materials { get; set; } = new EntityList<Material>();
 
         public List<string> PrimarySmells { get; set; } = new List<string>();
         public List<string> LightingMethods { get; set; } = new List<string>();
@@ -74,16 +50,18 @@ namespace Lightrealm
         public int MarketDebt { get; set; } = 0;
 
         private int _prayingDeityId;
+        [JsonIgnore]
         public Deity PrayingDeity
         {
-            get => Entity<Deity>(_prayingDeityId);
+            get => EntityGet<Deity>(_prayingDeityId);
             set => _prayingDeityId = value?.ID ?? 0;
         }
 
         private int _blockId;
+        [JsonIgnore]
         public Block Block
         {
-            get => Entity<Block>(_blockId);
+            get => EntityGet<Block>(_blockId);
             set => _blockId = value?.ID ?? 0;
         }
 

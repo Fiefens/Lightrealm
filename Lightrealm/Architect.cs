@@ -5,6 +5,7 @@ using System.Drawing.Imaging;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
+using System.Text.Json.Serialization;
 using Color = Microsoft.Xna.Framework.Color;
 
 namespace Lightrealm
@@ -13,25 +14,13 @@ namespace Lightrealm
 
     public class Architect : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         static List<string> LegendTypes = new List<string>() { "hunter", "adventurer", "assassin", "rogue", "artisan", "diplomat", "enchanter" };
 
         public string Sex { get; set; }
         public string Pronoun { get; set; }
         public string PossessivePronoun { get; set; }
         public string ObjectivePronoun { get; set; }
-
         public string FalsifiedName { get; set; } = "";
-
         public int PulseCharge { get; set; } = 0;
 
         private int _hairID = Game1.r.Next(0, 10) switch
@@ -41,6 +30,7 @@ namespace Lightrealm
             < 9 => 3,   // 20% chance for HairID to be 2
             _ => 2      // 10% chance for HairID to be 3
         };
+
         public int HairID
         {
             get => _hairID;
@@ -49,42 +39,24 @@ namespace Lightrealm
 
         public List<string> RevitalizedDates { get; set; } = new List<string>();
         public List<string> SplitDates { get; set; } = new List<string>();
-
         public string NextMoveOrder { get; set; } = "";
-
         public string TryDropItemType { get; set; } = "";
         public string TryPickUpItemType { get; set; } = "";
-
-        public EntityList<Material> TryDropMaterials { get; set; } = new EntityList<Material>();
-        public EntityList<Material> TryPickUpMaterials { get; set; } = new EntityList<Material>();
-
-        private Dictionary<string, List<int>> _messageDatabase = new Dictionary<string, List<int>>();
-
-        public Dictionary<string, EntityList<Entity>> MessageDatabase
-        {
-            get => _messageDatabase.ToDictionary(kvp => kvp.Key, kvp => new EntityList<Entity>(kvp.Value.Select(id => Entity<Entity>(id))));
-            set => _messageDatabase = value?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(e => e?.ID ?? 0).ToList()) ?? new Dictionary<string, List<int>>();
-        }
-
+        public EntityHashSet<Material> TryDropMaterials { get; set; } = new EntityHashSet<Material>();
+        public EntityHashSet<Material> TryPickUpMaterials { get; set; } = new EntityHashSet<Material>();
+        public EntityHashSet<Message> MessageDatabase = new EntityHashSet<Message>();
         public Dictionary<string, string> ResponseDatabase { get; set; } = new Dictionary<string, string>();
 
         private int _realityBlipFocus;
+        [JsonIgnore]
         public Entity RealityBlipFocus
         {
-            get => Entity<Entity>(_realityBlipFocus);
+            get => EntityGet<Entity>(_realityBlipFocus);
             set => _realityBlipFocus = value?.ID ?? 0;
         }
+
         public int RealityFocusTries { get; set; }
-
         public EntityList<Message> MessagesNotRespondedTo { get; set; } = new EntityList<Message>();
-
-        private List<(string, int)> _intrigue = new List<(string, int)>();
-        public List<(string, Architect)> Intrigue
-        {
-            get => _intrigue.Select(tuple => (tuple.Item1, Entity<Architect>(tuple.Item2))).ToList();
-            set => _intrigue = value?.Select(tuple => (tuple.Item1, tuple.Item2?.ID ?? 0)).ToList() ?? new List<(string, int)>();
-        }
-
         public bool RuptureMode { get; set; } = false;
         public bool PickUpMode { get; set; } = false;
 
@@ -102,11 +74,9 @@ namespace Lightrealm
         }
 
         public bool BroadcastedDeathMessage { get; set; } = false;
-
         public bool Crafting { get; set; } = false;
         public bool TryingToTravel { get; set; } = false;
         public int SpellcastingPower { get; set; } = 1;
-
         public bool DoubleStrikeReady { get; set; } = false;
         public bool QuickStrikeReady { get; set; } = false;
         public bool SeveringStrikeReady { get; set; } = false;
@@ -116,37 +86,36 @@ namespace Lightrealm
         public bool DropKickReady { get; set; } = false;
         public int CyclesSinceJump { get; set; } = 0;
         public int ReactionBoostCycles { get; set; } = 0;
-
         public int ExtraFocusTicks { get; set; } = 0;
         public int HalfFocusTicks { get; set; } = 0;
 
         private (int, int, int, int, int) _savePoint = (0, 0, 0, 0, 0);
+
+        [JsonIgnore]
         public (Location, District, Block, Structure, Room) SavePoint
         {
-            get => (_savePoint.Item1 != 0 ? Entity<Location>(_savePoint.Item1) : null,
-                    _savePoint.Item2 != 0 ? Entity<District>(_savePoint.Item2) : null,
-                    _savePoint.Item3 != 0 ? Entity<Block>(_savePoint.Item3) : null,
-                    _savePoint.Item4 != 0 ? Entity<Structure>(_savePoint.Item4) : null,
-                    _savePoint.Item5 != 0 ? Entity<Room>(_savePoint.Item5) : null);
+            get => (_savePoint.Item1 != 0 ? EntityGet<Location>(_savePoint.Item1) : null,
+                    _savePoint.Item2 != 0 ? EntityGet<District>(_savePoint.Item2) : null,
+                    _savePoint.Item3 != 0 ? EntityGet<Block>(_savePoint.Item3) : null,
+                    _savePoint.Item4 != 0 ? EntityGet<Structure>(_savePoint.Item4) : null,
+                    _savePoint.Item5 != 0 ? EntityGet<Room>(_savePoint.Item5) : null);
             set => _savePoint = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0);
         }
+
         public int SavePointTicks { get; set; } = 0;
-
-        public EntityList<Entity> AlignedDomains { get; set; } = new EntityList<Entity>();
+        public EntityHashSet<Entity> AlignedDomains { get; set; } = new EntityHashSet<Entity>();
         public EntityList<Composition> CultureBank { get; set; } = new EntityList<Composition>();
-        public EntityList<Location> ExploredLocations { get; set; } = new EntityList<Location>();
-        public EntityList<Architect> ArchitectsWhoSurrenderedToMe { get; set; } = new EntityList<Architect>();
-        public EntityList<Architect> ArchitectsWhoISurrenderedTo { get; set; } = new EntityList<Architect>();
-        public EntityList<Architect> ArchitectsWhoIAttemptedToSurrenderTo { get; set; } = new EntityList<Architect>();
-        public EntityList<Architect> ArchitectsIWillTellTruthTo { get; set; } = new EntityList<Architect>();
-
+        public EntityHashSet<Location> ExploredLocations { get; set; } = new EntityHashSet<Location>();
+        public EntityHashSet<Architect> ArchitectsWhoSurrenderedToMe { get; set; } = new EntityHashSet<Architect>();
+        public EntityHashSet<Architect> ArchitectsWhoISurrenderedTo { get; set; } = new EntityHashSet<Architect>();
+        public EntityHashSet<Architect> ArchitectsWhoIAttemptedToSurrenderTo { get; set; } = new EntityHashSet<Architect>();
+        public EntityHashSet<Architect> ArchitectsIWillTellTruthTo { get; set; } = new EntityHashSet<Architect>();
         public bool Bound { get; set; }
         public double AdventureCooldown { get; set; } = 0;
         public double DiplomacyCooldown { get; set; } = 0;
 
         public Dictionary<string, int> BackupProfessionToLevel { get; set; } = new Dictionary<string, int>
     {
-        // Level 1
         {"baker", 1},
         {"blacksmith", 1},
         {"brewer", 1},
@@ -173,8 +142,6 @@ namespace Lightrealm
         {"tanner", 1},
         {"trader", 1},
         {"weaver", 1},
-
-        // Level 2
         {"animal", 2},
         {"beast", 2},
         {"embezzler", 2},
@@ -185,15 +152,11 @@ namespace Lightrealm
         {"scout", 2},
         {"soldier", 2},
         {"thief", 2},
-
-        // Level 4
         {"artificer", 4},
         {"bard", 4},
         {"duelist", 4},
         {"luminary", 4},
         {"mage", 4},
-
-        // Level 6
         {"alpha", 6},
         {"anarchist", 6},
         {"archmage", 6},
@@ -203,8 +166,6 @@ namespace Lightrealm
         {"largebeast", 6},
         {"outlaw", 6},
         {"spy", 6},
-
-        // Level 8
         {"archartificer", 8},
         {"archbard", 8},
         {"archduelist", 8},
@@ -223,147 +184,153 @@ namespace Lightrealm
     };
 
         private int _interactionLocation;
+        [JsonIgnore]
         public Location InteractionLocation
         {
-            get => Entity<Location>(_interactionLocation);
+            get => EntityGet<Location>(_interactionLocation);
             set => _interactionLocation = value?.ID ?? 0;
         }
 
         public string Prompt { get; set; } = "";
-        public List<string> PreviousPrompts { get; set; } = new List<string>() { "" }; // Start with an empty slate
+        public List<string> PreviousPrompts { get; set; } = new List<string>() { "" };
         public int PromptIndex { get; set; } = 0;
         public string SavedPrompt { get; set; } = "";
-
         public bool RecievedBodyPhysicalStatIncrease { get; set; } = false;
         public bool RecievedBodyPhysicalStatIncreaseTwo { get; set; } = false;
 
-        private Dictionary<int, int> _distances = new Dictionary<int, int>();
-        public Dictionary<Architect, int> Distances
+        private EntityList<Architect> _architects = new EntityList<Architect>();
+        private List<int> _distances = new List<int>();
+
+        public void ModifyDistance(Architect architect, int distanceChange)
         {
-            get => _distances.ToDictionary(kvp => Entity<Architect>(kvp.Key), kvp => kvp.Value);
-            set => _distances = value?.ToDictionary(kvp => kvp.Key?.ID ?? 0, kvp => kvp.Value) ?? new Dictionary<int, int>();
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = _architects.IndexOf(architect);
+            if (index >= 0)
+            {
+                _distances[index] += distanceChange;
+                if (_distances[index] <= 0)
+                {
+                    _architects.RemoveAt(index);
+                    _distances.RemoveAt(index);
+                }
+            }
+            else if (distanceChange > 0)
+            {
+                _architects.Add(architect);
+                _distances.Add(distanceChange);
+            }
+        }
+
+        public int GetDistance(Entity Object)
+        {
+            if (Object == null)
+            {
+                throw new ArgumentNullException(nameof(Object));
+            }
+
+            if (Object is Architect a)
+            {
+                int index = _architects.IndexOf(a);
+                if (index >= 0)
+                {
+                    return _distances[index];
+                }
+                else
+                {
+                    return 0; // or some other default value, depending on your requirements
+                }
+            }
+
+            return 0; // for non-architects
+        }
+
+        public bool TryGetDistance(Architect architect, out int distance)
+        {
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = _architects.IndexOf(architect);
+            if (index >= 0)
+            {
+                distance = _distances[index];
+                return true;
+            }
+            else
+            {
+                distance = 0; // or some other default value, depending on your requirements
+                return false;
+            }
+        }
+
+        public void RemoveDistance(Architect architect)
+        {
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = _architects.IndexOf(architect);
+            if (index >= 0)
+            {
+                _architects.RemoveAt(index);
+                _distances.RemoveAt(index);
+            }
+        }
+
+        public Dictionary<Architect, int> GetDistances()
+        {
+            return _architects.ToDictionary(arch => arch, arch => _distances[_architects.IndexOf(arch)]);
         }
 
         private int _legendaryTarget;
+
+        [JsonIgnore]
         public Entity LegendaryTarget
         {
-            get => Entity<Entity>(_legendaryTarget);
+            get => EntityGet<Entity>(_legendaryTarget);
             set => _legendaryTarget = value?.ID ?? 0;
         }
 
         private int _legendaryTargetStructure;
+
+        [JsonIgnore]
         public Structure LegendaryTargetStructure
         {
-            get => Entity<Structure>(_legendaryTargetStructure);
+            get => EntityGet<Structure>(_legendaryTargetStructure);
             set => _legendaryTargetStructure = value?.ID ?? 0;
         }
+
         public int HuntingProgress { get; set; } = 0;
-
-        public EntityList<Architect> ShieldTokens { get; set; } = new EntityList<Architect>();
-
+        public EntityHashSet<Architect> ShieldTokens { get; set; } = new EntityHashSet<Architect>();
         public int DivineProtection { get; set; } = 0;
         public int DivineMight { get; set; } = 0;
         public bool Diplomakitted { get; set; } = false;
-
-        private List<(int, string)> _grievances = new List<(int, string)>();
-        public List<(Entity, string)> Grievances
-        {
-            get => _grievances.Select(tuple => (Entity<Entity>(tuple.Item1), tuple.Item2)).ToList();
-            set => _grievances = value?.Select(tuple => (tuple.Item1?.ID ?? 0, tuple.Item2)).ToList() ?? new List<(int, string)>();
-        }
-
+        public List<(int, string)> Grievances { get; set; } = new List<(int, string)>();
         public int CooldownCycles { get; set; } = 0;
         public bool IsCalamity { get; set; } = false;
         public bool BuiltSpire { get; set; } = false;
-
-        public void DistanceFromArchitect(Architect otherArchitect, int distanceModifier)
-        {
-            // Update or initialize distance for this architect to the other
-            if (Distances.TryGetValue(otherArchitect, out int currentDistance))
-            {
-                Distances[otherArchitect] = Math.Clamp(currentDistance + distanceModifier, 0, 5);
-            }
-            else
-            {
-                Distances[otherArchitect] = Math.Clamp(distanceModifier, 0, 5);
-            }
-
-            // Ensure the other architect also updates its distance list symmetrically
-            if (otherArchitect.Distances.TryGetValue(this, out int otherCurrentDistance))
-            {
-                otherArchitect.Distances[this] = Math.Clamp(otherCurrentDistance + distanceModifier, 0, 5);
-            }
-            else
-            {
-                otherArchitect.Distances[this] = Math.Clamp(distanceModifier, 0, 5);
-            }
-        }
-
-        public int GetDistance(object entity)
-        {
-            // Check if the entity is an Architect
-            if (entity is Architect otherArchitect)
-            {
-                // Attempt to get the distance from the dictionary
-                if (Distances.TryGetValue(otherArchitect, out int distance))
-                {
-                    // Ensure the other architect has the same distance recorded
-                    if (!otherArchitect.Distances.TryGetValue(this, out int otherDistance))
-                    {
-                        otherArchitect.Distances[this] = distance;
-                    }
-                    else
-                    {
-                        // Ensure both distances match, use the lower one if they differ
-                        if (otherDistance != distance)
-                        {
-                            distance = Math.Min(distance, otherDistance);
-                            Distances[otherArchitect] = distance;
-                            otherArchitect.Distances[this] = distance;
-                        }
-                    }
-                    return distance;
-                }
-                else
-                {
-                    // Check if the other architect has a distance to this architect
-                    if (otherArchitect.Distances.TryGetValue(this, out int otherDistance))
-                    {
-                        Distances[otherArchitect] = otherDistance;
-                        return otherDistance;
-                    }
-                    else
-                    {
-                        // Generate a new random distance if neither has a distance
-                        int randomDistance = Game1.r.Next(2, 6);
-                        Distances[otherArchitect] = randomDistance;
-                        otherArchitect.Distances[this] = randomDistance;
-                        return randomDistance;
-                    }
-                }
-            }
-
-            // If the entity is not an Architect, return 0 to automatically succeed
-            return 0;
-        }
-
-        public int NaturalArmor { get; set; } = 0; //number from 1-100, dependent on race, chance of blocking an attack simply with natural ability
-
+        public int NaturalArmor { get; set; } = 0;
         public int Level { get; set; } = 0;
         public int SpendableLevels { get; set; }
-
         public EntityList<Object> Sparks { get; set; } = new EntityList<Object>();
 
         private int _undeadCreator;
+
+        [JsonIgnore]
         public Architect UndeadCreator
         {
-            get => Entity<Architect>(_undeadCreator);
+            get => EntityGet<Architect>(_undeadCreator);
             set => _undeadCreator = value?.ID ?? 0;
         }
 
         public bool Invisible { get; set; } = false;
         public int CombatCycles { get; set; } = 0;
-
         public int PathOfShadowLevel { get; set; } = 0;
         public int PathOfLifeLevel { get; set; } = 0;
         public int PathOfDeathLevel { get; set; } = 0;
@@ -384,56 +351,64 @@ namespace Lightrealm
         public int PathOfLightLevel { get; set; } = 0;
 
         private int _master;
+
+        [JsonIgnore]
         public Architect Master
         {
-            get => Entity<Architect>(_master);
+            get => EntityGet<Architect>(_master);
             set => _master = value?.ID ?? 0;
         }
+
         public string MasterRelation { get; set; } = "";
 
         private int _spouse;
+
+        [JsonIgnore]
         public Architect Spouse
         {
-            get => Entity<Architect>(_spouse);
+            get => EntityGet<Architect>(_spouse);
             set => _spouse = value?.ID ?? 0;
         }
 
         public bool Augment { get; set; } = false;
-
         public EntityList<Object> ShadowStorage { get; set; } = new EntityList<Object>();
-
         public int Wealth { get; set; } = 0;
         public double CalamityAge { get; set; } = 0;
         public int CalamitySpawnTime { get; set; } = Game1.r.Next(25, 36);
-
         public bool TriggeredLock { get; set; } = false;
         public int CyclesSinceMoved { get; set; } = 0;
 
         private int _blockLastCycle;
+
+        [JsonIgnore]
         public Block BlockLastCycle
         {
-            get => Entity<Block>(_blockLastCycle);
+            get => EntityGet<Block>(_blockLastCycle);
             set => _blockLastCycle = value?.ID ?? 0;
         }
 
         private int _roomLastCycle;
+
+        [JsonIgnore]
         public Room RoomLastCycle
         {
-            get => Entity<Room>(_roomLastCycle);
+            get => EntityGet<Room>(_roomLastCycle);
             set => _roomLastCycle = value?.ID ?? 0;
         }
 
         public int BarrierStacks { get; set; } = 0;
 
         private (int, int, int, int, int, int) _rematerializeLocation = (0, 0, 0, 0, 0, 0);
+
+        [JsonIgnore]
         public (Region, Location, District, Block, Structure, Room) RematerializeLocation
         {
-            get => (_rematerializeLocation.Item1 != 0 ? Entity<Region>(_rematerializeLocation.Item1) : null,
-                    _rematerializeLocation.Item2 != 0 ? Entity<Location>(_rematerializeLocation.Item2) : null,
-                    _rematerializeLocation.Item3 != 0 ? Entity<District>(_rematerializeLocation.Item3) : null,
-                    _rematerializeLocation.Item4 != 0 ? Entity<Block>(_rematerializeLocation.Item4) : null,
-                    _rematerializeLocation.Item5 != 0 ? Entity<Structure>(_rematerializeLocation.Item5) : null,
-                    _rematerializeLocation.Item6 != 0 ? Entity<Room>(_rematerializeLocation.Item6) : null);
+            get => (_rematerializeLocation.Item1 != 0 ? EntityGet<Region>(_rematerializeLocation.Item1) : null,
+                    _rematerializeLocation.Item2 != 0 ? EntityGet<Location>(_rematerializeLocation.Item2) : null,
+                    _rematerializeLocation.Item3 != 0 ? EntityGet<District>(_rematerializeLocation.Item3) : null,
+                    _rematerializeLocation.Item4 != 0 ? EntityGet<Block>(_rematerializeLocation.Item4) : null,
+                    _rematerializeLocation.Item5 != 0 ? EntityGet<Structure>(_rematerializeLocation.Item5) : null,
+                    _rematerializeLocation.Item6 != 0 ? EntityGet<Room>(_rematerializeLocation.Item6) : null);
             set => _rematerializeLocation = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0, value.Item6?.ID ?? 0);
         }
 
@@ -464,9 +439,7 @@ namespace Lightrealm
         }
 
         public EntityList<Architect> MeldedShibas { get; set; } = new EntityList<Architect>();
-
         public bool IsAlive { get; set; } = true;
-
         public int MoralCompass { get; set; } = 0;
         public int StabilityCompass { get; set; } = 0;
         public int PropertyValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
@@ -481,99 +454,121 @@ namespace Lightrealm
         public int CreativityValue { get; set; } = Math.Max(0, Game1.r.Next(-4, 6));
 
         private int _nextMigrationLocation;
+
+        [JsonIgnore]
         public Location NextMigrationLocation
         {
-            get => Entity<Location>(_nextMigrationLocation);
+            get => EntityGet<Location>(_nextMigrationLocation);
             set => _nextMigrationLocation = value?.ID ?? 0;
         }
 
         public EntityList<Imbuement> CurrentlyActiveImbuements { get; set; } = new EntityList<Imbuement>();
-
         public bool RecievedImmortalityBuff { get; set; }
-
         public int DistrictPoints { get; set; } = 0;
 
         private int _studyBuilding;
+
+        [JsonIgnore]
         public Structure StudyBuilding
         {
-            get => Entity<Structure>(_studyBuilding);
+            get => EntityGet<Structure>(_studyBuilding);
             set => _studyBuilding = value?.ID ?? 0;
         }
 
         public bool HasMadeALegendaryArtifact { get; set; } = false;
         public bool HadChildren { get; set; } = false;
         public string FavoriteColor { get; set; }
+
         private int _favoriteGemstone;
+
+        [JsonIgnore]
         public Material FavoriteGemstone
         {
-            get => Entity<Material>(_favoriteGemstone);
+            get => EntityGet<Material>(_favoriteGemstone);
             set => _favoriteGemstone = value?.ID ?? 0;
         }
+
         private int _favoriteStone;
+
+        [JsonIgnore]
         public Material FavoriteStone
         {
-            get => Entity<Material>(_favoriteStone);
+            get => EntityGet<Material>(_favoriteStone);
             set => _favoriteStone = value?.ID ?? 0;
         }
+
         private int _favoriteWood;
+
+        [JsonIgnore]
         public Material FavoriteWood
         {
-            get => Entity<Material>(_favoriteWood);
+            get => EntityGet<Material>(_favoriteWood);
             set => _favoriteWood = value?.ID ?? 0;
         }
+
         private int _favoriteMetal;
+
+        [JsonIgnore]
         public Material FavoriteMetal
         {
-            get => Entity<Material>(_favoriteMetal);
+            get => EntityGet<Material>(_favoriteMetal);
             set => _favoriteMetal = value?.ID ?? 0;
         }
+
         private int _favoriteCloth;
+
+        [JsonIgnore]
         public Material FavoriteCloth
         {
-            get => Entity<Material>(_favoriteCloth);
+            get => EntityGet<Material>(_favoriteCloth);
             set => _favoriteCloth = value?.ID ?? 0;
         }
+
         private int _favoriteBook;
+
+        [JsonIgnore]
         public Object FavoriteBook
         {
-            get => Entity<Object>(_favoriteBook);
+            get => EntityGet<Object>(_favoriteBook);
             set => _favoriteBook = value?.ID ?? 0;
         }
 
         private int _group;
+
+        [JsonIgnore]
         public Group Group
         {
-            get => Entity<Group>(_group);
+            get => EntityGet<Group>(_group);
             set => _group = value?.ID ?? 0;
         }
+
         public int GroupLoyalty { get; set; } = -1;
         public int TerminalAge { get; set; } = 0;
         public bool DoIDieOfOldAge { get; set; } = true;
         public bool IsLoadedTrader { get; set; } = false;
         public int Reputation { get; set; } = 0;
         public int PurifiedBurnedCities { get; set; } = 0;
+
         private int _blightManipulated;
+
+        [JsonIgnore]
         public Blight BlightManipulated
         {
-            get => Entity<Blight>(_blightManipulated);
+            get => EntityGet<Blight>(_blightManipulated);
             set => _blightManipulated = value?.ID ?? 0;
         }
+
         public int KilledPeopleWithBlight { get; set; } = 0;
-
         public EntityList<Location> TakenLocations { get; set; } = new EntityList<Location>();
-
         public int KilledWomen { get; set; } = 0;
         public int KilledMen { get; set; } = 0;
         public int KilledChildren { get; set; } = 0;
         public int KidnappedMen { get; set; } = 0;
         public int KidnappedWomen { get; set; } = 0;
         public int KidnappedChildren { get; set; } = 0;
-
         public bool MaxEnergyInspiration { get; set; } = false;
-
         public EntityList<Architect> KilledPeopleWhoActuallyMatter { get; set; } = new EntityList<Architect>();
         public EntityList<Architect> KidnappedPeopleWhoActuallyMatter { get; set; } = new EntityList<Architect>();
-
         public int CorruptedCities { get; set; } = 0;
         public int Deceived { get; set; } = 0;
         public string PowerType { get; set; } = "";
@@ -586,6 +581,7 @@ namespace Lightrealm
         public int Charisma { get; set; }
 
         private int _focus;
+
         public int Focus
         {
             get
@@ -613,47 +609,52 @@ namespace Lightrealm
 
         private int _room;
         private int _block;
-
+        private int _district;
         private int _location;
+
+        [JsonIgnore]
         public Location Location
         {
-            get => Entity<Location>(_location);
+            get => EntityGet<Location>(_location);
             set => _location = value?.ID ?? 0;
         }
 
-        private int _district;
+        [JsonIgnore]
         public District District
         {
-            get => Entity<District>(_district);
+            get => EntityGet<District>(_district);
             set => _district = value?.ID ?? 0;
         }
 
+        [JsonIgnore]
         public Structure Structure
         {
-            get => _room != 0 ? Entity<Room>(_room).Structure : null;
+            get => _room != 0 ? EntityGet<Room>(_room).Structure : null;
             set
             {
                 // Ignore the set operation for Structure
             }
         }
 
+        [JsonIgnore]
         public Room Room
         {
-            get => Entity<Room>(_room);
+            get => EntityGet<Room>(_room);
             set => _room = value?.ID ?? 0;
         }
 
+        [JsonIgnore]
         public Block Block
         {
             get
             {
                 if (_block != 0)
                 {
-                    return Entity<Block>(_block);
+                    return EntityGet<Block>(_block);
                 }
                 if (_room != 0)
                 {
-                    return Entity<Room>(_room).Structure.Block;
+                    return EntityGet<Room>(_room).Structure.Block;
                 }
                 return null;
             }
@@ -663,62 +664,61 @@ namespace Lightrealm
         public string Size { get; set; } = "average";
 
         private int _homeLocation;
+
+        [JsonIgnore]
         public Location HomeLocation
         {
-            get => Entity<Location>(_homeLocation);
+            get => EntityGet<Location>(_homeLocation);
             set => _homeLocation = value?.ID ?? 0;
         }
 
         private int _homeDistrict;
+
+        [JsonIgnore]
         public District HomeDistrict
         {
-            get => Entity<District>(_homeDistrict);
+            get => EntityGet<District>(_homeDistrict);
             set => _homeDistrict = value?.ID ?? 0;
         }
 
         private int _homeStructure;
+
+        [JsonIgnore]
         public Structure HomeStructure
         {
-            get => Entity<Structure>(_homeStructure);
+            get => EntityGet<Structure>(_homeStructure);
             set => _homeStructure = value?.ID ?? 0;
         }
 
         public string Destiny { get; set; } = "none";
         public int DestinyArrivalYear { get; set; } = 999;
-
         public string CurrentlyMovingPlace { get; set; } = "none";
-
         public int MessageCooldown { get; set; } = 0;
 
         private List<(int, int)> _architectOpinions = new List<(int, int)>();
+
+        [JsonIgnore]
         public List<(Architect, int)> ArchitectOpinions
         {
-            get => _architectOpinions.Select(tuple => (Entity<Architect>(tuple.Item1), tuple.Item2)).ToList();
+            get => _architectOpinions.Select(tuple => (EntityGet<Architect>(tuple.Item1), tuple.Item2)).ToList();
             set => _architectOpinions = value?.Select(tuple => (tuple.Item1?.ID ?? 0, tuple.Item2)).ToList() ?? new List<(int, int)>();
         }
 
         public EntityList<Architect> KnownArchitects { get; set; } = new EntityList<Architect>();
-
         public bool IsStudying { get; set; }
         public bool Loaded { get; set; }
-
         public EntityList<Object> Clothing { get; set; } = new EntityList<Object>();
-
         public string ScholarType { get; set; } = "";
         public string FavoriteScienceField { get; set; } = "";
         public string FavoriteCultureField { get; set; } = "";
         public string FavoriteMagicField { get; set; } = "";
-
         public int MagicStudyPoints { get; set; } = 0;
         public int CultureStudyPoints { get; set; } = 0;
         public int ScienceStudyPoints { get; set; } = 0;
-
         public EntityList<Entity> SpellsKnown { get; set; } = new EntityList<Entity>();
         public EntityList<Entity> SkillsKnown { get; set; } = new EntityList<Entity>();
         public EntityList<Entity> UsedSkills { get; set; } = new EntityList<Entity>();
-
         public bool DiscoveredASpell { get; set; } = false;
-
         public int FireSeconds { get; set; } = 0;
         public int WetCycles { get; set; } = 0;
         public int BlindCycles { get; set; } = 0;
@@ -729,16 +729,12 @@ namespace Lightrealm
         public int FractalCycles { get; set; } = 0;
         public int HoldCycles { get; set; } = 0;
         public int DismissalCycles { get; set; } = 0;
-
         public bool OnGround { get; set; } = false;
         public bool IsImmortal { get; set; } = false;
         public bool IsCoveredInPlants { get; set; } = false;
-
         public int YLevelInFeet { get; set; } = 0;
         public int YVelocity { get; set; } = 0;
-
         public bool Focused { get; set; } = false;
-
         public int DaysSinceFood { get; set; } = 0;
         public int DaysSinceLiquid { get; set; } = 0;
         public int NightsSinceSleep { get; set; } = 0;
@@ -748,78 +744,87 @@ namespace Lightrealm
         public int DaysSincePlayingGame { get; set; } = 0;
 
         private int _targetArchitect;
+
+        [JsonIgnore]
         public Architect TargetArchitect
         {
-            get => Entity<Architect>(_targetArchitect);
+            get => EntityGet<Architect>(_targetArchitect);
             set => _targetArchitect = value?.ID ?? 0;
         }
 
         private int _targetObject;
+
+        [JsonIgnore]
         public Object TargetObject
         {
-            get => Entity<Object>(_targetObject);
+            get => EntityGet<Object>(_targetObject);
             set => _targetObject = value?.ID ?? 0;
         }
 
         private (int, int, int, int, int, string) _target = (0, 0, 0, 0, 0, "");
+
+        [JsonIgnore]
         public (Region, Location, District, Block, Room, string) Target
         {
-            get => (_target.Item1 != 0 ? Entity<Region>(_target.Item1) : null,
-                    _target.Item2 != 0 ? Entity<Location>(_target.Item2) : null,
-                    _target.Item3 != 0 ? Entity<District>(_target.Item3) : null,
-                    _target.Item4 != 0 ? Entity<Block>(_target.Item4) : null,
-                    _target.Item5 != 0 ? Entity<Room>(_target.Item5) : null,
+            get => (_target.Item1 != 0 ? EntityGet<Region>(_target.Item1) : null,
+                    _target.Item2 != 0 ? EntityGet<Location>(_target.Item2) : null,
+                    _target.Item3 != 0 ? EntityGet<District>(_target.Item3) : null,
+                    _target.Item4 != 0 ? EntityGet<Block>(_target.Item4) : null,
+                    _target.Item5 != 0 ? EntityGet<Room>(_target.Item5) : null,
                     _target.Item6);
             set => _target = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0, value.Item6);
         }
 
         public string Task { get; set; } = "";
         public int CyclesLeftInTask { get; set; } = 0;
-
         public decimal Energy { get; set; }
         public int MaxEnergyMod { get; set; } = 0;
-
         public decimal Bleeding { get; set; } = 0;
         public double Pain { get; set; } = 0;
-
         public EntityList<Object> BodyParts { get; set; } = new EntityList<Object>();
 
         private int _mainInteractionAppendage;
+
+        [JsonIgnore]
         public Object MainInteractionAppendage
         {
-            get => Entity<Object>(_mainInteractionAppendage);
+            get => EntityGet<Object>(_mainInteractionAppendage);
             set => _mainInteractionAppendage = value?.ID ?? 0;
         }
 
         private int _offInteractionAppendage;
+
+        [JsonIgnore]
         public Object OffInteractionAppendage
         {
-            get => Entity<Object>(_offInteractionAppendage);
+            get => EntityGet<Object>(_offInteractionAppendage);
             set => _offInteractionAppendage = value?.ID ?? 0;
         }
 
         public EntityList<Object> Inventory { get; set; } = new EntityList<Object>();
 
         private int _offHeldObject;
+
+        [JsonIgnore]
         public Object OffHeldObject
         {
-            get => Entity<Object>(_offHeldObject);
+            get => EntityGet<Object>(_offHeldObject);
             set => _offHeldObject = value?.ID ?? 0;
         }
 
         private int _mainHeldObject;
+
+        [JsonIgnore]
         public Object MainHeldObject
         {
-            get => Entity<Object>(_mainHeldObject);
+            get => EntityGet<Object>(_mainHeldObject);
             set => _mainHeldObject = value?.ID ?? 0;
         }
 
         public bool PrefersCoffeeIfTrue { get; set; } = false;
         public bool IsColossal { get; set; } = false;
-
         public int ColossalMinefieldX { get; set; }
         public int ColossalMinefieldZ { get; set; }
-
         public int ExtraShieldEffectiveness { get; set; } = 0;
         public int ExtraAttackPower { get; set; } = 0;
         public int ExtraDodgeChance { get; set; } = 0;
@@ -830,28 +835,24 @@ namespace Lightrealm
         public int ExtraScourgingResistance { get; set; } = 0;
         public int ExtraStealth { get; set; } = 0;
         public int ExtraEnergyRegen { get; set; } = 0;
-
         public bool IsofractalThief { get; set; } = false;
-
         public int ArmorProficiency { get; set; } = 0;
-
         public List<string> OppositionTags { get; set; } = new List<string>();
-
         public EntityList<Architect> SuperTrustedArchitects { get; set; } = new EntityList<Architect>();
 
         public List<(string, int)> XPValues { get; set; } = new List<(string, int)>
-        {
-            ("slashing", 0),
-            ("piercing", 0),
-            ("bashing", 0),
-            ("scourging", 0),
-            ("dodging", 0),
-            ("blocking", 0),
-            ("disarming", 0),
-            ("redirection", 0),
-            ("throwing", 0),
-            ("parrying", 0)
-        };
+    {
+        ("slashing", 0),
+        ("piercing", 0),
+        ("bashing", 0),
+        ("scourging", 0),
+        ("dodging", 0),
+        ("blocking", 0),
+        ("disarming", 0),
+        ("redirection", 0),
+        ("throwing", 0),
+        ("parrying", 0)
+    };
 
         public void ChangeXP(string proficiencyName, int xpChange)
         {
@@ -1833,10 +1834,8 @@ namespace Lightrealm
             Charisma = shuffledSkills[5];
             Focus = shuffledSkills[6];
 
-            //give him a ton of alligned domains.
-            AlignedDomains = Game1.GameWorld.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)).ToList();
-
-            
+            // Give him a ton of aligned domains.
+            AlignedDomains = new EntityHashSet<Entity>(Game1.GameWorld.Domains.OrderBy(x => Guid.NewGuid()).Take(Game1.r.Next(1, 8)));
 
             if (Sex == "male")
             {
@@ -2001,9 +2000,12 @@ namespace Lightrealm
         {
             if (Race != null)
             {
-                foreach ((string, Material) o in Race.BodyParts)
+                for (int i = 0; i < Race.BodyPartNames.Count; i++)
                 {
-                    Object O = new Object(Name + "'s " + o.Item1, o.Item1, new EntityList<Material> { o.Item2 }, false, false, null, this, 5, false, null, null, null, false);
+                    string partName = Race.BodyPartNames[i];
+                    Material partMaterial = Race.BodyPartMaterials[i];
+
+                    Object O = new Object(Name + "'s " + partName, partName, new EntityList<Material> { partMaterial }, false, false, null, this, 5, false, null, null, null, false);
                     O.Owner = this;
                     BodyParts.Add(O);
                 }
@@ -2900,45 +2902,35 @@ namespace Lightrealm
 
             //distancing
 
-            // Assume Distances is a Dictionary<Architect, int> for better performance
-            Distances ??= new Dictionary<Architect, int>();
-
+            // HashSet to keep track of current architects in the room or block
             HashSet<Architect> currentArchitects = new HashSet<Architect>(Room?.Architects ?? Block.Architects);
 
-            // Remove outdated distances and update or add new distances
-            foreach (var architect in Distances.Keys.Except(currentArchitects).ToList())
+            // Remove outdated distances
+            foreach (var architect in GetDistances().Keys.Except(currentArchitects).ToList())
             {
-                Distances.Remove(architect);
+                RemoveDistance(architect);
             }
 
+            // Update or add new distances
             foreach (Architect a in currentArchitects)
             {
-                if (!Distances.TryGetValue(a, out int distanceThisToA))
+                int distanceThisToA;
+                if (!a.TryGetDistance(this, out int distanceAToThis))
                 {
-                    if (!a.Distances.TryGetValue(this, out int distanceAToThis))
-                    {
-                        // Generate a new random distance if neither has a distance
-                        distanceThisToA = Game1.r.Next(2, 6);
-                    }
-                    else
-                    {
-                        // Use the distance from a to this
-                        distanceThisToA = distanceAToThis;
-                    }
-
-                    // Update reciprocal distance
-                    a.Distances[this] = distanceThisToA;
+                    // Generate a new random distance if neither has a distance
+                    distanceThisToA = Game1.r.Next(2, 6);
+                    a.ModifyDistance(this, distanceThisToA);
                 }
-                else if (a.Distances.TryGetValue(this, out int distanceAToThis))
+                else
                 {
-                    // Both have a distance, use the lower one
-                    distanceThisToA = Math.Min(distanceThisToA, distanceAToThis);
-                    a.Distances[this] = distanceThisToA;
+                    // Use the distance from a to this
+                    distanceThisToA = distanceAToThis;
                 }
 
-                Distances[a] = distanceThisToA;
+                // Update reciprocal distance
+                a.ModifyDistance(this, distanceThisToA);
+                ModifyDistance(a, distanceThisToA);
             }
-
 
 
             if (Pain > 100)
@@ -3094,8 +3086,9 @@ namespace Lightrealm
                             {
                                 if (a.District == District)
                                 {
-                                    a.Intrigue.Add((Name + " said something about " + Master.Name + ".", Master));
-                                    a.Intrigue.Add(("Perhaps someone can tell us more.", Master));
+                                    Game1.GamePlayerParty.Intrigue.Add(new TextStorage(Name + " said something about " + Master.Name + ".", Color.LimeGreen, new EntityList<Entity>() { this, Master }));
+                                    Game1.GamePlayerParty.Intrigue.Add(new TextStorage("Perhaps someone can tell us more.", Color.LimeGreen, new EntityList<Entity>()));
+                                    break;
                                 }
                             }
 
@@ -3689,10 +3682,13 @@ namespace Lightrealm
                 // Respond to messages
                 foreach (Message m in MessagesNotRespondedTo)
                 {
-                    if (MessageDatabase.ContainsKey(m.MessageContent) && m.MessageType == "question")
+                    // Check if the message has been seen before and is a question
+                    bool messageSeenBefore = MessageDatabase.Any(dbMessage => dbMessage.MessageContent == m.MessageContent && dbMessage.MessageType == "question");
+
+                    if (messageSeenBefore)
                     {
                         // Message has been seen before, respond with the same response
-                        AnnounceToParty(ReferredToNames[0] + ": " + ResponseDatabase[m.MessageContent], new Color(0, 255, 0), new EntityList<Entity> { this }.Union(m.Subjects).ToList());
+                        AnnounceToParty(ReferredToNames[0] + ": " + ResponseDatabase[m.MessageContent], new Color(0, 255, 0), new EntityList<Entity> { this }.Union(m.Subjects));
                         continue;
                     }
 
@@ -3873,7 +3869,7 @@ namespace Lightrealm
                     AnnounceToParty(ReferredToNames[0] + ": " + response, ResponseColor, new EntityList<Entity> { this }.Union(m.Subjects));
 
                     // Store the message and response
-                    MessageDatabase[m.MessageContent] = m.Subjects;
+                    MessageDatabase.Add(m);
                     ResponseDatabase[m.MessageContent] = response;
 
                     Game1.MessageWorldEdit(m.Sender, m.Receiver, m.MessageID, m.Subjects, response, m.StoredRevealLocations);
@@ -3883,7 +3879,6 @@ namespace Lightrealm
 
                 MessagesNotRespondedTo.Clear();
             }
-
 
             //actions
 
@@ -4706,13 +4701,12 @@ namespace Lightrealm
                                     }
                                     else // If neither spell nor weapon attack is possible, approach the target
                                     {
-                                        DistanceFromArchitect(TargetArchitect, -2); // Decrease distance by 2
+                                        ModifyDistance(TargetArchitect, -2); // Decrease distance by 2
                                         CooldownCycles += (int)(15 / Math.Round(Speed()));
 
                                         AnnounceToParty(ReferredToNames[0] + " gets closer to " + TargetArchitect.ReferredToNames[0] + "!", Color.DarkMagenta, new EntityList<Entity>() { this, TargetArchitect });
                                     }
                                 }
-
                             }
                         }
                         else
@@ -5194,7 +5188,7 @@ namespace Lightrealm
             EntityList<Entity> TargetsToPurge = new EntityList<Entity>();
             foreach (Entity e in Targets)
             {
-                if (GetDistance(e) >= 4)
+                if (e is Architect architect && GetDistance(architect) >= 4)
                 {
                     Announcements.Add(new TextStorage($"{e.ReferredToNames[0]} is outside of casting range.", Color.Yellow, new EntityList<Entity>() { e }));
                     TargetsToPurge.Add(e);
@@ -6163,7 +6157,7 @@ namespace Lightrealm
                         Clone.IsGeneralGood = Base.IsGeneralGood;
 
                         // Handling exceptions (deep cloning)
-                        Clone.Imbuements = Base.Imbuements.Select(imb => new Imbuement(imb.IsTrigger, imb.ConditionOrTrigger, imb.BuffOrResult, imb.FirstPower, imb.SecondPower)).ToList();
+                        Clone.Imbuements = Base.Imbuements.Select(imb => new Imbuement(imb.IsTrigger, imb.ConditionOrTrigger, imb.BuffOrResult, imb.FirstPower, imb.SecondPower));
                         Clone.CompositionContent = Base.CompositionContent;
                         Clone.Thrower = Base.Thrower;
                         Clone.Owner = Base.Owner;

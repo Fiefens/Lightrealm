@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Lightrealm
@@ -10,16 +11,20 @@ namespace Lightrealm
     public class Door : Object
     {
         private int _sourceRoomId;
+
+        [JsonIgnore]
         public Room SourceRoom
         {
-            get => Entity<Room>(_sourceRoomId);
+            get => EntityGet<Room>(_sourceRoomId);
             set => _sourceRoomId = value?.ID ?? 0;
         }
 
         private int _destinationRoomId;
+
+        [JsonIgnore]
         public Room DestinationRoom
         {
-            get => Entity<Room>(_destinationRoomId);
+            get => EntityGet<Room>(_destinationRoomId);
             set => _destinationRoomId = value?.ID ?? 0;
         }
 
@@ -49,6 +54,5 @@ namespace Lightrealm
         public Door()
         {
         }
-
     }
 }

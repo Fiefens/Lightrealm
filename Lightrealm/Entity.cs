@@ -17,6 +17,48 @@ namespace Lightrealm
 
         public string Metadata;
 
+        public static T EntityGet<T>(int entityId) where T : Entity
+        {
+            if (entityId == 0)
+            {
+                return null;
+            }
+
+            Entity entity = null;
+
+            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            {
+                if (Game1.TemporaryEntities.ContainsKey(entityId))
+                {
+                    entity = Game1.TemporaryEntities[entityId];
+                }
+            }
+            else
+            {
+                if (Game1.GameWorld.AllEntities.ContainsKey(entityId))
+                {
+                    entity = Game1.GameWorld.AllEntities[entityId];
+                }
+            }
+
+            if (entity == null)
+            {
+                throw new KeyNotFoundException($"Entity ID {entityId} not found in either AllEntities or TemporaryEntities.");
+            }
+
+            if (entity is T typedEntity)
+            {
+                return typedEntity;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+
+
+
         [NonSerialized]
         public Rectangle Hitbox = new Rectangle();
 

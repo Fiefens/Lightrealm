@@ -10,34 +10,27 @@ namespace Lightrealm
     [Serializable]
     public class Group : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
+        public bool IsPrimary { get; set; } = false;
 
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+        private int _locationId;
+
+        [JsonIgnore]
+        public Location Location
+        {
+            get => EntityGet<Location>(_locationId);
+            set => _locationId = value?.ID ?? 0;
         }
 
-        private List<int> _architects = new List<int>();
-        public EntityList<Architect> Architects
-        {
-            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)).ToList());
-            set => _architects = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
 
-        private List<int> _architectsToRemove = new List<int>();
-        public EntityList<Architect> ArchitectsToRemove
-        {
-            get => new EntityList<Architect>(_architectsToRemove.Select(id => Entity<Architect>(id)).ToList());
-            set => _architectsToRemove = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
 
         private int _leaderId;
+
+        [JsonIgnore]
         public Architect Leader
         {
-            get => Entity<Architect>(_leaderId);
+            get => EntityGet<Architect>(_leaderId);
             set => _leaderId = value?.ID ?? 0;
         }
 
@@ -64,41 +57,23 @@ namespace Lightrealm
         }
 
         private int _baseId;
+
+        [JsonIgnore]
         public Location Base
         {
-            get => Entity<Location>(_baseId);
+            get => EntityGet<Location>(_baseId);
             set => _baseId = value?.ID ?? 0;
         }
 
-        private List<int> _enemies = new List<int>();
-        public EntityList<Architect> Enemies
-        {
-            get => new EntityList<Architect>(_enemies.Select(id => Entity<Architect>(id)).ToList());
-            set => _enemies = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Architect> Enemies { get; set; } = new EntityList<Architect>();
 
-        private List<int> _architectsWhoDeclined = new List<int>();
-        public EntityList<Architect> ArchitectsWhoDeclined
-        {
-            get => new EntityList<Architect>(_architectsWhoDeclined.Select(id => Entity<Architect>(id)).ToList());
-            set => _architectsWhoDeclined = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Architect> ArchitectsWhoDeclined { get; set; } = new EntityList<Architect>();
 
         public List<string> CaravanItems { get; set; } = new List<string>();
 
-        private List<int> _groupsIKnowAbout = new List<int>();
-        public EntityList<Group> GroupsIKnowAbout
-        {
-            get => new EntityList<Group>(_groupsIKnowAbout.Select(id => Entity<Group>(id)).ToList());
-            set => _groupsIKnowAbout = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Group> GroupsIKnowAbout { get; set; } = new EntityList<Group>();
 
-        private List<int> _tradeRoute = new List<int>();
-        public EntityList<Location> TradeRoute
-        {
-            get => new EntityList<Location>(_tradeRoute.Select(id => Entity<Location>(id)).ToList());
-            set => _tradeRoute = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Location> TradeRoute { get; set; } = new EntityList<Location>();
 
         public int MaxTradeRouteLength { get; set; } = Game1.r.Next(3, 10);
         public bool WaitingForCooldownToTrade { get; set; } = false;
@@ -118,7 +93,6 @@ namespace Lightrealm
         public int PatriotismValue { get; set; } = 0;
         public int CourageValue { get; set; } = 0;
         public int CreativityValue { get; set; } = 0;
-
 
         public string CaravanCatalogue()
         {

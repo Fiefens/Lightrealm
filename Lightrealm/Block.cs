@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Lightrealm
@@ -10,60 +11,23 @@ namespace Lightrealm
     [Serializable]
     public class Block : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
-        private List<int> _structures = new List<int>();
-        public EntityList<Structure> Structures
-        {
-            get => new EntityList<Structure>(_structures.Select(id => Entity<Structure>(id)));
-            set => _structures = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
-        }
-
-        private List<int> _structuresToRemove = new List<int>();
-        public EntityList<Structure> StructuresToRemove
-        {
-            get => new EntityList<Structure>(_structuresToRemove.Select(id => Entity<Structure>(id)));
-            set => _structuresToRemove = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
-        }
-
-        private List<int> _architects = new List<int>();
-        public EntityList<Architect> Architects
-        {
-            get => new EntityList<Architect>(_architects.Select(id => Entity<Architect>(id)));
-            set => _architects = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
-        }
-
-        private List<int> _architectsToRemove = new List<int>();
-        public EntityList<Architect> ArchitectsToRemove
-        {
-            get => new EntityList<Architect>(_architectsToRemove.Select(id => Entity<Architect>(id)));
-            set => _architectsToRemove = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
-        }
+        public EntityList<Structure> Structures { get; set; } = new EntityList<Structure>();
+        public EntityList<Structure> StructuresToRemove { get; set; } = new EntityList<Structure>();
+        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
+        public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
+        public EntityList<Object> Objects { get; set; } = new EntityList<Object>();
 
         public string Biome { get; set; } = "";
-
-        private List<int> _objects = new List<int>();
-        public EntityList<Object> Objects
-        {
-            get => new EntityList<Object>(_objects.Select(id => Entity<Object>(id)));
-            set => _objects = value?.Select(e => e?.ID ?? 0).ToList() ?? new List<int>();
-        }
 
         public int X { get; set; }
         public int Z { get; set; }
 
         private int _districtId;
+
+        [JsonIgnore]
         public District District
         {
-            get => Entity<District>(_districtId);
+            get => EntityGet<District>(_districtId);
             set => _districtId = value?.ID ?? 0;
         }
 
@@ -80,7 +44,6 @@ namespace Lightrealm
         {
 
         }
-
 
         public bool HasWell()
         {
@@ -105,7 +68,6 @@ namespace Lightrealm
             }
             return (false, "");
         }
-
 
         public (Region, Location, District, Block, Room, string) FindNearestThing(string thing)
         {
@@ -219,7 +181,5 @@ namespace Lightrealm
 
             return DeterminedLocation;
         }
-
-
     }
 }

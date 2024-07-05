@@ -11,20 +11,12 @@ namespace Lightrealm
     [Serializable]
     public class Room : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         private int _structureId;
+
+        [JsonIgnore]
         public Structure Structure
         {
-            get => Entity<Structure>(_structureId);
+            get => EntityGet<Structure>(_structureId);
             set => _structureId = value?.ID ?? 0;
         }
 

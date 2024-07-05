@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -12,20 +13,12 @@ namespace Lightrealm
     [Serializable]
     public class InteractableEvent : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
         private int _regionId;
+
+        [JsonIgnore]
         public Region Region
         {
-            get => Entity<Region>(_regionId);
+            get => EntityGet<Region>(_regionId);
             set => _regionId = value?.ID ?? 0;
         }
 
@@ -33,21 +26,18 @@ namespace Lightrealm
         public string Type { get; set; }
 
         private int _homeCivilizationId;
+
+        [JsonIgnore]
         public Civilization HomeCivilization
         {
-            get => Entity<Civilization>(_homeCivilizationId);
+            get => EntityGet<Civilization>(_homeCivilizationId);
             set => _homeCivilizationId = value?.ID ?? 0;
         }
 
         public string Info { get; set; }
         public string Intrigue { get; set; }
 
-        private List<int> _guaranteedArchitects = new List<int>();
-        public EntityList<Architect> GuaranteedArchitects
-        {
-            get => _guaranteedArchitects.Select(id => Entity<Architect>(id)).ToList();
-            set => _guaranteedArchitects = value.Select(e => e.ID).ToList();
-        }
+        public EntityList<Architect> GuaranteedArchitects { get; set; } = new EntityList<Architect>();
 
         public int Luminosity { get; set; } = 0;
 
@@ -179,7 +169,7 @@ namespace Lightrealm
                     Info = new List<string>() { "A lone traveller in religious clothing appears. They appear to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.r.Next(0, 3)];
                     break;
                 // Code for priest
-                case "colossal": 
+                case "colossal":
                     Info = new List<string>() { "You had only heard of the legendary " + GuaranteedArchitects[0].Race.Name + " " + GuaranteedArchitects[0].Name + ", but it stands before you now...", "That, that is a big " + GuaranteedArchitects[0].Race.Name + "... you've heard of " + GuaranteedArchitects[0].Name + " before, but seeing it is different. It hasn't spotted you yet.", }[Game1.r.Next(0, 2)];
                     break;
                 default:
@@ -188,7 +178,10 @@ namespace Lightrealm
             }
 
             Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(BiomeToIntrigue[region.Biome].Count)];
+        }
 
+        public InteractableEvent()
+        {
 
         }
     }

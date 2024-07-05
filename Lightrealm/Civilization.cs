@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Lightrealm
@@ -10,21 +11,12 @@ namespace Lightrealm
     [Serializable]
     public class Civilization : Entity
     {
-        public static T Entity<T>(int entityId) where T : Entity
-        {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
-            {
-                return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
-            }
-
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
-        }
-
-        //nightfell, luminarch, lost
         private int _primaryInhabitantRaceId;
-        public Race PrimaryInhabiantRace
+
+        [JsonIgnore]
+        public Race PrimaryInhabitantRace
         {
-            get => Entity<Race>(_primaryInhabitantRaceId);
+            get => EntityGet<Race>(_primaryInhabitantRaceId);
             set => _primaryInhabitantRaceId = value?.ID ?? 0;
         }
 
@@ -35,73 +27,75 @@ namespace Lightrealm
         public string WarType { get; set; }
 
         private int _culturalClothId;
+
+        [JsonIgnore]
         public Material CulturalCloth
         {
-            get => Entity<Material>(_culturalClothId);
+            get => EntityGet<Material>(_culturalClothId);
             set => _culturalClothId = value?.ID ?? 0;
         }
 
         private int _culturalWoodId;
+
+        [JsonIgnore]
         public Material CulturalWood
         {
-            get => Entity<Material>(_culturalWoodId);
+            get => EntityGet<Material>(_culturalWoodId);
             set => _culturalWoodId = value?.ID ?? 0;
         }
 
         private int _culturalStoneId;
+
+        [JsonIgnore]
         public Material CulturalStone
         {
-            get => Entity<Material>(_culturalStoneId);
+            get => EntityGet<Material>(_culturalStoneId);
             set => _culturalStoneId = value?.ID ?? 0;
         }
 
         private int _culturalMetalId;
+
+        [JsonIgnore]
         public Material CulturalMetal
         {
-            get => Entity<Material>(_culturalMetalId);
+            get => EntityGet<Material>(_culturalMetalId);
             set => _culturalMetalId = value?.ID ?? 0;
         }
 
         private int _culturalGemstoneId;
+
+        [JsonIgnore]
         public Material CulturalGemstone
         {
-            get => Entity<Material>(_culturalGemstoneId);
+            get => EntityGet<Material>(_culturalGemstoneId);
             set => _culturalGemstoneId = value?.ID ?? 0;
         }
 
         private int _culturalSheetId;
+
+        [JsonIgnore]
         public Material CulturalSheet
         {
-            get => Entity<Material>(_culturalSheetId);
+            get => EntityGet<Material>(_culturalSheetId);
             set => _culturalSheetId = value?.ID ?? 0;
         }
 
         public int ElectionFrequency { get; set; } = Game1.r.Next(1401520000, 1501520000);
         public Dictionary<string, int> HatredPoints { get; set; } = new Dictionary<string, int>();
-
         public int CyclesTillElection { get; set; } = 0;
-        private EntityList<Architect> _citizens = new EntityList<Architect>();
-        public EntityList<Architect> Citizens
-        {
-            get => _citizens;
-            set => _citizens = value ?? new EntityList<Architect>();
-        }
+        public EntityList<Architect> Citizens { get; set; } = new EntityList<Architect>();
 
         private int _alphaId;
+
+        [JsonIgnore]
         public Architect Alpha
         {
-            get => Entity<Architect>(_alphaId);
+            get => EntityGet<Architect>(_alphaId);
             set => _alphaId = value?.ID ?? 0;
         }
 
         public int WakeUpAndChooseViolencePoints { get; set; } = 0;
-
-        private EntityList<Unit> _unitsAtCommand = new EntityList<Unit>();
-        public EntityList<Unit> UnitsAtCommand
-        {
-            get => _unitsAtCommand;
-            set => _unitsAtCommand = value ?? new EntityList<Unit>();
-        }
+        public EntityList<Unit> UnitsAtCommand { get; set; } = new EntityList<Unit>();
 
         public string CulturalHeadwear { get; set; } = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count)];
         public string CulturalNeckwear { get; set; } = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count)];
@@ -111,34 +105,36 @@ namespace Lightrealm
         public string CulturalFootwear { get; set; } = Game1.Footwear[Game1.r.Next(Game1.Footwear.Count)];
 
         private int _worldId;
+
+        [JsonIgnore]
         public World World
         {
-            get => Entity<World>(_worldId);
+            get => EntityGet<World>(_worldId);
             set => _worldId = value?.ID ?? 0;
         }
 
         private int _capitolId;
+
+        [JsonIgnore]
         public Location Capitol
         {
-            get => Entity<Location>(_capitolId);
+            get => EntityGet<Location>(_capitolId);
             set => _capitolId = value?.ID ?? 0;
         }
 
         public string Color { get; set; }
 
-
-
         public Civilization(Race race, string type, int Startx, int Startz, World world)
         {
             Random r = new Random();
-            PrimaryInhabiantRace = race;
+            PrimaryInhabitantRace = race;
             World = world;
             Name = World.GenerateUniqueName("1s" + Game1.r.Next(2, 6) + "s", this);
-            Name = Name.Substring(0,1).ToUpper() + Name.Substring(1);
+            Name = Name.Substring(0, 1).ToUpper() + Name.Substring(1);
             StartX = Startx;
             StartZ = Startz;
 
-            if(type == "druid")
+            if (type == "druid")
             {
                 CulturalHeadwear = "none";
                 CulturalNeckwear = "none";
@@ -153,7 +149,7 @@ namespace Lightrealm
 
             int Index = r.Next(World.UnusedCivColors.Count);
 
-            if(race != world.GetRace(""))
+            if (race != world.GetRace(""))
             {
                 Color = World.UnusedCivColors[Index];
                 World.UnusedCivColors.RemoveAt(Index);
