@@ -12,20 +12,55 @@ namespace Lightrealm
     public class TextStorage : Entity
     {
         public string Data { get; set; }
-        public Color Color { get; set; }
 
-        public EntityList<Entity> Entities { get; set; } = new EntityList<Entity>();
+        private byte red;
+        private byte green;
+        private byte blue;
 
-        public TextStorage(string data, Color color, EntityList<Entity> Entities)
+        public List<Entity> Entities { get; set; } = new List<Entity>();
+
+        public TextStorage(string data, Color color, List<Entity> Entities)
         {
             this.Data = data;
-            this.Color = color;
+            this.Red = color.R;
+            this.Green = color.G;
+            this.Blue = color.B;
             this.Entities = Entities;
         }
 
         public TextStorage()
         {
 
+        }
+
+        
+        public Color Color
+        {
+            get => new Color(red, green, blue);
+            set
+            {
+                red = value.R;
+                green = value.G;
+                blue = value.B;
+            }
+        }
+
+        public byte Red
+        {
+            get => red;
+            set => red = value;
+        }
+
+        public byte Green
+        {
+            get => green;
+            set => green = value;
+        }
+
+        public byte Blue
+        {
+            get => blue;
+            set => blue = value;
         }
     }
 }

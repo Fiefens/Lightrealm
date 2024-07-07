@@ -20,7 +20,7 @@ namespace Lightrealm
 
         private int _locationId;
 
-        [JsonIgnore]
+        
         public Location Location
         {
             get => EntityGet<Location>(_locationId);
@@ -32,7 +32,7 @@ namespace Lightrealm
             EntityHashSet<Architect> architects = new EntityHashSet<Architect>();
             foreach (var block in DistrictMap)
             {
-                architects = architects.Union(block.Architects);
+                architects.UnionWith(block.Architects);
             }
             return architects;
         }
@@ -50,7 +50,7 @@ namespace Lightrealm
         public bool IsLoaded { get; set; } = false;
         public bool HasBeenLoadedEver { get; set; } = false;
 
-        public EntityList<Block> DistrictMap = new EntityList<Block>();
+        public List<Block> DistrictMap = new List<Block>();
 
         public string Industry { get; set; } = "";
 
@@ -59,7 +59,7 @@ namespace Lightrealm
         public District(bool isPrimary, Location l, int unplacedPopulation)
         {
             Location = l;
-            Name = Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 4) - 1) + "s", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(3, 4) - 1) + "s", this);
             AddReferredToName(Name);
             IsPrimary = isPrimary;
 
@@ -156,7 +156,7 @@ namespace Lightrealm
             }
 
             UnplacedPopulation = unplacedPopulation;
-            Industry = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
+            Industry = Game1.Industries[Game1.r.Next(Game1.Industries.Count())];
         }
 
 
@@ -169,7 +169,7 @@ namespace Lightrealm
 
         public int Population()
         {
-            return Architects.Count + UnplacedPopulation;
+            return Architects.Count() + UnplacedPopulation;
         }
 
         public void SupplyLocation(int Intensity)
@@ -184,7 +184,7 @@ namespace Lightrealm
             // 40% chance to make something different
             if (Game1.r.Next(1, 6) <= 2)
             {
-                DecidedProduction = Game1.Industries[Game1.r.Next(Game1.Industries.Count)];
+                DecidedProduction = Game1.Industries[Game1.r.Next(Game1.Industries.Count())];
             }
 
             List<string> itemsToBeAdded = GenerateItems(DecidedProduction, Intensity);
@@ -202,7 +202,7 @@ namespace Lightrealm
                 }
             }
 
-            Location.HomeCivilization.World.TotalCrafts += itemsToBeAdded.Count;
+            Game1.GameWorld.TotalCrafts += itemsToBeAdded.Count();
         }
 
         public List<string> GenerateItems(string industry, int intensity)
@@ -561,7 +561,7 @@ namespace Lightrealm
             {
                 if(Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
                 {
-                    if (architect.Block.Architects.Count == 1)
+                    if (architect.Block.Architects.Count() == 1)
                     {
                         architect.Task = "contemplate";
                     }
@@ -618,9 +618,9 @@ namespace Lightrealm
                     break;
             }
 
-            if (possibleTasks.Count > 0)
+            if (possibleTasks.Count() > 0)
             {
-                architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count)];
+                architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count())];
                 int maxCycles = architect.Task switch
                 {
                     "sleeping" => 350000,
@@ -645,9 +645,9 @@ namespace Lightrealm
 
 
 
-        EntityList<Structure> GetPossibleStructures(Architect a)
+        List<Structure> GetPossibleStructures(Architect a)
         {
-            EntityList<Structure> possibleStructures = new EntityList<Structure>();
+            List<Structure> possibleStructures = new List<Structure>();
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
             {
                 for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
@@ -674,22 +674,22 @@ namespace Lightrealm
             return possibleStructures;
         }
 
-        Room GetRandomRoom(EntityList<Structure> structures)
+        Room GetRandomRoom(List<Structure> structures)
         {
             // Filter structures to include only those with at least one room
-            var structuresWithRooms = structures.Where(s => s.Rooms.Count > 0).ToList();
+            var structuresWithRooms = structures.Where(s => s.Rooms.Count() > 0);
 
             // Check if there are any structures with rooms
-            if (structuresWithRooms.Count == 0)
+            if (structuresWithRooms.Count() == 0)
             {
                 throw new InvalidOperationException("No structures with rooms available.");
             }
 
             // Randomly select a structure with at least one room
-            Structure randomStructure = structuresWithRooms[Game1.r.Next(structuresWithRooms.Count)];
+            Structure randomStructure = structuresWithRooms[Game1.r.Next(structuresWithRooms.Count())];
 
             // Randomly select a room from the selected structure
-            return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count)];
+            return randomStructure.Rooms[Game1.r.Next(randomStructure.Rooms.Count())];
         }
 
 
@@ -699,10 +699,10 @@ namespace Lightrealm
 
             Game1.AllSubjects = Game1.CollectAllSubjects(Game1.MostRecentPartyTurnArchitect, "none");
 
-            EntityList<Architect> allArchitects = new EntityList<Architect>();
+            List<Architect> allArchitects = new List<Architect>();
             allArchitects.AddRange(Architects);
 
-            EntityList<Structure> allDistrictStructures = new EntityList<Structure>();
+            List<Structure> allDistrictStructures = new List<Structure>();
 
             for (int x = 0; x < 7; x++)
             {
@@ -732,7 +732,7 @@ namespace Lightrealm
                     for(int I = Game1.r.Next(40, 80); I != 0; I--)
                     {
                         string Type = new List<string>() { "tree", "plant", "bush" }[Game1.r.Next(3)];
-                        Object o = new Object(null, Type, new EntityList<Material>() { Game1.GameWorld.Membrane }, null);
+                        Object o = new Object(null, Type, new List<Material>() { Game1.GameWorld.Membrane }, null);
                         DistrictMap[Game1.r.Next(49)].Objects.Add(o);
                     }
                 }
@@ -740,7 +740,7 @@ namespace Lightrealm
 
                 foreach (Structure s in allDistrictStructures)
                 {
-                    Room coreRoom = new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>());
+                    Room coreRoom = new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>());
                     s.Rooms.Add(coreRoom);
 
                     string Layout = s.Type;
@@ -762,7 +762,7 @@ namespace Lightrealm
 
                     for (int i = 0; i < extraRoomCount; i++)
                     {
-                        s.Rooms.Add(new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>()));
+                        s.Rooms.Add(new Room(s, new List<Object>(), new List<Architect>(), new List<Architect>()));
                     }
 
                     foreach (Room r in s.Rooms)
@@ -772,7 +772,7 @@ namespace Lightrealm
 
                     foreach (Object o in s.HistoricalObjects)
                     {
-                        s.Rooms[Game1.r.Next(s.Rooms.Count)].Objects.Add(o);
+                        s.Rooms[Game1.r.Next(s.Rooms.Count())].Objects.Add(o);
                     }
                     s.HistoricalObjects.Clear();
                 }
@@ -780,13 +780,13 @@ namespace Lightrealm
 
             if (Location.Market != null)
             {
-                if (Location.DebtShibas.Count == 0)
+                if (Location.DebtShibas.Count() == 0)
                 {
                     int shibas = Game1.r.Next(4, 8);
                     for (int i = 0; i < shibas; i++)
                     {
-                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Location.Region.World.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new EntityList<Object>(), Location, this, Location.Market.Block, "", 4);
-                        a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
+                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Game1.GameWorld.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new List<Object>(), Location, this, Location.Market.Block, "", 4);
+                        a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                         a.HomeStructure = Location.Market;
                         a.Block = Location.Market.Block;
                         Location.DebtShibas.Add(a);
@@ -811,7 +811,7 @@ namespace Lightrealm
             for (int i = 0; i < UnplacedPopulation; i++)
             {
                 string sex = Game1.r.Next(1, 3) == 1 ? "male" : "female";
-                string role = Game1.WeightedRandomNormalProfessions[Game1.r.Next(Game1.WeightedRandomNormalProfessions.Count)];
+                string role = Game1.WeightedRandomNormalProfessions[Game1.r.Next(Game1.WeightedRandomNormalProfessions.Count())];
                 Race race;
 
                 if (Location.PrimaryRace.Name == "luminarch" || Location.PrimaryRace.Name == "nightfell" || Location.PrimaryRace.Name == "archaix")
@@ -823,8 +823,8 @@ namespace Lightrealm
                     else
                     {
                         // Pick one of the other two humanoid races
-                        EntityList<Race> otherHumanoidRaces = Location.Region.World.HumanoidRaces.Where(r => r.Name != Location.PrimaryRace.Name && (r.Name == "luminarch" || r.Name == "nightfell" || r.Name == "archaix"));
-                        race = otherHumanoidRaces[Game1.r.Next(otherHumanoidRaces.Count)];
+                        List<Race> otherHumanoidRaces = Game1.GameWorld.HumanoidRaces.Where(r => r.Name != Location.PrimaryRace.Name && (r.Name == "luminarch" || r.Name == "nightfell" || r.Name == "archaix"));
+                        race = otherHumanoidRaces[Game1.r.Next(otherHumanoidRaces.Count())];
                     }
                 }
                 else if (Location.PrimaryRace.Name == "shade" || Location.PrimaryRace.Name == "isofractal" || Location.PrimaryRace.Name == "photonexus")
@@ -838,23 +838,23 @@ namespace Lightrealm
 
                     if (bias < 3)
                     {
-                        race = Location.Region.World.HumanoidRaces.First(r => r.Name == "luminarch");
+                        race = Game1.GameWorld.HumanoidRaces.First(r => r.Name == "luminarch");
                     }
                     else if (bias < 6)
                     {
-                        race = Location.Region.World.HumanoidRaces.First(r => r.Name == "nightfell");
+                        race = Game1.GameWorld.HumanoidRaces.First(r => r.Name == "nightfell");
                     }
                     else
                     {
-                        race = Location.Region.World.HumanoidRaces.First(r => r.Name == "archaix");
+                        race = Game1.GameWorld.HumanoidRaces.First(r => r.Name == "archaix");
                     }
                 }
 
                 string destiny = Game1.r.Next(1, 5000) switch
                 {
                     < 3 => "wizard",
-                    < 5 when race == Location.Region.World.GetRace("nightfell") => "warlock",
-                    < 7 when race == Location.Region.World.GetRace("luminarch") => "sorcerer",
+                    < 5 when race == Game1.GameWorld.GetRace("nightfell") => "warlock",
+                    < 7 when race == Game1.GameWorld.GetRace("luminarch") => "sorcerer",
                     < 8 => "parasite",
                     _ => ""
                 };
@@ -879,8 +879,8 @@ namespace Lightrealm
                     }
                 }
 
-                Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new EntityList<Object>(), Location, this, null, destiny, 1);
-                a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
+                Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new List<Object>(), Location, this, null, destiny, 1);
+                a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                 allArchitects.Add(a);
             }
 
@@ -893,7 +893,7 @@ namespace Lightrealm
                 {
                     foreach (Architect a in g.Architects)
                     {
-                        if (!Game1.GamePlayerParty.Architects.Contains(a))
+                        if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a))
                         {
                             Location.Market.Rooms[0].Architects.Add(a);
                             a.Room = Location.Market.Rooms[0];
@@ -906,18 +906,18 @@ namespace Lightrealm
 
             foreach (Architect a in allArchitects)
             {
-                if (!Game1.GamePlayerParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
+                if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
                 {
                     a.Loaded = true;
                     a.UpdateNames();
 
-                    EntityList<Structure> possibleStructures = (a.Bound && this.Location.AllStructures.Count > 0)
-                        ? new EntityList<Structure> { this.Location.AllStructures.FirstOrDefault(s => s.Block.District == this) }
+                    List<Structure> possibleStructures = (a.Bound && this.Location.AllStructures.Count() > 0)
+                        ? new List<Structure> { this.Location.AllStructures.FirstOrDefault(s => s.Block.District == this) }
                         : GetPossibleStructures(a);
 
-                    if (possibleStructures.Count > 0)
+                    if (possibleStructures.Count() > 0)
                     {
-                        Structure chosenStructure = possibleStructures[Game1.r.Next(possibleStructures.Count)];
+                        Structure chosenStructure = possibleStructures[Game1.r.Next(possibleStructures.Count())];
                         Room chosenRoom = chosenStructure.Rooms[0];
                         chosenRoom.Architects.Add(a);
                         a.Room = chosenRoom;
@@ -932,7 +932,7 @@ namespace Lightrealm
                     else
                     {
                         Structure chosenStructure = Location.AllStructures[0];
-                        Room chosenRoom = chosenStructure.Rooms[Game1.r.Next(chosenStructure.Rooms.Count)];
+                        Room chosenRoom = chosenStructure.Rooms[Game1.r.Next(chosenStructure.Rooms.Count())];
                         chosenRoom.Architects.Add(a);
                         a.Room = chosenRoom;
                         a.Block = chosenRoom.Structure.Block;
@@ -970,7 +970,7 @@ namespace Lightrealm
                 }
             }
 
-            if (Location.Districts.Count == 1 && Location.AllStructures.Count == 1)
+            if (Location.Districts.Count() == 1 && Location.AllStructures.Count() == 1)
             {
                 Structure structureInSameDistrict = Location.AllStructures.FirstOrDefault(s => s.Block.District == this);
                 if (structureInSameDistrict != null)
@@ -979,13 +979,13 @@ namespace Lightrealm
                     {
                         Block b = structureInSameDistrict.Block;
                         Race race = Location.Type == "sanctum"
-                            ? Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count)]
+                            ? Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count())]
                             : Location.GuardianType;
 
-                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], race, 10, "construct", new EntityList<Object>(), Location, this, b, "", 5);
+                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], race, 10, "construct", new List<Object>(), Location, this, b, "", 5);
                         a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(Game1.r.Next(3, 7)));
-                        a.Name = Location.Region.World.GenerateUniqueArchitectName(a);
-                        a.Room = structureInSameDistrict.Rooms[Game1.r.Next(structureInSameDistrict.Rooms.Count)];
+                        a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
+                        a.Room = structureInSameDistrict.Rooms[Game1.r.Next(structureInSameDistrict.Rooms.Count())];
                         a.Block = a.Room.Structure.Block;
                         a.HomeLocation = Location;
                         a.Room.Architects.Add(a);
@@ -995,10 +995,10 @@ namespace Lightrealm
             }
 
             // Load General Items
-            EntityList<Object> itemsToAdd = new EntityList<Object>();
+            List<Object> itemsToAdd = new List<Object>();
             foreach (string itemString in GeneralItemsWeHave)
             {
-                EntityList<Object> items = Game1.ConvertStringToObjects(itemString);
+                List<Object> items = Game1.ConvertStringToObjects(itemString);
                 itemsToAdd.AddRange(items);
             }
 
@@ -1014,7 +1014,7 @@ namespace Lightrealm
             }
 
 
-            Game1.LoadedArchitects.AddRange(Game1.GamePlayerParty.Architects);
+            Game1.LoadedArchitects.AddRange(Game1.GameWorld.GamePlayerParty.Architects);
 
             bool EverythingBelongsToTheQueen = false;
 
@@ -1137,7 +1137,7 @@ namespace Lightrealm
                 {
                     foreach (Architect a in DistrictMap[DistrictX + DistrictZ * 7].Architects)
                     {
-                        if (!Game1.GamePlayerParty.Architects.Contains(a))
+                        if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a))
                         {
                             if (!a.IsLoadedTrader && !Game1.GameWorld.ConstructRaces.Contains(a.Race))
                             {
@@ -1164,7 +1164,7 @@ namespace Lightrealm
                     DistrictMap[DistrictX + DistrictZ * 7].Architects.Clear();
 
                     // Create a list to hold the objects to remove
-                    EntityList<Object> objectsToRemove = new EntityList<Object>();
+                    List<Object> objectsToRemove = new List<Object>();
 
                     foreach (Object o in DistrictMap[DistrictX + DistrictZ * 7].Objects)
                     {
@@ -1186,7 +1186,7 @@ namespace Lightrealm
                             {
                                 Location.Prism.HistoricalObjects.Add(o);
                             }
-                            else if (Location.AllStructures.Count > 0)
+                            else if (Location.AllStructures.Count() > 0)
                             {
                                 Location.AllStructures[0].HistoricalObjects.Add(o);
                             }
@@ -1198,9 +1198,9 @@ namespace Lightrealm
                     {
                         DistrictMap[DistrictX + DistrictZ * 7].Objects.Remove(o);
 
-                        if(Location.AllStructures.Count > 0)
+                        if(Location.AllStructures.Count() > 0)
                         {
-                            Location.AllStructures[Game1.r.Next(Location.AllStructures.Count)].HistoricalObjects.Add(o);
+                            Location.AllStructures[Game1.r.Next(Location.AllStructures.Count())].HistoricalObjects.Add(o);
                         }
                     }
 
@@ -1209,10 +1209,10 @@ namespace Lightrealm
                     {
                         foreach (Room r in s.Rooms)
                         {
-                            EntityList<Architect> ArchitectsToRemove = new EntityList<Architect>();
+                            List<Architect> ArchitectsToRemove = new List<Architect>();
                             foreach (Architect a in r.Architects)
                             {
-                                if (!Game1.GamePlayerParty.Architects.Contains(a) && !a.IsLoadedTrader)
+                                if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && !a.IsLoadedTrader)
                                 {
                                     if (a.Race == Game1.GameWorld.GetRace("debtshiba"))
                                     {
@@ -1233,7 +1233,7 @@ namespace Lightrealm
                             r.Architects.Clear();
 
                             // Create a list to hold objects that are general goods
-                            EntityList<Object> RoomObjectsToRemove = new EntityList<Object>();
+                            List<Object> RoomObjectsToRemove = new List<Object>();
 
                             // Handle objects in the room
                             foreach (Object o in r.Objects)
@@ -1257,15 +1257,15 @@ namespace Lightrealm
             }
 
 
-            bool AllArchitectsDeadOrInParty = Game1.LoadedArchitects.All(architect => !architect.IsAlive || Game1.GamePlayerParty.Architects.Contains(architect));
+            bool AllArchitectsDeadOrInParty = Game1.LoadedArchitects.All(architect => !architect.IsAlive || Game1.GameWorld.GamePlayerParty.Architects.Contains(architect));
 
-            if (Game1.GamePlayerParty.CurrentEvent != null)
+            if (Game1.GameWorld.GamePlayerParty.CurrentEvent != null)
             {
                 if (AllArchitectsDeadOrInParty)
                 {
-                    Game1.GamePlayerParty.CurrentEvent.Region.Events.Remove(Game1.GamePlayerParty.CurrentEvent);
+                    Game1.GameWorld.GamePlayerParty.CurrentEvent.Region.Events.Remove(Game1.GameWorld.GamePlayerParty.CurrentEvent);
                 }
-                Game1.GamePlayerParty.CurrentEvent = null;
+                Game1.GameWorld.GamePlayerParty.CurrentEvent = null;
             }
 
 

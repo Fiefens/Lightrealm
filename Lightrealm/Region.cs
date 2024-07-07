@@ -19,19 +19,11 @@ namespace Lightrealm
         public int Z { get; set; }
 
         private int _myLocationId;
-        [JsonIgnore]
+        
         public Location MyLocation
         {
             get => EntityGet<Location>(_myLocationId);
             set => _myLocationId = value?.ID ?? 0;
-        }
-
-        private int _worldId;
-        [JsonIgnore]
-        public World World
-        {
-            get => EntityGet<World>(_worldId);
-            set => _worldId = value?.ID ?? 0;
         }
 
         public List<(int, int)> TragedyPoints { get; set; } = new List<(int, int)>();
@@ -40,7 +32,7 @@ namespace Lightrealm
         public bool RegionallyExplored { get; set; } = false;
 
         private int _blightId;
-        [JsonIgnore]
+        
         public Blight Blight
         {
             get => EntityGet<Blight>(_blightId);
@@ -50,7 +42,7 @@ namespace Lightrealm
         public string PortName { get; set; } = "";
 
         private int _harvestableWoodId;
-        [JsonIgnore]
+        
         public Material HarvestableWood
         {
             get => EntityGet<Material>(_harvestableWoodId);
@@ -58,7 +50,7 @@ namespace Lightrealm
         }
 
         private int _harvestableStoneId;
-        [JsonIgnore]
+        
         public Material HarvestableStone
         {
             get => EntityGet<Material>(_harvestableStoneId);
@@ -66,7 +58,7 @@ namespace Lightrealm
         }
 
         private int _harvestableMetalId;
-        [JsonIgnore]
+        
         public Material HarvestableMetal
         {
             get => EntityGet<Material>(_harvestableMetalId);
@@ -74,7 +66,7 @@ namespace Lightrealm
         }
 
         private int _harvestableSandId;
-        [JsonIgnore]
+        
         public Material HarvestableSand
         {
             get => EntityGet<Material>(_harvestableSandId);
@@ -82,7 +74,7 @@ namespace Lightrealm
         }
 
         private int _harvestableIceId;
-        [JsonIgnore]
+        
         public Material HarvestableIce
         {
             get => EntityGet<Material>(_harvestableIceId);
@@ -90,17 +82,17 @@ namespace Lightrealm
         }
 
         private int _harvestableFiberId;
-        [JsonIgnore]
+        
         public Material HarvestableFiber
         {
             get => EntityGet<Material>(_harvestableFiberId);
             set => _harvestableFiberId = value?.ID ?? 0;
         }
 
-        public EntityHashSet<InteractableEvent> Events { get; set; } = new EntityHashSet<InteractableEvent>();
+        public List<InteractableEvent> Events { get; set; } = new List<InteractableEvent>();
 
         private int _ownerId;
-        [JsonIgnore]
+        
         public Civilization Owner
         {
             get => EntityGet<Civilization>(_ownerId);
@@ -114,14 +106,13 @@ namespace Lightrealm
             Heat = heat;
             X = x;
             Z = z;
-            World = w;
 
-            HarvestableWood = w.Woods[Game1.r.Next(w.Woods.Count)];
-            HarvestableFiber = w.Fibers[Game1.r.Next(w.Fibers.Count)];
-            HarvestableStone = w.Stones[Game1.r.Next(w.Stones.Count)];
-            HarvestableMetal = w.Metals[Game1.r.Next(w.Metals.Count)];
-            HarvestableSand = w.Sands[Game1.r.Next(w.Sands.Count)];
-            HarvestableIce = w.Ices[Game1.r.Next(w.Ices.Count)];
+            HarvestableWood = w.Woods[Game1.r.Next(w.Woods.Count())];
+            HarvestableFiber = w.Fibers[Game1.r.Next(w.Fibers.Count())];
+            HarvestableStone = w.Stones[Game1.r.Next(w.Stones.Count())];
+            HarvestableMetal = w.Metals[Game1.r.Next(w.Metals.Count())];
+            HarvestableSand = w.Sands[Game1.r.Next(w.Sands.Count())];
+            HarvestableIce = w.Ices[Game1.r.Next(w.Ices.Count())];
         }
 
         public Region()

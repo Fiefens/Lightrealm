@@ -12,7 +12,7 @@ namespace Lightrealm
     {
         public int Length { get; set; }
 
-        public EntityList<Entity> Domains { get; set; } = new EntityList<Entity>();
+        public List<Entity> Domains { get; set; } = new List<Entity>();
 
         public List<string> Perspectives { get; set; } = new List<string>();
         public string Tone { get; set; }
@@ -22,7 +22,7 @@ namespace Lightrealm
 
         private int _parentId;
 
-        [JsonIgnore]
+        
         public Composition Parent
         {
             get => EntityGet<Composition>(_parentId);
@@ -49,8 +49,8 @@ namespace Lightrealm
                 "disdainful", "curious", "enthusiastic", "contemptuous"
             };
 
-            this.Tone = tones[Game1.r.Next(tones.Count)];
-            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };
+            this.Tone = tones[Game1.r.Next(tones.Count())];
+            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count())] };
             this.Domains = GenerateDomains();
 
             this.Type = sectionType;
@@ -96,9 +96,9 @@ namespace Lightrealm
                 "disdainful", "curious", "enthusiastic", "contemptuous"
             };
 
-            this.Tone = tones[Game1.r.Next(tones.Count)];
-            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count)] };
-            this.Domains = new EntityList<Entity> { Parent.Subject };
+            this.Tone = tones[Game1.r.Next(tones.Count())];
+            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count())] };
+            this.Domains = new List<Entity> { Parent.Subject };
 
             this.Type = sectionType;
 
@@ -131,14 +131,14 @@ namespace Lightrealm
         {
             List<string> formats = new List<string>
             {
-                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatEntityList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} delves into {Game1.FormatEntityList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
-                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatEntityList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatEntityList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
-                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatEntityList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
+                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
+                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
             };
 
-            string format = formats[Game1.r.Next(formats.Count)];
+            string format = formats[Game1.r.Next(formats.Count())];
             Description = format;
         }
 
@@ -146,14 +146,14 @@ namespace Lightrealm
         {
             List<string> formats = new List<string>
             {
-                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatEntityList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} delves into {Game1.FormatEntityList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
-                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatEntityList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatEntityList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
-                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatEntityList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
+                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
+                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
             };
 
-            string format = formats[Game1.r.Next(formats.Count)];
+            string format = formats[Game1.r.Next(formats.Count())];
             Description = format;
         }
 
@@ -168,13 +168,13 @@ namespace Lightrealm
                 $"The {Tone} tone of {Type} {Number} illuminates when {eventDescription}, viewed from a {Game1.FormatList(Perspectives)} angle."
             };
 
-            string format = formats[Game1.r.Next(formats.Count)];
+            string format = formats[Game1.r.Next(formats.Count())];
             Description = format;
         }
 
-        private EntityList<Entity> GenerateDomains()
+        private List<Entity> GenerateDomains()
         {
-            EntityList<Entity> generatedDomains = new EntityList<Entity>();
+            List<Entity> generatedDomains = new List<Entity>();
 
             if (Game1.r.NextDouble() < 0.8)
             {
@@ -184,7 +184,7 @@ namespace Lightrealm
             double chanceToAddAdditionalDomain = 0.5;
             while (Game1.r.NextDouble() < chanceToAddAdditionalDomain)
             {
-                Entity potentialDomain = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)];
+                Entity potentialDomain = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count())];
                 if (!generatedDomains.Contains(potentialDomain))
                 {
                     generatedDomains.Add(potentialDomain);

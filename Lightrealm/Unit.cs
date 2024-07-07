@@ -17,7 +17,7 @@ namespace Lightrealm
             set => _leaderId = value?.ID ?? 0;
         }
 
-        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
+        public List<Architect> Architects { get; set; } = new List<Architect>();
 
         public int OtherSoldiers { get; set; }
 
@@ -30,7 +30,7 @@ namespace Lightrealm
 
         public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
 
-        public Unit(Architect leader, EntityList<Architect> architects, int otherSoldiers, Location homeLocation)
+        public Unit(Architect leader, List<Architect> architects, int otherSoldiers, Location homeLocation)
         {
             Leader = leader;
             Architects = architects;
@@ -57,8 +57,8 @@ namespace Lightrealm
             var results = new List<string>();
 
             // Detail the two fighting units
-            results.Add($"{this.Name}: {this.Leader.Name}'s unit, Style: {this.Style}, Architects: {this.Architects.Count}, Other Soldiers: {this.OtherSoldiers}");
-            results.Add($"{u.Name}: {u.Leader.Name}'s unit, Style: {u.Style}, Architects: {u.Architects.Count}, Other Soldiers: {u.OtherSoldiers}");
+            results.Add($"{this.Name}: {this.Leader.Name}'s unit, Style: {this.Style}, Architects: {this.Architects.Count()}, Other Soldiers: {this.OtherSoldiers}");
+            results.Add($"{u.Name}: {u.Leader.Name}'s unit, Style: {u.Style}, Architects: {u.Architects.Count()}, Other Soldiers: {u.OtherSoldiers}");
 
             // Define biome advantages and disadvantages
             var biomeAdvantages = new Dictionary<string, string>
@@ -180,7 +180,7 @@ namespace Lightrealm
         private void CalculateLosses(int loserStrength, int winnerStrength, Unit loser, List<string> results)
         {
             int strengthDifference = winnerStrength - loserStrength;
-            int architectLosses = Math.Min(strengthDifference / 10, loser.Architects.Count);
+            int architectLosses = Math.Min(strengthDifference / 10, loser.Architects.Count());
             int soldierLosses = Math.Min((strengthDifference - (architectLosses * 10)) / 3, loser.OtherSoldiers);
 
             if (architectLosses > 0)

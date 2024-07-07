@@ -15,7 +15,7 @@ namespace Lightrealm
     {
         private int _regionId;
 
-        [JsonIgnore]
+        
         public Region Region
         {
             get => EntityGet<Region>(_regionId);
@@ -27,7 +27,7 @@ namespace Lightrealm
 
         private int _homeCivilizationId;
 
-        [JsonIgnore]
+        
         public Civilization HomeCivilization
         {
             get => EntityGet<Civilization>(_homeCivilizationId);
@@ -37,14 +37,14 @@ namespace Lightrealm
         public string Info { get; set; }
         public string Intrigue { get; set; }
 
-        public EntityList<Architect> GuaranteedArchitects { get; set; } = new EntityList<Architect>();
+        public List<Architect> GuaranteedArchitects { get; set; } = new List<Architect>();
 
         public int Luminosity { get; set; } = 0;
 
-        public InteractableEvent(Region region, int monthsBeforeDecay, string type, Civilization civ, EntityList<Architect> guaranteedArchitects)
+        public InteractableEvent(Region region, int monthsBeforeDecay, string type, Civilization civ, List<Architect> guaranteedArchitects)
         {
             Region = region;
-            Name = Region.World.GenerateUniqueName("1S9s", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S9s", this);
             MonthsBeforeDecay = monthsBeforeDecay;
             Type = type;
             HomeCivilization = civ;
@@ -177,7 +177,7 @@ namespace Lightrealm
                     break;
             }
 
-            Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(BiomeToIntrigue[region.Biome].Count)];
+            Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(BiomeToIntrigue[region.Biome].Count())];
         }
 
         public InteractableEvent()

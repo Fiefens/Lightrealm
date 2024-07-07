@@ -10,12 +10,12 @@ namespace Lightrealm
     {
         public static T EntityGet<T>(int entityId) where T : Entity
         {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            if (Game1.GameWorld == null || Game1.EntityLedger == null)
             {
                 return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
             }
 
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+            return (T)Convert.ChangeType(Game1.EntityLedger[entityId], typeof(T));
         }
 
         static List<string> LegendTypes = new List<string>() { "hunter", "adventurer", "assassin", "rogue", "artisan", "diplomat", "enchanter" };
@@ -70,11 +70,11 @@ namespace Lightrealm
                     // Filter locations based on distance
                     var nearbyLocations = World.AllLocations
                         .Where(loc => CalculateDistance(currentX, currentZ, loc.Region.X, loc.Region.Z) < 10)
-                        .ToList();
+                        ;
 
                     if (nearbyLocations.Any())
                     {
-                        a.NextMigrationLocation = nearbyLocations[Game1.r.Next(nearbyLocations.Count)];
+                        a.NextMigrationLocation = nearbyLocations[Game1.r.Next(nearbyLocations.Count())];
 
                         LogEvent(a.Name + " migrated to " + a.NextMigrationLocation.Name + ".");
                     }
@@ -91,7 +91,7 @@ namespace Lightrealm
 
                     if (a.LegendaryTarget == null)
                     {
-                        EntityList<Architect> shuffledArchitects = World.AllArchitects.ShuffleNew();
+                        List<Architect> shuffledArchitects = Game1.ShuffleNew(World.AllArchitects);
 
                         // Get the first item where Profession is "beast", "animal", or "end"
                         Architect targetArchitect =
@@ -190,9 +190,11 @@ namespace Lightrealm
                 {
                     int Decider = Game1.r.Next(1, 25 * MonthToDayConstant);
 
+                   
                     if (a.LegendaryTarget == null && Decider == 1)
                     {
-                        EntityList<Architect> shuffledArchitects = World.AllArchitects.ShuffleNew();
+                        List<Architect> shuffledArchitects = new List<Architect>(World.AllArchitects);
+                        Game1.ShuffleNew(shuffledArchitects);
 
                         // Get the first item where Race is in HumanoidRaces, Reputation < -49, and not in Calamity
                         Architect targetArchitect = shuffledArchitects.FirstOrDefault(target =>
@@ -293,14 +295,14 @@ namespace Lightrealm
                     {
                         var allStructuresWithObjects = World.AllLocations
                             .SelectMany(location => location.AllStructures
-                            .Where(structure => structure.HistoricalObjects.Count > 0))
-                            .ToList();
+                            .Where(structure => structure.HistoricalObjects.Count() > 0))
+                            ;
 
-                        if(allStructuresWithObjects.Count > 0)
+                        if(allStructuresWithObjects.Count() > 0)
                         {
 
-                            var selectedStructure = allStructuresWithObjects[Game1.r.Next(allStructuresWithObjects.Count)];
-                            var targetObject = selectedStructure.HistoricalObjects[Game1.r.Next(selectedStructure.HistoricalObjects.Count)];
+                            var selectedStructure = allStructuresWithObjects[Game1.r.Next(allStructuresWithObjects.Count())];
+                            var targetObject = selectedStructure.HistoricalObjects[Game1.r.Next(selectedStructure.HistoricalObjects.Count())];
                             
                             if (targetObject != null)
                             {
@@ -413,10 +415,10 @@ namespace Lightrealm
                 {
                     int Decider = Game1.r.Next(1, 1000 * MonthToDayConstant);
 
-                    if (Decider == 1 && a.Location.AllStructures.Count > 0)
+                    if (Decider == 1 && a.Location.AllStructures.Count() > 0)
                     {
                         Object o = World.MagicalSuperLoot(5);
-                        Structure Storage = a.Location.AllStructures[Game1.r.Next(a.Location.AllStructures.Count)];
+                        Structure Storage = a.Location.AllStructures[Game1.r.Next(a.Location.AllStructures.Count())];
                         Storage.HistoricalObjects.Add(o);
                         o.Name = World.GenerateUniqueName("1S" + Game1.r.Next(6) + "s 1W2s", o);
 
@@ -427,17 +429,17 @@ namespace Lightrealm
                 {
                     int Decider = Game1.r.Next(1, 200 * MonthToDayConstant);
 
-                    if (Decider == 1 && a.District.GeneralItemsWeHave.Count > 0)
+                    if (Decider == 1 && a.District.GeneralItemsWeHave.Count() > 0)
                     {
                         // Filter out items that contain other items
                         var availableItems = a.District.GeneralItemsWeHave
                             .Where(item => !item.Contains("&cont("))
-                            .ToList();
+                            ;
 
-                        if (availableItems.Count == 0) return; // No valid items to enchant
+                        if (availableItems.Count() == 0) return; // No valid items to enchant
 
                         // Select a random item from the district's general items
-                        string selectedItemString = availableItems[Game1.r.Next(availableItems.Count)];
+                        string selectedItemString = availableItems[Game1.r.Next(availableItems.Count())];
 
                         // Decrement the count if it's a stack
                         string[] itemParts = selectedItemString.Split(new[] { ',' }, 3);
@@ -459,7 +461,7 @@ namespace Lightrealm
                         }
 
                         // Convert the item string to an Object and take one item from the stack
-                        EntityList<Object> objects = Game1.ConvertStringToObjects(selectedItemString);
+                        List<Object> objects = Game1.ConvertStringToObjects(selectedItemString);
                         Object o = objects.First(); // Taking only one object from the list
 
                         // Perform the enchanting
@@ -467,7 +469,7 @@ namespace Lightrealm
                         o.Rarity = "legendary";
 
                         // Store the enchanted object in a random structure
-                        Structure Storage = a.Location.AllStructures[Game1.r.Next(a.Location.AllStructures.Count)];
+                        Structure Storage = a.Location.AllStructures[Game1.r.Next(a.Location.AllStructures.Count())];
                         Storage.HistoricalObjects.Add(o);
 
                         // Log the event
@@ -526,11 +528,11 @@ namespace Lightrealm
                                 int threatType = Game1.r.Next(1, 4);
                                 if (threatType == 1)
                                 {
-                                    threat = World.Colossals[Game1.r.Next(World.Colossals.Count)].Name;
+                                    threat = World.Colossals[Game1.r.Next(World.Colossals.Count())].Name;
                                 }
                                 else if (threatType == 2)
                                 {
-                                    threat = World.Blights[Game1.r.Next(World.Blights.Count)].Name;
+                                    threat = World.Blights[Game1.r.Next(World.Blights.Count())].Name;
                                 }
                                 else
                                 {
@@ -588,19 +590,17 @@ namespace Lightrealm
                                 }
                                 else if (decider < 7)
                                 {
-                                    EntityList<Structure> structures = a.Location.AllStructures;
+                                    List<Structure> structures = Game1.ShuffleNew(a.Location.AllStructures);
                                     Random rand = new Random();
                                     Structure selectedStructure = null;
                                     Object selectedArtifact = null;
 
-                                    structures.Shuffle();
-
                                     foreach (var structure in structures)
                                     {
-                                        if (structure.HistoricalObjects != null && structure.HistoricalObjects.Count > 0)
+                                        if (structure.HistoricalObjects != null && structure.HistoricalObjects.Count() > 0)
                                         {
                                             // Get a random artifact from the structure
-                                            selectedArtifact = structure.HistoricalObjects[rand.Next(structure.HistoricalObjects.Count)];
+                                            selectedArtifact = structure.HistoricalObjects[rand.Next(structure.HistoricalObjects.Count())];
                                             selectedStructure = structure;
                                             break; // Stop searching once we find an artifact
                                         }
@@ -615,7 +615,7 @@ namespace Lightrealm
                                 }
                                 else if (decider < 20) // Decreased chance of general item looting
                                 {
-                                    EntityList<Object> o = World.LootTableMachine("general");
+                                    List<Object> o = World.LootTableMachine("general");
                                     a.Location.Wealth -= Game1.r.Next(50, 100);
 
                                     a.Inventory.AddRange(o);
@@ -653,18 +653,18 @@ namespace Lightrealm
 
                                 if (decider < 5) // Decreased likelihood of continuing activities
                                 {
-                                    District selectedDistrict = a.Location.Districts[Game1.r.Next(a.Location.Districts.Count)];
+                                    District selectedDistrict = a.Location.Districts[Game1.r.Next(a.Location.Districts.Count())];
 
-                                    if (selectedDistrict.Architects.Count > 0)
+                                    if (selectedDistrict.Architects.Count() > 0)
                                     {
-                                        Architect selectedArch = selectedDistrict.Architects.GetRandomItem();
+                                        Architect selectedArch = Game1.GetRandomItem(selectedDistrict.Architects);
 
-                                        LogEvent(a.Name + " had a lovely chat about " + shobeSubjects[Game1.r.Next(shobeSubjects.Count)] + " in " + a.Location.Name + " with " + selectedArch.Name + ".");
+                                        LogEvent(a.Name + " had a lovely chat about " + shobeSubjects[Game1.r.Next(shobeSubjects.Count())] + " in " + a.Location.Name + " with " + selectedArch.Name + ".");
                                     }
                                 }
                                 else if (decider < 7)
                                 {
-                                    EntityList<Object> o = World.LootTableMachine("general");
+                                    List<Object> o = World.LootTableMachine("general");
                                     a.Location.Wealth += Game1.r.Next(20, 50);
                                     a.Inventory.AddRange(o);
                                     LogEvent(a.Name + " purchased some general items from " + a.Location.Name + ".");
@@ -688,13 +688,13 @@ namespace Lightrealm
                         int currentZ = a.Location.Region.Z;
 
                         // Filter locations based on whether they have been explored and their type
-                        EntityList<Location> potentialLocations = World.AllLocations
+                        List<Location> potentialLocations = World.AllLocations
                             .Where(loc => !a.ExploredLocations.Contains(loc)
                                           && (AdventuringLocations.Contains(loc.Type) || VisitationLocations.Contains(loc.Type)));
 
                         if (potentialLocations.Any())
                         {
-                            var chosenLocation = potentialLocations[Game1.r.Next(potentialLocations.Count)];
+                            var chosenLocation = potentialLocations[Game1.r.Next(potentialLocations.Count())];
                             a.NextMigrationLocation = chosenLocation;
 
                             // Add the chosen location to the explored locations list

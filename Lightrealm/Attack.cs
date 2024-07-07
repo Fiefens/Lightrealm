@@ -14,7 +14,7 @@ namespace Lightrealm
 
         private int _attackerId;
 
-        [JsonIgnore]
+        
         public Architect Attacker
         {
             get => EntityGet<Architect>(_attackerId);
@@ -23,7 +23,7 @@ namespace Lightrealm
 
         private int _targetId;
 
-        [JsonIgnore]
+        
         public Object Target
         {
             get => EntityGet<Object>(_targetId);
@@ -32,7 +32,7 @@ namespace Lightrealm
 
         private int _weaponId;
 
-        [JsonIgnore]
+        
         public Object Weapon
         {
             get => EntityGet<Object>(_weaponId);

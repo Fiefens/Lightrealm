@@ -18,14 +18,14 @@ namespace Lightrealm
 
         public bool Explored { get; set; } = false;
 
-        public EntityList<District> DistrictsToAdd { get; set; } = new EntityList<District>();
+        public List<District> DistrictsToAdd { get; set; } = new List<District>();
 
-        public EntityList<District> Districts { get; set; } = new EntityList<District>();
+        public List<District> Districts { get; set; } = new List<District>();
 
-        public EntityList<Entity> Embezzlements { get; set; } = new EntityList<Entity>();
+        public List<Entity> Embezzlements { get; set; } = new List<Entity>();
 
         private int _marketId;
-        [JsonIgnore]
+        
         public Structure Market
         {
             get => EntityGet<Structure>(_marketId);
@@ -33,7 +33,7 @@ namespace Lightrealm
         }
 
         private int _libraryId;
-        [JsonIgnore]
+        
         public Structure Library
         {
             get => EntityGet<Structure>(_libraryId);
@@ -41,7 +41,7 @@ namespace Lightrealm
         }
 
         private int _prismId;
-        [JsonIgnore]
+        
         public Structure Prism
         {
             get => EntityGet<Structure>(_prismId);
@@ -54,12 +54,12 @@ namespace Lightrealm
 
         public string Dockside { get; set; } = "none";
 
-        public EntityList<Unit> Units { get; set; } = new EntityList<Unit>();
+        public List<Unit> Units { get; set; } = new List<Unit>();
 
         public bool Active { get; set; } = false;
         public bool IsSavingUpToSettle { get; set; } = false;
 
-        public EntityList<Structure> AllStructures { get; set; } = new EntityList<Structure>();
+        public List<Structure> AllStructures { get; set; } = new List<Structure>();
 
         public List<string> PrimaryLightingStyles { get; set; } = new List<string>();
 
@@ -67,7 +67,7 @@ namespace Lightrealm
         public int Wealth { get; set; } // value is measured in Shobes, an arbitrary unit
 
         private int _homeCivilizationId;
-        [JsonIgnore]
+        
         public Civilization HomeCivilization
         {
             get => EntityGet<Civilization>(_homeCivilizationId);
@@ -79,28 +79,28 @@ namespace Lightrealm
 
         public bool IsCapitol { get; set; } = false;
 
-        public EntityList<Architect> DebtShibas { get; set; } = new EntityList<Architect>();
+        public List<Architect> DebtShibas { get; set; } = new List<Architect>();
 
-        public EntityList<Group> TradersAtThisLocation { get; set; } = new EntityList<Group>();
+        public List<Group> TradersAtThisLocation { get; set; } = new List<Group>();
 
-        public EntityList<Group> TradersAtThisLocationToRemove { get; set; } = new EntityList<Group>();
+        public List<Group> TradersAtThisLocationToRemove { get; set; } = new List<Group>();
 
-        public EntityList<Group> TradersAtThisLocationToAdd { get; set; } = new EntityList<Group>();
+        public List<Group> TradersAtThisLocationToAdd { get; set; } = new List<Group>();
 
         public Race GuardianType { get; set; }
         public int GuardiansInNetwork { get; set; }
 
-        public EntityList<Group> GroupsAtThisLocation { get; set; } = new EntityList<Group>();
+        public List<Group> GroupsAtThisLocation { get; set; } = new List<Group>();
 
-        public EntityList<Group> GroupsAtThisLocationToRemove { get; set; } = new EntityList<Group>();
+        public List<Group> GroupsAtThisLocationToRemove { get; set; } = new List<Group>();
 
-        public EntityList<Object> UnplacedArtifacts { get; set; } = new EntityList<Object>();
+        public List<Object> UnplacedArtifacts { get; set; } = new List<Object>();
 
         public int X { get; set; }
         public int Z { get; set; }
 
         private int _governmentId;
-        [JsonIgnore]
+        
         public Entity Government
         {
             get => EntityGet<Entity>(_governmentId);
@@ -108,7 +108,7 @@ namespace Lightrealm
         }
 
         private int _regionId;
-        [JsonIgnore]
+        
         public Region Region
         {
             get => EntityGet<Region>(_regionId);
@@ -145,11 +145,11 @@ namespace Lightrealm
             if (Type == "spire")
             {
                 //if you want a different name scheme use this but whatever for now works
-                Name = r.World.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
+                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
             }
             else
             {
-                Name = r.World.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
+                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
             }
 
             AddReferredToName(Name);
@@ -165,7 +165,7 @@ namespace Lightrealm
 
             PrimaryLightingStyles = new List<string>
             {
-                Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count)]
+                Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count())]
             };
 
             if (new List<string> { "archway", "commune", "stronghold", "monastery", "towers", "sanctum" }.Contains(Type))
@@ -195,7 +195,7 @@ namespace Lightrealm
                         break;
                 }
 
-                GuardianType = Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count)];
+                GuardianType = Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count())];
             }
 
         }

@@ -12,7 +12,7 @@ namespace Lightrealm
     {
         private int _senderId;
 
-        [JsonIgnore]
+        
         public Architect Sender
         {
             get => EntityGet<Architect>(_senderId);
@@ -21,7 +21,7 @@ namespace Lightrealm
 
         private int _receiverId;
 
-        [JsonIgnore]
+        
         public Architect Receiver
         {
             get => EntityGet<Architect>(_receiverId);
@@ -38,10 +38,10 @@ namespace Lightrealm
         public string DerailingResponse { get; set; } = "";
         public string FlatteringResponse { get; set; } = "";
 
-        public EntityList<Location> StoredRevealLocations { get; set; } = new EntityList<Location>();
-        public EntityList<Entity> Subjects { get; set; } = new EntityList<Entity>();
+        public List<Location> StoredRevealLocations { get; set; } = new List<Location>();
+        public List<Entity> Subjects { get; set; } = new List<Entity>();
 
-        public Message(Architect sender, Architect receiver, EntityList<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
+        public Message(Architect sender, Architect receiver, List<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
         {
             Sender = sender;
             MessageID = messageID;

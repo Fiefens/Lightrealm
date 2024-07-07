@@ -12,7 +12,7 @@ namespace Lightrealm
     {
         private int _governmentId;
 
-        [JsonIgnore]
+        
         public Entity Government
         {
             get
@@ -33,10 +33,10 @@ namespace Lightrealm
             set => _governmentId = value?.ID ?? 0;
         }
 
-        [JsonIgnore]
+        
         private Group GovernmentAsGroup => EntityGet<Group>(_governmentId);
 
-        [JsonIgnore]
+        
         private Architect GovernmentAsArchitect => EntityGet<Architect>(_governmentId);
 
         public int X { get; set; }
@@ -44,7 +44,7 @@ namespace Lightrealm
 
         private int _primaryRaceId;
 
-        [JsonIgnore]
+        
         public Race PrimaryRace
         {
             get => EntityGet<Race>(_primaryRaceId);
@@ -56,7 +56,7 @@ namespace Lightrealm
 
         private int _homeCivilizationId;
 
-        [JsonIgnore]
+        
         public Civilization HomeCivilization
         {
             get => EntityGet<Civilization>(_homeCivilizationId);
@@ -64,11 +64,11 @@ namespace Lightrealm
         }
 
         public string Type { get; set; }
-        public EntityList<Object> Artifacts { get; set; } = new EntityList<Object>();
+        public List<Object> Artifacts { get; set; } = new List<Object>();
 
         private int _baseLocationId;
 
-        [JsonIgnore]
+        
         public Location BaseLocation
         {
             get => EntityGet<Location>(_baseLocationId);
@@ -77,7 +77,7 @@ namespace Lightrealm
 
         public string Dockside { get; set; }
 
-        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization homeCiv, EntityList<Object> artifacts, Location originalLocationYouAreComingFrom, string dockside)
+        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization homeCiv, List<Object> artifacts, Location originalLocationYouAreComingFrom, string dockside)
         {
             BaseLocation = originalLocationYouAreComingFrom;
             Type = locationType;

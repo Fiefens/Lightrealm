@@ -49,7 +49,7 @@ namespace Lightrealm
 
             while (w.SubjectCatalogue.ContainsKey(Name))
             {
-                Name = "The " + adjectives[Game1.r.Next(adjectives.Count)] + " " + nouns[Game1.r.Next(nouns.Count)];
+                Name = "The " + adjectives[Game1.r.Next(adjectives.Count())] + " " + nouns[Game1.r.Next(nouns.Count())];
             }
             w.SubjectCatalogue.Add(Name, this);
         }

@@ -14,20 +14,20 @@ namespace Lightrealm
 
         private int _locationId;
 
-        [JsonIgnore]
+        
         public Location Location
         {
             get => EntityGet<Location>(_locationId);
             set => _locationId = value?.ID ?? 0;
         }
 
-        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
+        public List<Architect> Architects { get; set; } = new List<Architect>();
 
-        public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
+        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
 
         private int _leaderId;
 
-        [JsonIgnore]
+        
         public Architect Leader
         {
             get => EntityGet<Architect>(_leaderId);
@@ -58,22 +58,22 @@ namespace Lightrealm
 
         private int _baseId;
 
-        [JsonIgnore]
+        
         public Location Base
         {
             get => EntityGet<Location>(_baseId);
             set => _baseId = value?.ID ?? 0;
         }
 
-        public EntityList<Architect> Enemies { get; set; } = new EntityList<Architect>();
+        public List<Architect> Enemies { get; set; } = new List<Architect>();
 
-        public EntityList<Architect> ArchitectsWhoDeclined { get; set; } = new EntityList<Architect>();
+        public List<Architect> ArchitectsWhoDeclined { get; set; } = new List<Architect>();
 
         public List<string> CaravanItems { get; set; } = new List<string>();
 
-        public EntityList<Group> GroupsIKnowAbout { get; set; } = new EntityList<Group>();
+        public List<Group> GroupsIKnowAbout { get; set; } = new List<Group>();
 
-        public EntityList<Location> TradeRoute { get; set; } = new EntityList<Location>();
+        public List<Location> TradeRoute { get; set; } = new List<Location>();
 
         public int MaxTradeRouteLength { get; set; } = Game1.r.Next(3, 10);
         public bool WaitingForCooldownToTrade { get; set; } = false;
@@ -125,9 +125,9 @@ namespace Lightrealm
             return catalogueBuilder.ToString().Trim();
         }
 
-        public Group(EntityList<Architect> architects, string type, Architect leader, Location Basee)
+        public Group(List<Architect> architects, string type, Architect leader, Location Basee)
         {
-            Name = leader.Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(3, 6)) + "s", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(3, 6)) + "s", this);
             Architects = architects;
             Type = type;
             Leader = leader;

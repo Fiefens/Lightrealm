@@ -11,11 +11,11 @@ namespace Lightrealm
     [Serializable]
     public class Block : Entity
     {
-        public EntityList<Structure> Structures { get; set; } = new EntityList<Structure>();
-        public EntityList<Structure> StructuresToRemove { get; set; } = new EntityList<Structure>();
-        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
-        public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
-        public EntityList<Object> Objects { get; set; } = new EntityList<Object>();
+        public List<Structure> Structures { get; set; } = new List<Structure>();
+        public List<Structure> StructuresToRemove { get; set; } = new List<Structure>();
+        public List<Architect> Architects { get; set; } = new List<Architect>();
+        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
+        public List<Object> Objects { get; set; } = new List<Object>();
 
         public string Biome { get; set; } = "";
 
@@ -24,7 +24,7 @@ namespace Lightrealm
 
         private int _districtId;
 
-        [JsonIgnore]
+        
         public District District
         {
             get => EntityGet<District>(_districtId);
@@ -95,7 +95,7 @@ namespace Lightrealm
 
             int minDistance = int.MaxValue;
 
-            foreach (Region r in District.Location.Region.World.WorldMap)
+            foreach (Region r in Game1.GameWorld.WorldMap)
             {
                 if (r.MyLocation != null)
                 {
@@ -122,7 +122,7 @@ namespace Lightrealm
                                         if (s.Block.District.IsLoaded)
                                         {
                                             minDistance = distance;
-                                            Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count)];
+                                            Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
                                             DeterminedLocation = (r, r.MyLocation, district, block, randomRoom, s.Name);
                                         }
                                         else
@@ -145,7 +145,7 @@ namespace Lightrealm
                                             if (s.Block.District.IsLoaded)
                                             {
                                                 minDistance = distance;
-                                                Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count)];
+                                                Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
                                                 DeterminedLocation = (r, r.MyLocation, district, block, randomRoom, s.Name);
                                             }
                                             else
@@ -157,10 +157,10 @@ namespace Lightrealm
                                     }
                                 }
                             }
-                            else if (District.Location.Region.World.SubjectCatalogue.ContainsKey(thing))
+                            else if (Game1.GameWorld.SubjectCatalogue.ContainsKey(thing))
                             {
                                 // Handle finding Object, Architect, or Group from SubjectCatalogue if necessary
-                                var subject = District.Location.Region.World.SubjectCatalogue[thing];
+                                var subject = Game1.GameWorld.SubjectCatalogue[thing];
                                 if (subject is Object obj)
                                 {
                                     // Handle object-specific logic

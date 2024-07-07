@@ -12,16 +12,16 @@ namespace Lightrealm
 
         private int _subjectId;
 
-        [JsonIgnore]
+        
         public Entity Subject
         {
             get => EntityGet<Entity>(_subjectId);
             set => _subjectId = value?.ID ?? 0;
         }
 
-        private EntityList<Entity> _subjects = new EntityList<Entity>();
+        private List<Entity> _subjects = new List<Entity>();
 
-        public EntityList<Section> Sections { get; set; }
+        public List<Section> Sections { get; set; }
 
         public Composition(string type, Architect Author, Entity ChosenEntity)
         {
@@ -36,14 +36,14 @@ namespace Lightrealm
             var averageQuality = Sections.Average(s => s.Quality);
             string qualityDescription = GetQualityDescription(averageQuality);
 
-            var descriptions = Sections.Select((s, i) => s.Description).ToList();
+            var descriptions = Sections.Select((s, i) => s.Description);
             string sectionType = Type switch
             {
                 "book" => "Chapter",
                 "poem" => "Stanza",
                 _ => "Section"
             };
-            return $"The work is a {qualityDescription} {Type}, primarily on {Subject.ReferredToNames[0]}, with {Sections.Count} {sectionType.ToLower()}s. " +
+            return $"The work is a {qualityDescription} {Type}, primarily on {Subject.ReferredToNames[0]}, with {Sections.Count()} {sectionType.ToLower()}s. " +
                    string.Join(" ", descriptions);
         }
 
@@ -126,12 +126,12 @@ namespace Lightrealm
                 "saga"
             };
 
-            string adjective = Game1.Capitalize(adjectives[Game1.r.Next(adjectives.Count)]);
+            string adjective = Game1.Capitalize(adjectives[Game1.r.Next(adjectives.Count())]);
             string noun = Game1.Capitalize(type switch
             {
-                "song" => songNouns[Game1.r.Next(songNouns.Count)],
-                "poem" => poemNouns[Game1.r.Next(poemNouns.Count)],
-                "book" => bookNouns[Game1.r.Next(bookNouns.Count)],
+                "song" => songNouns[Game1.r.Next(songNouns.Count())],
+                "poem" => poemNouns[Game1.r.Next(poemNouns.Count())],
+                "book" => bookNouns[Game1.r.Next(bookNouns.Count())],
                 _ => throw new ArgumentException("Invalid type specified")
             });
 
@@ -151,19 +151,19 @@ namespace Lightrealm
                 $"{noun} from the {adjective} {domain}"
             };
 
-            string format = formats[Game1.r.Next(formats.Count)];
+            string format = formats[Game1.r.Next(formats.Count())];
             return format.Replace("{adjective}", adjective).Replace("{noun}", noun).Replace("{domain}", domain);
         }
 
-        private EntityList<Section> GenerateSectionsFromSubject(string type, Architect Author, Entity subject)
+        private List<Section> GenerateSectionsFromSubject(string type, Architect Author, Entity subject)
         {
-            EntityList<Section> sections = new EntityList<Section>();
+            List<Section> sections = new List<Section>();
             var events = GetEventsForSubject(subject);
 
-            int numberSections = Math.Min(type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12), events.Count);
+            int numberSections = Math.Min(type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12), events.Count());
 
             // If no events are found, create a generic section
-            if (events.Count == 0)
+            if (events.Count() == 0)
             {
                 sections.Add(new Section(type, this, Author.Creativity, 1, "none"));
             }
@@ -214,14 +214,14 @@ namespace Lightrealm
         private Entity GenerateRandomSubject()
         {
             var random = new Random();
-            EntityList<Entity> subjects = new EntityList<Entity>();
+            List<Entity> subjects = new List<Entity>();
 
             subjects.AddRange(Game1.GameWorld.AllArchitects);
             subjects.AddRange(Game1.GameWorld.AllLocations);
             subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures));
             subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
 
-            return subjects[random.Next(subjects.Count)];
+            return subjects[random.Next(subjects.Count())];
         }
 
         private List<string> GetEventsForSubject(Entity subject)
@@ -243,7 +243,7 @@ namespace Lightrealm
 
                     return $"In {yearAndDay}, {processedEvent}";
                 })
-                .ToList();
+                ;
 
             return events;
         }

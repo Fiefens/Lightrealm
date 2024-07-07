@@ -13,7 +13,7 @@ namespace Lightrealm
     {
         public string Size { get; set; }
         public List<string> BodyPartNames { get; set; } = new List<string>();
-        public EntityList<Material> BodyPartMaterials { get; set; } = new EntityList<Material>();
+        public List<string> BodyPartMaterials { get; set; } = new List<string>();
 
         public string Color { get; set; }
         public List<string> NecessaryBodyParts { get; set; } = new List<string>();
@@ -25,14 +25,14 @@ namespace Lightrealm
         public string MainInteractionAppendage { get; set; } = "";
         public string OffInteractionAppendage { get; set; } = "";
 
-        public Race(string name, string size, List<(string, Material)> bodyParts, string color, List<string> necessaryBodyParts, List<string> oppositionTags, int naturalArmor, string mainInteractionAppendage, string offInteractionAppendage)
+        public Race(string name, string size, List<(string, Material)> bodyParts, string color, List<string> necessaryBodyParts, List<string> oppositionTags, int naturalArmor, string mainInteractionAppendage, string offInteractionAppendage, World GameWorld)
         {
             Name = name;
             Size = size;
             foreach (var bodyPart in bodyParts)
             {
                 BodyPartNames.Add(bodyPart.Item1);
-                BodyPartMaterials.Add(bodyPart.Item2);
+                BodyPartMaterials.Add(bodyPart.Item2.Name);
             }
             Color = color;
             NecessaryBodyParts = necessaryBodyParts;
@@ -45,7 +45,7 @@ namespace Lightrealm
             {
                 List<string> PowerTypes = new List<string> { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
                 int numberOfPowers = Game1.r.Next(1, 4);
-                Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers).ToList();
+                Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers);
             }
 
             AddReferredToName(Name);
@@ -53,11 +53,13 @@ namespace Lightrealm
 
             foreach (var bodyPart in BodyPartNames)
             {
-                if (!Game1.GameWorld?.AllEntities.Any(e => e.Value.Name == bodyPart) == true && !Game1.TemporaryEntities.Any(e => e.Value.Metadata == bodyPart))
+                if (!Game1.EntityLedger.Where(e => e.Value != null).Any(e => e.Value.Name == bodyPart) &&
+                    !Game1.TemporaryEntities.Where(e => e.Value != null).Any(e => e.Value.Metadata == bodyPart))
                 {
                     new Entity(bodyPart);
                 }
             }
+
         }
 
         public Race()
@@ -90,7 +92,7 @@ namespace Lightrealm
 
             if (Name.EndsWith("guardian"))
             {
-                baseDescription = "A guardian construct, built from pure " + BodyPartMaterials[0].Name + ", dedicated to an unknown purpose.";
+                baseDescription = "A guardian construct, built from pure " + BodyPartMaterials[0] + ", dedicated to an unknown purpose.";
             }
 
             return baseDescription + " " + GenerateBodyPartsDescription();
@@ -100,7 +102,7 @@ namespace Lightrealm
         {
             var commonParts = new HashSet<string> { "leg", "wing", "arm", "eye", "antenna", "tentacle", "tail", "hump", "fin", "tusk", "spike", "tooth", "hand", "foot", "shoulder" };
             var groupedParts = BodyPartNames.GroupBy(bp => commonParts.Contains(bp.Split(' ').Last()) ? bp.Split(' ').Last() : bp)
-                                            .ToDictionary(g => g.Key, g => g.Count());
+                                            .ToDictionary(g => g.Key, g => g.Count()());
 
             if (!groupedParts.Any())
             {
@@ -117,12 +119,12 @@ namespace Lightrealm
             {
                 string partName = part.Value > 1 ? irregularPlurals.GetValueOrDefault(part.Key, part.Key + "s") : part.Key;
                 return $"{part.Value} {partName}";
-            }).ToList();
+            });
 
-            return "It has " + string.Join(", ", partsDescription.Take(partsDescription.Count - 1)) + (partsDescription.Count > 1 ? ", and " : "") + partsDescription.Last() + ".";
+            return "It has " + string.Join(", ", partsDescription.Take(partsDescription.Count() - 1)) + (partsDescription.Count() > 1 ? ", and " : "") + partsDescription.Last() + ".";
         }
 
-        public static string GenerateUniqueAbbreviation(string raceName, EntityList<Race> existingRaces)
+        public static string GenerateUniqueAbbreviation(string raceName, List<Race> existingRaces)
         {
             var priorityAbbreviations = new Dictionary<string, string>
             {

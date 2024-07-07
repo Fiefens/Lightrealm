@@ -16,29 +16,29 @@ namespace Lightrealm
     {
         public static T EntityGet<T>(int entityId) where T : Entity
         {
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            if (Game1.GameWorld == null || Game1.EntityLedger == null)
             {
                 return (T)Convert.ChangeType(Game1.TemporaryEntities[entityId], typeof(T));
             }
 
-            return (T)Convert.ChangeType(Game1.GameWorld.AllEntities[entityId], typeof(T));
+            return (T)Convert.ChangeType(Game1.EntityLedger[entityId], typeof(T));
         }
 
-        public static void MakeObservation(string data, Color color, EntityList<Entity> entities)
+        public static void MakeObservation(string data, Color color, List<Entity> entities)
         {
             string capitalizedData = Game1.Capitalize(data);
             Game1.Observations.Add(new TextStorage(capitalizedData, color, entities));
             Game1.Announcements.Add(new TextStorage(capitalizedData, color, entities));
         }
 
-        public static void AddMessage(string data, Color color, EntityList<Entity> entities)
+        public static void AddMessage(string data, Color color, List<Entity> entities)
         {
             string capitalizedData = Game1.Capitalize(data);
             Game1.Messages.Add(new TextStorage(capitalizedData, color, entities));
             Game1.Announcements.Add(new TextStorage(capitalizedData, color, entities));
         }
 
-        public static bool RunCommand(Architect Executor, string CommandID, EntityList<Entity> Subjects, EntityList<Architect> LoadedArchitects, World GameWorld, Random r, Party GamePlayerParty, string OriginalCommand)
+        public static bool RunCommand(Architect Executor, string CommandID, List<Entity> Subjects, List<Architect> LoadedArchitects, World GameWorld, Random r, Party GamePlayerParty, string OriginalCommand)
         {
             //replace inside command pronouns
             int Month = ((int)Math.Round((decimal)(GameWorld.Cycle / 24192000)) % 12) + 1;
@@ -46,14 +46,14 @@ namespace Lightrealm
 
             string Date = "(" + Month + "/" + Year + ")";
 
-            bool CanMessageSubject = Subjects.Count > 0 && (Subjects[0] is Architect) && (GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) || (GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && Executor.PathOfLifeLevel >= 2) || Executor.PathOfLifeLevel >= 4);
+            bool CanMessageSubject = Subjects.Count() > 0 && (Subjects[0] is Architect) && (GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) || (GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && Executor.PathOfLifeLevel >= 2) || Executor.PathOfLifeLevel >= 4);
 
             if (Subjects == null)
             {
-                Subjects = new EntityList<Entity>();
+                Subjects = new List<Entity>();
             }
 
-            EntityList<Architect> ArchitectsToUse;
+            List<Architect> ArchitectsToUse;
 
             if (Executor.Room != null)
             {
@@ -103,11 +103,11 @@ namespace Lightrealm
                 Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
                 if (Executor.Structure == null)
                 {
-                    MakeObservation("You are not in a structure.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You are not in a structure.", Color.Yellow, new List<Entity>());
                 }
                 else if (Executor.Room != Executor.Structure.Rooms[0])
                 {
-                    MakeObservation("There is not a way to exit through (Try entering doors your character remembers, marked by [<]).", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("There is not a way to exit through (Try entering doors your character remembers, marked by [<]).", Color.Yellow, new List<Entity>());
                 }
                 else
                 {
@@ -118,11 +118,11 @@ namespace Lightrealm
                         Executor.Room = null;
                         Executor.Block.Architects.Add(Executor);
 
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits the structure successfully.", Color.Blue, new EntityList<Entity>()));
+                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits the structure successfully.", Color.Blue, new List<Entity>()));
                     }
                     else
                     {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
+                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
                     }
                 }
@@ -141,7 +141,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
+                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
                     }
                 }
@@ -155,22 +155,22 @@ namespace Lightrealm
                         Executor.Structure.Rooms[0].Architects.Add(Executor);
                         Executor.CooldownCycles += (int)(Math.Round(25 / Executor.Speed()));
 
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " enters " + ((Structure)Subjects[0]).Name + ", a " + ((Structure)Subjects[0]).Type + ".", Color.Blue, new EntityList<Entity>()));
+                        Game1.Exposition.Add(new TextStorage(Executor.Name + " enters " + ((Structure)Subjects[0]).Name + ", a " + ((Structure)Subjects[0]).Type + ".", Color.Blue, new List<Entity>()));
 
-                        if (((Structure)Subjects[0]).PrimarySmells.Count > 0)
+                        if (((Structure)Subjects[0]).PrimarySmells.Count() > 0)
                         {
-                            Game1.Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow, new EntityList<Entity>()));
+                            Game1.Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow, new List<Entity>()));
                         }
                         if (((Structure)Subjects[0]).Type == "temple" && ((Structure)Subjects[0]).Rooms.Any(room => room.Objects.Any(obj => obj.Type == "altar")))
                         {
-                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this temple. Maybe you could offer it something?", Color.Yellow, new EntityList<Entity>()));
+                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this temple. Maybe you could offer it something?", Color.Yellow, new List<Entity>()));
                         }
 
                         Game1.GameState = "exposition";
                     }
                     else
                     {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
+                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
                     }
                 }
@@ -184,28 +184,28 @@ namespace Lightrealm
                         Executor.Room = null;
                         Executor.Block.Architects.Add(Executor);
 
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits through the " + obj.Type + ".", Color.Blue, new EntityList<Entity>()));
+                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits through the " + obj.Type + ".", Color.Blue, new List<Entity>()));
                         Game1.GameState = "exposition";
                     }
                     else
                     {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
+                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
                     }
                 }
                 else
                 {
-                    MakeObservation("You couldn't find anything like that in the area to enter.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find anything like that in the area to enter.", Color.Yellow, new List<Entity>());
                 }
             }
-            else if (CommandID == "go_prone" && (Subjects.Count == 0 || Subjects[0].Metadata == "down"))
+            else if (CommandID == "go_prone" && (Subjects.Count() == 0 || Subjects[0].Metadata == "down"))
             {
-                MakeObservation("You get on the ground.", Color.Orange, new EntityList<Entity>());
+                MakeObservation("You get on the ground.", Color.Orange, new List<Entity>());
                 Executor.OnGround = true;
             }
-            else if (CommandID == "stand_up" && (Subjects.Count == 0 || Subjects[0].Metadata == "up"))
+            else if (CommandID == "stand_up" && (Subjects.Count() == 0 || Subjects[0].Metadata == "up"))
             {
-                MakeObservation("You stand up.", Color.Green, new EntityList<Entity>());
+                MakeObservation("You stand up.", Color.Green, new List<Entity>());
                 Executor.CooldownCycles += (int)Math.Round((20 - Executor.Agility) * Executor.Speed());
                 Executor.OnGround = false;
             }
@@ -213,7 +213,7 @@ namespace Lightrealm
             {
                 if (!Game1.TriedFakeMove)
                 {
-                    MakeObservation("Some commands have shortcuts. For instance, directional movement can be initiated with the NUMPAD, the Click GUI by the district map, or by pressing Ctrl + QWEADZXC.", Color.Lime, new EntityList<Entity>());
+                    MakeObservation("Some commands have shortcuts. For instance, directional movement can be initiated with the NUMPAD, the Click GUI by the district map, or by pressing Ctrl + QWEADZXC.", Color.Lime, new List<Entity>());
                     Game1.TriedFakeMove = true;
                 }
 
@@ -243,14 +243,14 @@ namespace Lightrealm
                 else
                 {
                     // If both hands are empty or don't have weapons, find a weapon on the body
-                    Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[r.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count)];
+                    Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[r.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count())];
                 }
 
                 Object Target;
 
                 if (Subjects[0] is Architect a && (Executor.Room != null && Executor.Room.Architects.Contains(a) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
                 {
-                    Target = ((Architect)(Subjects[0])).BodyParts[r.Next(((Architect)(Subjects[0])).BodyParts.Count)];
+                    Target = ((Architect)(Subjects[0])).BodyParts[r.Next(((Architect)(Subjects[0])).BodyParts.Count())];
                 }
                 else if (Subjects[0] is Object o && (Executor.Room != null && Executor.Room.Objects.Contains(o) || (Executor.Block.Objects.Contains(o) && Executor.Room == null)))
                 {
@@ -258,7 +258,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MakeObservation("You can't attack that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't attack that.", Color.Yellow, new List<Entity>());
                     return false;
                 }
 
@@ -267,14 +267,14 @@ namespace Lightrealm
                     Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                     if (Executor.DoubleStrikeReady)
                     {
-                        MakeObservation("You double strike!", Color.Pink, new EntityList<Entity>());
+                        MakeObservation("You double strike!", Color.Pink, new List<Entity>());
                         Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                         Executor.DoubleStrikeReady = false;
                     }
                 }
                 else
                 {
-                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>()));
+                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new List<Entity>()));
                 }
             }
 
@@ -299,7 +299,7 @@ namespace Lightrealm
                 else
                 {
                     // If both hands are empty or don't have weapons, find a weapon on the body
-                    Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[r.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count)];
+                    Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[r.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count())];
                 }
 
                 if (Subjects[0] is Architect a && (Executor.Room != null && Executor.Room.Architects.Contains(a) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
@@ -311,23 +311,23 @@ namespace Lightrealm
                         Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
                         if (Executor.DoubleStrikeReady)
                         {
-                            MakeObservation("You double strike!", Color.Pink, new EntityList<Entity>());
+                            MakeObservation("You double strike!", Color.Pink, new List<Entity>());
                             Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
                             Executor.DoubleStrikeReady = false;
                         }
                     }
                     else if (targetBodyPart == null)
                     {
-                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow, new List<Entity>());
                     }
                     else
                     {
-                        Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>()));
+                        Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new List<Entity>()));
                     }
                 }
                 else
                 {
-                    MakeObservation("You can't target body parts of an object, at least not yet.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't target body parts of an object, at least not yet.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "attack_with_weapon")
@@ -341,7 +341,7 @@ namespace Lightrealm
 
                 if (Subjects[0] is Architect a && (Executor.Room != null && Executor.Room.Architects.Contains(a) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
                 {
-                    Target = a.BodyParts[r.Next(a.BodyParts.Count)];
+                    Target = a.BodyParts[r.Next(a.BodyParts.Count())];
                 }
                 else if (Subjects[0] is Object o && (Executor.Room != null && Executor.Room.Objects.Contains(o) || (Executor.Block.Objects.Contains(o) && Executor.Room == null)))
                 {
@@ -349,7 +349,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MakeObservation("You can't attack that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't attack that.", Color.Yellow, new List<Entity>());
                     return false;
                 }
 
@@ -358,18 +358,18 @@ namespace Lightrealm
                     Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                     if (Executor.DoubleStrikeReady)
                     {
-                        MakeObservation("You double strike!", Color.Pink, new EntityList<Entity>());
+                        MakeObservation("You double strike!", Color.Pink, new List<Entity>());
                         Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                         Executor.DoubleStrikeReady = false;
                     }
                 }
                 else if (Weapon == null)
                 {
-                    MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow, new List<Entity>());
                 }
                 else
                 {
-                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>()));
+                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new List<Entity>()));
                 }
             }
             else if (CommandID == "attack_body_part_with_item")
@@ -399,33 +399,33 @@ namespace Lightrealm
                                 Game1.CalculateAttack(Game1.DetermineAttackVerb(item.DamageType), Executor, a.FindBodyPart(Subjects[1].Metadata), "decideforme", item);
                                 if (Executor.DoubleStrikeReady)
                                 {
-                                    MakeObservation("You double strike!", Color.Pink, new EntityList<Entity>());
+                                    MakeObservation("You double strike!", Color.Pink, new List<Entity>());
                                     Game1.CalculateAttack(Game1.DetermineAttackVerb(item.DamageType), Executor, a.FindBodyPart(Subjects[1].Metadata), "decideforme", item);
                                     Executor.DoubleStrikeReady = false;
                                 }
                             }
                             else
                             {
-                                MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow, new EntityList<Entity>());
+                                MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow, new List<Entity>());
                             }
                         }
                         else
                         {
-                            MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow, new List<Entity>());
                         }
                     }
                     else
                     {
-                        MakeObservation("You can't attack that.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You can't attack that.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else if (Subjects[0] is Object)
                 {
-                    MakeObservation("You can't target body parts of an object.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't target body parts of an object.", Color.Yellow, new List<Entity>());
                 }
                 else
                 {
-                    MakeObservation("You can't attack that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't attack that.", Color.Yellow, new List<Entity>());
                 }
             }
 
@@ -433,7 +433,7 @@ namespace Lightrealm
 
             else if (CommandID == "fix_hair")
             {
-                MakeObservation("You change your flamestyle.", Color.MediumPurple, new EntityList<Entity>());
+                MakeObservation("You change your flamestyle.", Color.MediumPurple, new List<Entity>());
 
                 Executor.HairID += 1;
 
@@ -453,16 +453,16 @@ namespace Lightrealm
             {
                 if (Executor.Invisible)
                 {
-                    MakeObservation("You are already in the shadows.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You are already in the shadows.", Color.Yellow, new List<Entity>());
                 }
                 else if (Executor.PathOfShadowLevel >= 4)
                 {
-                    MakeObservation("You enter the darkness.", Color.Gray, new EntityList<Entity>());
+                    MakeObservation("You enter the darkness.", Color.Gray, new List<Entity>());
                     Executor.Invisible = true;
                 }
                 else
                 {
-                    MakeObservation("You are not experienced enough in the shadows to partake in such a maneuver.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You are not experienced enough in the shadows to partake in such a maneuver.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "exit_invisibility")
@@ -470,19 +470,19 @@ namespace Lightrealm
                 Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
                 if (Executor.Invisible)
                 {
-                    MakeObservation("You exit the shadows.", Color.Gray, new EntityList<Entity>());
+                    MakeObservation("You exit the shadows.", Color.Gray, new List<Entity>());
                     Executor.Invisible = false;
                 }
                 else
                 {
-                    MakeObservation("You are not in the shadows.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You are not in the shadows.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "level_up" && Subjects[0].Metadata == "up")
             {
                 Executor.Level++;
                 Executor.SpendableLevels++;
-                MakeObservation("You divine an imbuement of great power.", Color.Yellow, new EntityList<Entity>());
+                MakeObservation("You divine an imbuement of great power.", Color.Yellow, new List<Entity>());
 
             }
 
@@ -503,17 +503,17 @@ namespace Lightrealm
                                 Executor.ModifyDistance(architect, 2); // Increase distance with all others by 2
                             }
                         }
-                        MakeObservation("You focus your target, shifting distances.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You focus your target, shifting distances.", Color.Green, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round((10 / Executor.Speed()));
                     }
                     else
                     {
-                        MakeObservation("The target architect is not in the same area.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("The target architect is not in the same area.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("The target is not an architect.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("The target is not an architect.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -524,17 +524,17 @@ namespace Lightrealm
                     if (ArchitectsToUse.Contains(targetArchitect))
                     {
                         Executor.ModifyDistance(targetArchitect, -2); // Decrease distance by 2
-                        MakeObservation("You move closer to the target.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You move closer to the target.", Color.Green, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
                     }
                     else
                     {
-                        MakeObservation("The target architect is not in the same area.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("The target architect is not in the same area.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("The target is not an architect.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("The target is not an architect.", Color.Red, new List<Entity>());
                 }
             }
             else if (CommandID == "distance_from_target")
@@ -544,17 +544,17 @@ namespace Lightrealm
                     if (ArchitectsToUse.Contains(targetArchitect))
                     {
                         Executor.ModifyDistance(targetArchitect, 2); // Increase distance by 2
-                        MakeObservation("You increase your distance from the target.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You increase your distance from the target.", Color.Green, new List<Entity>());
                         Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
                     }
                     else
                     {
-                        MakeObservation("The target architect is not in the same area.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("The target architect is not in the same area.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("The target is not an architect.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("The target is not an architect.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -575,12 +575,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("Your hands are full.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("Your hands are full.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("That is not an object in your inventory.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("That is not an object in your inventory.", Color.Yellow, new List<Entity>());
                 }
             }
 
@@ -592,7 +592,7 @@ namespace Lightrealm
             {
                 Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
 
-                EntityList<Object> Clothings = new EntityList<Object>();
+                List<Object> Clothings = new List<Object>();
                 foreach (Object o in Executor.Clothing)
                 {
                     if (o.Type != "undergarment" && o.Type != "brassiere")
@@ -610,7 +610,7 @@ namespace Lightrealm
                     o.Block = Executor.Block;
                 }
 
-                var itemsToMove = new EntityList<Object>(Executor.Inventory);
+                var itemsToMove = new List<Object>(Executor.Inventory);
 
                 foreach (Object o in itemsToMove)
                 {
@@ -621,7 +621,7 @@ namespace Lightrealm
                 }
 
 
-                MakeObservation("You drop your inventory.", Color.Orange, new EntityList<Entity>());
+                MakeObservation("You drop your inventory.", Color.Orange, new List<Entity>());
             }
             else if (CommandID == "place_item_in")
             {
@@ -657,16 +657,16 @@ namespace Lightrealm
                                             Executor.Inventory.Remove((Object)(Subjects[0]));
                                         }
 
-                                        MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the shadow storage.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                                        MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the shadow storage.", Color.Green, new List<Entity>() { Subjects[0] });
                                         StorageFound = true;
 
                                         // Add historical event for placing the item
                                         Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into shadow storage in " + Executor.Location + ".");
-                                        Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into shadow storage in " + Executor.Location + ".");
+                                        Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into shadow storage in " + Executor.Location + ".");
                                     }
                                     else
                                     {
-                                        MakeObservation("The item is already in the shadow storage.", Color.Yellow, new EntityList<Entity>() { });
+                                        MakeObservation("The item is already in the shadow storage.", Color.Yellow, new List<Entity>() { });
                                     }
                                     break; // Exit the loop once the shadow storage is processed
                                 }
@@ -674,12 +674,12 @@ namespace Lightrealm
 
                             if (!StorageFound)
                             {
-                                MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
+                                MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new List<Entity>());
                             }
                         }
                         else
                         {
-                            MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new List<Entity>());
                         }
                     }
                     else if (Subjects[1] is Object subjectObject && subjectObject.IsContainer)
@@ -700,23 +700,23 @@ namespace Lightrealm
 
                         subjectObject.ContainedObjects.Add((Object)Subjects[0]);
 
-                        MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the " + Subjects[1].ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { Subjects[0], Subjects[1] });
+                        MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the " + Subjects[1].ReferredToNames[0] + ".", Color.Green, new List<Entity>() { Subjects[0], Subjects[1] });
 
                         // Add historical event for placing the item
                         if (Executor.Structure == null)
                         {
                             Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location + ".");
-                            Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location + ".");
+                            Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location + ".");
                         }
                         else
                         {
                             Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
-                            Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
+                            Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[1].ReferredToNames[0] + " can't hold anything.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation(Subjects[1].ReferredToNames[0] + " can't hold anything.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
@@ -725,16 +725,16 @@ namespace Lightrealm
                     {
                         if (Executor.Sex == "male")
                         {
-                            MakeObservation("You are going to have to take that off first, sir.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You are going to have to take that off first, sir.", Color.Yellow, new List<Entity>());
                         }
                         else
                         {
-                            MakeObservation("You are going to have to take that off first, madame.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You are going to have to take that off first, madame.", Color.Yellow, new List<Entity>());
                         }
                     }
                     else
                     {
-                        MakeObservation("You don't have that.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You don't have that.", Color.Yellow, new List<Entity>());
                     }
                 }
             }
@@ -771,16 +771,16 @@ namespace Lightrealm
 
                                     Executor.ShadowStorage.Remove((Object)Subjects[0]);
 
-                                    MakeObservation("You retrieve the " + Subjects[0].ReferredToNames[0] + " from the shadow storage.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                                    MakeObservation("You retrieve the " + Subjects[0].ReferredToNames[0] + " from the shadow storage.", Color.Green, new List<Entity>() { Subjects[0] });
                                     StorageFound = true;
 
                                     // Add historical event for taking the item
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location + ".");
                                 }
                                 else
                                 {
-                                    MakeObservation("The shadow storage does not contain that.", Color.Green, new EntityList<Entity>());
+                                    MakeObservation("The shadow storage does not contain that.", Color.Green, new List<Entity>());
                                 }
                                 break; // Exit the loop once the shadow storage is processed
                             }
@@ -788,17 +788,17 @@ namespace Lightrealm
 
                         if (!StorageFound)
                         {
-                            MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new List<Entity>());
                         }
                     }
                     else
                     {
-                        MakeObservation("There is not a shadow storage nearby.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("There is not a shadow storage nearby.", Color.Green, new List<Entity>());
                     }
                 }
                 else
                 {
-                    EntityList<Object> searchScope = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                    List<Object> searchScope = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
 
                     Object container = null;
                     Object itemToTake = null;
@@ -846,23 +846,23 @@ namespace Lightrealm
 
                         container.ContainedObjects.Remove(itemToTake);
 
-                        MakeObservation("You remove the " + itemToTake.ReferredToNames[0] + " from the " + container.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { itemToTake, container });
+                        MakeObservation("You remove the " + itemToTake.ReferredToNames[0] + " from the " + container.ReferredToNames[0] + ".", Color.Green, new List<Entity>() { itemToTake, container });
 
                         // Add historical event for taking the item
                         if (Executor.Structure == null)
                         {
                             Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location + ".");
-                            Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location + ".");
+                            Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location + ".");
                         }
                         else
                         {
                             Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
-                            Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
+                            Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
                         }
                     }
                     else
                     {
-                        MakeObservation("You cannot take that for some reason.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You cannot take that for some reason.", Color.Green, new List<Entity>());
                     }
                 }
             }
@@ -873,19 +873,19 @@ namespace Lightrealm
                 int secondsToWait = waitCommands[CommandID.ToLower()];
                 Executor.CooldownCycles += secondsToWait * 10;
                 string observationMessage = secondsToWait == 1 ? "You wait for one second." : $"You wait for {secondsToWait} seconds.";
-                MakeObservation(observationMessage, Color.Green, new EntityList<Entity>());
+                MakeObservation(observationMessage, Color.Green, new List<Entity>());
             }
             else if (CommandID != null && CommandID.ToLower().StartsWith("wait"))
             {
-                MakeObservation("Try using common wait times, in plain words, like \"wait six seconds\".", Color.ForestGreen, new EntityList<Entity>());
+                MakeObservation("Try using common wait times, in plain words, like \"wait six seconds\".", Color.ForestGreen, new List<Entity>());
             }
-            else if (CommandID == "wear_item" && (Subjects.Count == 1 || Subjects[0].Metadata == "all"))
+            else if (CommandID == "wear_item" && (Subjects.Count() == 1 || Subjects[0].Metadata == "all"))
             {
                 Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
 
                 if (Subjects[0].Metadata == "all")
                 {
-                    var wearableItems = Executor.Inventory.Where(item => item.IsWearable).ToList();
+                    var wearableItems = Executor.Inventory.Where(item => item.IsWearable);
 
                     if (Executor.MainHeldObject != null && Executor.MainHeldObject.IsWearable)
                     {
@@ -911,13 +911,13 @@ namespace Lightrealm
                                 Executor.Room.Objects.Add(item);
                                 item.Room = Executor.Room;
                                 item.Block = Executor.Room.Structure.Block;
-                                MakeObservation("You drop the " + item.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { item });
+                                MakeObservation("You drop the " + item.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { item });
                             }
                             else
                             {
                                 Executor.Block.Objects.Add(item);
                                 item.Block = Executor.Block;
-                                MakeObservation("You drop the " + item.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { item });
+                                MakeObservation("You drop the " + item.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { item });
                             }
 
                             if (Executor.Structure != null && Executor.Structure.Type == "market")
@@ -931,12 +931,12 @@ namespace Lightrealm
                                 if (Executor.Structure == null)
                                 {
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " dropped " + item.Name + " in " + Executor.Location + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " dropped " + item.Name + " in " + Executor.Location + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " dropped " + item.Name + " in " + Executor.Location + ".");
                                 }
                                 else
                                 {
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " dropped " + item.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " dropped " + item.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " dropped " + item.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
 
                                     Executor.Structure.HistoricalObjects.Add(item);
                                 }
@@ -944,11 +944,11 @@ namespace Lightrealm
                         }
                         else if (Executor.Clothing.Any(c => c.Type == item.Type) && item.Type != "amulet")
                         {
-                            MakeObservation($"You can't wear more than one {item.Type}, fascist.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation($"You can't wear more than one {item.Type}, fascist.", Color.Yellow, new List<Entity>());
                         }
                         else
                         {
-                            MakeObservation("You put on the " + item.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { item });
+                            MakeObservation("You put on the " + item.ReferredToNames[0] + ".", Color.Green, new List<Entity>() { item });
                             Executor.Clothing.Add(item);
                             Executor.Inventory.Remove(item);
                             Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
@@ -961,11 +961,11 @@ namespace Lightrealm
                     {
                         if (Executor.Clothing.Any(c => c.Type == ((Object)Subjects[0]).Type) && ((Object)Subjects[0]).Type != "amulet")
                         {
-                            MakeObservation($"You can't wear more than one {((Object)Subjects[0]).Type}, fascist.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation($"You can't wear more than one {((Object)Subjects[0]).Type}, fascist.", Color.Yellow, new List<Entity>());
                         }
                         else
                         {
-                            MakeObservation("You put on the " + Subjects[0].ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation("You put on the " + Subjects[0].ReferredToNames[0] + ".", Color.Green, new List<Entity>() { Subjects[0] });
 
                             if (Executor.Inventory.Contains(((Object)Subjects[0])))
                             {
@@ -985,14 +985,14 @@ namespace Lightrealm
                     }
                     else
                     {
-                        if (Executor.Clothing.Count > 0)
+                        if (Executor.Clothing.Count() > 0)
                         {
-                            MakeObservation("You hang the " + Subjects[0].ReferredToNames[0] + " off of your " + Executor.Clothing[Game1.r.Next(Executor.Clothing.Count)].ReferredToNames[0] + ". You feel disadvantaged, but stylish.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation("You hang the " + Subjects[0].ReferredToNames[0] + " off of your " + Executor.Clothing[Game1.r.Next(Executor.Clothing.Count())].ReferredToNames[0] + ". You feel disadvantaged, but stylish.", Color.Green, new List<Entity>() { Subjects[0] });
                             Executor.Clothing.Add(((Object)Subjects[0]));
                         }
                         else
                         {
-                            MakeObservation("You aren't wearing anything to hang it off of. On a semi-related note, please put something on.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You aren't wearing anything to hang it off of. On a semi-related note, please put something on.", Color.Yellow, new List<Entity>());
                         }
                     }
                 }
@@ -1000,7 +1000,7 @@ namespace Lightrealm
                 {
                     if (a.Race == GameWorld.GetRace("shiba") && a.Block == Executor.Block && a.Room == Executor.Room)
                     {
-                        MakeObservation("You deploy the shiba inu. It climbs up to your face and merges with your soul.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You deploy the shiba inu. It climbs up to your face and merges with your soul.", Color.Green, new List<Entity>());
                         Executor.MeldedShibas.Add(a);
 
                         if (a.Room != null)
@@ -1018,18 +1018,18 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You can't wear that, it's not a shiba inu.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You can't wear that, it's not a shiba inu.", Color.Green, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't have an object like that.", Color.Green, new EntityList<Entity>());
+                    MakeObservation("You don't have an object like that.", Color.Green, new List<Entity>());
                 }
             }
 
-            else if (CommandID == "pick_up_item" && (Subjects.Count == 1 || (Subjects.Count == 2 && Subjects[0].Metadata == "up") || Subjects[0].Metadata == "all"))
+            else if (CommandID == "pick_up_item" && (Subjects.Count() == 1 || (Subjects.Count() == 2 && Subjects[0].Metadata == "up") || Subjects[0].Metadata == "all"))
             {
-                if (Subjects.Count == 2 && Subjects[0].Metadata == "up")
+                if (Subjects.Count() == 2 && Subjects[0].Metadata == "up")
                 {
                     Subjects.RemoveAt(0);
                 }
@@ -1040,7 +1040,7 @@ namespace Lightrealm
                 if (Subjects[0] is Object || Subjects[0].Metadata == "all")
                 {
 
-                    EntityList<Object> objectList = null;
+                    List<Object> objectList = null;
 
                     if (Executor.Room != null)
                     {
@@ -1055,15 +1055,15 @@ namespace Lightrealm
                     {
                         if (objectList != null)
                         {
-                            foreach (var obj in objectList.ToList())
+                            foreach (var obj in objectList)
                             {
                                 if (obj.Weight > 6000)
                                 {
-                                    MakeObservation("The " + obj.ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new EntityList<Entity>() { obj });
+                                    MakeObservation("The " + obj.ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new List<Entity>() { obj });
                                     continue;
                                 }
 
-                                MakeObservation("You pick up the " + obj.ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new EntityList<Entity>() { obj });
+                                MakeObservation("You pick up the " + obj.ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new List<Entity>() { obj });
                                 objectList.Remove(obj);
                                 LoadedArchitects[Game1.ArchitectIndex].Inventory.Add(obj);
 
@@ -1079,10 +1079,10 @@ namespace Lightrealm
                                 if (obj.Name != null)
                                 {
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " acquired " + obj.Name + " in " + Executor.Location + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " acquired " + obj.Name + " in " + Executor.Location + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " acquired " + obj.Name + " in " + Executor.Location + ".");
                                 }
 
-                                if (obj.Imbuements.Count > 0 || obj.IsWeapon || obj.Name != null)
+                                if (obj.Imbuements.Count() > 0 || obj.IsWeapon || obj.Name != null)
                                 {
                                     Game1.IsInGui = true;
 
@@ -1095,7 +1095,7 @@ namespace Lightrealm
                                         Game1.ItemPickupGuiLines.Add(Game1.Capitalize(obj.Materials[0].Name) + " " + Game1.Capitalize(obj.Type));
                                     }
 
-                                    if (obj.Imbuements.Count == 0)
+                                    if (obj.Imbuements.Count() == 0)
                                     {
                                         Game1.ItemPickupGuiLines.Add("This object has no imbuements.");
                                     }
@@ -1127,7 +1127,7 @@ namespace Lightrealm
                         {
                             if (((Object)Subjects[0]).Weight > 6000)
                             {
-                                MakeObservation("The " + Subjects[0].ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                                MakeObservation("The " + Subjects[0].ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new List<Entity>() { Subjects[0] });
                             }
                             else
                             {
@@ -1145,12 +1145,12 @@ namespace Lightrealm
                         {
                             if (((Object)Subjects[0]).Weight > 6000)
                             {
-                                MakeObservation("The " + Subjects[0].ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                                MakeObservation("The " + Subjects[0].ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new List<Entity>() { Subjects[0] });
                             }
                             else
                             {
                                 // Proceed as normal
-                                MakeObservation("You pick up the " + Subjects[0].ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                                MakeObservation("You pick up the " + Subjects[0].ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new List<Entity>() { Subjects[0] });
                                 objectList.Remove((Object)Subjects[0]);
                                 LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)Subjects[0]);
 
@@ -1167,10 +1167,10 @@ namespace Lightrealm
                                 if (((Object)Subjects[0]).Name != null)
                                 {
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " acquired " + ((Object)Subjects[0]).Name + " in " + Executor.Location + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " acquired " + ((Object)Subjects[0]).Name + " in " + Executor.Location + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " acquired " + ((Object)Subjects[0]).Name + " in " + Executor.Location + ".");
                                 }
 
-                                if (((Object)Subjects[0]).Imbuements.Count > 0 || ((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).Name != null)
+                                if (((Object)Subjects[0]).Imbuements.Count() > 0 || ((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).Name != null)
                                 {
                                     Game1.IsInGui = true;
 
@@ -1183,7 +1183,7 @@ namespace Lightrealm
                                         Game1.ItemPickupGuiLines.Add(Game1.Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Game1.Capitalize(((Object)Subjects[0]).Type));
                                     }
 
-                                    if (((Object)Subjects[0]).Imbuements.Count == 0)
+                                    if (((Object)Subjects[0]).Imbuements.Count() == 0)
                                     {
                                         Game1.ItemPickupGuiLines.Add("This object has no imbuements.");
                                     }
@@ -1209,57 +1209,57 @@ namespace Lightrealm
                     }
                     else if (LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == Subjects[0])
                     {
-                        MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { Subjects[0] });
                         LoadedArchitects[Game1.ArchitectIndex].OffHeldObject = null;
                         LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)Subjects[0]);
                     }
                     else if (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == Subjects[0])
                     {
-                        MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { Subjects[0] });
                         LoadedArchitects[Game1.ArchitectIndex].MainHeldObject = null;
                         LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)Subjects[0]);
                     }
                     else
                     {
-                        MakeObservation("You couldn't find anything like that in the area.", Color.Yellow, new EntityList<Entity>() { });
+                        MakeObservation("You couldn't find anything like that in the area.", Color.Yellow, new List<Entity>() { });
                     }
                 }
                 else if (Subjects[0] is Architect a && a.Race.Name == "shiba")
                 {
-                    MakeObservation("Perhaps you can wear the creature directly.", Color.Yellow, new EntityList<Entity>() { });
+                    MakeObservation("Perhaps you can wear the creature directly.", Color.Yellow, new List<Entity>() { });
                 }
                 else
                 {
-                    MakeObservation("You cannot pick up that.", Color.Yellow, new EntityList<Entity>() { });
+                    MakeObservation("You cannot pick up that.", Color.Yellow, new List<Entity>() { });
                 }
             }
 
 
-            else if (CommandID == "drop_item" && (Subjects.Count == 1 || Subjects[0].Metadata == "all"))
+            else if (CommandID == "drop_item" && (Subjects.Count() == 1 || Subjects[0].Metadata == "all"))
             {
                 Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
                 bool Found = true;
 
                 if (Subjects[0].Metadata == "all")
                 {
-                    foreach (var itemToDrop in Executor.Inventory.ToList())
+                    foreach (var itemToDrop in Executor.Inventory)
                     {
                         Executor.Inventory.Remove(itemToDrop);
 
-                        EntityList<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                        List<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
 
                         if (Executor.Room != null)
                         {
                             Executor.Room.Objects.Add(itemToDrop);
                             itemToDrop.Room = Executor.Room;
                             itemToDrop.Block = Executor.Room.Structure.Block;
-                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { itemToDrop });
                         }
                         else
                         {
                             Executor.Block.Objects.Add(itemToDrop);
                             itemToDrop.Block = Executor.Block;
-                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { itemToDrop });
                         }
 
                         if (Executor.Structure != null && Executor.Structure.Type == "market")
@@ -1273,12 +1273,12 @@ namespace Lightrealm
                             if (Executor.Structure == null)
                             {
                                 Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ".");
-                                Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ".");
+                                Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ".");
                             }
                             else
                             {
                                 Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
-                                Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
+                                Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
 
                                 Executor.Structure.HistoricalObjects.Add(itemToDrop);
                             }
@@ -1310,7 +1310,7 @@ namespace Lightrealm
 
                     if (Found)
                     {
-                        EntityList<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                        List<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
 
                         // Search for other objects with the same ReferredToNames[0]
                         bool otherObjectsExist = Executor.Inventory.Any(obj => obj != itemToDrop && obj.ReferredToNames[0] == itemToDrop.ReferredToNames[0]);
@@ -1334,13 +1334,13 @@ namespace Lightrealm
                                 Executor.Room.Objects.Add(itemToDrop);
                                 itemToDrop.Room = Executor.Room;
                                 itemToDrop.Block = Executor.Room.Structure.Block;
-                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { itemToDrop });
                             }
                             else
                             {
                                 Executor.Block.Objects.Add(itemToDrop);
                                 itemToDrop.Block = Executor.Block;
-                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>() { itemToDrop });
                             }
 
                             if (Executor.Structure != null && Executor.Structure.Type == "market")
@@ -1354,12 +1354,12 @@ namespace Lightrealm
                                 if (Executor.Structure == null)
                                 {
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ".");
                                 }
                                 else
                                 {
                                     Executor.Location.LocationHistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
-                                    Executor.Location.Region.World.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Executor + " dropped " + itemToDrop.Name + " in " + Executor.Location + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".");
 
                                     Executor.Structure.HistoricalObjects.Add(itemToDrop);
                                 }
@@ -1368,7 +1368,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You don't have that.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You don't have that.", Color.Yellow, new List<Entity>());
                     }
                 }
             }
@@ -1377,7 +1377,7 @@ namespace Lightrealm
                 Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
                 if (Subjects[0] is Object && Executor.Clothing.Contains(((Object)Subjects[0])))
                 {
-                    MakeObservation("You take off the " + Subjects[0].ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You take off the " + Subjects[0].ReferredToNames[0] + ".", Color.Green, new List<Entity>() { Subjects[0] });
 
                     // Remove the item from the Clothing list
                     Executor.Clothing.Remove((Object)Subjects[0]);
@@ -1389,7 +1389,7 @@ namespace Lightrealm
                 {
                     if (((Architect)Subjects[0]).Race == GameWorld.GetRace("shiba") && Executor.MeldedShibas.Contains(Subjects[0]))
                     {
-                        MakeObservation("You remove the shiba inu from your face, feeling a sense of loss.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You remove the shiba inu from your face, feeling a sense of loss.", Color.Green, new List<Entity>());
                         Executor.MeldedShibas.Remove(((Architect)Subjects[0]));
 
                         ((Architect)Subjects[0]).Room = Executor.Room;
@@ -1406,26 +1406,26 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You can't take that off, its not a shiba inu. On a semi-related note, how the hell did you get that on?", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You can't take that off, its not a shiba inu. On a semi-related note, how the hell did you get that on?", Color.Green, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You aren't wearing an object like that.", Color.Green, new EntityList<Entity>());
+                    MakeObservation("You aren't wearing an object like that.", Color.Green, new List<Entity>());
                 }
             }
             else if (CommandID == "examine")
             {
                 if (Subjects[0] is Architect)
                 {
-                    MakeObservation(Subjects[0].ReferredToNames[0] + " (Race: " + ((Architect)Subjects[0]).Race.Name + ")", Color.White, new EntityList<Entity>() { Subjects[0] });
-                    MakeObservation(((Architect)Subjects[0]).Race.Description, Color.LimeGreen, new EntityList<Entity>());
-                    MakeObservation(((Architect)Subjects[0]).CheckEnergyLevel(), Color.Magenta, new EntityList<Entity>());
-                    MakeObservation(((Architect)Subjects[0]).DescribeArchitectInventory(), Color.Orange, new EntityList<Entity>());
+                    MakeObservation(Subjects[0].ReferredToNames[0] + " (Race: " + ((Architect)Subjects[0]).Race.Name + ")", Color.White, new List<Entity>() { Subjects[0] });
+                    MakeObservation(((Architect)Subjects[0]).Race.Description, Color.LimeGreen, new List<Entity>());
+                    MakeObservation(((Architect)Subjects[0]).CheckEnergyLevel(), Color.Magenta, new List<Entity>());
+                    MakeObservation(((Architect)Subjects[0]).DescribeArchitectInventory(), Color.Orange, new List<Entity>());
 
                     if (GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race))
                     {
-                        MakeObservation("Press F2 (or fn+F2) for a portrait.", Color.Cyan, new EntityList<Entity>());
+                        MakeObservation("Press F2 (or fn+F2) for a portrait.", Color.Cyan, new List<Entity>());
                         Game1.StoredPortrait = ((Architect)Subjects[0]);
                     }
                     else
@@ -1437,13 +1437,13 @@ namespace Lightrealm
                 {
                     if ((LoadedArchitects[Game1.ArchitectIndex].Room != null && LoadedArchitects[Game1.ArchitectIndex].Room.Objects.Contains(Subjects[0])) || LoadedArchitects[Game1.ArchitectIndex].Block.Objects.Contains(Subjects[0]) || (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == Subjects[0] || LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == Subjects[0] || LoadedArchitects[Game1.ArchitectIndex].Inventory.Contains(Subjects[0])) || LoadedArchitects[Game1.ArchitectIndex].Clothing.Contains(Subjects[0]))
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0], Color.White, new EntityList<Entity>() { Subjects[0] });
-                        MakeObservation(((Object)Subjects[0]).Description, Color.White, new EntityList<Entity>());
+                        MakeObservation(Subjects[0].ReferredToNames[0], Color.White, new List<Entity>() { Subjects[0] });
+                        MakeObservation(((Object)Subjects[0]).Description, Color.White, new List<Entity>());
 
                         string Materials = "Materials: ";
                         List<string> materialNames = ((Object)Subjects[0]).Materials.Select(m => m.Name).ToList();
 
-                        if (materialNames.Count > 1)
+                        if (materialNames.Count() > 1)
                         {
                             // Insert "and" before the last element
                             materialNames[^1] = "and " + materialNames[^1];
@@ -1451,7 +1451,7 @@ namespace Lightrealm
                             // Join all elements with a comma, except the last one which already has "and"
                             Materials += String.Join(", ", materialNames);
                         }
-                        else if (materialNames.Count == 1)
+                        else if (materialNames.Count() == 1)
                         {
                             // If there's only one material, just add it
                             Materials += materialNames[0];
@@ -1464,21 +1464,21 @@ namespace Lightrealm
 
                         foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
                         {
-                            MakeObservation(i.GetDescription(), Color.Magenta, new EntityList<Entity>());
+                            MakeObservation(i.GetDescription(), Color.Magenta, new List<Entity>());
                         }
                     }
                     else
                     {
-                        MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else if (Subjects[0] is Structure && LoadedArchitects[Game1.ArchitectIndex].Room == null && LoadedArchitects[Game1.ArchitectIndex].Block.Structures.Contains(Subjects[0]))
                 {
-                    MakeObservation(((Structure)Subjects[0]).GetStructureDescription(), Color.White, new EntityList<Entity>() { ((Structure)Subjects[0]) });
+                    MakeObservation(((Structure)Subjects[0]).GetStructureDescription(), Color.White, new List<Entity>() { ((Structure)Subjects[0]) });
                 }
                 else
                 {
-                    MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "give_item")
@@ -1486,17 +1486,17 @@ namespace Lightrealm
                 Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
                 if (!(Subjects[0] is Object))
                 {
-                    MakeObservation("You can't give something that isn't an object.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't give something that isn't an object.", Color.Yellow, new List<Entity>());
                     return (false);
                 }
                 else if ((!(Subjects[1] is Object)) && (!(Subjects[1] is Architect)))
                 {
-                    MakeObservation("You can't give to something that isn't a person or object.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't give to something that isn't a person or object.", Color.Yellow, new List<Entity>());
                     return (false);
                 }
                 else if (!(Executor.Inventory.Contains(Subjects[0])) && !(Executor.OffHeldObject == Subjects[0]) && !(Executor.MainHeldObject == Subjects[0]))
                 {
-                    MakeObservation("You don't have that in your inventory or hands.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You don't have that in your inventory or hands.", Color.Yellow, new List<Entity>());
                     return (false);
                 }
                 else if (Executor.MainHeldObject == Subjects[0])
@@ -1518,9 +1518,9 @@ namespace Lightrealm
 
                 if (Subjects[1] is Architect)
                 {
-                    AddMessage(Executor.Name + ": Here, take this.", Color.White, new EntityList<Entity>() { Executor });
-                    MakeObservation("You give the " + Subjects[0].ReferredToNames[0] + " to " + Subjects[1].ReferredToNames[0] + ".", Color.Blue, new EntityList<Entity>() { Subjects[1], GivenObject });
-                    AddMessage(Subjects[1].ReferredToNames[0] + ": Thank you! I appreciate it!", Color.White, new EntityList<Entity>() { Subjects[1] });
+                    AddMessage(Executor.Name + ": Here, take this.", Color.White, new List<Entity>() { Executor });
+                    MakeObservation("You give the " + Subjects[0].ReferredToNames[0] + " to " + Subjects[1].ReferredToNames[0] + ".", Color.Blue, new List<Entity>() { Subjects[1], GivenObject });
+                    AddMessage(Subjects[1].ReferredToNames[0] + ": Thank you! I appreciate it!", Color.White, new List<Entity>() { Subjects[1] });
 
                     ((Architect)Subjects[1]).Inventory.Add(GivenObject);
                 }
@@ -1530,7 +1530,7 @@ namespace Lightrealm
 
                     if (((Object)Subjects[1]).Type == "altar")
                     {
-                        MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + ". It fizzles...", Color.Yellow, new EntityList<Entity>() { Subjects[0], Subjects[1] });
+                        MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + ". It fizzles...", Color.Yellow, new List<Entity>() { Subjects[0], Subjects[1] });
 
                         int Quality = 0;
 
@@ -1582,15 +1582,15 @@ namespace Lightrealm
                         {
                             case "reject":
                                 {
-                                    MakeObservation("...and absolutely nothing happens.", Color.Red, new EntityList<Entity>());
+                                    MakeObservation("...and absolutely nothing happens.", Color.Red, new List<Entity>());
                                     break;
                                 }
                             case "coffee":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of coffee!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of coffee!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, PrayingDeity));
+                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Coffee }, PrayingDeity));
                                     if (Executor.Room != null)
                                     {
                                         Executor.Room.Objects.Add(o);
@@ -1603,10 +1603,10 @@ namespace Lightrealm
                                 }
                             case "tea":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of tea!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of tea!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Tea }, PrayingDeity));
+                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Tea }, PrayingDeity));
                                     if (Executor.Room != null)
                                     {
                                         Executor.Room.Objects.Add(o);
@@ -1620,37 +1620,37 @@ namespace Lightrealm
                             case "divineprotection":
                                 {
                                     // Code for the 'divineprotection' case
-                                    MakeObservation(PrayingDeity.Name + " offers you a barrier between the blades of your enemies!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " offers you a barrier between the blades of your enemies!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
                                     Executor.DivineProtection += 5;
                                     break;
                                 }
                             case "double":
                                 {
                                     // Code for the 'double' case
-                                    MakeObservation(PrayingDeity.Name + " has blessed your offering and doubled it!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " has blessed your offering and doubled it!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
                                     Executor.Room.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
                                     Executor.Room.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
                                     break;
                                 }
                             case "lightninggrenade":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with lightning...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.Block.Objects.Add(new Object(null, "lightning grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
+                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with lightning...", Color.Goldenrod, new List<Entity>() { PrayingDeity });
+                                    Executor.Block.Objects.Add(new Object(null, "lightning grenade", new List<Material>() { GameWorld.Glass }, PrayingDeity));
                                     break;
                                 }
                             case "spatialgrenade":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with purple energy...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.Block.Objects.Add(new Object(null, "spatial grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
+                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with purple energy...", Color.Goldenrod, new List<Entity>() { PrayingDeity });
+                                    Executor.Block.Objects.Add(new Object(null, "spatial grenade", new List<Material>() { GameWorld.Glass }, PrayingDeity));
                                     break;
                                 }
                             case "icedcoffee":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced coffee!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced coffee!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, PrayingDeity));
-                                    o.ContainedObjects.Add(new Object(null, "cube", new EntityList<Material> { GameWorld.Ices[r.Next(GameWorld.Ices.Count)] }, PrayingDeity));
+                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Coffee }, PrayingDeity));
+                                    o.ContainedObjects.Add(new Object(null, "cube", new List<Material> { GameWorld.Ices[r.Next(GameWorld.Ices.Count())] }, PrayingDeity));
                                     if (Executor.Room != null)
                                     {
                                         Executor.Room.Objects.Add(o);
@@ -1663,11 +1663,11 @@ namespace Lightrealm
                                 }
                             case "icedtea":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced tea!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced tea!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Tea }, PrayingDeity));
-                                    o.ContainedObjects.Add(new Object(null, "cube", new EntityList<Material> { GameWorld.Ices[r.Next(GameWorld.Ices.Count)] }, PrayingDeity));
+                                    Object o = new Object(null, "small cup", new List<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                    o.ContainedObjects.Add(new Object(null, "drink", new List<Material> { GameWorld.Tea }, PrayingDeity));
+                                    o.ContainedObjects.Add(new Object(null, "cube", new List<Material> { GameWorld.Ices[r.Next(GameWorld.Ices.Count())] }, PrayingDeity));
                                     if (Executor.Room != null)
                                     {
                                         Executor.Room.Objects.Add(o);
@@ -1680,7 +1680,7 @@ namespace Lightrealm
                                 }
                             case "heal":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " envelops you in a beautiful energy wave, fully repairing your body!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " envelops you in a beautiful energy wave, fully repairing your body!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
                                     foreach (Object o in Executor.BodyParts)
                                     {
                                         o.Integrity = 100;
@@ -1691,37 +1691,37 @@ namespace Lightrealm
                             case "divinemight":
                                 {
                                     // Code for the 'divinemight' case
-                                    MakeObservation(PrayingDeity.Name + " offers you a burst of power against your mightiest foes!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " offers you a burst of power against your mightiest foes!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
                                     Executor.DivineMight += 12;
                                     break;
                                 }
                             case "learnspell":
                                 {
                                     // Code for the 'learnspell' case
-                                    MakeObservation(PrayingDeity.Name + " attempts to infuse magic into your being...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    if (r.Next(1, 3) == 1 || GameWorld.DiscoveredSpells.Count == 0)
+                                    MakeObservation(PrayingDeity.Name + " attempts to infuse magic into your being...", Color.Goldenrod, new List<Entity>() { PrayingDeity });
+                                    if (r.Next(1, 3) == 1 || GameWorld.DiscoveredSpells.Count() == 0)
                                     {
-                                        var randomSpell = GameWorld.DiscoveredSpells[r.Next(GameWorld.DiscoveredSpells.Count)];
+                                        var randomSpell = GameWorld.DiscoveredSpells[r.Next(GameWorld.DiscoveredSpells.Count())];
                                         if (!LoadedArchitects[Game1.ArchitectIndex].SpellsKnown.Contains(randomSpell))
                                         {
-                                            MakeObservation("You feel a tremendous pain, followed by a strange, uplifting peace.", Color.Goldenrod, new EntityList<Entity>());
+                                            MakeObservation("You feel a tremendous pain, followed by a strange, uplifting peace.", Color.Goldenrod, new List<Entity>());
                                             LoadedArchitects[Game1.ArchitectIndex].SpellsKnown.Add(randomSpell);
                                         }
                                         else
                                         {
-                                            MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new EntityList<Entity>());
+                                            MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new List<Entity>());
                                         }
                                     }
                                     else
                                     {
-                                        MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new EntityList<Entity>());
+                                        MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new List<Entity>());
                                     }
                                     break;
                                 }
                             case "convertmaterialtodivine":
                                 {
                                     GivenObject.Materials.Clear();
-                                    MakeObservation(PrayingDeity.Name + " alters your object into a brilliant form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " alters your object into a brilliant form!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
                                     if (PrayingDeity == GameWorld.LightDeity)
                                     {
@@ -1748,7 +1748,7 @@ namespace Lightrealm
 
                                     Material WeaponMaterial;
 
-                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an incredible form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an incredible form!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
                                     if (PrayingDeity == GameWorld.LightDeity)
                                     {
@@ -1776,7 +1776,7 @@ namespace Lightrealm
 
                                     Material artifactMaterial;
 
-                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an indescribable form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an indescribable form!", Color.Goldenrod, new List<Entity>() { PrayingDeity });
 
                                     if (PrayingDeity == GameWorld.LightDeity)
                                     {
@@ -1815,7 +1815,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + " and wait, patiently. Nothing happens. You pick it back up.", Color.Yellow, new EntityList<Entity>() { Subjects[0], Subjects[1] });
+                        MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + " and wait, patiently. Nothing happens. You pick it back up.", Color.Yellow, new List<Entity>() { Subjects[0], Subjects[1] });
                         Executor.Inventory.Add((Object)(Subjects[0]));
                     }
                 }
@@ -1831,16 +1831,16 @@ namespace Lightrealm
                     if (Executor.MainHeldObject == null)
                     {
                         Executor.MainHeldObject = (Object)Subjects[0];
-                        MakeObservation("You take out the item with your dominant hand.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You take out the item with your dominant hand.", Color.Yellow, new List<Entity>());
                     }
                     else if (Executor.OffHeldObject == null)
                     {
                         Executor.OffHeldObject = (Object)Subjects[0];
-                        MakeObservation("You take out the item with your non-dominant hand.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You take out the item with your non-dominant hand.", Color.Yellow, new List<Entity>());
                     }
                     else
                     {
-                        MakeObservation("Your hands are full.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("Your hands are full.", Color.Yellow, new List<Entity>());
                         return false;
                     }
 
@@ -1863,19 +1863,19 @@ namespace Lightrealm
                 {
                     if (Executor.OffHeldObject == null && Executor.MainHeldObject == null)
                     {
-                        Game1.Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>()));
-                        Game1.Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>()));
+                        Game1.Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new List<Entity>()));
+                        Game1.Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new List<Entity>()));
                     }
                     else
                     {
-                        Game1.Observations.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>()));
-                        Game1.Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>()));
+                        Game1.Observations.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new List<Entity>()));
+                        Game1.Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new List<Entity>()));
                     }
                 }
                 else
                 {
                     Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
-                    MakeObservation("You fling your " + Subjects[0].ReferredToNames[0] + " at nothing. Expectedly, it falls to the ground.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You fling your " + Subjects[0].ReferredToNames[0] + " at nothing. Expectedly, it falls to the ground.", Color.Yellow, new List<Entity>() { Subjects[0] });
                     Executor.Inventory.Remove(ThrowingObject);
 
                     if (Executor.Room == null)
@@ -1899,7 +1899,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MakeObservation("You need to be near a forge to do that.", Color.Orange, new EntityList<Entity>());
+                    MakeObservation("You need to be near a forge to do that.", Color.Orange, new List<Entity>());
                 }
 
             }
@@ -1910,7 +1910,7 @@ namespace Lightrealm
                 // Check if the target is valid
                 if (!(Subjects[1] is Architect || Subjects[1] is Object))
                 {
-                    MakeObservation("You can't throw at that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You can't throw at that.", Color.Yellow, new List<Entity>());
                     return false;
                 }
 
@@ -1934,18 +1934,18 @@ namespace Lightrealm
                             Executor.OffHeldObject = (Object)Subjects[0];
                             ThrowingObject = Executor.OffHeldObject;
                             Executor.Inventory.Remove((Object)Subjects[0]);
-                            MakeObservation("You wield the " + Subjects[0].ReferredToNames[0] + " in your left hand.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You wield the " + Subjects[0].ReferredToNames[0] + " in your left hand.", Color.Yellow, new List<Entity>());
                         }
                         else if (Executor.MainHeldObject == null)
                         {
                             Executor.MainHeldObject = (Object)Subjects[0];
                             ThrowingObject = Executor.MainHeldObject;
                             Executor.Inventory.Remove((Object)Subjects[0]);
-                            MakeObservation("You wield the " + Subjects[0].ReferredToNames[0] + " in your right hand.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You wield the " + Subjects[0].ReferredToNames[0] + " in your right hand.", Color.Yellow, new List<Entity>());
                         }
                         else
                         {
-                            MakeObservation("You need to have an open hand to pull out the " + Subjects[0].ReferredToNames[0] + " and throw it.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You need to have an open hand to pull out the " + Subjects[0].ReferredToNames[0] + " and throw it.", Color.Yellow, new List<Entity>());
                             return false;
                         }
                         // Apply cooldown for wielding
@@ -1953,7 +1953,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("The specified object is not in your inventory.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("The specified object is not in your inventory.", Color.Yellow, new List<Entity>());
                         return false;
                     }
                 }
@@ -1961,19 +1961,19 @@ namespace Lightrealm
                 // Apply cooldown for throwing
                 Executor.CooldownCycles += (int)(Math.Round((15 - Executor.Dexterity) / Executor.Speed()));
 
-                MakeObservation("You throw the " + Subjects[0].ReferredToNames[0] + "...", Color.Yellow, new EntityList<Entity>());
+                MakeObservation("You throw the " + Subjects[0].ReferredToNames[0] + "...", Color.Yellow, new List<Entity>());
 
                 // Handle the logic for throwing at an architect or object
                 if (Subjects[1] is Architect targetArchitect)
                 {
-                    Object targetBodyPart = targetArchitect.BodyParts[r.Next(targetArchitect.BodyParts.Count)];
+                    Object targetBodyPart = targetArchitect.BodyParts[r.Next(targetArchitect.BodyParts.Count())];
                     ((Object)Subjects[0]).AirborneTarget = targetBodyPart;
-                    MakeObservation("You aim at the " + targetArchitect.Name + "'s " + targetBodyPart.Type + ".", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You aim at the " + targetArchitect.Name + "'s " + targetBodyPart.Type + ".", Color.Yellow, new List<Entity>());
                 }
                 else if (Subjects[1] is Object targetObject)
                 {
                     ((Object)Subjects[0]).AirborneTarget = targetObject;
-                    MakeObservation("You aim at the " + targetObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You aim at the " + targetObject.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>());
                 }
 
                 ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, r.Next(12, 20) - Executor.Dexterity);
@@ -2002,9 +2002,9 @@ namespace Lightrealm
                     Entity Spell = Subjects[0];
                     Subjects.RemoveAt(0);
 
-                    EntityList<Entity> Targets = new EntityList<Entity>();
+                    List<Entity> Targets = new List<Entity>();
 
-                    for (int i = 0; i < numSubjects && i < Subjects.Count; i++)
+                    for (int i = 0; i < numSubjects && i < Subjects.Count(); i++)
                     {
                         Entity e = Subjects[i];
 
@@ -2015,28 +2015,28 @@ namespace Lightrealm
                         }
                         else
                         {
-                            MakeObservation(Spell.Metadata + " cannot be casted at " + e.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation(Spell.Metadata + " cannot be casted at " + e.ReferredToNames[0] + ".", Color.Yellow, new List<Entity>());
                         }
                     }
 
-                    if (Targets.Count != 0)
+                    if (Targets.Count() != 0)
                     {
                         Game1.Announcements.AddRange(Executor.CastSpell(Spell.Metadata, Targets));
                     }
                     else
                     {
-                        Game1.Observations.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>()));
-                        Game1.Announcements.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>()));
+                        Game1.Observations.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new List<Entity>()));
+                        Game1.Announcements.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new List<Entity>()));
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know or wield a spell like that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You don't know or wield a spell like that.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "cast_spell")
             {
-                MakeObservation("You fail to concentrate. You will need a point of interest to cast the spell at, even if unused.", Color.Yellow, new EntityList<Entity>());
+                MakeObservation("You fail to concentrate. You will need a point of interest to cast the spell at, even if unused.", Color.Yellow, new List<Entity>());
             }
             else if (CommandID == "consume")
             {
@@ -2065,7 +2065,7 @@ namespace Lightrealm
                     // Check if the object is a container
                     if (EatingObject.IsContainer)
                     {
-                        if (EatingObject.ContainedObjects.Count > 0)
+                        if (EatingObject.ContainedObjects.Count() > 0)
                         {
                             // Consume each contained object
                             foreach (var containedObject in EatingObject.ContainedObjects)
@@ -2087,7 +2087,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MakeObservation("You don't have anything like that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You don't have anything like that.", Color.Yellow, new List<Entity>());
                 }
 
 
@@ -2098,27 +2098,27 @@ namespace Lightrealm
 
                     if (EatingObject.Type == "salve")
                     {
-                        MakeObservation("You apply the salve. The pain begins to vanish.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You apply the salve. The pain begins to vanish.", Color.Yellow, new List<Entity>());
                         Executor.Pain = Math.Max(0, Executor.Pain - 35);
                         Executor.Bleeding = Math.Max(0, Executor.Bleeding - 2);
                         Executor.Energy += 5;
                     }
                     else if (EatingObject.Type == "bandage")
                     {
-                        MakeObservation("You apply the bandage. Your bleeding slows.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You apply the bandage. Your bleeding slows.", Color.Yellow, new List<Entity>());
                         Executor.Pain = Math.Max(0, Executor.Pain - 5);
                         Executor.Bleeding = (int)Math.Round(Math.Max(0, Executor.Bleeding * 0.3m));
                     }
                     else if (EatingObject.Type == "vial")
                     {
-                        MakeObservation("You drink the vial. You feel energized.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You drink the vial. You feel energized.", Color.Yellow, new List<Entity>());
                         Executor.Pain = Math.Max(0, Executor.Pain - 5);
                         Executor.Energy += Math.Max(0, 50 + r.Next(-10, 11));
                         Executor.DaysSinceLiquid = 0;
                     }
                     else if (EatingObject.Type == "portion" || EatingObject.Type == "drink" || EatingObject.Type == "cube")
                     {
-                        MakeObservation("You consume the " + EatingObject.Materials[0].Name + " " + EatingObject.Type + ", and recover some energy.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You consume the " + EatingObject.Materials[0].Name + " " + EatingObject.Type + ", and recover some energy.", Color.Yellow, new List<Entity>());
 
                         if (EatingObject.Materials[0].Name == "coffee" || EatingObject.Materials[0].Name == "tea")
                         {
@@ -2130,13 +2130,13 @@ namespace Lightrealm
                     }
                     else if (EatingObject.Type == "fragment")
                     {
-                        MakeObservation("You eat the fragment. You feel ready for the day.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You eat the fragment. You feel ready for the day.", Color.Yellow, new List<Entity>());
                         Executor.Energy += 5;
                         Executor.DaysSinceFood = 0;
                     }
                     else
                     {
-                        MakeObservation("You consume the " + EatingObject.ReferredToNames[0] + ". You don't feel so great...", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You consume the " + EatingObject.ReferredToNames[0] + ". You don't feel so great...", Color.Yellow, new List<Entity>());
                         Executor.Energy /= 2;
                         Executor.DaysSinceFood = 0;
                     }
@@ -2147,46 +2147,46 @@ namespace Lightrealm
             {
                 if (Subjects[0].Metadata == "spells")
                 {
-                    MakeObservation("Spells Known:", Color.Blue, new EntityList<Entity>());
+                    MakeObservation("Spells Known:", Color.Blue, new List<Entity>());
 
-                    if (Executor.SpellsKnown.Count == 0)
+                    if (Executor.SpellsKnown.Count() == 0)
                     {
-                        MakeObservation("You know no spells.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You know no spells.", Color.Yellow, new List<Entity>());
                     }
                     else
                     {
                         foreach (Entity s in Executor.SpellsKnown)
                         {
-                            MakeObservation(s.Metadata, Color.Aqua, new EntityList<Entity>() { new Entity(s.Metadata) });
-                            MakeObservation(Game1.SkillSpellDescriptions[s.Metadata], Color.LightCyan, new EntityList<Entity>() { new Entity(s.Metadata) });
+                            MakeObservation(s.Metadata, Color.Aqua, new List<Entity>() { new Entity(s.Metadata) });
+                            MakeObservation(Game1.SkillSpellDescriptions[s.Metadata], Color.LightCyan, new List<Entity>() { new Entity(s.Metadata) });
                         }
                     }
                 }
                 else if (Subjects[0].Metadata == "skills")
                 {
-                    MakeObservation("Skills Known:", Color.Blue, new EntityList<Entity>());
+                    MakeObservation("Skills Known:", Color.Blue, new List<Entity>());
 
-                    if (Executor.SkillsKnown.Count == 0)
+                    if (Executor.SkillsKnown.Count() == 0)
                     {
-                        MakeObservation("You know no skills.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You know no skills.", Color.Yellow, new List<Entity>());
                     }
                     else
                     {
                         foreach (Entity s in Executor.SkillsKnown)
                         {
-                            MakeObservation(s.Metadata, Color.Aqua, new EntityList<Entity>() { new Entity(s.Metadata) });
-                            MakeObservation(Game1.SkillSpellDescriptions[s.Metadata], Color.LightCyan, new EntityList<Entity>() { new Entity(s.Metadata) });
+                            MakeObservation(s.Metadata, Color.Aqua, new List<Entity>() { new Entity(s.Metadata) });
+                            MakeObservation(Game1.SkillSpellDescriptions[s.Metadata], Color.LightCyan, new List<Entity>() { new Entity(s.Metadata) });
                         }
                     }
                 }
                 else
                 {
-                    MakeObservation("Use this command to list either your spells or skills.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("Use this command to list either your spells or skills.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "reposition")
             {
-                MakeObservation("You reposition all of your limbs.", Color.MediumPurple, new EntityList<Entity>());
+                MakeObservation("You reposition all of your limbs.", Color.MediumPurple, new List<Entity>());
 
                 Executor.CooldownCycles += (int)Math.Round(3 * Executor.Speed());
 
@@ -2222,11 +2222,11 @@ namespace Lightrealm
                         MakeObservation(textStorage.Data, textStorage.Color, textStorage.Entities);
                     }
 
-                    MakeObservation("You reposition your " + Subjects[0].Metadata + ".", Color.MediumPurple, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You reposition your " + Subjects[0].Metadata + ".", Color.MediumPurple, new List<Entity>() { Subjects[0] });
                 }
                 else
                 {
-                    MakeObservation("You don't have one of those.", Color.MediumPurple, new EntityList<Entity>());
+                    MakeObservation("You don't have one of those.", Color.MediumPurple, new List<Entity>());
                 }
             }
             else if (CommandID == "free")
@@ -2235,7 +2235,7 @@ namespace Lightrealm
                 {
                     if (a.Bound)
                     {
-                        MakeObservation("You free " + a.ReferredToNames[0] + " from their bondage.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You free " + a.ReferredToNames[0] + " from their bondage.", Color.Green, new List<Entity>());
 
                         // Create a list of possible responses
                         List<string> possibleResponses = new List<string>
@@ -2247,17 +2247,17 @@ namespace Lightrealm
 
                         // Choose a random response
                         Random random = new Random();
-                        int index = random.Next(possibleResponses.Count);
+                        int index = random.Next(possibleResponses.Count());
 
                         a.Bound = false;
                         a.CyclesLeftInTask = 0;
                         a.Task = "";
 
-                        MakeObservation(possibleResponses[index], Color.Green, new EntityList<Entity>());
+                        MakeObservation(possibleResponses[index], Color.Green, new List<Entity>());
                     }
                     else
                     {
-                        MakeObservation("There is nothing to free " + a.ReferredToNames[0] + " from.", Color.Green, new EntityList<Entity>());
+                        MakeObservation("There is nothing to free " + a.ReferredToNames[0] + " from.", Color.Green, new List<Entity>());
                     }
                 }
             }
@@ -2284,34 +2284,34 @@ namespace Lightrealm
                     if (objectToRead.CompositionContent != null)
                     {
                         // Object has composition content
-                        MakeObservation("You read " + objectToRead.ReferredToNames[0] + ". " + objectToRead.CompositionContent.GetCompleteWorkDescription(), Color.Honeydew, new EntityList<Entity>() { objectToRead });
+                        MakeObservation("You read " + objectToRead.ReferredToNames[0] + ". " + objectToRead.CompositionContent.GetCompleteWorkDescription(), Color.Honeydew, new List<Entity>() { objectToRead });
 
-                        int contentLength = objectToRead.CompositionContent.Sections.Count;
+                        int contentLength = objectToRead.CompositionContent.Sections.Count();
                         Executor.CooldownCycles += (int)(Math.Round((125 * contentLength) / Executor.Speed()));
 
                         if (objectToRead.SpecialKnowledge != null)
                         {
                             if (GameWorld.AllSpells.Contains(objectToRead.SpecialKnowledge))
                             {
-                                MakeObservation("You learned the spell \"" + objectToRead.SpecialKnowledge.Metadata + "\"!", Color.Blue, new EntityList<Entity>() { objectToRead.SpecialKnowledge });
-                                MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.LightBlue, new EntityList<Entity>());
+                                MakeObservation("You learned the spell \"" + objectToRead.SpecialKnowledge.Metadata + "\"!", Color.Blue, new List<Entity>() { objectToRead.SpecialKnowledge });
+                                MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.LightBlue, new List<Entity>());
                                 Executor.SpellsKnown.Add(objectToRead.SpecialKnowledge);
                             }
                             else if (GameWorld.AllSkills.Contains(objectToRead.SpecialKnowledge))
                             {
-                                MakeObservation("You learned the skill \"" + objectToRead.SpecialKnowledge.Metadata + "\"!", Color.Blue, new EntityList<Entity>() { objectToRead.SpecialKnowledge });
-                                MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.LightBlue, new EntityList<Entity>());
+                                MakeObservation("You learned the skill \"" + objectToRead.SpecialKnowledge.Metadata + "\"!", Color.Blue, new List<Entity>() { objectToRead.SpecialKnowledge });
+                                MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.LightBlue, new List<Entity>());
 
-                                if (Executor.SkillsKnown.Count == 2)
+                                if (Executor.SkillsKnown.Count() == 2)
                                 {
-                                    MakeObservation("Learning additional skills past 3 will replace older skills.", Color.OrangeRed, new EntityList<Entity>());
+                                    MakeObservation("Learning additional skills past 3 will replace older skills.", Color.OrangeRed, new List<Entity>());
                                 }
 
                                 Executor.SkillsKnown.Add(objectToRead.SpecialKnowledge);
 
-                                if (Executor.SkillsKnown.Count > 3)
+                                if (Executor.SkillsKnown.Count() > 3)
                                 {
-                                    MakeObservation("Your mind is too unfocused for " + Executor.SkillsKnown[0] + ".", Color.OrangeRed, new EntityList<Entity>() { Executor.SkillsKnown[0] });
+                                    MakeObservation("Your mind is too unfocused for " + Executor.SkillsKnown[0] + ".", Color.OrangeRed, new List<Entity>() { Executor.SkillsKnown[0] });
                                     Executor.SkillsKnown.RemoveAt(0);
                                 }
                             }
@@ -2321,19 +2321,19 @@ namespace Lightrealm
                     {
                         if (objectToRead.SpecialKnowledge != null)
                         {
-                            MakeObservation("You read the " + objectToRead.ReferredToNames[0] + ". It contains detailed instructions on how to perform the skill " + objectToRead.SpecialKnowledge.Metadata  + ".", Color.SkyBlue, new EntityList<Entity>() { objectToRead });
-                            MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.SkyBlue, new EntityList<Entity>() { objectToRead });
+                            MakeObservation("You read the " + objectToRead.ReferredToNames[0] + ". It contains detailed instructions on how to perform the skill " + objectToRead.SpecialKnowledge.Metadata  + ".", Color.SkyBlue, new List<Entity>() { objectToRead });
+                            MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.SkyBlue, new List<Entity>() { objectToRead });
                             Executor.SkillsKnown.Add(objectToRead.SpecialKnowledge);
                         }
                         else
                         {
-                            MakeObservation("You look over the " + objectToRead.ReferredToNames[0] + ", but it has nothing written on it.", Color.Blue, new EntityList<Entity>() { objectToRead });
+                            MakeObservation("You look over the " + objectToRead.ReferredToNames[0] + ", but it has nothing written on it.", Color.Blue, new List<Entity>() { objectToRead });
                         }
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't have " + Subjects[0] + " in your hands or inventory.", Color.Red, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You don't have " + Subjects[0] + " in your hands or inventory.", Color.Red, new List<Entity>() { Subjects[0] });
                 }
             }
             else if (CommandID == "perform_composition")
@@ -2341,14 +2341,14 @@ namespace Lightrealm
                 if (Subjects[0] is Composition compositionToPerform)
                 {
                     string action = compositionToPerform.Type == "song" ? "sing" : "recite";
-                    MakeObservation($"You {action} " + compositionToPerform.Name + ". " + compositionToPerform.GetCompleteWorkDescription(), Color.Blue, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation($"You {action} " + compositionToPerform.Name + ". " + compositionToPerform.GetCompleteWorkDescription(), Color.Blue, new List<Entity>() { Subjects[0] });
 
                     // Determine the list of architects based on the location of the Executor
                     var architects = Executor.Room == null ? Executor.Block.Architects : Executor.Room.Architects;
 
                     // Randomly select a subset of architects to react, between 1 and 6
-                    int numReactions = Math.Min(Game1.r.Next(1, 7), architects.Count); 
-                    EntityList<Architect> reactingArchitects = architects.ShuffleNew().Take(numReactions);
+                    int numReactions = Math.Min(Game1.r.Next(1, 7), architects.Count()); 
+                    List<Architect> reactingArchitects = architects.ShuffleNew().Take(numReactions);
 
 
                     // React to performance in the vicinity
@@ -2400,13 +2400,13 @@ namespace Lightrealm
                             }
 
                             // Display the reaction
-                            AddMessage(architect.Name + ": " + reaction, Color.Magenta, new EntityList<Entity>() { architect });
+                            AddMessage(architect.Name + ": " + reaction, Color.Magenta, new List<Entity>() { architect });
                         }
                     }
                 }
                 else
                 {
-                    MakeObservation("You do not remember a composition named " + Subjects[0].Name + ".", Color.Red, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You do not remember a composition named " + Subjects[0].Name + ".", Color.Red, new List<Entity>() { Subjects[0] });
                 }
             }
             else if (CommandID == "write_composition")
@@ -2422,7 +2422,7 @@ namespace Lightrealm
 
                     if (writableObject == null)
                     {
-                        MakeObservation("You have nothing suitable for writing in your hands or inventory.", Color.Red, new EntityList<Entity>() { });
+                        MakeObservation("You have nothing suitable for writing in your hands or inventory.", Color.Red, new List<Entity>() { });
                     }
                     else
                     {
@@ -2432,11 +2432,11 @@ namespace Lightrealm
                         writableObject.Name = newComposition.Name; // Assign the generated book name to the object
 
                         // Log historical event
-                        Executor.Location.Region.World.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " authored a book titled '", newComposition.Name, "' in ", Executor.Location.Name, "."));
+                        Game1.GameWorld.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " authored a book titled '", newComposition.Name, "' in ", Executor.Location.Name, "."));
                         Executor.Location.LocationHistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " authored a book titled '", newComposition.Name, "' in ", Executor.Location.Name, "."));
 
                         // Provide detailed feedback to the user
-                        MakeObservation("You write a book titled '" + newComposition.Name + "' on yourself, because nothing else comes to mind apparently." + newComposition.GetCompleteWorkDescription() + " It is now stored in your " + writableObject.Name + ".", Color.Blue, new EntityList<Entity>() { newComposition, writableObject });
+                        MakeObservation("You write a book titled '" + newComposition.Name + "' on yourself, because nothing else comes to mind apparently." + newComposition.GetCompleteWorkDescription() + " It is now stored in your " + writableObject.Name + ".", Color.Blue, new List<Entity>() { newComposition, writableObject });
                     }
                 }
                 else if (type == "poem" || type == "song")
@@ -2446,15 +2446,15 @@ namespace Lightrealm
                     Executor.CultureBank.Add(newComposition); // Assuming Executor has a Memory list to store compositions
 
                     // Log historical event
-                    Executor.Location.Region.World.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " composed a ", type, " titled '", newComposition.Name, "' in ", Executor.Location.Name, "."));
+                    Game1.GameWorld.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " composed a ", type, " titled '", newComposition.Name, "' in ", Executor.Location.Name, "."));
                     Executor.Location.LocationHistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " composed a ", type, " titled '", newComposition.Name, "' in ", Executor.Location.Name, "."));
 
                     // Provide detailed feedback to the user
-                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + ". " + newComposition.GetCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue, new EntityList<Entity>() { newComposition });
+                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + ". " + newComposition.GetCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue, new List<Entity>() { newComposition });
                 }
                 else
                 {
-                    MakeObservation("You can only write poems, books, or songs.", Color.Blue, new EntityList<Entity>());
+                    MakeObservation("You can only write poems, books, or songs.", Color.Blue, new List<Entity>());
                 }
             }
             else if (CommandID == "write_about_topic")
@@ -2471,7 +2471,7 @@ namespace Lightrealm
 
                     if (writableObject == null)
                     {
-                        MakeObservation("You have nothing suitable for writing in your hands or inventory.", Color.Red, new EntityList<Entity>());
+                        MakeObservation("You have nothing suitable for writing in your hands or inventory.", Color.Red, new List<Entity>());
                     }
                     else
                     {
@@ -2481,11 +2481,11 @@ namespace Lightrealm
                         writableObject.Name = newComposition.Name; // Assign the generated book name to the object
 
                         // Log historical event
-                        Executor.Location.Region.World.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " authored a book titled '", newComposition.Name, "' about ", Subjects[1].ReferredToNames[0], " in ", Executor.Location.Name, "."));
+                        Game1.GameWorld.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " authored a book titled '", newComposition.Name, "' about ", Subjects[1].ReferredToNames[0], " in ", Executor.Location.Name, "."));
                         Executor.Location.LocationHistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " authored a book titled '", newComposition.Name, "' about ", Subjects[1].ReferredToNames[0], " in ", Executor.Location.Name, "."));
 
                         // Provide detailed feedback to the user
-                        MakeObservation("You write a book titled '" + newComposition.Name + "' about " + Subjects[1] + ". " + newComposition.GetCompleteWorkDescription() + ". It is now stored in your " + writableObject.Name + ".", Color.Blue, new EntityList<Entity>() { newComposition, Subjects[1], writableObject });
+                        MakeObservation("You write a book titled '" + newComposition.Name + "' about " + Subjects[1] + ". " + newComposition.GetCompleteWorkDescription() + ". It is now stored in your " + writableObject.Name + ".", Color.Blue, new List<Entity>() { newComposition, Subjects[1], writableObject });
                     }
                 }
                 else if (type == "poem" || type == "song")
@@ -2495,33 +2495,33 @@ namespace Lightrealm
                     Executor.CultureBank.Add(newComposition); // Assuming Executor has a Memory list to store compositions
 
                     // Log historical event
-                    Executor.Location.Region.World.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " composed a ", type, " titled '", newComposition.Name, "' about ", Subjects[1].ReferredToNames[0], " in ", Executor.Location.Name, "."));
+                    Game1.GameWorld.HistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " composed a ", type, " titled '", newComposition.Name, "' about ", Subjects[1].ReferredToNames[0], " in ", Executor.Location.Name, "."));
                     Executor.Location.LocationHistoricalEvents.Add(string.Concat(Date, " ", Executor.Name, " composed a ", type, " titled '", newComposition.Name, "' about ", Subjects[1].ReferredToNames[0], " in ", Executor.Location.Name, "."));
 
                     // Provide detailed feedback to the user
-                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + "' about " + Subjects[1].ReferredToNames[0] + ". " + newComposition.GetCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue, new EntityList<Entity>() { newComposition, Subjects[1] });
+                    MakeObservation("You compose a " + type + " titled '" + newComposition.Name + "' about " + Subjects[1].ReferredToNames[0] + ". " + newComposition.GetCompleteWorkDescription() + ". It is now stored in your memory.", Color.Blue, new List<Entity>() { newComposition, Subjects[1] });
                 }
                 else
                 {
-                    MakeObservation("You can only write poems, books, or songs.", Color.Blue, new EntityList<Entity>());
+                    MakeObservation("You can only write poems, books, or songs.", Color.Blue, new List<Entity>());
                 }
             }
 
 
             else if (CommandID.StartsWith("write ~ about "))
             {
-                MakeObservation("You can't write about that because either it or the art form doesn't exist, or no one cares about one or the other.", Color.Red, new EntityList<Entity>());
+                MakeObservation("You can't write about that because either it or the art form doesn't exist, or no one cares about one or the other.", Color.Red, new List<Entity>());
             }
             else if (CommandID == "tame_creature")
             {
                 Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
                 if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
                 {
-                    AddMessage(Executor.Name + ": Wild one, join the ranks of my great conquest.", Color.Green, new EntityList<Entity>() { Executor });
+                    AddMessage(Executor.Name + ": Wild one, join the ranks of my great conquest.", Color.Green, new List<Entity>() { Executor });
                     if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race))
                     {
                         int ExistingAnimals = 0;
-                        foreach (Architect a in GamePlayerParty.Architects)
+                        foreach (Architect a in GameWorld.GamePlayerParty.Architects)
                         {
                             if (!GameWorld.HumanoidRaces.Contains(a.Race) && !GameWorld.ExtraRaces.Contains(a.Race))
                             {
@@ -2531,23 +2531,23 @@ namespace Lightrealm
 
                         if (Executor.PathOfLifeLevel >= 6 && ExistingAnimals < Executor.PathOfLifeLevel)
                         {
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": *happy shibesque noises*", Color.Green, new EntityList<Entity>() { Subjects[0] });
-                            GamePlayerParty.Architects.Add(((Architect)Subjects[0]));
+                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": *happy shibesque noises*", Color.Green, new List<Entity>() { Subjects[0] });
+                            GameWorld.GamePlayerParty.Architects.Add(((Architect)Subjects[0]));
                         }
                         else
                         {
-                            AddMessage(((Architect)Subjects[0]).Name + ": *sad shibesque noises*", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            AddMessage(((Architect)Subjects[0]).Name + ": *sad shibesque noises*", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Something is wrong with you.", Color.Orange, new EntityList<Entity>() { Subjects[0] });
+                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": Something is wrong with you.", Color.Orange, new List<Entity>() { Subjects[0] });
                         ((Architect)Subjects[0]).ChangeOpinion(Executor, -20);
                     }
                 }
                 else
                 {
-                    MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "starstrike")
@@ -2557,22 +2557,22 @@ namespace Lightrealm
 
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
                 {
-                    MakeObservation("You flick your wrist...", Color.Green, new EntityList<Entity>());
+                    MakeObservation("You flick your wrist...", Color.Green, new List<Entity>());
                     int StarCount = 0;
 
                     if (Executor.PathOfStarsLevel >= 6)
                     {
                         StarCount = r.Next(2, 4);
-                        MakeObservation($"Stars fly from your hands!", Color.Goldenrod, new EntityList<Entity>());
+                        MakeObservation($"Stars fly from your hands!", Color.Goldenrod, new List<Entity>());
                     }
                     else
                     {
-                        MakeObservation($"...but nothing happens.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation($"...but nothing happens.", Color.Yellow, new List<Entity>());
                     }
 
                     for (int i = 0; i < StarCount; i++)
                     {
-                        Object o = new Object(null, "star", new EntityList<Material>() { GameWorld.Energy }, Executor);
+                        Object o = new Object(null, "star", new List<Material>() { GameWorld.Energy }, Executor);
                         o.Thrower = Executor;
                         o.AirborneTarget = Subjects[0];
 
@@ -2588,7 +2588,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "flamestrike")
@@ -2597,12 +2597,12 @@ namespace Lightrealm
                 Executor.Energy -= Math.Max(0, 15 - Executor.PathOfHeatLevel);
                 if (Subjects[0] is Architect targetArchitect && ArchitectsToUse.Contains(Subjects[0]))
                 {
-                    MakeObservation("You wave...", Color.Green, new EntityList<Entity>());
+                    MakeObservation("You wave...", Color.Green, new List<Entity>());
 
                     if (Executor.PathOfHeatLevel >= 2)
                     {
-                        MakeObservation($"A large flame emnates from your hand!", Color.Goldenrod, new EntityList<Entity>());
-                        Object o = new Object(null, "wave", new EntityList<Material>() { GameWorld.Flame }, Executor);
+                        MakeObservation($"A large flame emnates from your hand!", Color.Goldenrod, new List<Entity>());
+                        Object o = new Object(null, "wave", new List<Material>() { GameWorld.Flame }, Executor);
                         o.AirborneTarget = Subjects[0];
                         o.AirborneCyclesToHitTarget = 30;
                         o.Thrower = Executor;
@@ -2610,12 +2610,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation($"...but nothing happens.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation($"...but nothing happens.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "heat_object")
@@ -2628,18 +2628,18 @@ namespace Lightrealm
 
                     if (Executor.OffHeldObject == targetObject || Executor.MainHeldObject == targetObject)
                     {
-                        MakeObservation("You focus...", Color.Green, new EntityList<Entity>());
+                        MakeObservation("You focus...", Color.Green, new List<Entity>());
                         ((Object)targetObject).HeatInCelsius += 50;
-                        MakeObservation($"The {targetObject.Name} in your hand heats up intensely!", Color.Goldenrod, new EntityList<Entity>() { targetObject });
+                        MakeObservation($"The {targetObject.Name} in your hand heats up intensely!", Color.Goldenrod, new List<Entity>() { targetObject });
                     }
                     else
                     {
-                        MakeObservation($"...but you're not holding the intended target.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation($"...but you're not holding the intended target.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation($"...but your control over heat is not strong enough.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation($"...but your control over heat is not strong enough.", Color.Yellow, new List<Entity>());
                 }
             }
 
@@ -2650,11 +2650,11 @@ namespace Lightrealm
 
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
                 {
-                    MakeObservation("You point and wave...", Color.Green, new EntityList<Entity>());
+                    MakeObservation("You point and wave...", Color.Green, new List<Entity>());
 
                     if (Executor.PathOfStarsLevel >= 8)
                     {
-                        MakeObservation($"A swirling vortex appears, and a cosmic energy beam strikes " + Subjects[0].ReferredToNames[0] + "!", Color.Goldenrod, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation($"A swirling vortex appears, and a cosmic energy beam strikes " + Subjects[0].ReferredToNames[0] + "!", Color.Goldenrod, new List<Entity>() { Subjects[0] });
 
                         foreach (Object o in targetArchitect.BodyParts)
                         {
@@ -2666,12 +2666,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation($"...but nothing happens.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation($"...but nothing happens.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "conjure_spark")
@@ -2680,10 +2680,10 @@ namespace Lightrealm
                 Executor.Energy -= Math.Max(0, 5 - Executor.PathOfLightLevel);
                 if (Executor.PathOfLightLevel >= 1)
                 {
-                    MakeObservation("You hold your hand out, collecting light...", Color.Green, new EntityList<Entity>());
-                    MakeObservation("A radiant spark appears!", Color.Green, new EntityList<Entity>());
+                    MakeObservation("You hold your hand out, collecting light...", Color.Green, new List<Entity>());
+                    MakeObservation("A radiant spark appears!", Color.Green, new List<Entity>());
 
-                    Object Spark = new Object(null, "spark", new EntityList<Material>() { GameWorld.Energy }, Executor);
+                    Object Spark = new Object(null, "spark", new List<Material>() { GameWorld.Energy }, Executor);
                     Executor.Sparks.Add(Spark);
 
                     if (Executor.Room != null)
@@ -2697,7 +2697,7 @@ namespace Lightrealm
                         Spark.Block = Executor.Block;
                     }
 
-                    if (Executor.Sparks.Count > Executor.PathOfLightLevel)
+                    if (Executor.Sparks.Count() > Executor.PathOfLightLevel)
                     {
                         if (Executor.Sparks[0].Room != null)
                         {
@@ -2709,12 +2709,12 @@ namespace Lightrealm
                             Executor.Sparks[0].Block.Objects.Remove(Executor.Sparks[0]);
                             Executor.Sparks.RemoveAt(0);
                         }
-                        MakeObservation("You feel a loss of connection to your earliest spark.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You feel a loss of connection to your earliest spark.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "evoke_strike")
@@ -2736,27 +2736,27 @@ namespace Lightrealm
 
                     if (FoundSpark != null)
                     {
-                        EntityList<Object> objectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Objects : FoundSpark.Block.Objects;
-                        EntityList<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
+                        List<Object> objectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Objects : FoundSpark.Block.Objects;
+                        List<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
 
-                        MakeObservation("You evoke your spark...", Color.White, new EntityList<Entity>());
+                        MakeObservation("You evoke your spark...", Color.White, new List<Entity>());
 
                         if (Subjects[0] is Architect architectTarget && architectsInArea.Contains(architectTarget))
                         {
-                            Object BP = architectTarget.BodyParts[r.Next(architectTarget.BodyParts.Count)];
+                            Object BP = architectTarget.BodyParts[r.Next(architectTarget.BodyParts.Count())];
                             BP.Integrity -= r.Next(10, Executor.PathOfStarsLevel * 5);
                             architectTarget.Bleeding += Game1.r.Next(5);
                             architectTarget.ChangeOpinion(Executor, -60);
-                            MakeObservation("A heavenly beam pierces through " + BP.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { BP });
+                            MakeObservation("A heavenly beam pierces through " + BP.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { BP });
                         }
                         else if (Subjects[0] is Object objectTarget && objectsInArea.Contains(objectTarget))
                         {
                             objectTarget.Integrity -= r.Next(10, Executor.PathOfStarsLevel * 5);
-                            MakeObservation("A heavenly beam pierces through " + objectTarget.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { objectTarget });
+                            MakeObservation("A heavenly beam pierces through " + objectTarget.ReferredToNames[0] + "!", Color.Magenta, new List<Entity>() { objectTarget });
                         }
                         else
                         {
-                            MakeObservation("The beam fails to target properly.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("The beam fails to target properly.", Color.Yellow, new List<Entity>());
                         }
 
                         Executor.Sparks.Remove(FoundSpark);
@@ -2764,12 +2764,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
             else if (CommandID == "evoke_blindness")
@@ -2791,23 +2791,23 @@ namespace Lightrealm
 
                     if (FoundSpark != null)
                     {
-                        EntityList<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
+                        List<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
                         bool foundArchitects = false;
 
                         foreach (Architect architect in architectsInArea)
                         {
-                            if (architect.TargetArchitect != null && GamePlayerParty.Architects.Contains(architect.TargetArchitect) && (architect.Task == "killtarget" || architect.Task == "disabletarget"))
+                            if (architect.TargetArchitect != null && GameWorld.GamePlayerParty.Architects.Contains(architect.TargetArchitect) && (architect.Task == "killtarget" || architect.Task == "disabletarget"))
                             {
                                 architect.BlindCycles += 50;
                                 architect.ChangeOpinion(Executor, -60);
-                                MakeObservation(architect.ReferredToNames[0] + " is blinded by the radiance!", Color.Magenta, new EntityList<Entity>() { architect });
+                                MakeObservation(architect.ReferredToNames[0] + " is blinded by the radiance!", Color.Magenta, new List<Entity>() { architect });
                                 foundArchitects = true;
                             }
                         }
 
                         if (!foundArchitects)
                         {
-                            MakeObservation("No one is blinded...", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("No one is blinded...", Color.Yellow, new List<Entity>());
                         }
 
                         Executor.Sparks.Remove(FoundSpark);
@@ -2816,12 +2816,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
             else if (CommandID == "evoke_healing")
@@ -2842,21 +2842,21 @@ namespace Lightrealm
 
                     if (FoundSpark != null)
                     {
-                        EntityList<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
+                        List<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
                         bool foundArchitects = false;
 
                         foreach (Architect architect in architectsInArea)
                         {
-                            if (GamePlayerParty.Architects.Contains(architect))
+                            if (GameWorld.GamePlayerParty.Architects.Contains(architect))
                             {
                                 if (architect.CombatCycles == 0)
                                 {
                                     architect.Energy = architect.MaxEnergy();
-                                    MakeObservation(architect.Name + " is enveloped in brilliance and fully healed!", Color.Magenta, new EntityList<Entity>() { architect });
+                                    MakeObservation(architect.Name + " is enveloped in brilliance and fully healed!", Color.Magenta, new List<Entity>() { architect });
                                 }
                                 else
                                 {
-                                    MakeObservation(architect.Name + " is too distracted for brilliance.", Color.Yellow, new EntityList<Entity>() { architect });
+                                    MakeObservation(architect.Name + " is too distracted for brilliance.", Color.Yellow, new List<Entity>() { architect });
                                 }
                                 foundArchitects = true;
                             }
@@ -2864,7 +2864,7 @@ namespace Lightrealm
 
                         if (!foundArchitects)
                         {
-                            MakeObservation("There is no one to heal...", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("There is no one to heal...", Color.Yellow, new List<Entity>());
                         }
 
                         Executor.Sparks.Remove(FoundSpark);
@@ -2873,12 +2873,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -2902,9 +2902,9 @@ namespace Lightrealm
 
                     if (FoundSpark != null)
                     {
-                        Architect a = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], Game1.GameWorld.GetRace("photonexus"), 0, "prismancer", new EntityList<Object>(), Executor.Location, Executor.District, Executor.Block, "", 1);
-                        GamePlayerParty.Architects.Add(a);
-                        MakeObservation("A photonexus appears!", Color.Cyan, new EntityList<Entity>());
+                        Architect a = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count())], Game1.GameWorld.GetRace("photonexus"), 0, "prismancer", new List<Object>(), Executor.Location, Executor.District, Executor.Block, "", 1);
+                        GameWorld.GamePlayerParty.Architects.Add(a);
+                        MakeObservation("A photonexus appears!", Color.Cyan, new List<Entity>());
 
                         if (Executor.Room != null)
                         {
@@ -2928,12 +2928,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("You couldn't find one of your sparks in the vicinity.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
             else if (CommandID == "inflame")
@@ -2944,11 +2944,11 @@ namespace Lightrealm
                 if (Executor.PathOfHeatLevel >= 8)
                 {
                     Executor.FireSeconds += 500;
-                    MakeObservation("Your flame burns brighter!", Color.Red, new EntityList<Entity>());
+                    MakeObservation("Your flame burns brighter!", Color.Red, new List<Entity>());
                 }
                 else
                 {
-                    MakeObservation("You don't have control over that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't have control over that.", Color.Red, new List<Entity>());
                 }
             }
             else if (CommandID == "unflame")
@@ -2958,11 +2958,11 @@ namespace Lightrealm
                 if (Executor.PathOfHeatLevel >= 8)
                 {
                     Executor.FireSeconds = 0;
-                    MakeObservation("You stop blazing!", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You stop blazing!", Color.Red, new List<Entity>());
                 }
                 else
                 {
-                    MakeObservation("You don't have control over that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't have control over that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -2973,15 +2973,15 @@ namespace Lightrealm
 
                 if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
                 {
-                    if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && GamePlayerParty.Architects.Contains(Subjects[0]))
+                    if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && GameWorld.GamePlayerParty.Architects.Contains(Subjects[0]))
                     {
                         if (Executor.PathOfLifeLevel >= 8)
                         {
-                            MakeObservation("You gesture.", Color.Magenta, new EntityList<Entity>());
+                            MakeObservation("You gesture.", Color.Magenta, new List<Entity>());
 
                             if (((Architect)Subjects[0]).Augment == true)
                             {
-                                MakeObservation(Subjects[0].ReferredToNames[0] + " already has an augmentation.", Color.Magenta, new EntityList<Entity>() { Subjects[0] });
+                                MakeObservation(Subjects[0].ReferredToNames[0] + " already has an augmentation.", Color.Magenta, new List<Entity>() { Subjects[0] });
                             }
                             else
                             {
@@ -2989,17 +2989,17 @@ namespace Lightrealm
 
                                 if (Shibe == 0)
                                 {
-                                    MakeObservation(Subjects[0].ReferredToNames[0] + " is enveloped in a golden light, becoming stronger!", Color.Magenta, new EntityList<Entity>() { Subjects[0] });
+                                    MakeObservation(Subjects[0].ReferredToNames[0] + " is enveloped in a golden light, becoming stronger!", Color.Magenta, new List<Entity>() { Subjects[0] });
                                     ((Architect)Subjects[0]).Strength += 2;
                                 }
                                 else if (Shibe == 1)
                                 {
-                                    MakeObservation(Subjects[0].ReferredToNames[0] + " is enveloped in a white light, becoming more agile!", Color.Magenta, new EntityList<Entity>() { Subjects[0] });
+                                    MakeObservation(Subjects[0].ReferredToNames[0] + " is enveloped in a white light, becoming more agile!", Color.Magenta, new List<Entity>() { Subjects[0] });
                                     ((Architect)Subjects[0]).Agility += 2;
                                 }
                                 else if (Shibe == 2)
                                 {
-                                    MakeObservation(Subjects[0].ReferredToNames[0] + " is enveloped in a red light, becoming more durable!", Color.Magenta, new EntityList<Entity>() { Subjects[0] });
+                                    MakeObservation(Subjects[0].ReferredToNames[0] + " is enveloped in a red light, becoming more durable!", Color.Magenta, new List<Entity>() { Subjects[0] });
                                     ((Architect)Subjects[0]).MaxEnergyMod += 30;
                                     ((Architect)Subjects[0]).Energy = ((Architect)Subjects[0]).MaxEnergy();
                                 }
@@ -3009,30 +3009,30 @@ namespace Lightrealm
                         }
                         else
                         {
-                            MakeObservation("You aren't powerful enough to do that.", Color.Yellow, new EntityList<Entity>());
+                            MakeObservation("You aren't powerful enough to do that.", Color.Yellow, new List<Entity>());
                         }
                     }
                     else
                     {
-                        MakeObservation("I know you love slavery, but you can't augment humanoids or creatures you don't control.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("I know you love slavery, but you can't augment humanoids or creatures you don't control.", Color.Yellow, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You couldn't find anything augmentable like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find anything augmentable like that nearby.", Color.Yellow, new List<Entity>());
                 }
             }
             else if (CommandID == "raise_dead")
             {
                 if (Executor.PathOfDeathLevel < 2)
                 {
-                    MakeObservation("You don't know how to do that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Yellow, new List<Entity>());
                 }
                 else
                 {
                     Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
                     Executor.Energy -= Math.Max(0, 30 - Executor.PathOfDeathLevel);
-                    MakeObservation("You conjure a spark of dark energy, and speak the name of " + Subjects[0].ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You conjure a spark of dark energy, and speak the name of " + Subjects[0].ReferredToNames[0] + "...", Color.Purple, new List<Entity>() { Subjects[0] });
 
                     if (Subjects[0] is Architect architect)
                     {
@@ -3040,15 +3040,15 @@ namespace Lightrealm
 
                         if (architect.IsAlive)
                         {
-                            if (GamePlayerParty.Architects.Contains(architect))
+                            if (GameWorld.GamePlayerParty.Architects.Contains(architect))
                             {
-                                GamePlayerParty.Architects.Add(architect);
+                                GameWorld.GamePlayerParty.Architects.Add(architect);
                             }
                         }
                     }
                     else
                     {
-                        MakeObservation("...but nothing happens.", Color.Purple, new EntityList<Entity>());
+                        MakeObservation("...but nothing happens.", Color.Purple, new List<Entity>());
                     }
                 }
             }
@@ -3062,7 +3062,7 @@ namespace Lightrealm
                 {
                     if (Subjects[0] is Architect)
                     {
-                        Object o = new Object(null, "energy bolt", new EntityList<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
+                        Object o = new Object(null, "energy bolt", new List<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
                         o.AirborneTarget = Subjects[0];
                         o.Owner = Executor;
 
@@ -3075,16 +3075,16 @@ namespace Lightrealm
                             Executor.Block.Objects.Add(o);
                         }
 
-                        MakeObservation("You fire a spectral bolt at " + Subjects[0].ReferredToNames[0] + ".", Color.Cyan, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation("You fire a spectral bolt at " + Subjects[0].ReferredToNames[0] + ".", Color.Cyan, new List<Entity>() { Subjects[0] });
                     }
                     else
                     {
-                        MakeObservation("The spirit you pulled from " + GameWorld.DarkDeity.Name + "-knows-where only seeks the living and dead.", Color.Yellow, new EntityList<Entity>() { GameWorld.DarkDeity });
+                        MakeObservation("The spirit you pulled from " + GameWorld.DarkDeity.Name + "-knows-where only seeks the living and dead.", Color.Yellow, new List<Entity>() { GameWorld.DarkDeity });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Yellow, new List<Entity>());
                 }
             }
 
@@ -3101,23 +3101,23 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " increases in weight!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " increases in weight!", Color.Green, new List<Entity>() { Subjects[0] });
                             ((Object)Subjects[0]).Weight *= 2; // Adjust the weight increase as necessary
                             ((Object)Subjects[0]).RealityAugmented = true;
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3133,23 +3133,23 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " heats up!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " heats up!", Color.Green, new List<Entity>() { Subjects[0] });
                             ((Object)Subjects[0]).HeatInCelsius += 50; // Adjust the temperature increase as needed
                             ((Object)Subjects[0]).RealityAugmented = true;
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3167,23 +3167,23 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes more aerodynamic!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes more aerodynamic!", Color.Green, new List<Entity>() { Subjects[0] });
                             ((Object)Subjects[0]).ProjectileAerodynamic = true;
                             ((Object)Subjects[0]).RealityAugmented = true;
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3205,21 +3205,21 @@ namespace Lightrealm
                             ((Object)Subjects[0]).Integrity = ((Object)Subjects[0]).Integrity + 20; // Assuming each use increases integrity
                             ((Object)Subjects[0]).RealityAugmented = true;
 
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes more structurally sound!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes more structurally sound!", Color.Green, new List<Entity>() { Subjects[0] });
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augumented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augumented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3238,21 +3238,21 @@ namespace Lightrealm
                         {
                             ((Object)Subjects[0]).Weight /= 2; // Halve the weight
                             ((Object)Subjects[0]).RealityAugmented = true;
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " decreases in weight!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " decreases in weight!", Color.Green, new List<Entity>() { Subjects[0] });
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3270,21 +3270,21 @@ namespace Lightrealm
                         {
                             ((Object)Subjects[0]).HeatInCelsius -= 50; // Decrease the temperature by a balanced amount
                             ((Object)Subjects[0]).RealityAugmented = true;
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " cools down!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " cools down!", Color.Green, new List<Entity>() { Subjects[0] });
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3302,21 +3302,21 @@ namespace Lightrealm
                         {
                             ((Object)Subjects[0]).ProjectileAerodynamic = false; // Reverse the aerodynamic property
                             ((Object)Subjects[0]).RealityAugmented = true;
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes less aerodynamic!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes less aerodynamic!", Color.Green, new List<Entity>() { Subjects[0] });
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3334,21 +3334,21 @@ namespace Lightrealm
                         {
                             ((Object)Subjects[0]).Integrity = Math.Max(0, ((Object)Subjects[0]).Integrity - 20); // Decrease integrity, ensuring it doesn't go below 0
                             ((Object)Subjects[0]).RealityAugmented = true;
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes less structurally sound!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " becomes less structurally sound!", Color.Green, new List<Entity>() { Subjects[0] });
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " has already been reality augmented.", Color.Yellow, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " isn't an object.", Color.Green, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3363,7 +3363,7 @@ namespace Lightrealm
                 {
                     if (Subjects[0] is Object || Subjects[0] is Structure)
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " liquifies, and slowly seeps into the ground...", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " liquifies, and slowly seeps into the ground...", Color.Green, new List<Entity>() { Subjects[0] });
 
                         if (Subjects[0] is Structure)
                         {
@@ -3414,7 +3414,7 @@ namespace Lightrealm
 
                             if (!Success)
                             {
-                                EntityList<Object> NecessaryList = ((Object)Subjects[0]).Room != null ? ((Object)Subjects[0]).Room.Objects : ((Object)Subjects[0]).Block.Objects;
+                                List<Object> NecessaryList = ((Object)Subjects[0]).Room != null ? ((Object)Subjects[0]).Room.Objects : ((Object)Subjects[0]).Block.Objects;
 
                                 NecessaryList.Remove((Object)Subjects[0]);
                             }
@@ -3422,12 +3422,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0] + " is not a suitable target for liquification.", Color.Red, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(Subjects[0].ReferredToNames[0] + " is not a suitable target for liquification.", Color.Red, new List<Entity>() { Subjects[0] });
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3453,16 +3453,16 @@ namespace Lightrealm
                     {
                         if (Subjects[0] is Object currentObject)
                         {
-                            MakeObservation("You manifest spatial particles...", Color.Purple, new EntityList<Entity>());
+                            MakeObservation("You manifest spatial particles...", Color.Purple, new List<Entity>());
 
                             // Create clone of the current object
                             Object Clone = new Object
                             {
                                 Type = currentObject.Type,
-                                Materials = new EntityList<Material>(currentObject.Materials),
+                                Materials = new List<Material>(currentObject.Materials),
                                 Description = currentObject.Description,
                                 IsContainer = currentObject.IsContainer,
-                                ContainedObjects = new EntityList<Object>(currentObject.ContainedObjects),
+                                ContainedObjects = new List<Object>(currentObject.ContainedObjects),
                                 IfTrueUseInIfFalseUseOn = currentObject.IfTrueUseInIfFalseUseOn,
                                 YLevelInFeet = currentObject.YLevelInFeet,
                                 YVelocity = currentObject.YVelocity,
@@ -3517,24 +3517,24 @@ namespace Lightrealm
                                 Executor.Block.Objects.Add(Clone);
                             }
 
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " splits into two!", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " splits into two!", Color.Green, new List<Entity>() { Subjects[0] });
 
                             // Add the current date to the split dates list
                             Executor.SplitDates.Add(currentDate);
                         }
                         else
                         {
-                            MakeObservation(Subjects[0].ReferredToNames[0] + " is not an object and cannot be split.", Color.Red, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(Subjects[0].ReferredToNames[0] + " is not an object and cannot be split.", Color.Red, new List<Entity>() { Subjects[0] });
                         }
                     }
                     else
                     {
-                        MakeObservation("You can only split an object once per day.", Color.Red, new EntityList<Entity>());
+                        MakeObservation("You can only split an object once per day.", Color.Red, new List<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
 
@@ -3547,7 +3547,7 @@ namespace Lightrealm
 
                 if (Executor.PathOfRealityLevel >= 8)
                 {
-                    MakeObservation("You tear a rift in reality...", Color.Purple, new EntityList<Entity>());
+                    MakeObservation("You tear a rift in reality...", Color.Purple, new List<Entity>());
 
                     if (Subjects[0] == Executor.RealityBlipFocus)
                     {
@@ -3562,10 +3562,10 @@ namespace Lightrealm
                     switch (Executor.RealityFocusTries)
                     {
                         case 1:
-                            MakeObservation($"...and focus your reality-bending energy on {Subjects[0].Name}...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation($"...and focus your reality-bending energy on {Subjects[0].Name}...", Color.Purple, new List<Entity>() { Subjects[0] });
                             break;
                         case 2:
-                            MakeObservation($"...you feel a stronger connection to {Subjects[0].Name}'s essence...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation($"...you feel a stronger connection to {Subjects[0].Name}'s essence...", Color.Purple, new List<Entity>() { Subjects[0] });
                             break;
                         case 3:
                             // Perform the expunge-like deletion
@@ -3602,13 +3602,13 @@ namespace Lightrealm
 
                             Executor.Focus = 0; // Reset after successful expunge
                             Executor.RealityBlipFocus = null;
-                            MakeObservation($"... and blip {Subjects[0].Name} from reality!", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation($"... and blip {Subjects[0].Name} from reality!", Color.Purple, new List<Entity>() { Subjects[0] });
                             break;
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("You don't know how to do that.", Color.Red, new List<Entity>());
                 }
             }
             else if (CommandID == "use_skill")
@@ -3621,11 +3621,11 @@ namespace Lightrealm
 
                         if (Subjects[0].Metadata == "deflect")
                         {
-                            EntityList<Object> Objects = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                            List<Object> Objects = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
 
                             bool Success = false;
 
-                            MakeObservation("You enter a trance...", Color.LightCyan, new EntityList<Entity>());
+                            MakeObservation("You enter a trance...", Color.LightCyan, new List<Entity>());
 
                             foreach (Object o in Objects)
                             {
@@ -3634,7 +3634,7 @@ namespace Lightrealm
                                     Architect InitialThrower = o.Thrower;
                                     Architect InitialTarget = Executor;
 
-                                    MakeObservation("You deflect the " + o.ReferredToNames[0] + " back to " + o.Thrower.Name + "!", Color.LightCyan, new EntityList<Entity>() { o, o.Thrower });
+                                    MakeObservation("You deflect the " + o.ReferredToNames[0] + " back to " + o.Thrower.Name + "!", Color.LightCyan, new List<Entity>() { o, o.Thrower });
 
                                     o.Thrower = InitialTarget;
                                     o.AirborneTarget = InitialThrower;
@@ -3645,7 +3645,7 @@ namespace Lightrealm
 
                             if (!Success)
                             {
-                                MakeObservation("There is nothing to deflect!", Color.Yellow, new EntityList<Entity>());
+                                MakeObservation("There is nothing to deflect!", Color.Yellow, new List<Entity>());
                             }
                             else
                             {
@@ -3656,36 +3656,36 @@ namespace Lightrealm
                         {
                             if (Executor.CyclesSinceJump <= 30)
                             {
-                                MakeObservation("You prepare to dropkick. Quickly make an attack with a foot or leg.", Color.Yellow, new EntityList<Entity>());
+                                MakeObservation("You prepare to dropkick. Quickly make an attack with a foot or leg.", Color.Yellow, new List<Entity>());
                                 Executor.DropKickReady = true;
                                 Executor.UsedSkills.Add(Subjects[0]);
                             }
                             else
                             {
-                                MakeObservation("You need to have jumped in the last 3 seconds.", Color.Yellow, new EntityList<Entity>());
+                                MakeObservation("You need to have jumped in the last 3 seconds.", Color.Yellow, new List<Entity>());
                             }
                         }
                         else if (Subjects[0].Metadata == "double strike")
                         {
-                            MakeObservation("You prepare to double strike...", Color.LightCyan, new EntityList<Entity>());
+                            MakeObservation("You prepare to double strike...", Color.LightCyan, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.DoubleStrikeReady = true;
                         }
                         else if (Subjects[0].Metadata == "quick strike")
                         {
-                            MakeObservation("You prepare to quick strike...", Color.LightCyan, new EntityList<Entity>());
+                            MakeObservation("You prepare to quick strike...", Color.LightCyan, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.QuickStrikeReady = true;
                         }
                         else if (Subjects[0].Metadata == "severing strike")
                         {
-                            MakeObservation("You prepare to sever your foe...", Color.LightCyan, new EntityList<Entity>());
+                            MakeObservation("You prepare to sever your foe...", Color.LightCyan, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.SeveringStrikeReady = true;
                         }
                         else if (Subjects[0].Metadata == "backflip")
                         {
-                            MakeObservation("You backflip through the air!", Color.LightCyan, new EntityList<Entity>());
+                            MakeObservation("You backflip through the air!", Color.LightCyan, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.ReactionBoostCycles += 60;
                         }
@@ -3710,9 +3710,9 @@ namespace Lightrealm
                                 bool Success = false;
                                 int attempts = 0;
 
-                                while (!Success && attempts < directionOffsets.Count)
+                                while (!Success && attempts < directionOffsets.Count())
                                 {
-                                    var randomOffset = directionOffsets[random.Next(directionOffsets.Count)];
+                                    var randomOffset = directionOffsets[random.Next(directionOffsets.Count())];
                                     int newX = Executor.Block.X + randomOffset.dx;
                                     int newZ = Executor.Block.Z + randomOffset.dz;
 
@@ -3724,7 +3724,7 @@ namespace Lightrealm
                                         Executor.Block.Architects.Add(Executor);
                                         Success = true;
                                         Executor.UsedSkills.Add(Subjects[0]);
-                                        MakeObservation("You travel to an adjacent block instantaneously.", Color.Green, new EntityList<Entity>());
+                                        MakeObservation("You travel to an adjacent block instantaneously.", Color.Green, new List<Entity>());
                                     }
 
                                     attempts++;
@@ -3732,19 +3732,19 @@ namespace Lightrealm
 
                                 if (!Success)
                                 {
-                                    MakeObservation("You couldn't find a valid block to escape to.", Color.Yellow, new EntityList<Entity>());
+                                    MakeObservation("You couldn't find a valid block to escape to.", Color.Yellow, new List<Entity>());
                                 }
                             }
                             else
                             {
                                 // Inside, teleport through an adjacent door.
                                 bool Success = false;
-                                EntityList<Object> doors = Executor.Room.Objects.Where(o => o.Type == "door");
+                                List<Object> doors = Executor.Room.Objects.Where(o => o.Type == "door");
 
-                                if (doors.Count > 0)
+                                if (doors.Count() > 0)
                                 {
                                     Random random = new Random();
-                                    Object randomDoor = doors[random.Next(doors.Count)];
+                                    Object randomDoor = doors[random.Next(doors.Count())];
                                     if (randomDoor is Door door)
                                     {
                                         Executor.Room.Architects.Remove(Executor);
@@ -3752,7 +3752,7 @@ namespace Lightrealm
                                         Executor.Room.Architects.Add(Executor);
                                         Success = true;
                                         Executor.UsedSkills.Add(Subjects[0]);
-                                        MakeObservation("You dash through a door instantaneously.", Color.Green, new EntityList<Entity>());
+                                        MakeObservation("You dash through a door instantaneously.", Color.Green, new List<Entity>());
                                     }
                                 }
 
@@ -3766,48 +3766,48 @@ namespace Lightrealm
                                         Executor.Room = null;
                                         Executor.Block.Architects.Add(Executor);
                                         Executor.UsedSkills.Add(Subjects[0]);
-                                        MakeObservation("You dash out the exit door instantaneously.", Color.Green, new EntityList<Entity>());
+                                        MakeObservation("You dash out the exit door instantaneously.", Color.Green, new List<Entity>());
                                     }
                                     else
                                     {
-                                        MakeObservation("There is not a door to escape through.", Color.Yellow, new EntityList<Entity>());
+                                        MakeObservation("There is not a door to escape through.", Color.Yellow, new List<Entity>());
                                     }
                                 }
                             }
                         }
                         else if (Subjects[0].Metadata == "finale")
                         {
-                            MakeObservation("You prepare a final blow...", Color.Green, new EntityList<Entity>());
+                            MakeObservation("You prepare a final blow...", Color.Green, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.FinaleReady = true;
                         }
                         else if (Subjects[0].Metadata == "concentration")
                         {
-                            MakeObservation("You concentrate, gaining more focus.", Color.Green, new EntityList<Entity>());
+                            MakeObservation("You concentrate, gaining more focus.", Color.Green, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.ExtraFocusTicks = 300;
                         }
                         else if (Subjects[0].Metadata == "body slam")
                         {
-                            MakeObservation("You prepare to body slam...", Color.Green, new EntityList<Entity>());
+                            MakeObservation("You prepare to body slam...", Color.Green, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.BodySlamReady = true;
                         }
                         else if (Subjects[0].Metadata == "leg sweep")
                         {
-                            MakeObservation("You prepare to leg sweep...", Color.Green, new EntityList<Entity>());
+                            MakeObservation("You prepare to leg sweep...", Color.Green, new List<Entity>());
                             Executor.UsedSkills.Add(Subjects[0]);
                             Executor.LegSweepReady = true;
                         }
                     }
                     else
                     {
-                        MakeObservation("You've already used that skill at this location, and " + Executor.Name + " is bored of it.", Color.Yellow, new EntityList<Entity>() { Executor });
+                        MakeObservation("You've already used that skill at this location, and " + Executor.Name + " is bored of it.", Color.Yellow, new List<Entity>() { Executor });
                     }
                 }
                 else
                 {
-                    MakeObservation("That either isn't a skill, or you don't know the skill.", Color.OrangeRed, new EntityList<Entity>());
+                    MakeObservation("That either isn't a skill, or you don't know the skill.", Color.OrangeRed, new List<Entity>());
                 }
             }
             else
@@ -3832,7 +3832,7 @@ namespace Lightrealm
                     fileStream.Write(failedCommandBytes, 0, failedCommandBytes.Length);
                 }
 
-                MakeObservation(observationMessage, Color.Goldenrod, new EntityList<Entity>());
+                MakeObservation(observationMessage, Color.Goldenrod, new List<Entity>());
 
                 return false;
             }
@@ -3845,7 +3845,7 @@ namespace Lightrealm
         }
 
         
-        public static void SendMessage(string MessageID, Architect Sender, Architect Receiver, EntityList<Entity> Subjects, World GameWorld)
+        public static void SendMessage(string MessageID, Architect Sender, Architect Receiver, List<Entity> Subjects, World GameWorld)
         {
             Message DecidedMessage = null;
 
@@ -3898,21 +3898,21 @@ namespace Lightrealm
             string GetRandomLocation()
             {
                 Random rnd = new Random();
-                var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
+                var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
                 return randomLocation.Name;
             }
 
             string GetRandomDistrict(Location location)
             {
                 Random rnd = new Random();
-                var randomDistrict = location.Districts[rnd.Next(location.Districts.Count)];
+                var randomDistrict = location.Districts[rnd.Next(location.Districts.Count())];
                 return randomDistrict.Name;
             }
 
             string GetRandomStructure(Location location)
             {
                 Random rnd = new Random();
-                var randomStructure = location.AllStructures[rnd.Next(location.AllStructures.Count)];
+                var randomStructure = location.AllStructures[rnd.Next(location.AllStructures.Count())];
                 return randomStructure.Name;
             }
 
@@ -3928,7 +3928,7 @@ namespace Lightrealm
                     (!GameWorld.HumanoidRaces.Contains(((Architect)Receiver).Race) &&
                     !GameWorld.ExtraRaces.Contains(((Architect)Receiver).Race))))
             {
-                Sender.AnnounceToParty(Receiver.ReferredToNames[0] + " cannot understand you.", Color.Yellow, new EntityList<Entity>() { Receiver });
+                Sender.AnnounceToParty(Receiver.ReferredToNames[0] + " cannot understand you.", Color.Yellow, new List<Entity>() { Receiver });
             }
             else
             {
@@ -4063,8 +4063,8 @@ namespace Lightrealm
                                     if (location.AllStructures.Any(s => s.HistoricalObjects.Contains(obj)))
                                     {
                                         Random rnd = new Random();
-                                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
-                                        var randomDistrict = randomLocation.Districts[rnd.Next(randomLocation.Districts.Count)];
+                                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
+                                        var randomDistrict = randomLocation.Districts[rnd.Next(randomLocation.Districts.Count())];
                                         string mapUpdated = "";
 
                                         if (Sender.Location != location)
@@ -4419,7 +4419,7 @@ namespace Lightrealm
 
                         // Generate a made-up response
                         Random rnd = new Random();
-                        var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count)];
+                        var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count())];
                         string randomGenderName = randomArchitect.Age > 16 ? (randomArchitect.Sex == "male" ? "man" : "woman") : (randomArchitect.Sex == "male" ? "boy" : "girl");
                         string randomLocationName = randomArchitect.Location != null ? randomArchitect.Location.Name : "unknown location";
                         madeUpResponse = $"{randomArchitect.Name} is a {randomArchitect.Age}-year-old {randomGenderName} from {randomLocationName}, working as a {randomArchitect.Profession}.";
@@ -4430,7 +4430,7 @@ namespace Lightrealm
 
                         // Generate a made-up response
                         Random rnd = new Random();
-                        var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count)];
+                        var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count())];
                         string randomGenderName = randomArchitect.Age > 16 ? (randomArchitect.Sex == "male" ? "man" : "woman") : (randomArchitect.Sex == "male" ? "boy" : "girl");
                         string randomLocationName = randomArchitect.Location != null ? randomArchitect.Location.Name : "unknown location";
                         madeUpResponse = $"{randomArchitect.Name} is a {randomArchitect.Age}-year-old {randomGenderName} from {randomLocationName}, working as a {randomArchitect.Profession}.";
@@ -4461,7 +4461,7 @@ namespace Lightrealm
                     {
                         string truthfulGovernment = Sender.Location.Government.Name;
                         Random rnd = new Random();
-                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
+                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
                         string madeUpGovernment = randomLocation.Government.Name;
 
                         DecidedMessage = new Message
@@ -4478,7 +4478,7 @@ namespace Lightrealm
                     else
                     {
                         Random rnd = new Random();
-                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
+                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
                         string madeUpGovernment = randomLocation.Government.Name;
 
                         DecidedMessage = new Message
@@ -4615,9 +4615,9 @@ namespace Lightrealm
 
                         // Generate a made-up response
                         Random rnd = new Random();
-                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
-                        var randomStructure = randomLocation.AllStructures[rnd.Next(randomLocation.AllStructures.Count)];
-                        var randomEvent = GameWorld.HistoricalEvents[rnd.Next(GameWorld.HistoricalEvents.Count)];
+                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
+                        var randomStructure = randomLocation.AllStructures[rnd.Next(randomLocation.AllStructures.Count())];
+                        var randomEvent = GameWorld.HistoricalEvents[rnd.Next(GameWorld.HistoricalEvents.Count())];
                         madeUpResponse = $"You are in {currentStructure.Name}. {randomEvent}";
                     }
                     else
@@ -4657,8 +4657,8 @@ namespace Lightrealm
 
                         // Generate a made-up response
                         Random rnd = new Random();
-                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
-                        var randomEvent = GameWorld.HistoricalEvents[rnd.Next(GameWorld.HistoricalEvents.Count)];
+                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
+                        var randomEvent = GameWorld.HistoricalEvents[rnd.Next(GameWorld.HistoricalEvents.Count())];
                         madeUpResponse = $"You are in {randomLocation.Name}. {randomEvent}";
                     }
                     else
@@ -4687,7 +4687,7 @@ namespace Lightrealm
 
                     // Generate a made-up response
                     Random rnd = new Random();
-                    var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count)];
+                    var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count())];
                     madeUpResponse = $"I am a {randomArchitect.Profession}.";
 
                     DecidedMessage = new Message
@@ -4826,7 +4826,7 @@ namespace Lightrealm
                         Random rnd = new Random();
 
                         // Select a random body part from the architect
-                        var randomBodyPart = architect.BodyParts[rnd.Next(architect.BodyParts.Count)];
+                        var randomBodyPart = architect.BodyParts[rnd.Next(architect.BodyParts.Count())];
 
                         // Determine the condition of the selected body part
                         string condition;
@@ -4864,7 +4864,7 @@ namespace Lightrealm
                         var healthReport = new StringBuilder();
 
                         // Randomly select a body part from the architect
-                        var randomBodyPart = architect.BodyParts[rnd.Next(architect.BodyParts.Count)];
+                        var randomBodyPart = architect.BodyParts[rnd.Next(architect.BodyParts.Count())];
 
                         // Generate a random integrity value with a bias towards higher numbers
                         int biasedRandomInt(int min, int max)
@@ -4931,21 +4931,21 @@ namespace Lightrealm
                     string flatteringResponse = "You arrived here.";
 
                     // Get the latest 5 (or fewer) events at the current location
-                    var latestEvents = Sender.Location.LocationHistoricalEvents.TakeLast(5).ToList();
+                    List<string> latestEvents = Sender.Location.LocationHistoricalEvents.TakeLast(5).ToList();
 
-                    if (latestEvents.Count > 0)
+                    if (latestEvents.Count() > 0)
                     {
                         Random rnd = new Random();
-                        var randomEvent = latestEvents[rnd.Next(latestEvents.Count)];
+                        var randomEvent = latestEvents[rnd.Next(latestEvents.Count())];
                         truthfulResponse = $"Recently, {randomEvent}";
 
                         // Generate a made-up response
-                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
-                        var randomLocationEvents = randomLocation.LocationHistoricalEvents.TakeLast(5).ToList();
+                        var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
+                        List<string> randomLocationEvents = (List<string>)randomLocation.LocationHistoricalEvents.TakeLast(5);
 
-                        if (randomLocationEvents.Count > 0)
+                        if (randomLocationEvents.Count() > 0)
                         {
-                            var randomMadeUpEvent = randomLocationEvents[rnd.Next(randomLocationEvents.Count)];
+                            var randomMadeUpEvent = randomLocationEvents[rnd.Next(randomLocationEvents.Count())];
                             madeUpResponse = $"Recently, {randomMadeUpEvent} at {randomLocation.Name}.";
                         }
                         else
@@ -5004,9 +5004,9 @@ namespace Lightrealm
                             string year = e.Substring(yearStart, yearEnd - yearStart);
                             return $"In {year}, {processedEvent}";
                         })
-                        .ToList();
+                        ;
 
-                    if (events.Count > 0)
+                    if (events.Count() > 0)
                     {
                         truthfulResponse = string.Join(" ", events);
                     }
@@ -5017,7 +5017,7 @@ namespace Lightrealm
 
                     // Generate a made-up response
                     Random rnd = new Random();
-                    var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count)];
+                    var randomArchitect = GameWorld.AllArchitects[rnd.Next(GameWorld.AllArchitects.Count())];
                     var randomEvents = GameWorld.HistoricalEvents
                         .Where(e => e.Contains(randomArchitect.Name))
                         .TakeLast(5)
@@ -5031,9 +5031,9 @@ namespace Lightrealm
                             string year = e.Substring(yearStart, yearEnd - yearStart);
                             return $"In {year}, {processedEvent}";
                         })
-                        .ToList();
+                        ;
 
-                    if (randomEvents.Count > 0)
+                    if (randomEvents.Count() > 0)
                     {
                         madeUpResponse = string.Join(" ", randomEvents);
                     }
@@ -5072,9 +5072,9 @@ namespace Lightrealm
                             string year = e.Substring(yearStart, yearEnd - yearStart);
                             return $"In {year}, {processedEvent}";
                         })
-                        .ToList();
+                        ;
 
-                    if (events.Count > 0)
+                    if (events.Count() > 0)
                     {
                         truthfulResponse = string.Join(" ", events);
                     }
@@ -5085,7 +5085,7 @@ namespace Lightrealm
 
                     // Generate a made-up response
                     Random rnd = new Random();
-                    var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count)];
+                    var randomLocation = GameWorld.AllLocations[rnd.Next(GameWorld.AllLocations.Count())];
                     var randomEvents = GameWorld.HistoricalEvents
                         .Where(e => e.Contains(randomLocation.Name))
                         .TakeLast(5)
@@ -5098,9 +5098,9 @@ namespace Lightrealm
                             string year = e.Substring(yearStart, yearEnd - yearStart);
                             return $"In {year}, {processedEvent}";
                         })
-                        .ToList();
+                        ;
 
-                    if (randomEvents.Count > 0)
+                    if (randomEvents.Count() > 0)
                     {
                         madeUpResponse = string.Join(" ", randomEvents);
                     }
@@ -5168,7 +5168,7 @@ namespace Lightrealm
                     string derailingResponse = "";
 
                     // Determine the receiver's highest proficiency
-                    if (Receiver.XPValues.Count > 0)
+                    if (Receiver.XPValues.Count() > 0)
                     {
                         var highestProficiency = Receiver.XPValues.OrderByDescending(xp => xp.Item2).First();
                         truthfulResponse = $"I am very interested in {highestProficiency.Item1}.";
@@ -5180,11 +5180,11 @@ namespace Lightrealm
 
                     // Generate a made-up response
                     Random rnd = new Random();
-                    var randomProficiency = Receiver.XPValues.Count > 0 ? Receiver.XPValues[rnd.Next(Receiver.XPValues.Count)] : ("alchemy", rnd.Next(1, 101));
+                    var randomProficiency = Receiver.XPValues.Count() > 0 ? Receiver.XPValues[rnd.Next(Receiver.XPValues.Count())] : ("alchemy", rnd.Next(1, 101));
                     madeUpResponse = $"I am very interested in {randomProficiency.Item1}.";
 
                     // Determine the sender's lowest proficiency
-                    if (Sender.XPValues.Count > 0)
+                    if (Sender.XPValues.Count() > 0)
                     {
                         var lowestProficiency = Sender.XPValues.OrderBy(xp => xp.Item2).First();
                         derailingResponse = $"I can't help but notice how abysmal your {lowestProficiency.Item1} is.";
@@ -5250,7 +5250,7 @@ namespace Lightrealm
                         })
                         .FirstOrDefault();
 
-                    EntityList<Location> StoredReveal = new EntityList<Location>();
+                    List<Location> StoredReveal = new List<Location>();
 
                     if (nearestLocation != null)
                     {
@@ -5317,7 +5317,7 @@ namespace Lightrealm
 
                     string PickRandomAdvice()
                     {
-                        int index = Game1.r.Next(adviceList.Count);
+                        int index = Game1.r.Next(adviceList.Count());
                         string advice = adviceList[index].Replace("X", subjectName);
                         adviceList.RemoveAt(index);
                         return advice;
@@ -5394,10 +5394,10 @@ namespace Lightrealm
                             string year = e.Substring(yearStart, yearEnd - yearStart);
                             return $"In {year}, {processedEvent}";
                         })
-                        .ToList();
+                        ;
 
                     string content;
-                    if (events.Count > 0)
+                    if (events.Count() > 0)
                     {
                         content = introduction + " " + string.Join(" ", events);
                     }
@@ -5431,13 +5431,13 @@ namespace Lightrealm
                         "Your creativity is a beautiful thing."
                     };
 
-                    if(Receiver.Clothing.Count > 0)
+                    if(Receiver.Clothing.Count() > 0)
                     {
-                        compliments.Add("Your " + Receiver.Clothing[Game1.r.Next(Receiver.Clothing.Count)].Type + " looks very nice.");
+                        compliments.Add("Your " + Receiver.Clothing[Game1.r.Next(Receiver.Clothing.Count())].Type + " looks very nice.");
                     }
 
                     Random rnd = new Random();
-                    string randomCompliment = compliments[rnd.Next(compliments.Count)];
+                    string randomCompliment = compliments[rnd.Next(compliments.Count())];
 
                     DecidedMessage = new Message
                     (
@@ -5466,7 +5466,7 @@ namespace Lightrealm
                     };
 
                     Random rnd = new Random();
-                    string randomInsult = insults[rnd.Next(insults.Count)];
+                    string randomInsult = insults[rnd.Next(insults.Count())];
 
                     DecidedMessage = new Message
                     (
@@ -5534,7 +5534,7 @@ namespace Lightrealm
 
                     Color c;
 
-                    if(Game1.GamePlayerParty.Architects.Contains(Sender) || Game1.GamePlayerParty.Architects.Contains(Receiver))
+                    if(Game1.GameWorld.GamePlayerParty.Architects.Contains(Sender) || Game1.GameWorld.GamePlayerParty.Architects.Contains(Receiver))
                     {
                         c = new Color(0, 255, 255);
                     }
@@ -5543,7 +5543,7 @@ namespace Lightrealm
                         c = new Color(0, 75, 75);
                     }
 
-                    Sender.AnnounceToParty(Sender.ReferredToNames[0] + ": " + DecidedMessage.MessageContent, c, new EntityList<Entity> { Sender }.Union(DecidedMessage.Subjects));
+                    Sender.AnnounceToParty(Sender.ReferredToNames[0] + ": " + DecidedMessage.MessageContent, c, new List<Entity> { Sender }.Union(DecidedMessage.Subjects));
                     Sender.CooldownCycles += (int)Math.Round(30 / Sender.Speed());
                 }
             }

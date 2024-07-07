@@ -16,6 +16,7 @@ namespace Lightrealm
         private List<string> _referredToNames = new List<string>();
 
         public string Metadata;
+        public string EntityType { get; set; }
 
         public static T EntityGet<T>(int entityId) where T : Entity
         {
@@ -26,7 +27,7 @@ namespace Lightrealm
 
             Entity entity = null;
 
-            if (Game1.GameWorld == null || Game1.GameWorld.AllEntities == null)
+            if (Game1.GameWorld == null || Game1.EntityLedger == null)
             {
                 if (Game1.TemporaryEntities.ContainsKey(entityId))
                 {
@@ -35,9 +36,9 @@ namespace Lightrealm
             }
             else
             {
-                if (Game1.GameWorld.AllEntities.ContainsKey(entityId))
+                if (Game1.EntityLedger.ContainsKey(entityId))
                 {
-                    entity = Game1.GameWorld.AllEntities[entityId];
+                    entity = Game1.EntityLedger[entityId];
                 }
             }
 
@@ -56,9 +57,6 @@ namespace Lightrealm
             }
         }
 
-
-
-
         [NonSerialized]
         public Rectangle Hitbox = new Rectangle();
 
@@ -66,11 +64,11 @@ namespace Lightrealm
         {
             get
             {
-                if (_referredToNames.Count == 0)
+                if (_referredToNames.Count() == 0)
                 {
                     if (this is Object && Name == null)
                     {
-                        return new List<string> { Game1.FormatMaterialList(((Object)this).Materials) + " " + ((Object)this).Type };
+                        return new List<string> { Game1.FormatMaterialList(((Object)this).Materials) + " " + ((Object)this).EntityType };
                     }
                     else if (Name != null)
                     {
@@ -103,15 +101,15 @@ namespace Lightrealm
             _referredToNames.Clear();
         }
 
-
-
         public Entity()
         {
+            EntityType = GetType().Name;
+
             if (Game1.GameWorld != null)
             {
                 ID = Game1.GameWorld.NextUniqueID;
                 Game1.GameWorld.NextUniqueID++;
-                Game1.GameWorld.AllEntities.Add(ID, this);
+                Game1.EntityLedger.Add(ID, this);
             }
             else
             {
@@ -120,17 +118,20 @@ namespace Lightrealm
                 Game1.TemporaryEntities.Add(ID, this);
             }
         }
+
         public Entity(string metadata)
         {
             Metadata = metadata;
             Name = metadata;
             AddReferredToName(Name);
 
+            EntityType = GetType().Name;
+
             if (Game1.GameWorld != null)
             {
                 ID = Game1.GameWorld.NextUniqueID;
                 Game1.GameWorld.NextUniqueID++;
-                Game1.GameWorld.AllEntities.Add(ID, this);
+                Game1.EntityLedger.Add(ID, this);
             }
             else
             {

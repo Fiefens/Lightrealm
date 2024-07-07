@@ -17,7 +17,7 @@ namespace Lightrealm
         public string GUID { get; set; }
 
         private int _ownerId;
-        [JsonIgnore]
+        
         public Entity Owner
         {
             get => EntityGet<Entity>(_ownerId);
@@ -26,11 +26,11 @@ namespace Lightrealm
 
         public string FakeIsofractalColor { get; set; }
 
-        public EntityList<Room> Rooms { get; set; } = new EntityList<Room>();
+        public List<Room> Rooms { get; set; } = new List<Room>();
 
-        public EntityList<Object> HistoricalObjects { get; set; } = new EntityList<Object>();
+        public List<Object> HistoricalObjects { get; set; } = new List<Object>();
 
-        public EntityList<Material> Materials { get; set; } = new EntityList<Material>();
+        public List<Material> Materials { get; set; } = new List<Material>();
 
         public List<string> PrimarySmells { get; set; } = new List<string>();
         public List<string> LightingMethods { get; set; } = new List<string>();
@@ -50,7 +50,7 @@ namespace Lightrealm
         public int MarketDebt { get; set; } = 0;
 
         private int _prayingDeityId;
-        [JsonIgnore]
+        
         public Deity PrayingDeity
         {
             get => EntityGet<Deity>(_prayingDeityId);
@@ -58,7 +58,7 @@ namespace Lightrealm
         }
 
         private int _blockId;
-        [JsonIgnore]
+        
         public Block Block
         {
             get => EntityGet<Block>(_blockId);
@@ -68,13 +68,13 @@ namespace Lightrealm
         public int XInDistrict { get; set; }
         public int ZInDistrict { get; set; }
 
-        public Structure(string type, EntityList<Object> Objects, EntityList<Room> rooms, Block block, EntityList<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
+        public Structure(string type, List<Object> Objects, List<Room> rooms, Block block, List<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
         {
             Type = type;
 
             if(type != "core")
             {
-                FakeIsofractalColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count)];
+                FakeIsofractalColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count())];
             }
             else
             {
@@ -95,7 +95,7 @@ namespace Lightrealm
             }
             else
             {
-                Name = Block.District.Location.Region.World.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s 1S" + (Game1.r.Next(2, 4)) + "s", this);
+                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s 1S" + (Game1.r.Next(2, 4)) + "s", this);
             }
 
             if(type == "shrine")
@@ -130,7 +130,7 @@ namespace Lightrealm
 
             if (Type == "house" || Type == "bighouse")
             {
-                int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "bighouse");
+                int count = Block.Structures.Count()(s => s.Type == "house" || s.Type == "bighouse");
 
                 AddReferredToName("house " + (count + 1).ToString());
             }
@@ -140,11 +140,11 @@ namespace Lightrealm
 
         public string GetRoomStructure()
         {
-            var graph = new Dictionary<Room, EntityList<Room>>();
+            var graph = new Dictionary<Room, List<Room>>();
             foreach (Room room in Rooms)
             {
                 // Initialize the adjacency list for each room
-                graph[room] = new EntityList<Room>();
+                graph[room] = new List<Room>();
             }
 
             // Map door connections to room-to-room connections
@@ -209,7 +209,7 @@ namespace Lightrealm
             int hallwayCount = 0;
             foreach (var room in Rooms)
             {
-                var horizontalDoors = room.Objects.OfType<Door>().Count(door => Door.OrthogonalDoorDirections.Contains(door.Direction));
+                var horizontalDoors = room.Objects.OfType<Door>().Count()(door => Door.OrthogonalDoorDirections.Contains(door.Direction));
                 if (horizontalDoors == 1)
                 {
                     // Assuming a hallway if a room has exactly one horizontal door (leading to another room in a linear fashion)
@@ -224,7 +224,7 @@ namespace Lightrealm
 
             // Detect balconies or overhanging rooms
             // Simplified check: Any room with a single 'down' door could be considered as a balcony or overhang
-            int balconyCount = Rooms.Count(room => room.Objects.OfType<Door>().Count(door => door.Direction == "down") == 1);
+            int balconyCount = Rooms.Count()(room => room.Objects.OfType<Door>().Count()(door => door.Direction == "down") == 1);
             if (balconyCount > 0) description += "a balcony or overhanging areas, ";
 
             description = description.TrimEnd(',', ' ') + ".";
@@ -245,7 +245,7 @@ namespace Lightrealm
 
             // Select a random introduction
             Random rnd = new Random();
-            string introduction = introductions[rnd.Next(introductions.Count)];
+            string introduction = introductions[rnd.Next(introductions.Count())];
 
             string description = introduction + " ";
 
@@ -271,31 +271,31 @@ namespace Lightrealm
             string sizeDescription = "";
             if (verticalRoomsCount > directionalRoomsCount)
             {
-                if (Rooms.Count < 5)
+                if (Rooms.Count() < 5)
                     sizeDescription = "short";
-                else if (Rooms.Count < 10)
+                else if (Rooms.Count() < 10)
                     sizeDescription = "tall";
-                else if (Rooms.Count < 20)
+                else if (Rooms.Count() < 20)
                     sizeDescription = "towering";
                 else
                     sizeDescription = "skyscraping";
             }
             else
             {
-                if (Rooms.Count < 3)
+                if (Rooms.Count() < 3)
                     sizeDescription = "quite small";
-                else if (Rooms.Count < 5)
+                else if (Rooms.Count() < 5)
                     sizeDescription = "averagely sized";
-                else if (Rooms.Count < 10)
+                else if (Rooms.Count() < 10)
                     sizeDescription = "fairly large";
-                else if (Rooms.Count < 20)
+                else if (Rooms.Count() < 20)
                     sizeDescription = "very expansive";
                 else
                     sizeDescription = "absolutely monumental";
             }
 
             // Describe lighting
-            string lightingDescription = LightingMethods.Count > 0 ? $"lit by {String.Join(", ", LightingMethods)}" : "";
+            string lightingDescription = LightingMethods.Count() > 0 ? $"lit by {String.Join(", ", LightingMethods)}" : "";
 
             // Describe age
             string ageDescription;
