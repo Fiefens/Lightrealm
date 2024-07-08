@@ -65,6 +65,7 @@ namespace Lightrealm
 
         public List<string> LocationHistoricalEvents { get; set; } = new List<string>();
         public int Wealth { get; set; } // value is measured in Shobes, an arbitrary unit
+        public int PassiveStructuralIncome { get; set; } // value is measured in Shobes, an arbitrary unit
 
         private int _homeCivilizationId;
         

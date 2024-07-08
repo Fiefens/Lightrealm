@@ -38,7 +38,7 @@ namespace Lightrealm
             Game1.Announcements.Add(new TextStorage(capitalizedData, color, entities));
         }
 
-        public static bool RunCommand(Architect Executor, string CommandID, EntityList<Entity> Subjects, EntityList<Architect> LoadedArchitects, World GameWorld, Random r, Party GamePlayerParty, string OriginalCommand)
+        public static bool RunCommand(Architect Executor, string CommandID, List<Entity> Subjects, List<Architect> LoadedArchitects, World GameWorld, Random r, Party GamePlayerParty, string OriginalCommand)
         {
             //replace inside command pronouns
             int Month = ((int)Math.Round((decimal)(GameWorld.Cycle / 24192000)) % 12) + 1;
@@ -50,7 +50,7 @@ namespace Lightrealm
 
             if (Subjects == null)
             {
-                Subjects = new EntityList<Entity>();
+                Subjects = new List<Entity>();
             }
 
             EntityList<Architect> ArchitectsToUse;
@@ -95,7 +95,7 @@ namespace Lightrealm
 
                 Subjects.RemoveAt(0);
 
-                SendMessage(CommandID, Executor, Reciever, Subjects, GameWorld);
+                SendMessage(CommandID, Executor, Reciever, new EntityList<Entity>(Subjects), GameWorld);
 
             }
             else if (CommandID == "leave_structure")

@@ -3826,37 +3826,18 @@ namespace Lightrealm
 
                     if (SettlementTypes.Contains(location.Type))
                     {
+                        //passive structural income :O
+
+                        WealthIncrease += location.PassiveStructuralIncome;
+                        
                         foreach (District d in location.Districts)
                         {
-                            for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                            {
-                                for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                                {
-                                    foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
-                                    {
-                                        if (s.Type == "forge")
-                                        {
-                                            WealthIncrease += 1;
-                                        }
-                                        else if (s.Type == "market")
-                                        {
-                                            WealthIncrease += 2;
-                                        }
-                                    }
-                                }
-                            }
-
-                            //establish an industry and do industry things :O
-
-                            if (d.Industry == null && (location.Type == "village" || location.Type == "town" || location.Type == "city"))
+                            if (d.Industry == null && location.Type != "camp")
                             {
                                 d.Industry = Game1.Industries[r.Next(Game1.Industries.Count())];
                                 HistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
                                 location.LocationHistoricalEvents.Add(string.Concat(d.Name, " in ", location.Name, " dedicated themselves to the industry of ", d.Industry, "."));
                             }
-
-                            //foreach district with an industry, use it to increase the capitol's wealth bwzhaaahahahahahahahahahaaaa just kidding its actually the location that theyre based around
-
                             if (d.Industry != null && r.Next(1, 20) == 1)
                             {
                                 d.SupplyLocation(1);
@@ -4807,18 +4788,6 @@ namespace Lightrealm
 
 
 
-                        foreach (Structure s in location.AllStructures)
-                        {
-                            if (s.Type == "forge")
-                            {
-                                WealthIncrease += 1;
-                            }
-                            else if (s.Type == "market")
-                            {
-                                WealthIncrease += 2;
-                            }
-                        }
-
                         //ok so THIS stuff is all gonna happen once per district
 
                         //Handle the creation of a Group
@@ -5461,6 +5430,7 @@ namespace Lightrealm
                                             Windows = Game1.r.Next(0, 2);
                                             Materials.Add(location.HomeCivilization.CulturalWood);
                                             location.Wealth = location.Wealth - 2500;
+                                            location.PassiveStructuralIncome += 1;
                                         }
                                         else if (BuildingDecider < 22)
                                         {
@@ -5468,6 +5438,7 @@ namespace Lightrealm
                                             Windows = Game1.r.Next(0, 2);
                                             Materials.Add(location.HomeCivilization.CulturalStone);
                                             location.Wealth = location.Wealth - 3000;
+                                            location.PassiveStructuralIncome += 1;
                                         }
                                         else if (BuildingDecider < 23)
                                         {
@@ -5484,6 +5455,7 @@ namespace Lightrealm
                                             Materials.Add(location.HomeCivilization.CulturalWood);
                                             Materials.Add(location.HomeCivilization.CulturalCloth);
                                             location.Wealth = location.Wealth - 2500;
+                                            location.PassiveStructuralIncome += 2;
                                         }
                                         else
                                         {

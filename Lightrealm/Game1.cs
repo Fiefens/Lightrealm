@@ -49,12 +49,8 @@ namespace Lightrealm
             }
 
             int index = r.Next(set.Count);
-            var enumerator = set.GetEnumerator();
-            for (int i = 0; i <= index; i++)
-            {
-                enumerator.MoveNext();
-            }
-            return enumerator.Current;
+            var entity = set.ElementAt(index);
+            return entity;
         }
 
         public static void Shuffle<T>(IList<T> list)
@@ -178,7 +174,7 @@ namespace Lightrealm
 
         public static List<string> ReqExploreLocations = new List<string>() { "fortress", "monument", "tower", "stronghold" };
 
-        public static EntityList<Entity> ThisList = new EntityList<Entity>();
+        public static List<Entity> ThisList = new List<Entity>();
 
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -191,13 +187,13 @@ namespace Lightrealm
         public static bool SimplifiedFont;
         public static bool SpeedWorldGen;
 
-        public static EntityList<Material> MaterialsToAddToWorld = new EntityList<Material>();
+        public static List<Material> MaterialsToAddToWorld = new List<Material>();
 
         public int LatestTraveledDay { get; set; }
 
-        public static EntityList<Entity> CollectAllSubjects(Architect executor, string Modifier)
+        public static List<Entity> CollectAllSubjects(Architect executor, string Modifier)
         {
-            EntityList<Entity> subjects = new EntityList<Entity>();
+            List<Entity> subjects = new List<Entity>();
 
             // Entities around
             foreach (Block b in executor.District.DistrictMap)
@@ -219,7 +215,7 @@ namespace Lightrealm
             subjects.AddRange(LoadedArchitects);
 
             // Add the items in the inventories of people who actually matter
-            EntityList<Entity> subjectsToAdd = new EntityList<Entity>();
+            List<Entity> subjectsToAdd = new List<Entity>();
 
             foreach (Entity e in subjects)
             {
@@ -336,7 +332,7 @@ namespace Lightrealm
             subjects.Add(GameWorld);
 
             // Collect the objects hiding inside containers
-            EntityList<Entity> allObjects = new EntityList<Entity>();
+            List<Entity> allObjects = new List<Entity>();
 
             // Method to recursively retrieve all objects
             void RetrieveAllObjects(Object obj)
@@ -369,7 +365,7 @@ namespace Lightrealm
 
 
 
-        public static EntityList<Entity> AllSubjects = new EntityList<Entity>();
+        public static List<Entity> AllSubjects = new List<Entity>();
 
         public static Dictionary<string, string> CalamityIdeologicalObsessionMapping = new Dictionary<string, string>()
         {
@@ -420,14 +416,14 @@ namespace Lightrealm
 
         public static int CurrentSubjectIndex = 0;
         public static string SelectedCommand = "";
-        public static EntityList<Entity> RelevantEntities = new EntityList<Entity>();
-        public static EntityList<Entity> SelectedEntities = new EntityList<Entity>();
+        public static List<Entity> RelevantEntities = new List<Entity>();
+        public static List<Entity> SelectedEntities = new List<Entity>();
         public static Dictionary<string, string[]> CommandIDToCategory = new Dictionary<string, string[]>();
 
 
         public static List<string> ThreatTypes = new List<string>() { "non-cataclysmic", "random", "dominator", "purifier", "disease", "killer", "kidnapper", "corruptor", "diplomancer", "inciter", "power" };
 
-        public static int CurrentlySelectedWorldAge = 250; //100, 150, 200, 250 (recommended), 300, 350, 400, 450, 500, Until Stopped
+        public static int CurrentlySelectedWorldAge = 200; //100, 150, 200 (recommended), 250, 300, 350, 400, 450, 500, Until Stopped
         public static int CurrentlySelectedGrievanceType = 0;
         public static int NumberOfCivilizations = 16; //maximum is 16, minimum is 6. Subtract 4 before calculation.
         public static double ProsperityMultiplier = 1; //determines wealth increase, aka general flourishing
@@ -533,8 +529,8 @@ namespace Lightrealm
         public static int NameOpacity = 0;
         public static int NameCycles = 0;
 
-        public static EntityList<Architect> LoadedArchitects = new EntityList<Architect>();
-        public static EntityList<Architect> LoadedArchitectsToRemove = new EntityList<Architect>();
+        public static List<Architect> LoadedArchitects = new List<Architect>();
+        public static List<Architect> LoadedArchitectsToRemove = new List<Architect>();
         public static int ArchitectIndex = 0;
 
         public static void MakeObservation(string data, Color color, EntityList<Entity> Entities)
@@ -642,8 +638,8 @@ namespace Lightrealm
             }
         }
 
-        public static EntityList<Attack> StoredAttacks = new EntityList<Attack>();
-        public static EntityList<Message> StoredMessages = new EntityList<Message>();
+        public static List<Attack> StoredAttacks = new List<Attack>();
+        public static List<Message> StoredMessages = new List<Message>();
 
         public static InteractableEvent StoredEvent = null;
 
@@ -739,175 +735,108 @@ namespace Lightrealm
         }
 
 
-
         public static int CalculateProximityScore(Entity entity, Architect player)
         {
-            if (entity is Material)
+            // Check if the entity is in the player's hands
+            if (player.OffHeldObject == entity || player.MainHeldObject == entity)
             {
-                return 10; //DO NOT use this
+                return 0;
             }
 
-            bool IsInPlayersHands(Entity entity, Architect player)
+            // Check if the entity is in the player's shadow storage
+            if (player.ShadowStorage.Contains(entity))
             {
-                return player.OffHeldObject == entity || player.MainHeldObject == entity;
+                return 1;
             }
 
-            bool IsInPlayersInventory(Entity entity, Architect player)
+            // Check if the entity is in the player's clothing
+            if (player.Clothing.Contains(entity))
             {
-                return player.Inventory.Contains(entity);
+                return 2;
             }
 
-            bool IsInPlayersClothing(Entity entity, Architect player)
+            // Check if the entity is in the player's inventory
+            if (player.Inventory.Contains(entity))
             {
-                return player.Clothing.Contains(entity);
+                return 3;
             }
 
-            bool IsInSameRoom(Entity entity, Room currentRoom)
+            // Check if the entity is in the same room as the player
+            Room currentRoom = player.Room;
+            if (currentRoom != null)
             {
-                if (currentRoom == null)
+                if (entity is Architect architect && architect.Room == currentRoom)
                 {
-                    return false;
+                    return 4;
                 }
-
-                if (entity is Architect architect)
+                else if (entity is Object obj && obj.Room == currentRoom)
                 {
-                    return architect.Room != null && architect.Room == currentRoom;
+                    return 4;
                 }
-                else if (entity is Object obj)
-                {
-                    return obj.Room != null && obj.Room == currentRoom;
-                }
-                return false;
             }
 
-            bool IsInSameBlock(Entity entity, Block currentBlock)
+            // Check if the entity is in the same block as the player
+            Block currentBlock = player.Block;
+            if (currentBlock != null)
             {
                 if (currentBlock.Architects.Contains(entity) || currentBlock.Objects.Contains(entity))
                 {
-                    return true;
+                    return 5;
                 }
 
                 foreach (Structure structure in currentBlock.Structures)
                 {
-                    if (structure.Rooms.Any(room => room.Objects.Contains(entity) || room.Architects.Contains(entity)))
+                    foreach (Room room in structure.Rooms)
                     {
-                        return true;
+                        if (room.Objects.Contains(entity) || room.Architects.Contains(entity))
+                        {
+                            return 5;
+                        }
                     }
                 }
-
-                return false;
             }
 
-            bool IsInSameDistrict(Entity entity, District currentDistrict)
+            District currentDistrict = player.District;
+            if (currentDistrict != null)
             {
-                foreach (Block block in currentDistrict.DistrictMap)
+                if (entity is Architect)
                 {
-                    if (IsInSameBlock(entity, block))
+                    if(LoadedArchitects.Contains(entity))
                     {
-                        return true;
+                        return 6;
                     }
                 }
-
-                return false;
-            }
-
-            bool IsInPlayersShadowStorage(Entity entity, Architect player)
-            {
-                if(player.ShadowStorage.Contains(entity))
+                else if (entity is Object)
                 {
-                    return true;
-                }
+                    foreach (Block block in currentDistrict.DistrictMap)
+                    {
+                        if (block.Objects.Contains(entity))
+                        {
+                            return 6;
+                        }
 
-                return false;
+                        foreach (Structure structure in block.Structures)
+                        {
+                            foreach (Room room in structure.Rooms)
+                            {
+                                if (room.Objects.Contains(entity))
+                                {
+                                    return 6;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            // Check if the entity is a body part and calculate score based on the creator's proximity
+            // If the entity is a body part, calculate the score based on the creator's proximity
             if (entity is Object bodyPart && bodyPart.Creator is Architect creator)
             {
-                // Recursively calculate the proximity score based on the creator of the body part
                 return CalculateProximityScore(creator, player);
             }
 
-            // Calculate proximity score for an object and its contained objects
-            int CalculateObjectProximityScore(Object obj, Architect player)
-            {
-                int baseScore = 0;
-
-                if (IsInPlayersHands(obj, player))
-                {
-                    baseScore = 0;
-                }
-                else if (IsInPlayersShadowStorage(obj, player))
-                {
-                    baseScore = 1;
-                }
-                else if (IsInPlayersClothing(obj, player))
-                {
-                    baseScore = 2;
-                }
-                else if (IsInPlayersInventory(obj, player))
-                {
-                    baseScore = 3;
-                }
-                else if (IsInSameRoom(obj, player.Room))
-                {
-                    baseScore = 4;
-                }
-                else if (IsInSameBlock(obj, player.Block))
-                {
-                    baseScore = 5;
-                }
-                else if (IsInSameDistrict(obj, player.District))
-                {
-                    baseScore = 6;
-                }
-                else
-                {
-                    baseScore = 7; // Entity is the farthest away
-                }
-
-                // Check contained objects for one level of recursion
-                int containedObjectScore = baseScore;
-                foreach (var containedObject in obj.ContainedObjects)
-                {
-                    int newScore = baseScore + 3;
-                    containedObjectScore = Math.Max(containedObjectScore, newScore);
-                }
-
-                return containedObjectScore;
-            }
-
-            if (entity is Object obj)
-            {
-                return CalculateObjectProximityScore(obj, player);
-            }
-
-            if (IsInPlayersHands(entity, player) || player.CultureBank.Contains(entity))
-            {
-                return 0;
-            }
-            if (IsInPlayersClothing(entity, player))
-            {
-                return 1;
-            }
-            if (IsInPlayersInventory(entity, player))
-            {
-                return 2;
-            }
-            if (IsInSameRoom(entity, player.Room))
-            {
-                return 3;
-            }
-            if (IsInSameBlock(entity, player.Block))
-            {
-                return 4;
-            }
-            if (IsInSameDistrict(entity, player.District))
-            {
-                return 5;
-            }
-
-            return 6; // Entity is the farthest away
+            // Default score for entities that are farthest away
+            return 7;
         }
 
         public static List<string> GetCommandsForCategory(string category)
@@ -918,22 +847,33 @@ namespace Lightrealm
                 ;
         }
 
-        static EntityList<Entity> FilterSubjectsForCommandPart(string commandPart, EntityList<Entity> allSubjects, Architect MostRecentPartyTurnArchitect, out Dictionary<string, Entity> matchedSubjects)
+        static List<Entity> FilterSubjectsForCommandPart(string commandPart, List<Entity> allSubjects, Architect MostRecentPartyTurnArchitect, out Dictionary<string, Entity> matchedSubjects)
         {
             List<(string referredName, Entity entity, int index)> matchedData = new List<(string, Entity, int)>();
             matchedSubjects = new Dictionary<string, Entity>();
 
-            // Calculate proximity score for each entity and sort by score and referredName length
-            List<(string referredName, Entity entity, int proximityScore)> allReferredNames = allSubjects
-                .SelectMany(subject => subject.ReferredToNames.Concat(new[] { subject.Metadata, subject.Name })
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => (name.ToLower(), subject, CalculateProximityScore(subject, MostRecentPartyTurnArchitect))))
-                .OrderBy(t => t.Item3)  // First by lowest proximity score
-                .ThenByDescending(t => t.Item1.Length).ToList()  // Then by longest referredName within each score group
-                ;
+            // Precompute the list of all referred names with proximity scores
+            List<(string referredName, Entity entity, int proximityScore)> allReferredNames = new List<(string, Entity, int)>();
 
-           string modifiedCommandPart = commandPart.ToLower();
+            foreach (var subject in allSubjects)
+            {
+                var names = subject.ReferredToNames.Concat(new[] { subject.Metadata, subject.Name })
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Where(name => !string.IsNullOrWhiteSpace(name));
+
+                foreach (var name in names)
+                {
+                    allReferredNames.Add((name.ToLower(), subject, CalculateProximityScore(subject, MostRecentPartyTurnArchitect)));
+                }
+            }
+
+            // Sort the referred names by proximity score and then by length
+            allReferredNames = allReferredNames
+                .OrderBy(t => t.proximityScore)
+                .ThenByDescending(t => t.referredName.Length)
+                .ToList();
+
+            string modifiedCommandPart = commandPart.ToLower();
 
             // Iterate through all referred names and use regex to match in the command part
             foreach (var (referredName, entity, _) in allReferredNames)
@@ -956,7 +896,7 @@ namespace Lightrealm
             matchedData = matchedData.OrderBy(m => m.index).ToList();
 
             // Extract ordered entities and reconstruct the modified command with generic placeholders
-            EntityList<Entity> orderedSubjects = new EntityList<Entity>();
+            List<Entity> orderedSubjects = new List<Entity>();
             foreach (var data in matchedData)
             {
                 orderedSubjects.Add(data.entity);
@@ -4222,7 +4162,7 @@ namespace Lightrealm
                     {
                         LoadedArchitects.Remove(a);
                     }
-                    LoadedArchitectsToRemove = new EntityList<Architect>();
+                    LoadedArchitectsToRemove = new List<Architect>();
 
                     TicksSinceLoad++; // Increment the game cycle count
                     GameWorld.Cycle++; // Increment the world cycle
@@ -4241,7 +4181,7 @@ namespace Lightrealm
                     {
                         LoadedArchitects.Remove(a);
                     }
-                    LoadedArchitectsToRemove = new EntityList<Architect>();
+                    LoadedArchitectsToRemove = new List<Architect>();
 
                     TicksSinceLoad++; // Increment the game cycle count
                     GameWorld.Cycle++; // Increment the world cycle
@@ -5210,7 +5150,7 @@ namespace Lightrealm
                     else if (GameState == "loadinggame")
                     {
                         LoadGame(SelectedDirectory);
-                        GameState = "partyturn";
+                        GameState = "travelmenu";
                     }
                     else if (GameState == "generatingworld")
                     {
@@ -5296,19 +5236,16 @@ namespace Lightrealm
 
 
 
-                        if (GameWorld.Cycle < maxAgeCycles)
+                        if (GameWorld.Cycle < maxAgeCycles/2)
                         {
-                            if (GameWorld.Cycle < 36288000000)
-                            {
-                                for (int i = 0; i < 6; i++)
-                                {
-                                    GameWorld.ProgressDays(28, true);
-                                }
-                            }
-                            else
+                            for (int i = 6; i != 0; i--)
                             {
                                 GameWorld.ProgressDays(28, true);
                             }
+                        }
+                        if (GameWorld.Cycle < maxAgeCycles)
+                        {
+                            GameWorld.ProgressDays(28, true);
                         }
 
                         if (GameWorld.Cycle >= maxAgeCycles || KeysNewlyPressed.Contains(Keys.Enter))
@@ -6017,7 +5954,7 @@ namespace Lightrealm
                                     SetUpRelevantEntities(RecognizedCommands[SelectedCommand].Item2);
 
                                     // Sort RelevantEntities by proximity score
-                                    RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect));
+                                    RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect)).ToList();
                                     MaxCommandBuilderPage = (int)Math.Ceiling((decimal)RelevantEntities.Count() / 20);
                                     CurrentCommandBuilderPage = 0;
                                     CommandBuilderStage = "pickingsubjects";
@@ -6076,7 +6013,7 @@ namespace Lightrealm
                                             SetUpRelevantEntities(new List<string> { nextSubject });
 
                                             // Sort RelevantEntities by proximity score
-                                            RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect));
+                                            RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect)).ToList();
                                             MaxCommandBuilderPage = (int)Math.Ceiling((decimal)RelevantEntities.Count() / 20);
                                             CurrentCommandBuilderPage = 0;
                                         }
@@ -6388,7 +6325,7 @@ namespace Lightrealm
                                             CommandBuilderStage = "categories";
                                             AllSubjects = CollectAllSubjects(MostRecentPartyTurnArchitect, "none");
                                             SelectedCategory = "";
-                                            SelectedEntities = new EntityList<Entity>();
+                                            SelectedEntities = new List<Entity>();
                                             SelectedCommand = "";
                                         }
 
@@ -6475,19 +6412,6 @@ namespace Lightrealm
 
 
 
-                                        if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)) && Keyboard.GetState().IsKeyDown(Keys.S))
-                                        {
-                                            SaveTicks++;
-                                            if (SaveTicks > 100)
-                                            {
-                                                GameState = "savinggame";
-                                            }
-                                        }
-                                        else
-                                        {
-                                            SaveTicks = 0;
-                                        }
-
                                         if (KeysNewlyPressed.Contains(Keys.Escape) && InInventory == true)
                                         {
                                             InInventory = false;
@@ -6558,7 +6482,7 @@ namespace Lightrealm
                                                 Dictionary<string, Entity> matchedSubjects;
 
                                                 // Execute the first command part
-                                                EntityList<Entity> relevantSubjectsForFirstPart = FilterSubjectsForCommandPart(commandParts[0], AllSubjects, MostRecentPartyTurnArchitect, out matchedSubjects);
+                                                List<Entity> relevantSubjectsForFirstPart = FilterSubjectsForCommandPart(commandParts[0], AllSubjects, MostRecentPartyTurnArchitect, out matchedSubjects);
                                                 string processedCommandPart = commandParts[0];
 
                                                 // Replace recognized subjects with placeholders
@@ -6581,7 +6505,7 @@ namespace Lightrealm
                                                     return null; // Return null if no command matches
                                                 }
 
-                                                static bool PreprocessAndRunCommand(Architect executor, string userInput, EntityList<Entity> subjects)
+                                                static bool PreprocessAndRunCommand(Architect executor, string userInput, List<Entity> subjects)
                                                 {
                                                     string[] pronouns = { "he", "she", "it", "they", "him", "her", "them", "that", "his", "their", "himself", "herself", "themself", "themselves" };
 
@@ -6818,7 +6742,7 @@ namespace Lightrealm
                     }
                     else if (GameState == "otherturn")
                     {
-                        StoredAttacks = new EntityList<Attack>();
+                        StoredAttacks.Clear();
 
                         // We initialize a loop that continues until we find a party member or trigger a reaction state
                         while (true)
@@ -7272,6 +7196,21 @@ namespace Lightrealm
                                 GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation.Explored = true;
                             }
                         }
+
+
+                        if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)) && Keyboard.GetState().IsKeyDown(Keys.S))
+                        {
+                            SaveTicks++;
+                            if (SaveTicks > 100)
+                            {
+                                GameState = "savinggame";
+                            }
+                        }
+                        else
+                        {
+                            SaveTicks = 0;
+                        }
+
 
 
                         if (KeysNewlyPressed.Contains(Keys.R) || KeysNewlyPressed.Contains(Keys.T) || KeysNewlyPressed.Contains(Keys.D) || KeysNewlyPressed.Contains(Keys.G) || KeysNewlyPressed.Contains(Keys.C) || KeysNewlyPressed.Contains(Keys.V) || KeysNewlyPressed.Contains(Keys.NumPad7) || KeysNewlyPressed.Contains(Keys.NumPad9) || KeysNewlyPressed.Contains(Keys.NumPad4) || KeysNewlyPressed.Contains(Keys.NumPad6) || KeysNewlyPressed.Contains(Keys.NumPad1) || KeysNewlyPressed.Contains(Keys.NumPad3))
@@ -7749,7 +7688,7 @@ namespace Lightrealm
                                     Exposition.Add(new TextStorage("Press F5 for help with vocal/GUI/typed commands and navigating the world.", Color.White, new EntityList<Entity>()));
                                     Exposition.Add(new TextStorage("Watch your Energy and Bleeding, dictated by the Heart and its droplets at the top of the screen. Do not let it go dark.", Color.White, new EntityList<Entity>()));
                                     Exposition.Add(new TextStorage("Access player information with commands or use \"open menu\" to see all of it.", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("Press CTRL + S to save your game. Instability is uncommon, but expected, so save your game often.", Color.White, new EntityList<Entity>()));
+                                    Exposition.Add(new TextStorage("Press CTRL + S to save your game, while outside of a district. Instability is uncommon, but expected, so save your game often.", Color.White, new EntityList<Entity>()));
                                     Exposition.Add(new TextStorage("Good luck...", Color.White, new EntityList<Entity>()));
                                     Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
                                     Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
@@ -9221,6 +9160,7 @@ namespace Lightrealm
 
             void DrawAnnouncements()
             {
+                // Helper function to scale rectangles
                 Rectangle ScaleRectangle(Rectangle rect, float scaleX, float scaleY)
                 {
                     return new Rectangle(
@@ -9230,39 +9170,38 @@ namespace Lightrealm
                         (int)(rect.Height * scaleY)
                     );
                 }
+
                 int MaxLines;
                 int yPos;
-
                 int screenHeight = 1440;
 
                 if (GameState == "dead")
                 {
-                    MaxLines = 70;  // Set the maximum number of lines you want to display
+                    MaxLines = 70; // Set the maximum number of lines you want to display
                     yPos = screenHeight - 50; // Initial Y position at the bottom
                 }
                 else
                 {
-                    MaxLines = 26;  // Set the maximum number of lines you want to display
-                    yPos = screenHeight - 400; // Initial Y position at the bottom
+                    MaxLines = 26; // Set the maximum number of lines you want to display
+                    yPos = screenHeight - 380; // Initial Y position at the bottom
                 }
 
                 int MaxLength = 800; // Adjusted MaxLength for smaller font size
                 int lineHeight = 20; // Adjusted line height for smaller font size
-                int totalLinesDisplayed = 0;  // Track the total number of lines displayed
+                int totalLinesDisplayed = 0; // Track the total number of lines displayed
 
-                // Convert the reversed announcements to a list
-                EntityList<TextStorage> reversedAnnouncements = new EntityList<TextStorage>(Announcements);
-                reversedAnnouncements.Reverse();
+                // Convert the announcements to a list
+                EntityList<TextStorage> announcementsList = new EntityList<TextStorage>(Announcements);
 
-
-                if(MostRecentPartyTurnArchitect.BlindCycles > 0)
+                if (MostRecentPartyTurnArchitect.BlindCycles > 0)
                 {
                     _spriteBatch.DrawString(BabyShibafont, "You are currently blind.", new Vector2(50, yPos), Color.Yellow);
                 }
                 else
                 {
-                    foreach (TextStorage announcement in reversedAnnouncements)
+                    for (int i = announcementsList.Count - 1; i >= 0; i--)
                     {
+                        TextStorage announcement = announcementsList[i];
                         List<string> lines = new List<string>();
 
                         if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
@@ -9291,59 +9230,61 @@ namespace Lightrealm
                             lines.Add(announcement.Data);
                         }
 
-                        // Draw lines in reverse order
-                        for (int i = lines.Count() - 1; i >= 0; i--)
+                        // Draw lines in normal order but start from the bottom
+                        for (int j = lines.Count - 1; j >= 0; j--)
                         {
                             if (totalLinesDisplayed < MaxLines)
                             {
-                                DrawAnnouncementLine(lines[i], yPos, announcement.Color, announcement.Entities);
                                 yPos -= lineHeight;
+                                DrawAnnouncementLine(lines[j], yPos, announcement.Color, announcement.Entities);
                                 totalLinesDisplayed++;
                             }
                             else
                             {
-                                break;  // Exit the loop if the maximum number of lines is reached
+                                break; // Exit the loop if the maximum number of lines is reached
                             }
                         }
 
                         if (totalLinesDisplayed >= MaxLines)
                         {
-                            break;  // Exit the outer loop if the maximum number of lines is reached
-                        }
-                    }
-
-                    // Helper function to draw each announcement line and create hitboxes for entity names
-                    void DrawAnnouncementLine(string text, int yPosition, Color color, EntityList<Entity> entities)
-                    {
-                        _spriteBatch.DrawString(BabyShibafont, text, new Vector2(50, yPosition), color);
-
-                        // Create hitboxes for the longest entity names
-                        foreach (var entity in entities)
-                        {
-                            string longestName = entity.ReferredToNames.OrderByDescending(name => name.Length).FirstOrDefault(name => text.Contains(name));
-
-                            if (!string.IsNullOrEmpty(longestName))
-                            {
-                                int index = text.IndexOf(longestName);
-                                if (index != -1)
-                                {
-                                    string substringBeforeName = text.Substring(0, index);
-                                    Vector2 sizeBeforeName = BabyShibafont.MeasureString(substringBeforeName);
-                                    Vector2 positionOfName = new Vector2(50 + sizeBeforeName.X, yPosition);
-
-                                    // Measure the length of the text up to the longest name
-                                    Vector2 sizeOfName = BabyShibafont.MeasureString(longestName);
-                                    Rectangle hitbox = new Rectangle(positionOfName.ToPoint(), sizeOfName.ToPoint());
-                                    hitbox = ScaleRectangle(hitbox, scaleX, scaleY);
-                                    EntityHitboxes.Add((hitbox, entity));
-                                }
-                            }
+                            break; // Exit the outer loop if the maximum number of lines is reached
                         }
                     }
                 }
 
-                
+                // Helper function to draw each announcement line and create hitboxes for entity names
+                void DrawAnnouncementLine(string text, int yPosition, Color color, EntityList<Entity> entities)
+                {
+                    _spriteBatch.DrawString(BabyShibafont, text, new Vector2(50, yPosition), color);
+
+                    // Create hitboxes for the longest entity names
+                    foreach (var entity in entities)
+                    {
+                        string longestName = entity.ReferredToNames.OrderByDescending(name => name.Length).FirstOrDefault(name => text.Contains(name));
+
+                        if (!string.IsNullOrEmpty(longestName))
+                        {
+                            int index = text.IndexOf(longestName);
+                            if (index != -1)
+                            {
+                                string substringBeforeName = text.Substring(0, index);
+                                Vector2 sizeBeforeName = BabyShibafont.MeasureString(substringBeforeName);
+                                Vector2 positionOfName = new Vector2(50 + sizeBeforeName.X, yPosition);
+
+                                // Measure the length of the text up to the longest name
+                                Vector2 sizeOfName = BabyShibafont.MeasureString(longestName);
+                                Rectangle hitbox = new Rectangle(positionOfName.ToPoint(), sizeOfName.ToPoint());
+                                hitbox = ScaleRectangle(hitbox, scaleX, scaleY);
+                                EntityHitboxes.Add((hitbox, entity));
+                            }
+                        }
+                    }
+                }
             }
+
+
+
+
 
             if (GameState == "generatehistory" || GameState == "choosepreferences")
             {
@@ -12788,12 +12729,12 @@ namespace Lightrealm
                 if (GameState != "partyturn")
                 {
                     _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 40), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "Load a location and hold CTRL-S to save your game.", new Vector2(10, 70), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Press/Hold CTRL-S to save your game.", new Vector2(10, 70), Color.White);
                 }
                 else
                 {
                     _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "Press/Hold CTRL-S to save your game.", new Vector2(10, 70), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Leave this location and press/hold CTRL-S to save your game.", new Vector2(10, 70), Color.White);
                 }
             }
 

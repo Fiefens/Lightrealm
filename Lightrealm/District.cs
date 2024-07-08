@@ -1088,7 +1088,7 @@ namespace Lightrealm
             HasBeenLoadedEver = true;
             Game1.TicksSinceLoad = 0;
 
-            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct();
+            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
         }
 
         void AddOrUpdateItemString(List<string> itemList, string itemString)

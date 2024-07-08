@@ -211,7 +211,7 @@ namespace Lightrealm
         public bool RecievedBodyPhysicalStatIncrease { get; set; } = false;
         public bool RecievedBodyPhysicalStatIncreaseTwo { get; set; } = false;
 
-        private EntityList<Architect> _architects = new EntityList<Architect>();
+        private List<Architect> _architects = new List<Architect>();
         private List<int> _distances = new List<int>();
 
         public void ModifyDistance(Architect architect, int distanceChange)
@@ -224,7 +224,7 @@ namespace Lightrealm
             int index = _architects.IndexOf(architect);
             if (index >= 0)
             {
-                _distances[index] += distanceChange;
+                _distances[index] = distanceChange;
                 if (_distances[index] <= 0)
                 {
                     _architects.RemoveAt(index);
@@ -254,31 +254,11 @@ namespace Lightrealm
                 }
                 else
                 {
-                    return 0; // or some other default value, depending on your requirements
+                    return 0; // Default distance if not found
                 }
             }
 
             return 0; // for non-architects
-        }
-
-        public bool TryGetDistance(Architect architect, out int distance)
-        {
-            if (architect == null)
-            {
-                throw new ArgumentNullException(nameof(architect));
-            }
-
-            int index = _architects.IndexOf(architect);
-            if (index >= 0)
-            {
-                distance = _distances[index];
-                return true;
-            }
-            else
-            {
-                distance = 0; // or some other default value, depending on your requirements
-                return false;
-            }
         }
 
         public void RemoveDistance(Architect architect)
@@ -2930,34 +2910,30 @@ namespace Lightrealm
 
             // HashSet to keep track of current architects in the room or block
             EntityHashSet<Architect> currentArchitects = new EntityHashSet<Architect>(Room?.Architects ?? Block.Architects);
+            currentArchitects.Remove(this);
 
-            // Remove outdated distances
             foreach (var architect in GetDistances().Keys.Except(currentArchitects))
             {
                 RemoveDistance(architect);
             }
 
-            // Update or add new distances
             foreach (Architect a in currentArchitects)
             {
                 int distanceThisToA;
-                if (!a.TryGetDistance(this, out int distanceAToThis))
+                if (GetDistance(a) == 0 && a.GetDistance(this) == 0)
                 {
                     // Generate a new random distance if neither has a distance
                     distanceThisToA = Game1.r.Next(2, 6);
+                    ModifyDistance(a, distanceThisToA);
                     a.ModifyDistance(this, distanceThisToA);
                 }
                 else
                 {
                     // Use the distance from a to this
-                    distanceThisToA = distanceAToThis;
+                    distanceThisToA = a.GetDistance(this);
+                    ModifyDistance(a, distanceThisToA);
                 }
-
-                // Update reciprocal distance
-                a.ModifyDistance(this, distanceThisToA);
-                ModifyDistance(a, distanceThisToA);
             }
-
 
             if (Pain > 100)
             {
