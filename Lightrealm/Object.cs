@@ -20,12 +20,12 @@ namespace Lightrealm
     {
         public string Type { get; set; }
 
-        public List<Material> Materials { get; set; } = new List<Material>();
+        public EntityList<Material> Materials { get; set; } = new EntityList<Material>();
 
         public string Description { get; set; } = "???";
         public bool IsContainer { get; set; }
 
-        public List<Object> ContainedObjects { get; set; } = new List<Object>();
+        public EntityList<Object> ContainedObjects { get; set; } = new EntityList<Object>();
 
         public bool IfTrueUseInIfFalseUseOn { get; set; }
         public double LatestUpdateCycle { get; set; } = 0;
@@ -65,7 +65,7 @@ namespace Lightrealm
         public string VariableToChange { get; set; } = "";
         public int VariableChange { get; set; }
 
-        public List<Imbuement> Imbuements { get; set; } = new List<Imbuement>();
+        public EntityList<Imbuement> Imbuements { get; set; } = new EntityList<Imbuement>();
 
         public bool IsWearable { get; set; }
         public string Rarity { get; set; }
@@ -305,7 +305,7 @@ namespace Lightrealm
 
             if (Exposure > 50 && InitialExposure <= 50)
             {
-                return new TextStorage(ReferredToNames[0] + " is very exposed!", Color.Orange, new List<Entity>() { this });
+                return new TextStorage(ReferredToNames[0] + " is very exposed!", Color.Orange, new EntityList<Entity>() { this });
             }
             else
             {
@@ -313,9 +313,9 @@ namespace Lightrealm
             }
         }
 
-        public List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
+        public EntityList<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
-            List<TextStorage> Announcements = new List<TextStorage>();
+            EntityList<TextStorage> Announcements = new EntityList<TextStorage>();
 
             if (IsBodyPart)
             {
@@ -376,14 +376,14 @@ namespace Lightrealm
                 //heat damage
                 if (o.HeatInCelsius > 50)
                 {
-                    Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new EntityList<Entity>()));
                     EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
                 }
 
                 // Determine if the attack gets blocked by coverage or armor
                 if (Game1.r.Next(100) < Coverage)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is deflected by " + CoverageName + "!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>()));
                     return Announcements;
                 }
 
@@ -391,7 +391,7 @@ namespace Lightrealm
                 {
                     if (Game1.r.Next(100) < a.BarrierStacks * 10)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is blocked by a barrier stack!", Color.LimeGreen, new List<Entity>() { }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>() { }));
                         a.BarrierStacks--;
                         return Announcements;
                     }
@@ -399,12 +399,12 @@ namespace Lightrealm
                     int armorDamage = Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
                     if (Game1.r.Next(100) < a.NaturalArmor)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
                     }
                     else if (a.NaturalArmor > 0)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new List<Entity>() { a }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
                         return Announcements;
                     }
@@ -418,37 +418,37 @@ namespace Lightrealm
 
                 if (IntegrityDamage > 0)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages " + ReferredToNames[0] + "!", Color.Orange, new List<Entity>() { this }));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages " + ReferredToNames[0] + "!", Color.Orange, new EntityList<Entity>() { this }));
                 }
                 else
                 {
-                    Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red, new List<Entity>() { this }));
+                    Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red, new EntityList<Entity>() { this }));
                 }
 
                 if (Bleeding > 5)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>()));
                 }
                 else if (Bleeding > 3)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces a membrane, causing bleeding!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>()));
                 }
                 else if (Bleeding > 1)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " draws a small amount of blood!", Color.Green, new List<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " draws a small amount of blood!", Color.Green, new EntityList<Entity>()));
                 }
 
                 if (Pain > 20)
                 {
-                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
+                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
                 }
                 else if (Pain > 14)
                 {
-                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new List<Entity>() { ((Architect)Creator) }));
+                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
                 }
                 else if (Pain > 7)
                 {
-                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new List<Entity>() { ((Architect)Creator) }));
+                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
                 }
 
             ((Architect)Owner).Bleeding += Bleeding;
@@ -492,9 +492,9 @@ namespace Lightrealm
                 if (((Architect)Owner).Energy < 1 && MeleeAttacker != null && MeleeAttacker.FinaleReady)
                 {
                     MeleeAttacker.FinaleReady = false;
-                    Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new List<Entity>() { ((Architect)Owner) }));
+                    Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new EntityList<Entity>() { ((Architect)Owner) }));
 
-                    List<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
+                    EntityList<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
                     foreach (Architect A in nearbyPeoples)
                     {
                         if (A.TargetArchitect == MeleeAttacker ||
@@ -504,7 +504,7 @@ namespace Lightrealm
              (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
                         {
                             A.Energy -= 30;
-                            Announcements.Add(new TextStorage(A.ReferredToNames[0] + " looks drained!", Color.Green, new List<Entity>() { A }));
+                            Announcements.Add(new TextStorage(A.ReferredToNames[0] + " looks drained!", Color.Green, new EntityList<Entity>() { A }));
                         }
                     }
                 }
@@ -612,7 +612,7 @@ namespace Lightrealm
                 }
 
                 string message = $"{obj.ReferredToNames[0]} takes {severity} damage!";
-                Announcements.Add(new TextStorage(message, Color.Orange, new List<Entity> { obj }));
+                Announcements.Add(new TextStorage(message, Color.Orange, new EntityList<Entity> { obj }));
             }
 
             return Announcements;
@@ -748,7 +748,7 @@ namespace Lightrealm
 
             //remove bad materials, if this is the first removal add void.
 
-            List<Material> MaterialsToReplace = new List<Material>();
+            EntityList<Material> MaterialsToReplace = new EntityList<Material>();
 
             foreach (Material m in Game1.GameWorld.DeletedMaterials)
             {
@@ -784,11 +784,11 @@ namespace Lightrealm
                     {
                         if (Integrity > 0)
                         {
-                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange, new List<Entity>() { this });
+                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange, new EntityList<Entity>() { this });
                         }
                         else
                         {
-                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange, new List<Entity>() { this });
+                            Game1.MakeObservation(ReferredToNames[0] + " vibrates intensely!", Color.Orange, new EntityList<Entity>() { this });
                         }
                     }
                 }
@@ -803,7 +803,7 @@ namespace Lightrealm
             }
         }
 
-        public Object(string name, string type, List<Material> materials, bool InOrOn, bool isContainer, Composition content, Entity creator, double weight, bool isGeneralGood, Block b, Structure s, Room r, bool IsWearable)
+        public Object(string name, string type, EntityList<Material> materials, bool InOrOn, bool isContainer, Composition content, Entity creator, double weight, bool isGeneralGood, Block b, Structure s, Room r, bool IsWearable)
         {
             Weight = weight;
             Type = type;
@@ -820,14 +820,14 @@ namespace Lightrealm
 
             if (IsContainer)
             {
-                ContainedObjects = new List<Object>();
+                ContainedObjects = new EntityList<Object>();
             }
 
             ApplyImbuements(0);
             UpdateNames();
         }
 
-        public Object(string name, string type, List<Material> materials, Entity creator)
+        public Object(string name, string type, EntityList<Material> materials, Entity creator)
         {
             Name = name;
             Type = type;

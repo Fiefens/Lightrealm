@@ -13,7 +13,7 @@ namespace Lightrealm
     {
         public int MapCursorDistrict { get; set; } = 0;
 
-        public List<TextStorage> Intrigue = new List<TextStorage>();
+        public EntityList<TextStorage> Intrigue = new EntityList<TextStorage>();
 
         private int _currentEventId;
         
@@ -23,8 +23,8 @@ namespace Lightrealm
             set => _currentEventId = value?.ID ?? 0;
         }
 
-        public List<Architect> IntriguingArchitects { get; set; } = new List<Architect>();
-        public List<Region> CurrentlyMarkedRegions { get; set; } = new List<Region>();
+        public EntityList<Architect> IntriguingArchitects { get; set; } = new EntityList<Architect>();
+        public EntityList<Region> CurrentlyMarkedRegions { get; set; } = new EntityList<Region>();
 
         public bool ReceivedPartyAdvice { get; set; } = false;
 
@@ -44,18 +44,18 @@ namespace Lightrealm
                 a.QuickStrikeReady = false;
                 a.SeveringStrikeReady = false;
 
-                a.UsedSkills = new List<Entity>();
+                a.UsedSkills = new EntityList<Entity>();
                 a.ExtraFocusTicks = 0;
             }
         }
 
-        public Party(List<Architect> architects, string type, Architect leader, Location basee) : base(architects, type, leader, basee)
+        public Party(EntityList<Architect> architects, string type, Architect leader, Location basee) : base(architects, type, leader, basee)
         {
             foreach (Architect a in architects)
             {
                 a.HairID = Game1.r.Next(0, 2);
 
-                List<Material> materials = new List<Material> { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count())] };
+                EntityList<Material> materials = new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count())] };
 
                 a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
 
@@ -63,7 +63,7 @@ namespace Lightrealm
 
                 for (int i = 0; i < count; i++)
                 {
-                    a.Inventory.Add(new Object(null, "fragment", new List<Material> { Game1.GameWorld.Vitalium }, null));
+                    a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
                 }
 
                 int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
@@ -72,15 +72,15 @@ namespace Lightrealm
                 {
                     case 1:
                         // Adding a salve
-                        a.Inventory.Add(new Object(null, "salve", new List<Material> { a.Location.Region.HarvestableFiber }, null));
+                        a.Inventory.Add(new Object(null, "salve", new EntityList<Material> { a.Location.Region.HarvestableFiber }, null));
                         break;
                     case 2:
                         // Adding a bandage
-                        a.Inventory.Add(new Object(null, "bandage", new List<Material> { a.Location.HomeCivilization.CulturalCloth }, null));
+                        a.Inventory.Add(new Object(null, "bandage", new EntityList<Material> { a.Location.HomeCivilization.CulturalCloth }, null));
                         break;
                     case 3:
                         // Adding a vitality vial
-                        a.Inventory.Add(new Object(null, "vial", new List<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
+                        a.Inventory.Add(new Object(null, "vial", new EntityList<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
                         break;
                 }
             }

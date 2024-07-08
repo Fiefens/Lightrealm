@@ -112,6 +112,10 @@ namespace Lightrealm
 
         public bool Contains(T item)
         {
+            if(item == null)
+            {
+                return false;
+            }
             return _entityIds.Contains(item.ID);
         }
 
@@ -298,16 +302,60 @@ namespace Lightrealm
 
         private TE EntityGet<TE>(int entityId) where TE : Entity
         {
-            if (Game1.GameWorld != null && Game1.EntityLedger != null && Game1.EntityLedger.ContainsKey(entityId))
+            if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger != null && Game1.GameWorld.EntityLedger.ContainsKey(entityId))
             {
-                return (TE)Game1.EntityLedger[entityId];
+                return (TE)Game1.GameWorld.EntityLedger[entityId];
             }
-            if (Game1.TemporaryEntities.ContainsKey(entityId))
+            if (Game1.TemporaryEntityLedger.ContainsKey(entityId))
             {
-                return (TE)Game1.TemporaryEntities[entityId];
+                return (TE)Game1.TemporaryEntityLedger[entityId];
             }
             throw new KeyNotFoundException("Entity ID not found in either AllEntities or TemporaryEntities.");
         }
+
+        public void UnionWith(EntityList<T> other)
+        {
+            if (other == null)
+            {
+                throw new ArgumentNullException(nameof(other), "The other EntityList cannot be null.");
+            }
+
+            foreach (var id in other._entityIds)
+            {
+                if (!_entityIds.Contains(id))
+                {
+                    _entityIds.Add(id);
+                }
+            }
+        }
+
+        public EntityList<T> Except(EntityList<T> other)
+        {
+            var resultEntityList = new EntityList<T>();
+
+            var otherIds = new HashSet<int>(other._entityIds);
+
+            foreach (var id in _entityIds)
+            {
+                if (!otherIds.Contains(id))
+                {
+                    resultEntityList.Add(EntityGet<T>(id));
+                }
+            }
+
+            return resultEntityList;
+        }
+
+        public EntityList<T> Reverse()
+        {
+            var reversedEntityList = new EntityList<T>();
+            for (int i = _entityIds.Count - 1; i >= 0; i--)
+            {
+                reversedEntityList.Add(EntityGet<T>(_entityIds[i]));
+            }
+            return reversedEntityList;
+        }
+
 
         public EntityList<T> Where(Func<T, bool> predicate)
         {

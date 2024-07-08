@@ -166,13 +166,13 @@ namespace Lightrealm
 
         private TE EntityGet<TE>(int entityId) where TE : Entity
         {
-            if (Game1.GameWorld != null && Game1.EntityLedger != null && Game1.EntityLedger.ContainsKey(entityId))
+            if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger != null && Game1.GameWorld.EntityLedger.ContainsKey(entityId))
             {
-                return (TE)Game1.EntityLedger[entityId];
+                return (TE)Game1.GameWorld.EntityLedger[entityId];
             }
-            if (Game1.TemporaryEntities.ContainsKey(entityId))
+            if (Game1.TemporaryEntityLedger.ContainsKey(entityId))
             {
-                return (TE)Game1.TemporaryEntities[entityId];
+                return (TE)Game1.TemporaryEntityLedger[entityId];
             }
             throw new KeyNotFoundException("Entity ID not found in either AllEntities or TemporaryEntities.");
         }

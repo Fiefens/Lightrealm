@@ -37,11 +37,11 @@ namespace Lightrealm
         public string Info { get; set; }
         public string Intrigue { get; set; }
 
-        public List<Architect> GuaranteedArchitects { get; set; } = new List<Architect>();
+        public EntityList<Architect> GuaranteedArchitects { get; set; } = new EntityList<Architect>();
 
         public int Luminosity { get; set; } = 0;
 
-        public InteractableEvent(Region region, int monthsBeforeDecay, string type, Civilization civ, List<Architect> guaranteedArchitects)
+        public InteractableEvent(Region region, int monthsBeforeDecay, string type, Civilization civ, EntityList<Architect> guaranteedArchitects)
         {
             Region = region;
             Name = Game1.GameWorld.GenerateUniqueName("1S9s", this);

@@ -21,9 +21,9 @@ namespace Lightrealm
             set => _locationId = value?.ID ?? 0;
         }
 
-        public List<Architect> Architects { get; set; } = new List<Architect>();
+        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
 
-        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
+        public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
 
         private int _leaderId;
 
@@ -65,15 +65,15 @@ namespace Lightrealm
             set => _baseId = value?.ID ?? 0;
         }
 
-        public List<Architect> Enemies { get; set; } = new List<Architect>();
+        public EntityList<Architect> Enemies { get; set; } = new EntityList<Architect>();
 
-        public List<Architect> ArchitectsWhoDeclined { get; set; } = new List<Architect>();
+        public EntityList<Architect> ArchitectsWhoDeclined { get; set; } = new EntityList<Architect>();
 
         public List<string> CaravanItems { get; set; } = new List<string>();
 
-        public List<Group> GroupsIKnowAbout { get; set; } = new List<Group>();
+        public EntityList<Group> GroupsIKnowAbout { get; set; } = new EntityList<Group>();
 
-        public List<Location> TradeRoute { get; set; } = new List<Location>();
+        public EntityList<Location> TradeRoute { get; set; } = new EntityList<Location>();
 
         public int MaxTradeRouteLength { get; set; } = Game1.r.Next(3, 10);
         public bool WaitingForCooldownToTrade { get; set; } = false;
@@ -125,7 +125,7 @@ namespace Lightrealm
             return catalogueBuilder.ToString().Trim();
         }
 
-        public Group(List<Architect> architects, string type, Architect leader, Location Basee)
+        public Group(EntityList<Architect> architects, string type, Architect leader, Location Basee)
         {
             Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(3, 6)) + "s", this);
             Architects = architects;

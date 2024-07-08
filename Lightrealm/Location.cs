@@ -18,11 +18,11 @@ namespace Lightrealm
 
         public bool Explored { get; set; } = false;
 
-        public List<District> DistrictsToAdd { get; set; } = new List<District>();
+        public EntityList<District> DistrictsToAdd { get; set; } = new EntityList<District>();
 
-        public List<District> Districts { get; set; } = new List<District>();
+        public EntityList<District> Districts { get; set; } = new EntityList<District>();
 
-        public List<Entity> Embezzlements { get; set; } = new List<Entity>();
+        public EntityList<Entity> Embezzlements { get; set; } = new EntityList<Entity>();
 
         private int _marketId;
         
@@ -54,12 +54,12 @@ namespace Lightrealm
 
         public string Dockside { get; set; } = "none";
 
-        public List<Unit> Units { get; set; } = new List<Unit>();
+        public EntityList<Unit> Units { get; set; } = new EntityList<Unit>();
 
         public bool Active { get; set; } = false;
         public bool IsSavingUpToSettle { get; set; } = false;
 
-        public List<Structure> AllStructures { get; set; } = new List<Structure>();
+        public EntityList<Structure> AllStructures { get; set; } = new EntityList<Structure>();
 
         public List<string> PrimaryLightingStyles { get; set; } = new List<string>();
 
@@ -79,22 +79,22 @@ namespace Lightrealm
 
         public bool IsCapitol { get; set; } = false;
 
-        public List<Architect> DebtShibas { get; set; } = new List<Architect>();
+        public EntityList<Architect> DebtShibas { get; set; } = new EntityList<Architect>();
 
-        public List<Group> TradersAtThisLocation { get; set; } = new List<Group>();
+        public EntityList<Group> TradersAtThisLocation { get; set; } = new EntityList<Group>();
 
-        public List<Group> TradersAtThisLocationToRemove { get; set; } = new List<Group>();
+        public EntityList<Group> TradersAtThisLocationToRemove { get; set; } = new EntityList<Group>();
 
-        public List<Group> TradersAtThisLocationToAdd { get; set; } = new List<Group>();
+        public EntityList<Group> TradersAtThisLocationToAdd { get; set; } = new EntityList<Group>();
 
         public Race GuardianType { get; set; }
         public int GuardiansInNetwork { get; set; }
 
-        public List<Group> GroupsAtThisLocation { get; set; } = new List<Group>();
+        public EntityList<Group> GroupsAtThisLocation { get; set; } = new EntityList<Group>();
 
-        public List<Group> GroupsAtThisLocationToRemove { get; set; } = new List<Group>();
+        public EntityList<Group> GroupsAtThisLocationToRemove { get; set; } = new EntityList<Group>();
 
-        public List<Object> UnplacedArtifacts { get; set; } = new List<Object>();
+        public EntityList<Object> UnplacedArtifacts { get; set; } = new EntityList<Object>();
 
         public int X { get; set; }
         public int Z { get; set; }

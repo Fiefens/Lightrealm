@@ -45,7 +45,7 @@ namespace Lightrealm
             {
                 List<string> PowerTypes = new List<string> { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
                 int numberOfPowers = Game1.r.Next(1, 4);
-                Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers);
+                Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers).ToList();
             }
 
             AddReferredToName(Name);
@@ -53,12 +53,23 @@ namespace Lightrealm
 
             foreach (var bodyPart in BodyPartNames)
             {
-                if (!Game1.EntityLedger.Where(e => e.Value != null).Any(e => e.Value.Name == bodyPart) &&
-                    !Game1.TemporaryEntities.Where(e => e.Value != null).Any(e => e.Value.Metadata == bodyPart))
+                bool entityExists = false;
+
+                if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger != null)
+                {
+                    entityExists = Game1.GameWorld.EntityLedger.Values.Any(e => e != null && e.Name == bodyPart);
+                }
+
+                if (!entityExists)
+                {
+                    entityExists = Game1.TemporaryEntityLedger.Values.Any(e => e != null && e.Metadata == bodyPart);
+                }
+
                 {
                     new Entity(bodyPart);
                 }
             }
+
 
         }
 
@@ -102,7 +113,7 @@ namespace Lightrealm
         {
             var commonParts = new HashSet<string> { "leg", "wing", "arm", "eye", "antenna", "tentacle", "tail", "hump", "fin", "tusk", "spike", "tooth", "hand", "foot", "shoulder" };
             var groupedParts = BodyPartNames.GroupBy(bp => commonParts.Contains(bp.Split(' ').Last()) ? bp.Split(' ').Last() : bp)
-                                            .ToDictionary(g => g.Key, g => g.Count()());
+                                            .ToDictionary(g => g.Key, g => g.Count());
 
             if (!groupedParts.Any())
             {
@@ -124,7 +135,7 @@ namespace Lightrealm
             return "It has " + string.Join(", ", partsDescription.Take(partsDescription.Count() - 1)) + (partsDescription.Count() > 1 ? ", and " : "") + partsDescription.Last() + ".";
         }
 
-        public static string GenerateUniqueAbbreviation(string raceName, List<Race> existingRaces)
+        public static string GenerateUniqueAbbreviation(string raceName, EntityList<Race> existingRaces)
         {
             var priorityAbbreviations = new Dictionary<string, string>
             {

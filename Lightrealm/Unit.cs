@@ -17,7 +17,7 @@ namespace Lightrealm
             set => _leaderId = value?.ID ?? 0;
         }
 
-        public List<Architect> Architects { get; set; } = new List<Architect>();
+        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
 
         public int OtherSoldiers { get; set; }
 
@@ -30,7 +30,7 @@ namespace Lightrealm
 
         public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
 
-        public Unit(Architect leader, List<Architect> architects, int otherSoldiers, Location homeLocation)
+        public Unit(Architect leader, EntityList<Architect> architects, int otherSoldiers, Location homeLocation)
         {
             Leader = leader;
             Architects = architects;

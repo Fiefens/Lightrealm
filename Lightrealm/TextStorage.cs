@@ -17,9 +17,9 @@ namespace Lightrealm
         private byte green;
         private byte blue;
 
-        public List<Entity> Entities { get; set; } = new List<Entity>();
+        public EntityList<Entity> Entities { get; set; } = new EntityList<Entity>();
 
-        public TextStorage(string data, Color color, List<Entity> Entities)
+        public TextStorage(string data, Color color, EntityList<Entity> Entities)
         {
             this.Data = data;
             this.Red = color.R;

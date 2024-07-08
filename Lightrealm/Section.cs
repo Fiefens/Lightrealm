@@ -12,7 +12,7 @@ namespace Lightrealm
     {
         public int Length { get; set; }
 
-        public List<Entity> Domains { get; set; } = new List<Entity>();
+        public EntityList<Entity> Domains { get; set; } = new EntityList<Entity>();
 
         public List<string> Perspectives { get; set; } = new List<string>();
         public string Tone { get; set; }
@@ -98,7 +98,7 @@ namespace Lightrealm
 
             this.Tone = tones[Game1.r.Next(tones.Count())];
             this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count())] };
-            this.Domains = new List<Entity> { Parent.Subject };
+            this.Domains = new EntityList<Entity> { Parent.Subject };
 
             this.Type = sectionType;
 
@@ -172,9 +172,9 @@ namespace Lightrealm
             Description = format;
         }
 
-        private List<Entity> GenerateDomains()
+        private EntityList<Entity> GenerateDomains()
         {
-            List<Entity> generatedDomains = new List<Entity>();
+            EntityList<Entity> generatedDomains = new EntityList<Entity>();
 
             if (Game1.r.NextDouble() < 0.8)
             {

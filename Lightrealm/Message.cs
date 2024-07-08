@@ -38,10 +38,10 @@ namespace Lightrealm
         public string DerailingResponse { get; set; } = "";
         public string FlatteringResponse { get; set; } = "";
 
-        public List<Location> StoredRevealLocations { get; set; } = new List<Location>();
-        public List<Entity> Subjects { get; set; } = new List<Entity>();
+        public EntityList<Location> StoredRevealLocations { get; set; } = new EntityList<Location>();
+        public EntityList<Entity> Subjects { get; set; } = new EntityList<Entity>();
 
-        public Message(Architect sender, Architect receiver, List<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
+        public Message(Architect sender, Architect receiver, EntityList<Entity> subjects, string messageType, string messageID, string messageContent, string truthfulResponse, string madeUpResponse, string ignorantResponse, string derailingResponse, string flatteringResponse)
         {
             Sender = sender;
             MessageID = messageID;

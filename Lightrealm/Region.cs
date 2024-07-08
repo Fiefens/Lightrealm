@@ -89,7 +89,7 @@ namespace Lightrealm
             set => _harvestableFiberId = value?.ID ?? 0;
         }
 
-        public List<InteractableEvent> Events { get; set; } = new List<InteractableEvent>();
+        public EntityList<InteractableEvent> Events { get; set; } = new EntityList<InteractableEvent>();
 
         private int _ownerId;
         

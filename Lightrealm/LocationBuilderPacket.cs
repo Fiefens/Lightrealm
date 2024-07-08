@@ -64,7 +64,7 @@ namespace Lightrealm
         }
 
         public string Type { get; set; }
-        public List<Object> Artifacts { get; set; } = new List<Object>();
+        public EntityList<Object> Artifacts { get; set; } = new EntityList<Object>();
 
         private int _baseLocationId;
 
@@ -77,7 +77,7 @@ namespace Lightrealm
 
         public string Dockside { get; set; }
 
-        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization homeCiv, List<Object> artifacts, Location originalLocationYouAreComingFrom, string dockside)
+        public LocationBuilderPacket(Entity government, int x, int z, string locationType, Race primaryRace, int miscPopulation, int colonizationDesire, Civilization homeCiv, EntityList<Object> artifacts, Location originalLocationYouAreComingFrom, string dockside)
         {
             BaseLocation = originalLocationYouAreComingFrom;
             Type = locationType;

@@ -19,9 +19,9 @@ namespace Lightrealm
             set => _subjectId = value?.ID ?? 0;
         }
 
-        private List<Entity> _subjects = new List<Entity>();
+        private EntityList<Entity> _subjects = new EntityList<Entity>();
 
-        public List<Section> Sections { get; set; }
+        public EntityList<Section> Sections { get; set; }
 
         public Composition(string type, Architect Author, Entity ChosenEntity)
         {
@@ -155,9 +155,9 @@ namespace Lightrealm
             return format.Replace("{adjective}", adjective).Replace("{noun}", noun).Replace("{domain}", domain);
         }
 
-        private List<Section> GenerateSectionsFromSubject(string type, Architect Author, Entity subject)
+        private EntityList<Section> GenerateSectionsFromSubject(string type, Architect Author, Entity subject)
         {
-            List<Section> sections = new List<Section>();
+            EntityList<Section> sections = new EntityList<Section>();
             var events = GetEventsForSubject(subject);
 
             int numberSections = Math.Min(type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12), events.Count());
@@ -214,7 +214,7 @@ namespace Lightrealm
         private Entity GenerateRandomSubject()
         {
             var random = new Random();
-            List<Entity> subjects = new List<Entity>();
+            EntityList<Entity> subjects = new EntityList<Entity>();
 
             subjects.AddRange(Game1.GameWorld.AllArchitects);
             subjects.AddRange(Game1.GameWorld.AllLocations);
@@ -228,7 +228,7 @@ namespace Lightrealm
         {
             string subjectName = subject.ReferredToNames[0];
 
-            var events = Game1.GameWorld.HistoricalEvents
+            IEnumerable<string> events = Game1.GameWorld.HistoricalEvents
                 .Where(e => e.Contains(subjectName))
                 .Select(e =>
                 {
@@ -242,11 +242,11 @@ namespace Lightrealm
                     string processedEvent = e.Substring(descriptionStart);
 
                     return $"In {yearAndDay}, {processedEvent}";
-                })
-                ;
+                });
 
-            return events;
+            return events.ToList();
         }
+
 
         public Composition()
         {

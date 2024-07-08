@@ -83,7 +83,7 @@ namespace Lightrealm
         public int ElectionFrequency { get; set; } = Game1.r.Next(1401520000, 1501520000);
         public Dictionary<string, int> HatredPoints { get; set; } = new Dictionary<string, int>();
         public int CyclesTillElection { get; set; } = 0;
-        public List<Architect> Citizens { get; set; } = new List<Architect>();
+        public EntityList<Architect> Citizens { get; set; } = new EntityList<Architect>();
 
         private int _alphaId;
 
@@ -95,7 +95,7 @@ namespace Lightrealm
         }
 
         public int WakeUpAndChooseViolencePoints { get; set; } = 0;
-        public List<Unit> UnitsAtCommand { get; set; } = new List<Unit>();
+        public EntityList<Unit> UnitsAtCommand { get; set; } = new EntityList<Unit>();
 
         public string CulturalHeadwear { get; set; } = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count())];
         public string CulturalNeckwear { get; set; } = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count())];
@@ -146,12 +146,12 @@ namespace Lightrealm
                 Game1.GameWorld.UnusedCivColors.RemoveAt(Index);
             }
 
-            CulturalCloth = world.Cloths[Game1.r.Next(world.Cloths.Count()())];
-            CulturalWood = world.Woods[Game1.r.Next(world.Woods.Count()())];
-            CulturalStone = world.Stones[Game1.r.Next(world.Stones.Count()())];
-            CulturalMetal = world.Metals[Game1.r.Next(world.Metals.Count()())];
-            CulturalGemstone = world.Gemstones[Game1.r.Next(world.Gemstones.Count()())];
-            CulturalSheet = world.Sheets[Game1.r.Next(world.Sheets.Count()())];
+            CulturalCloth = world.Cloths[Game1.r.Next(world.Cloths.Count)];
+            CulturalWood = world.Woods[Game1.r.Next(world.Woods.Count)];
+            CulturalStone = world.Stones[Game1.r.Next(world.Stones.Count)];
+            CulturalMetal = world.Metals[Game1.r.Next(world.Metals.Count)];
+            CulturalGemstone = world.Gemstones[Game1.r.Next(world.Gemstones.Count)];
+            CulturalSheet = world.Sheets[Game1.r.Next(world.Sheets.Count)];
 
             CyclesTillElection = ElectionFrequency;
         }

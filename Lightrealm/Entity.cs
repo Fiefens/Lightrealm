@@ -27,18 +27,18 @@ namespace Lightrealm
 
             Entity entity = null;
 
-            if (Game1.GameWorld == null || Game1.EntityLedger == null)
+            if (Game1.GameWorld == null)
             {
-                if (Game1.TemporaryEntities.ContainsKey(entityId))
+                if (Game1.TemporaryEntityLedger.ContainsKey(entityId))
                 {
-                    entity = Game1.TemporaryEntities[entityId];
+                    entity = Game1.TemporaryEntityLedger[entityId];
                 }
             }
             else
             {
-                if (Game1.EntityLedger.ContainsKey(entityId))
+                if (Game1.GameWorld.EntityLedger.ContainsKey(entityId))
                 {
-                    entity = Game1.EntityLedger[entityId];
+                    entity = Game1.GameWorld.EntityLedger[entityId];
                 }
             }
 
@@ -109,13 +109,13 @@ namespace Lightrealm
             {
                 ID = Game1.GameWorld.NextUniqueID;
                 Game1.GameWorld.NextUniqueID++;
-                Game1.EntityLedger.Add(ID, this);
+                Game1.GameWorld.EntityLedger.Add(ID, this);
             }
             else
             {
                 ID = Game1.TemporaryNextUniqueID;
                 Game1.TemporaryNextUniqueID++;
-                Game1.TemporaryEntities.Add(ID, this);
+                Game1.TemporaryEntityLedger.Add(ID, this);
             }
         }
 
@@ -131,13 +131,13 @@ namespace Lightrealm
             {
                 ID = Game1.GameWorld.NextUniqueID;
                 Game1.GameWorld.NextUniqueID++;
-                Game1.EntityLedger.Add(ID, this);
+                Game1.GameWorld.EntityLedger.Add(ID, this);
             }
             else
             {
                 ID = Game1.TemporaryNextUniqueID;
                 Game1.TemporaryNextUniqueID++;
-                Game1.TemporaryEntities.Add(ID, this);
+                Game1.TemporaryEntityLedger.Add(ID, this);
             }
         }
     }

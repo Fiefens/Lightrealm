@@ -11,11 +11,11 @@ namespace Lightrealm
     [Serializable]
     public class Block : Entity
     {
-        public List<Structure> Structures { get; set; } = new List<Structure>();
-        public List<Structure> StructuresToRemove { get; set; } = new List<Structure>();
-        public List<Architect> Architects { get; set; } = new List<Architect>();
-        public List<Architect> ArchitectsToRemove { get; set; } = new List<Architect>();
-        public List<Object> Objects { get; set; } = new List<Object>();
+        public EntityList<Structure> Structures { get; set; } = new EntityList<Structure>();
+        public EntityList<Structure> StructuresToRemove { get; set; } = new EntityList<Structure>();
+        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
+        public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
+        public EntityList<Object> Objects { get; set; } = new EntityList<Object>();
 
         public string Biome { get; set; } = "";
 

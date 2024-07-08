@@ -26,11 +26,11 @@ namespace Lightrealm
 
         public string FakeIsofractalColor { get; set; }
 
-        public List<Room> Rooms { get; set; } = new List<Room>();
+        public EntityList<Room> Rooms { get; set; } = new EntityList<Room>();
 
-        public List<Object> HistoricalObjects { get; set; } = new List<Object>();
+        public EntityList<Object> HistoricalObjects { get; set; } = new EntityList<Object>();
 
-        public List<Material> Materials { get; set; } = new List<Material>();
+        public EntityList<Material> Materials { get; set; } = new EntityList<Material>();
 
         public List<string> PrimarySmells { get; set; } = new List<string>();
         public List<string> LightingMethods { get; set; } = new List<string>();
@@ -68,7 +68,7 @@ namespace Lightrealm
         public int XInDistrict { get; set; }
         public int ZInDistrict { get; set; }
 
-        public Structure(string type, List<Object> Objects, List<Room> rooms, Block block, List<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
+        public Structure(string type, EntityList<Object> Objects, EntityList<Room> rooms, Block block, EntityList<Material> materials, List<string> primarySmells, List<string> lightingMethods, int lightLevelOf5, int windows, int constructionYear)
         {
             Type = type;
 
@@ -130,7 +130,7 @@ namespace Lightrealm
 
             if (Type == "house" || Type == "bighouse")
             {
-                int count = Block.Structures.Count()(s => s.Type == "house" || s.Type == "bighouse");
+                int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "bighouse");
 
                 AddReferredToName("house " + (count + 1).ToString());
             }
@@ -140,11 +140,11 @@ namespace Lightrealm
 
         public string GetRoomStructure()
         {
-            var graph = new Dictionary<Room, List<Room>>();
+            var graph = new Dictionary<Room, EntityList<Room>>();
             foreach (Room room in Rooms)
             {
                 // Initialize the adjacency list for each room
-                graph[room] = new List<Room>();
+                graph[room] = new EntityList<Room>();
             }
 
             // Map door connections to room-to-room connections
@@ -168,7 +168,7 @@ namespace Lightrealm
             }
 
             // Analyze the structure based on the graph
-            var visited = new HashSet<Room>();
+            var visited = new EntityList<Room>();
             var roomLevels = new Dictionary<Room, int>(); // Tracks the vertical level of rooms
             int maxLevel = 0, minLevel = 0; // Track highest and lowest levels for tower and basement detection
 
@@ -209,7 +209,8 @@ namespace Lightrealm
             int hallwayCount = 0;
             foreach (var room in Rooms)
             {
-                var horizontalDoors = room.Objects.OfType<Door>().Count()(door => Door.OrthogonalDoorDirections.Contains(door.Direction));
+                int horizontalDoors = room.Objects.OfType<Door>().Count(door => Door.OrthogonalDoorDirections.Contains(door.Direction));
+
                 if (horizontalDoors == 1)
                 {
                     // Assuming a hallway if a room has exactly one horizontal door (leading to another room in a linear fashion)
@@ -224,7 +225,7 @@ namespace Lightrealm
 
             // Detect balconies or overhanging rooms
             // Simplified check: Any room with a single 'down' door could be considered as a balcony or overhang
-            int balconyCount = Rooms.Count()(room => room.Objects.OfType<Door>().Count()(door => door.Direction == "down") == 1);
+            int balconyCount = Rooms.Count(room => room.Objects.OfType<Door>().Count(door => door.Direction == "down") == 1);
             if (balconyCount > 0) description += "a balcony or overhanging areas, ";
 
             description = description.TrimEnd(',', ' ') + ".";
