@@ -70,7 +70,6 @@ namespace Lightrealm
         new Entity("hold"),
         new Entity("force throw"),
         new Entity("shatter"),
-        new Entity("clone"),
         new Entity("intercept"),
         new Entity("expel"),
         new Entity("extract"),
@@ -1547,6 +1546,14 @@ namespace Lightrealm
             foreach (Race r in Races)
             {
                 r.RaceLetter = Race.GenerateUniqueAbbreviation(r.Name, this.Races);
+                
+                foreach(string s in r.BodyPartNames)
+                {
+                    if(!AllBodyParts.Any(e => e.Metadata == s))
+                    {
+                        AllBodyParts.Add(new Entity(s));
+                    }
+                }
             }
 
             //utilize elevation map

@@ -645,6 +645,7 @@ namespace Lightrealm
                     ReferredToNames.Insert(0, quickestName);
                 }
 
+                AddReferredToName(ID.ToString());
                 return;
             }
             else if (this.IsBodyPart)
@@ -653,6 +654,7 @@ namespace Lightrealm
                 {
                     AddReferredToName(s + "'s " + Type);
                 }
+                AddReferredToName(ID.ToString());
                 return;
             }
 

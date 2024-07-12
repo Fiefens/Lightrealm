@@ -211,7 +211,7 @@ namespace Lightrealm
         public bool RecievedBodyPhysicalStatIncrease { get; set; } = false;
         public bool RecievedBodyPhysicalStatIncreaseTwo { get; set; } = false;
 
-        private List<Architect> _architects = new List<Architect>();
+        private EntityList<Architect> _architects = new EntityList<Architect>();
         private List<int> _distances = new List<int>();
 
         public void ModifyDistance(Architect architect, int distanceChange)
@@ -222,10 +222,12 @@ namespace Lightrealm
             }
 
             int index = _architects.IndexOf(architect);
+            int newDistance;
             if (index >= 0)
             {
-                _distances[index] = distanceChange;
-                if (_distances[index] <= 0)
+                newDistance = _distances[index] + distanceChange;
+                _distances[index] = newDistance;
+                if (_distances[index] < 0)
                 {
                     _architects.RemoveAt(index);
                     _distances.RemoveAt(index);
@@ -233,32 +235,51 @@ namespace Lightrealm
             }
             else if (distanceChange > 0)
             {
+                newDistance = distanceChange;
                 _architects.Add(architect);
-                _distances.Add(distanceChange);
+                _distances.Add(newDistance);
+            }
+            else
+            {
+                return;
+            }
+
+            // Ensure the distance is mirrored in the other architect
+            architect.SyncDistance(this, newDistance);
+        }
+
+        public void SyncDistance(Architect architect, int newDistance)
+        {
+            int index = _architects.IndexOf(architect);
+            if (index >= 0)
+            {
+                _distances[index] = newDistance;
+                if (_distances[index] < 0)
+                {
+                    _architects.RemoveAt(index);
+                    _distances.RemoveAt(index);
+                }
+            }
+            else if (newDistance > 0)
+            {
+                _architects.Add(architect);
+                _distances.Add(newDistance);
             }
         }
 
         public int GetDistance(Entity Object)
         {
-            if (Object == null)
+            if (!(Object is Architect architect))
             {
-                throw new ArgumentNullException(nameof(Object));
+                return -1;
             }
 
-            if (Object is Architect a)
+            int index = _architects.IndexOf(architect);
+            if (index >= 0)
             {
-                int index = _architects.IndexOf(a);
-                if (index >= 0)
-                {
-                    return _distances[index];
-                }
-                else
-                {
-                    return 0; // Default distance if not found
-                }
+                return _distances[index];
             }
-
-            return 0; // for non-architects
+            return -1; // Return -1 if the distance is not found
         }
 
         public void RemoveDistance(Architect architect)
@@ -274,13 +295,25 @@ namespace Lightrealm
                 _architects.RemoveAt(index);
                 _distances.RemoveAt(index);
             }
+
+            // Remove the distance from the other architect as well
+            architect.SyncRemoveDistance(this);
+        }
+
+        public void SyncRemoveDistance(Architect architect)
+        {
+            int index = _architects.IndexOf(architect);
+            if (index >= 0)
+            {
+                _architects.RemoveAt(index);
+                _distances.RemoveAt(index);
+            }
         }
 
         public Dictionary<Architect, int> GetDistances()
         {
             return _architects.ToDictionary(arch => arch, arch => _distances[_architects.IndexOf(arch)]);
         }
-
         private int _legendaryTarget;
 
         
@@ -695,12 +728,71 @@ namespace Lightrealm
         public string CurrentlyMovingPlace { get; set; } = "none";
         public int MessageCooldown { get; set; } = 0;
 
-        private List<(int, int)> _architectOpinions = new List<(int, int)>();
+        public EntityList<Architect> ArchitectsForOpinions = new EntityList<Architect>();
+        public List<int> Opinions = new List<int>();
 
-        public List<(Architect, int)> ArchitectOpinions
+        public void SetOpinion(Architect architect, int opinion)
         {
-            get => _architectOpinions.Select(tuple => (EntityGet<Architect>(tuple.Item1), tuple.Item2)).ToList();
-            set => _architectOpinions = value?.Select(tuple => (tuple.Item1?.ID ?? 0, tuple.Item2)).ToList() ?? new List<(int, int)>();
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = ArchitectsForOpinions.IndexOf(architect);
+            if (index >= 0)
+            {
+                Opinions[index] = opinion;
+            }
+            else
+            {
+                ArchitectsForOpinions.Add(architect);
+                Opinions.Add(opinion);
+            }
+        }
+
+        public void ChangeOpinion(Architect architect, int opinionChange)
+        {
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = ArchitectsForOpinions.IndexOf(architect);
+            if (index >= 0)
+            {
+                Opinions[index] += opinionChange;
+            }
+            else
+            {
+                ArchitectsForOpinions.Add(architect);
+                Opinions.Add(opinionChange);
+            }
+        }
+
+        public int GetOpinion(Architect architect)
+        {
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = ArchitectsForOpinions.IndexOf(architect);
+            return index >= 0 ? Opinions[index] : 0; // Default opinion if not found
+        }
+
+        public void RemoveOpinion(Architect architect)
+        {
+            if (architect == null)
+            {
+                throw new ArgumentNullException(nameof(architect));
+            }
+
+            int index = ArchitectsForOpinions.IndexOf(architect);
+            if (index >= 0)
+            {
+                ArchitectsForOpinions.RemoveAt(index);
+                Opinions.RemoveAt(index);
+            }
         }
 
         public EntityList<Architect> KnownArchitects { get; set; } = new EntityList<Architect>();
@@ -1013,50 +1105,6 @@ namespace Lightrealm
                 XPValues[index] = (proficiencyName, value);
             }
         }
-
-        public void ChangeOpinion(Architect a, int Change)
-        {
-            int NewOpinion = 0;
-            foreach ((Architect, int) Arch in ArchitectOpinions)
-            {
-                if (Arch.Item1 == a)
-                {
-                    NewOpinion = Arch.Item2 + Change;
-                    ArchitectOpinions.Remove(Arch);
-                    ArchitectOpinions.Add((Arch.Item1, NewOpinion));
-                    return;
-                }
-            }
-            //this only runs if we didnt find the architect
-            ArchitectOpinions.Add((a, Change));
-        }
-        public int GetOpinion(Architect a)
-        {
-            foreach ((Architect, int) Arch in ArchitectOpinions)
-            {
-                if (Arch.Item1 == a)
-                {
-                    return (Arch.Item2);
-                }
-            }
-            return (0);
-        }
-
-        public void SetOpinion(Architect a, int NewOpinion)
-        {
-            foreach ((Architect, int) Arch in ArchitectOpinions)
-            {
-                if (Arch.Item1 == a)
-                {
-                    ArchitectOpinions.Remove(Arch);
-                    ArchitectOpinions.Add((Arch.Item1, NewOpinion));
-                    return;
-                }
-            }
-            // this only runs if we didn't find the architect
-            ArchitectOpinions.Add((a, NewOpinion));
-        }
-
 
 
 
@@ -2738,11 +2786,12 @@ namespace Lightrealm
             {
                 if (Game1.LoadedArchitects.Count() > 0)
                 {
-                    foreach ((Architect, int) a in Game1.LoadedArchitects[Game1.ArchitectIndex].ArchitectOpinions)
+                    foreach (var opinion in Game1.LoadedArchitects[Game1.ArchitectIndex].ArchitectsForOpinions)
                     {
-                        if (a.Item1 == this)
+                        if (opinion == this)
                         {
                             PlayerKnowsArch = true;
+                            break;
                         }
                     }
 
@@ -2755,8 +2804,8 @@ namespace Lightrealm
                     {
                         AddReferredToName("dead " + Profession);
                     }
-
                 }
+
             }
 
             foreach (Object o in Inventory)
@@ -2909,30 +2958,30 @@ namespace Lightrealm
             //distancing
 
             // HashSet to keep track of current architects in the room or block
-            EntityHashSet<Architect> currentArchitects = new EntityHashSet<Architect>(Room?.Architects ?? Block.Architects);
+            EntityHashSet<Architect> currentArchitects = new EntityHashSet<Architect>(Room?.Architects ?? Block?.Architects);
             currentArchitects.Remove(this);
 
+            // Remove architects that are no longer in the room or block from the distance list
             foreach (var architect in GetDistances().Keys.Except(currentArchitects))
             {
                 RemoveDistance(architect);
             }
 
+            // Add or update distances for current architects
             foreach (Architect a in currentArchitects)
             {
-                int distanceThisToA;
-                if (GetDistance(a) == 0 && a.GetDistance(this) == 0)
+                int distanceChange;
+                if (GetDistance(a) == -1 && a.GetDistance(this) == -1)
                 {
                     // Generate a new random distance if neither has a distance
-                    distanceThisToA = Game1.r.Next(2, 6);
-                    ModifyDistance(a, distanceThisToA);
-                    a.ModifyDistance(this, distanceThisToA);
+                    distanceChange = Game1.r.Next(2, 6);
                 }
                 else
                 {
-                    // Use the distance from a to this
-                    distanceThisToA = a.GetDistance(this);
-                    ModifyDistance(a, distanceThisToA);
+                    // Use the existing distance from a to this
+                    distanceChange = a.GetDistance(this) - GetDistance(a);
                 }
+                ModifyDistance(a, distanceChange);
             }
 
             if (Pain > 100)
@@ -3959,12 +4008,12 @@ namespace Lightrealm
                             FinalOpinion = Math.Min(FinalOpinion, 1);
                         }
 
-                        ChangeOpinion(a, FinalOpinion);
+                        SetOpinion(a, FinalOpinion);
                     }
 
                     if (OppositionTags.Contains("indebted") && HomeStructure.MarketDebt <= -1 && Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && a.Structure == null && Game1.r.Next(0, 100) < a.ExtraStealth == false)
                     {
-                        ChangeOpinion(a, -247);
+                        SetOpinion(a, -247);
                     }
                 }
 
@@ -5168,24 +5217,13 @@ namespace Lightrealm
             //for serialization
         }
 
-        public List<TextStorage> CastSpell(string Spell, EntityList<Entity> Targets) //the list of strings are the announcements
+        public List<TextStorage> CastSpell(string Spell, EntityList<Entity> Targets) // the list of strings are the announcements
         {
             List<TextStorage> Announcements = new List<TextStorage>();
 
             string casterName = this.ReferredToNames[0];
 
-            List<string> AgressiveSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "ice shock", "rise", "hold", "force throw", "shatter", "expel"};
-
-            foreach (Entity e in Targets)
-            {
-                if (e is Architect a && AgressiveSpells.Contains(Spell))
-                {
-                    a.CombatCycles = 250;
-                    CombatCycles = 250;
-                    a.ChangeOpinion(this, -60);
-                }
-            }
-
+            List<string> AggressiveSpells = new List<string>() { "water bolt", "chaos flare", "concentrated ignition", "ice shock", "rise", "hold", "force throw", "shatter", "expel" };
 
             EntityList<Entity> TargetsToPurge = new EntityList<Entity>();
             foreach (Entity e in Targets)
@@ -5199,6 +5237,16 @@ namespace Lightrealm
             foreach (Entity e in TargetsToPurge)
             {
                 Targets.Remove(e);
+            }
+
+            foreach (Entity e in Targets)
+            {
+                if (e is Architect a && AggressiveSpells.Contains(Spell))
+                {
+                    a.CombatCycles = 250;
+                    CombatCycles = 250;
+                    a.ChangeOpinion(this, -60);
+                }
             }
 
             if (new List<string> { "eternal bind", "ethereal rupture", "echo", "expunge", "emergence" }.Contains(Spell))
@@ -5866,8 +5914,26 @@ namespace Lightrealm
 
                         foreach (Architect A in Game1.GameWorld.AllArchitects)
                         {
-                            A.ArchitectOpinions.RemoveAll(opinion => opinion.Item1 == a);
+                            var indicesToRemove = new List<int>();
+
+                            // Find indices to remove
+                            for (int i = 0; i < A.ArchitectsForOpinions.Count; i++)
+                            {
+                                if (A.ArchitectsForOpinions[i] == a)
+                                {
+                                    indicesToRemove.Add(i);
+                                }
+                            }
+
+                            // Remove the indices in reverse order to maintain list integrity
+                            for (int i = indicesToRemove.Count - 1; i >= 0; i--)
+                            {
+                                int index = indicesToRemove[i];
+                                A.ArchitectsForOpinions.RemoveAt(index);
+                                A.Opinions.RemoveAt(index);
+                            }
                         }
+
 
                         if (Game1.GameWorld.Colossals.Contains(a))
                         {
@@ -6087,8 +6153,8 @@ namespace Lightrealm
                         // Cloning XPValues
                         Clone.XPValues = new List<(string, int)>(Base.XPValues);
 
-                        // Cloning KnownArchitectsAndOpinions
-                        Clone.ArchitectOpinions = new List<(Architect, int)>(Base.ArchitectOpinions);
+                        Clone.ArchitectsForOpinions = new EntityList<Architect>(Base.ArchitectsForOpinions);
+                        Clone.Opinions = new List<int>(Base.Opinions);
 
                         if (Base.District.IsLoaded)
                         {

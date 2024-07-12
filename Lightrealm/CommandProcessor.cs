@@ -111,7 +111,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    if (r.Next(100) <= Executor.EscapeChance())
+                    if (r.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
                     {
                         Executor.Room.Architects.Remove(Executor);
                         Executor.Structure = null;
@@ -132,7 +132,7 @@ namespace Lightrealm
                 Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
                 if (LoadedArchitects[Game1.ArchitectIndex].Structure != null && Subjects[0] is Door && (Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
                 {
-                    if (r.Next(100) <= Executor.EscapeChance())
+                    if (r.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
                     {
                         Executor.Room.Architects.Remove(Executor);
                         Executor.Room = ((Door)Subjects[0]).DestinationRoom;
@@ -147,7 +147,7 @@ namespace Lightrealm
                 }
                 else if (LoadedArchitects[Game1.ArchitectIndex].Structure == null && Subjects[0] is Structure)
                 {
-                    if (r.Next(100) <= Executor.EscapeChance())
+                    if (r.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
                     {
                         Executor.Structure = (Structure)Subjects[0];
                         Executor.Room = ((Structure)Subjects[0]).Rooms[0];
@@ -176,7 +176,7 @@ namespace Lightrealm
                 }
                 else if (Subjects[0] is Object obj && obj.Type == "exit door")
                 {
-                    if (r.Next(100) <= Executor.EscapeChance())
+                    if (r.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
                     {
                         Executor.CooldownCycles += (int)(Math.Round(25 / Executor.Speed()));
                         Executor.Room.Architects.Remove(Executor);
@@ -3568,13 +3568,29 @@ namespace Lightrealm
                             MakeObservation($"...you feel a stronger connection to {Subjects[0].Name}'s essence...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
                             break;
                         case 3:
-                            // Perform the expunge-like deletion
                             if (Subjects[0] is Architect a)
                             {
                                 Game1.GameWorld.AllArchitects.Remove(a);
+
                                 foreach (Architect A in Game1.GameWorld.AllArchitects)
                                 {
-                                    A.ArchitectOpinions.RemoveAll(opinion => opinion.Item1 == a);
+                                    var indicesToRemove = new List<int>();
+
+                                    for (int i = 0; i < A.ArchitectsForOpinions.Count; i++)
+                                    {
+                                        if (A.ArchitectsForOpinions[i] == a)
+                                        {
+                                            indicesToRemove.Add(i);
+                                        }
+                                    }
+
+                                    // Remove the indices in reverse order to maintain list integrity
+                                    for (int i = indicesToRemove.Count - 1; i >= 0; i--)
+                                    {
+                                        int index = indicesToRemove[i];
+                                        A.ArchitectsForOpinions.RemoveAt(index);
+                                        A.Opinions.RemoveAt(index);
+                                    }
                                 }
                                 if (Game1.GameWorld.Colossals.Contains(a))
                                     Game1.GameWorld.Colossals.Remove(a);

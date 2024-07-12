@@ -66,6 +66,11 @@ namespace Lightrealm
                     a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
                 }
 
+                a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
+                a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
+                a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
+
+
                 int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
 
                 switch (healingItem)

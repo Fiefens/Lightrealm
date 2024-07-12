@@ -1088,6 +1088,18 @@ namespace Lightrealm
             HasBeenLoadedEver = true;
             Game1.TicksSinceLoad = 0;
 
+
+            //i hate this issue
+
+            foreach(Structure s in Location.AllStructures)
+            {
+                if(s.Block.District == this && s.Rooms.Count == 0)
+                {
+                    s.Rooms.Add(new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>()));
+                    s.Rooms[0].PopulateRoom();
+                }
+            }
+
             Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
         }
 

@@ -195,31 +195,36 @@ namespace Lightrealm
         {
             List<Entity> subjects = new List<Entity>();
 
-            // Entities around
+
+            //divided into constants and into not-constants
+
+            // Nonalive entities around
+
             foreach (Block b in executor.District.DistrictMap)
             {
                 subjects.AddRange(b.Structures);
                 subjects.AddRange(b.Objects);
-                subjects.AddRange(b.Architects);
 
                 foreach (Structure s in b.Structures)
                 {
                     foreach (Room r in s.Rooms)
                     {
                         subjects.AddRange(r.Objects);
-                        subjects.AddRange(r.Architects);
                     }
                 }
             }
 
+            //loaded architects
+
             subjects.AddRange(LoadedArchitects);
+
 
             // Add the items in the inventories of people who actually matter
             List<Entity> subjectsToAdd = new List<Entity>();
 
             foreach (Entity e in subjects)
             {
-                if (e is Architect architect)
+                if (e is Architect architect && architect.Block == executor.Block && architect.Room == executor.Room)
                 {
                     if (Modifier != "get")
                     {
@@ -3179,8 +3184,7 @@ namespace Lightrealm
     "pitch ~ at ~", "pitch ~ towards ~",
     "chuck ~ at ~", "chuck ~ towards ~",
     "launch ~ at ~", "launch ~ towards ~",
-    "heave ~ at ~", "heave ~ towards ~",
-    "cast ~ at ~", "cast ~ towards ~"
+    "heave ~ at ~", "heave ~ towards ~"
 }, new List<string> { "hand_object", "nearby_target" }));
 
             RecognizedCommands.Add("cast_spell_at_1", (new List<string> { "cast ~ at ~" }, new List<string> { "spell", "nearby_target" }));
@@ -5500,24 +5504,38 @@ namespace Lightrealm
                         TheChosenOne = null;
                         TheChosenGroup = null;
 
-                        foreach (Architect a in GameWorld.AllArchitects)
-                        {
-                            if (a.IsAlive && a.Location != null && GameWorld.SettlementTypes.Contains(a.Location.Type))
-                            {
-                                if (a.Sex == Sexes[CurrentlySelectingSex] &&
-                                    a.Race == GameWorld.HumanoidRaces[CurrentlySelectingRace - 1] &&
-                                    a.Location.TradersAtThisLocation.Count() > 0 &&
-                                    a.Reputation > -40 &&
-                                    a.Grievances.Any(g => GameWorld.Calamity.Any(c => c.ID == g.Item1)))
-                                {
-                                    var grievance = a.Grievances.First(g => GameWorld.Calamity.Any(c => c.ID == g.Item1));
-                                    GrievanceDoer = World.EntityGet<Entity>(grievance.Item1).Name;
-                                    GrievanceReason = grievance.Item2;
 
-                                    TheChosenOne = a;
-                                    break;
+                        for (int i = 0; i < 30; i++)
+                        {
+                            foreach (Architect a in GameWorld.AllArchitects)
+                            {
+                                if (a.IsAlive && a.Location != null && GameWorld.SettlementTypes.Contains(a.Location.Type))
+                                {
+                                    if (a.Sex == Sexes[CurrentlySelectingSex] &&
+                                        a.Race == GameWorld.HumanoidRaces[CurrentlySelectingRace - 1] &&
+                                        a.Location.TradersAtThisLocation.Count() > 0 &&
+                                        a.Reputation > -40 &&
+                                        a.Grievances.Any(g => GameWorld.Calamity.Any(c => c.ID == g.Item1)))
+                                    {
+                                        var grievance = a.Grievances.First(g => GameWorld.Calamity.Any(c => c.ID == g.Item1));
+                                        GrievanceDoer = World.EntityGet<Entity>(grievance.Item1).Name;
+                                        GrievanceReason = grievance.Item2;
+
+                                        TheChosenOne = a;
+                                        break;
+                                    }
                                 }
                             }
+
+                            //keep looking IG
+
+
+                            if(TheChosenOne != null)
+                            {
+                                break;
+                            }
+
+                            GameWorld.ProgressDays(28, true);
                         }
 
 
@@ -6730,7 +6748,6 @@ namespace Lightrealm
                         if (KeysNewlyPressed.Contains(Keys.Space))
                         {
                             GameWorld = null;
-                            GameWorld.GamePlayerParty = null;
                             Announcements = new EntityList<TextStorage>();
                             Observations = new EntityList<TextStorage>();
                             Messages = new EntityList<TextStorage>();
@@ -10893,7 +10910,7 @@ namespace Lightrealm
                         {
                             if (GameWorld.HumanoidRaces.Contains(MostRecentPartyTurnArchitect.Race))
                             {
-                                Vector2 bodyPartsPosition = new Vector2(currentX + (PositionAdjustment-450), 1225); // Apply the adjustment
+                                Vector2 bodyPartsPosition = new Vector2(currentX + (PositionAdjustment-200), 1225); // Apply the adjustment
 
                                 // Draw the body parts
                                 DrawBodyParts(_spriteBatch, bodyPartsPosition);
@@ -12332,6 +12349,8 @@ namespace Lightrealm
             {
                 _spriteBatch.DrawString(BabyShibafont, "Press TAB to zoom out.", new Vector2(DrawX + 500, 10), Color.White);
 
+                _spriteBatch.DrawString(BabyShibafont, "Press CTRL+S to save your game.", new Vector2(DrawX + 500, 30), Color.White);
+
                 _spriteBatch.Draw(GuideT, new Rectangle(0, 0, 192, 192), Color.White);
 
                 string dateTimeString = GameWorld.GetFormattedDateTime();
@@ -12734,7 +12753,7 @@ namespace Lightrealm
                 else
                 {
                     _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "Leave this location and press/hold CTRL-S to save your game.", new Vector2(10, 70), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Travel outside the district and press CTRL+S to save.", new Vector2(10, 70), Color.White);
                 }
             }
 

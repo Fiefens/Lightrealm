@@ -458,129 +458,46 @@ namespace Lightrealm
 
             else if (Structure.Type == "core" || Structure.Type == "heart")
             {
-                Material m;
-
-                if(Structure.Type == "core")
-                {
-                    m = Structure.Block.District.Location.HomeCivilization.CulturalGemstone;
-                }
-                else
-                {
-                    m = Game1.GameWorld.ShadeSludge;
-                }
-
+                Material m = Structure.Type == "core" ? Structure.Block.District.Location.HomeCivilization.CulturalGemstone : Game1.GameWorld.ShadeSludge;
                 int Position = Structure.Rooms.IndexOf(this);
 
-                // Central room
+                // Core room does not create doors
                 if (Position == 0)
                 {
                     // Add entrance door
                     AddObject("exit door", m);
-
-                    // Add doors to north, east, south, west, up, and down rooms
-                    if (Structure.Rooms.Count() > 1)
-                    {
-                        Door northDoor = new Door(this, Structure.Rooms[1], "north", null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(northDoor);
-                    }
-                    if (Structure.Rooms.Count() > 2)
-                    {
-                        Door eastDoor = new Door(this, Structure.Rooms[2], "east", null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(eastDoor);
-                    }
-                    if (Structure.Rooms.Count() > 3)
-                    {
-                        Door southDoor = new Door(this, Structure.Rooms[3], "south", null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(southDoor);
-                    }
-                    if (Structure.Rooms.Count() > 4)
-                    {
-                        Door westDoor = new Door(this, Structure.Rooms[4], "west", null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(westDoor);
-                    }
-                    if (Structure.Rooms.Count() > 5)
-                    {
-                        Door upDoor = new Door(this, Structure.Rooms[5], "up", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(upDoor);
-                    }
-                    if (Structure.Rooms.Count() > 6)
-                    {
-                        Door downDoor = new Door(this, Structure.Rooms[6], "down", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(downDoor);
-                    }
                 }
-                // North, East, South, West, Up, and Down rooms
-                else if (Position >= 1 && Position <= 6)
-                {
-                    // Add door to the next room in the same direction
-                    string direction = "";
-                    switch (Position)
-                    {
-                        case 1:
-                            direction = "north";
-                            break;
-                        case 2:
-                            direction = "east";
-                            break;
-                        case 3:
-                            direction = "south";
-                            break;
-                        case 4:
-                            direction = "west";
-                            break;
-                        case 5:
-                            direction = "up";
-                            break;
-                        case 6:
-                            direction = "down";
-                            break;
-                    }
-                    if (Position + 6 < Structure.Rooms.Count())
-                    {
-                        Door nextRoomDoor = new Door(this, Structure.Rooms[Position + 6], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                        Objects.Add(nextRoomDoor);
-                    }
-                }
-                // Remaining rooms
                 else
                 {
-                    // Randomly attach remaining rooms to the core rooms
-                    List<int> coreRoomIndices = new List<int> { 1, 2, 3, 4, 5, 6 };
-                    int randomCoreRoomIndex = coreRoomIndices[Game1.r.Next(coreRoomIndices.Count())];
+                    // Randomly attach this room to any of the existing rooms
+                    int randomExistingRoomIndex = Game1.r.Next(Position);
                     string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
-                    Door randomRoomDoor = new Door(this, Structure.Rooms[randomCoreRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Objects.Add(randomRoomDoor);
+
+                    // Create door from current room to the random existing room
+                    Door newDoor = new Door(this, Structure.Rooms[randomExistingRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Objects.Add(newDoor);
+
+                    // Create door from the random existing room to the current room in the opposite direction
+                    string oppositeDirection = OppositeDirection(direction);
+                    Door returnRoomDoor = new Door(Structure.Rooms[randomExistingRoomIndex], this, oppositeDirection, null, oppositeDirection == "up" || oppositeDirection == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[randomExistingRoomIndex].NumberOfDoors(), Structure.Block, Structure, Structure.Rooms[randomExistingRoomIndex]);
+                    Structure.Rooms[randomExistingRoomIndex].Objects.Add(returnRoomDoor);
                 }
 
-                // Add door to connect to the previous room, except for the central room
-                if (Position > 0)
+                string OppositeDirection(string direction)
                 {
-                    string previousDirection = ""; // determine the direction to connect to the previous room based on layout
-                    switch (Position % 6)
+                    switch (direction)
                     {
-                        case 1:
-                            previousDirection = "north";
-                            break;
-                        case 2:
-                            previousDirection = "east";
-                            break;
-                        case 3:
-                            previousDirection = "south";
-                            break;
-                        case 4:
-                            previousDirection = "west";
-                            break;
-                        case 5:
-                            previousDirection = "up";
-                            break;
-                        case 0:
-                            previousDirection = "down";
-                            break;
+                        case "north": return "south";
+                        case "east": return "west";
+                        case "south": return "north";
+                        case "west": return "east";
+                        case "up": return "down";
+                        case "down": return "up";
+                        default: return "";
                     }
-                    Door previousRoomDoor = new Door(this, Structure.Rooms[Position - 1], previousDirection, null, previousDirection == "up" || previousDirection == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
-                    Structure.Rooms[Position - 1].Objects.Add(previousRoomDoor);
                 }
             }
+
             else if (Structure.Type == "fortress")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
