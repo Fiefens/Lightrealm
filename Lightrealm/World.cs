@@ -823,55 +823,50 @@ namespace Lightrealm
             string Date = "(" + Month + "/" + Year + ")";
 
             Vector2 activationPoint = new Vector2(X, Z);
-            float hexHeight = 1.0f; // Assuming each hexagon has a unit height, adjust as necessary
-            float hexWidth = (float)(Math.Sqrt(3) / 2 * hexHeight); // Calculate width based on height
 
-            for (int x = 0; x < Width; x++)
+            for (int i = 0; i < WorldMap.Count; i++)
             {
-                for (int z = 0; z < Length; z++)
+                Region currentRegion = WorldMap[i];
+
+                if (currentRegion.Biome == "void" || (Calamity.Contains(Activator) && currentRegion.MyLocation != null && CalamityStructures.Contains(currentRegion.MyLocation.Type)))
+                    continue;
+
+                Vector2 currentRegionCenter = new Vector2(currentRegion.X, currentRegion.Z);
+                float distance = Vector2.Distance(activationPoint, currentRegionCenter);
+
+                if (distance < radius) // Check if within the radius
                 {
-                    if (WorldMap[x + z * Width].Biome == "void" || (Calamity.Contains(Activator) && WorldMap[x + z * Width].MyLocation != null && CalamityStructures.Contains(WorldMap[x + z * Width].MyLocation.Type)))
-                        continue;
-                    // Calculate the center position of each hex
-                    float offsetX = x * hexWidth + (z % 2) * (hexWidth / 2);
-                    float offsetZ = z * (hexHeight * 0.75f); // 0.75 accounts for hex vertical stacking
+                    // Sporadic effect: decreasing chance with increasing distance
+                    float chance = (radius - distance) / radius; // Linear decrease in chance
+                    double randomValue = Game1.r.NextDouble(); // Generate a random value between 0.0 and 1.0
 
-                    Vector2 currentHexCenter = new Vector2(offsetX, offsetZ);
-                    float distance = Vector2.Distance(activationPoint, currentHexCenter);
-
-                    if (distance < radius) // Check if within the radius
+                    if (randomValue < chance) // Compare the random value with the calculated chance
                     {
-                        // Sporadic effect: decreasing chance with increasing distance
-                        float chance = (radius - distance) / radius; // Linear decrease in chance
-                        double randomValue = Game1.r.NextDouble(); // Generate a random value between 0.0 and 1.0
+                        currentRegion.Biome = "ethereal";
 
-                        if (randomValue < chance) // Compare the random value with the calculated chance
+                        HistoricalEvents.Add(Date + " " + Activator.Name + " decimated the landscape of the world with a catastrophic ethereal rupture.");
+
+                        if (currentRegion.MyLocation != null)
                         {
-                            WorldMap[x + z * Width].Biome = "ethereal";
+                            HistoricalEvents.Add(Date + " " + currentRegion.MyLocation.Name + " was consumed in the rupture.");
 
-                            HistoricalEvents.Add(Date + " " + Activator.Name + " decimated the landscape of the world with a catastrophic ethereal rupture.");
-
-                            if (WorldMap[x + z * Width].MyLocation != null)
+                            foreach (District d in currentRegion.MyLocation.Districts)
                             {
-                                HistoricalEvents.Add(Date + " " + WorldMap[x + z * Width].MyLocation.Name + " was consumed in the rupture.");
-
-                                foreach (District d in WorldMap[x + z * Width].MyLocation.Districts)
+                                foreach (Architect a in d.Architects)
                                 {
-                                    foreach (Architect a in d.Architects)
-                                    {
-                                        HistoricalEvents.Add(Date + " " + a.Name + " was consumed in the rupture.");
-                                        a.IsAlive = false;
-                                    }
+                                    HistoricalEvents.Add(Date + " " + a.Name + " was consumed in the rupture.");
+                                    a.IsAlive = false;
                                 }
-
-                                AllLocations.Remove(WorldMap[x + z * Width].MyLocation);
-                                WorldMap[x + z * Width].MyLocation = null;
                             }
+
+                            AllLocations.Remove(currentRegion.MyLocation);
+                            currentRegion.MyLocation = null;
                         }
                     }
                 }
             }
         }
+
 
 
 

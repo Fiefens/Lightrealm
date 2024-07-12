@@ -314,6 +314,8 @@ namespace Lightrealm
         {
             return _architects.ToDictionary(arch => arch, arch => _distances[_architects.IndexOf(arch)]);
         }
+
+
         private int _legendaryTarget;
 
         
@@ -5228,7 +5230,7 @@ namespace Lightrealm
             EntityList<Entity> TargetsToPurge = new EntityList<Entity>();
             foreach (Entity e in Targets)
             {
-                if (e is Architect architect && GetDistance(architect) >= 4)
+                if (!Game1.GameWorld.AllLegendarySpells.Any(e => e.Metadata == Spell) && e is Architect architect && GetDistance(architect) >= 4)
                 {
                     Announcements.Add(new TextStorage($"{e.ReferredToNames[0]} is outside of casting range.", Color.Yellow, new EntityList<Entity>() { e }));
                     TargetsToPurge.Add(e);
@@ -5249,7 +5251,7 @@ namespace Lightrealm
                 }
             }
 
-            if (new List<string> { "eternal bind", "ethereal rupture", "echo", "expunge", "emergence" }.Contains(Spell))
+            if (Game1.GameWorld.AllLegendarySpells.Any(e => e.Metadata == Spell) && Targets.Count > 0)
             {
                 Energy = 1;
                 HalfFocusTicks = 5000;

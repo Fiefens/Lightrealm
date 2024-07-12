@@ -2097,7 +2097,14 @@ namespace Lightrealm
                             { "extract", "Return a creature or object from the fractal plane, exactly where it left. (Cast with \"cast extract at ~\")" },
                             { "revive", "Bring a creature back from the dead and grant them immortality. (Cast with \"cast raise at ~\")" },
                             { "resurrect", "Bring a creature back from the dead and grant them immortality. Restore all their body parts to full integrity. (Cast with \"cast resurrect at ~\")" },
-                            { "animate", "Raise a corpse as a shade. It joins your party. (Cast with \"cast animate at ~\")" }
+                            { "animate", "Raise a corpse as a shade. It joins your party. (Cast with \"cast animate at ~\")" },
+                            { "ethereal rupture", "Tear apart the land with a catastrophic ethereal rupture. Target any spellcasting focus to initiate the process. (Cast with \"cast ethereal rupture at ~\")" },
+                            { "emergence", "Return a creature from the dead, give them a new body, and teleport them in front of you. (Cast with \"cast emergence at ~\")" },
+                            { "eternal bind", "Enslave a creature to your will, regardless of past opinions, relations, and prejudices. (Cast with \"cast eternal bind at ~\")" },
+                            { "expunge", "Blot a person, place, thing, or idea from existence. (Cast with \"cast expunge at ~\")" },
+                            { "echo", "Create an exact clone of an object or person. A cloned person acts independently. (Cast with \"cast echo at ~\")" },
+                            { "emergent growth", "Cover a target in combat-diminishing plants. (Cast with \"cast emergent growth at ~\")" },
+                            { "immortalize", "Grant a creature immortality. (Cast with \"cast immortalize at ~\")" }
                         };
 
 
@@ -3160,7 +3167,7 @@ namespace Lightrealm
 
             RecognizedCommands.Add("become_invisible", (new List<string> { "become one with shadow", "become one with the shadow" }, new List<string> { }));
             RecognizedCommands.Add("exit_invisibility", (new List<string> { "exit the shadows", "exit the darkness", "return from the shadows", "return from the shadow", "return from shadow" }, new List<string> { }));
-            //RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
+            RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
             RecognizedCommands.Add("engage_target", (new List<string> { "engage ~", "engage with ~", "confront ~", "focus ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("approach_target", (new List<string> { "approach ~", "move closer to ~", "advance towards ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("distance_from_target", (new List<string> { "distance from ~", "move away from ~", "retreat from ~" }, new List<string> { "nearby_architect" }));
@@ -7625,6 +7632,11 @@ namespace Lightrealm
                                                 Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSpell.Metadata], Color.Cyan, new EntityList<Entity>()));
 
                                             }
+                                            else
+                                            {
+                                                Announcements.Add(new TextStorage($"Cannot learn one because you somehow know them all...", Color.Red, new EntityList<Entity>()));
+
+                                            }
                                         }
                                         else if (InspirationSelected == "Learn a random skill.")
                                         {
@@ -7637,6 +7649,10 @@ namespace Lightrealm
                                                 knownSkills.Add(randomSkill);
                                                 Announcements.Add(new TextStorage($"Learned a new random skill: {randomSkill}", Color.White, new EntityList<Entity>()));
                                                 Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSkill.Metadata], Color.Cyan, new EntityList<Entity>()));
+                                            }
+                                            else
+                                            {
+                                                Announcements.Add(new TextStorage($"Cannot learn one because you somehow know them all...", Color.Red, new EntityList<Entity>()));
                                             }
                                         }
                                         else if (InspirationSelected == "Gain 2 random stat improvements.")
