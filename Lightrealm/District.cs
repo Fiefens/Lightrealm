@@ -544,80 +544,92 @@ namespace Lightrealm
 
         void AssignInitialTask(Architect architect)
         {
-            if(!(Game1.GameWorld.HumanoidRaces.Contains(architect.Race)))
-            {
-                return;
-            }
-
-            if (architect.Profession == "druidcrafter" || (architect.Profession == "gardener" && Game1.r.Next(3) == 0))
-            {
-                architect.Task = "druidcrafting";
-                architect.CyclesLeftInTask = 500;
-
-                return;
-            }
-
-            if (architect.Room == null)
-            {
-                if(Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
-                {
-                    if (architect.Block.Architects.Count() == 1)
-                    {
-                        architect.Task = "contemplate";
-                    }
-                    else
-                    {
-                        architect.Task = "socializing";
-                    }
-
-                    architect.CyclesLeftInTask = Game1.r.Next(1, 500);
-                }
-
-                return;
-            }
-
-            string roomType = architect.Room.Structure.Type;
+            string roomType = architect.Room != null ? architect.Room.Structure.Type : "none";
             List<string> possibleTasks = new List<string>();
 
-            // Determine possible tasks based on room type
-            switch (roomType)
+            if (!(Game1.GameWorld.HumanoidRaces.Contains(architect.Race)))
             {
-                case "house":
-                case "ship":
-                case "cove":
-                case "mound":
-                case "monastery":
-                    possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing" });
-                    break;
-                case "spire":
-                case "archway":
-                case "hallway":
-                case "fortress":
-                case "monument":
-                case "toroid":
-                case "towers":
-                case "outpost":
-                case "pyramid":
-                case "sanctum":
-                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
-                    break;
-                case "keep":
-                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
-                    break;
-                case "core":
-                case "heart":
-                case "stronghold":
-                    possibleTasks.AddRange(new List<string> { "discussion", "study" });
-                    break;
-                case "tower":
-                case "commune":
-                    possibleTasks.AddRange(new List<string> { "study", "discussion" });
-                    break;
-                default:
-                    possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
-                    break;
+                if(architect.Race.Name == "photonexus")
+                {
+                    possibleTasks.AddRange(new List<string>() { "meditation", "polishing", "oversight"});
+                }
+                else if (architect.Race.Name == "shade")
+                {
+                    possibleTasks.AddRange(new List<string>() { "vibrating", "pumping", "convulsing" });
+                }
+                else if (architect.Race.Name == "isofractal")
+                {
+                    possibleTasks.AddRange(new List<string>() { "sculpting", "engraving", "radiating" });
+                }
+            }
+            else
+            {
+                if (architect.Profession == "druidcrafter" || (architect.Profession == "gardener" && Game1.r.Next(3) == 0))
+                {
+                    architect.Task = "druidcrafting";
+                    architect.CyclesLeftInTask = 500;
+
+                    return;
+                }
+
+                if (architect.Room == null)
+                {
+                    if (Game1.r.Next(2) != 0) //33 percent chance you pretend like you were on your way somewhere
+                    {
+                        if (architect.Block.Architects.Count() == 1)
+                        {
+                            possibleTasks.Add("contemplate");
+                        }
+                        else
+                        {
+                            possibleTasks.Add("socializing");
+                        }
+                    }
+
+                    return;
+                }
+
+                // Determine possible tasks based on room type
+                switch (roomType)
+                {
+                    case "house":
+                    case "ship":
+                    case "cove":
+                    case "mound":
+                    case "monastery":
+                        possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing" });
+                        break;
+                    case "spire":
+                    case "archway":
+                    case "hallway":
+                    case "fortress":
+                    case "monument":
+                    case "toroid":
+                    case "towers":
+                    case "outpost":
+                    case "pyramid":
+                    case "sanctum":
+                        possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                        break;
+                    case "keep":
+                        possibleTasks.AddRange(new List<string> { "discussion", "study" });
+                        break;
+                    case "core":
+                    case "heart":
+                    case "stronghold":
+                        possibleTasks.AddRange(new List<string> { "discussion", "study" });
+                        break;
+                    case "tower":
+                    case "commune":
+                        possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                        break;
+                    default:
+                        possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
+                        break;
+                }
             }
 
+            
             if (possibleTasks.Count() > 0)
             {
                 architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count())];
@@ -636,11 +648,12 @@ namespace Lightrealm
                     "cook" => 500,
                     "industry" => 500,
                     "contemplate" => 500,
-                    _ => 500
+                    _ => 1000
                 };
 
                 architect.CyclesLeftInTask = Game1.r.Next(1, maxCycles);
             }
+            architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room, "");
         }
 
 
@@ -656,14 +669,6 @@ namespace Lightrealm
                     {
                         var structures = DistrictMap[DistrictX + DistrictZ * 7].Structures
                                             .Where(s => s.Type == Game1.ConvertProfessionToBuilding[a.Profession]);
-                        foreach (var structure in structures)
-                        {
-                            possibleStructures.Add(structure);
-                        }
-                    }
-                    else
-                    {
-                        var structures = DistrictMap[DistrictX + DistrictZ * 7].Structures;
                         foreach (var structure in structures)
                         {
                             possibleStructures.Add(structure);
@@ -906,16 +911,37 @@ namespace Lightrealm
 
             foreach (Architect a in allArchitects)
             {
+                bool isCoolProfession = a.Profession == "artist" ||
+                                 a.Profession == "curator" ||
+                                 a.Profession == "perfectionist" ||
+                                 a.Profession == "manager" ||
+                                 a.Profession == "brute" ||
+                                 a.Profession == "cluster";
+
+                if (!isCoolProfession)
+                {
+                    if (a.Race.Name == "photonexus")
+                    {
+                        a.Profession = Game1.r.Next(100) < 20 ? "curator" : "artist";
+                    }
+                    else if (a.Race.Name == "isofractal")
+                    {
+                        a.Profession = Game1.r.Next(100) < 20 ? "manager" : "perfectionist";
+                    }
+                    else if (a.Race.Name == "shade")
+                    {
+                        a.Profession = Game1.r.Next(100) < 20 ? "cluster" : "brute";
+                    }
+                }
+
                 if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
                 {
                     a.Loaded = true;
                     a.UpdateNames();
 
-                    EntityList<Structure> possibleStructures = (a.Bound && this.Location.AllStructures.Count() > 0)
-                        ? new EntityList<Structure> { this.Location.AllStructures.FirstOrDefault(s => s.Block.District == this) }
-                        : GetPossibleStructures(a);
+                    EntityList<Structure> possibleStructures = GetPossibleStructures(a);
 
-                    if (possibleStructures.Count() > 0)
+                    if (possibleStructures.Count() > 0 && Game1.r.Next(3) != 0)
                     {
                         Structure chosenStructure = possibleStructures[Game1.r.Next(possibleStructures.Count())];
                         Room chosenRoom = chosenStructure.Rooms[0];
@@ -944,29 +970,6 @@ namespace Lightrealm
 
                     // Assign a task if possible
                     AssignInitialTask(a);
-                }
-
-                bool isCoolProfession = a.Profession == "artist" ||
-                                 a.Profession == "curator" ||
-                                 a.Profession == "perfectionist" ||
-                                 a.Profession == "manager" ||
-                                 a.Profession == "brute" ||
-                                 a.Profession == "cluster";
-
-                if (!isCoolProfession)
-                {
-                    if (a.Race.Name == "photonexus")
-                    {
-                        a.Profession = Game1.r.Next(100) < 20 ? "curator" : "artist";
-                    }
-                    else if (a.Race.Name == "isofractal")
-                    {
-                        a.Profession = Game1.r.Next(100) < 20 ? "manager" : "perfectionist";
-                    }
-                    else if (a.Race.Name == "shade")
-                    {
-                        a.Profession = Game1.r.Next(100) < 20 ? "cluster" : "brute";
-                    }
                 }
             }
 
@@ -1071,6 +1074,7 @@ namespace Lightrealm
                 {
                     a.Task = "sentinel";
                     a.CyclesLeftInTask = 99999;
+                    a.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room, "");
 
                     if (a.Room != null)
                     {

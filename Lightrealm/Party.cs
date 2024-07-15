@@ -71,14 +71,14 @@ namespace Lightrealm
                 a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
 
 
-                a.PathOfBodyLevel = 100;
-                a.PathOfDeathLevel = 100;
-                a.PathOfHeatLevel = 100;
-                a.PathOfLightLevel = 100;
-                a.PathOfLifeLevel = 100;
-                a.PathOfStarsLevel = 100;
-                a.PathOfRealityLevel = 100;
-                a.PathOfShadowLevel = 100;
+                a.PathOfBodyLevel = 8;
+                a.PathOfDeathLevel = 8;
+                a.PathOfHeatLevel = 8;
+                a.PathOfLightLevel = 8;
+                a.PathOfLifeLevel = 8;
+                a.PathOfStarsLevel = 8;
+                a.PathOfRealityLevel = 8;
+                a.PathOfShadowLevel = 8;
 
                 int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
 

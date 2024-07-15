@@ -1658,7 +1658,7 @@ namespace Lightrealm
 
                     string Biome = "";
 
-                    if (RadialArray[x + z * Width] < 70)
+                    if (RadialArray[x + z * Width] < 76)
                     {
                         Biome = "void";
                     }
@@ -1883,9 +1883,9 @@ namespace Lightrealm
 
                 //superlords or whatever
 
-                Hypernexus = new Architect("", "female", GetRace("hypernexus"), Game1.r.Next(5000, 20000), "soverign", new EntityList<Object>(), null, null, null, null, 9);
+                Hypernexus = new Architect("", "female", GetRace("hypernexus"), Game1.r.Next(5000, 20000), "sovereign", new EntityList<Object>(), null, null, null, null, 9);
                 Hypernexus.Name = GenerateUniqueArchitectName(Hypernexus);
-                Icosidodecahedron = new Architect("", "female", GetRace("icosidodecahedron"), Game1.r.Next(5000, 20000), "soverign", new EntityList<Object>(), null, null, null, null, 9);
+                Icosidodecahedron = new Architect("", "female", GetRace("icosidodecahedron"), Game1.r.Next(5000, 20000), "sovereign", new EntityList<Object>(), null, null, null, null, 9);
                 Icosidodecahedron.Name = GenerateUniqueArchitectName(Icosidodecahedron);
                 Shadeheart = new Architect("", "female", GetRace("shadeheart"), Game1.r.Next(5000, 20000), "heart", new EntityList<Object>(), null, null, null, null, 9);
                 Shadeheart.Name = GenerateUniqueArchitectName(Shadeheart);
@@ -2261,17 +2261,17 @@ namespace Lightrealm
                     WorldMap[c.StartX + c.StartZ * Width].MyLocation = l;
                 }
 
-                if (Cycle > 14515200000 && FirstNewCivPlaced == false)
+                if (Cycle > (MaxAge/4) && FirstNewCivPlaced == false)
                 {
                     FirstNewCivPlaced = true;
                     PlaceFancyCiv(ExtraRaces[0]);
                 }
-                else if (Cycle > 29030400000 && SecondNewCivPlaced == false)
+                else if (Cycle > ((MaxAge / 4)*2) && SecondNewCivPlaced == false)
                 {
                     SecondNewCivPlaced = true;
                     PlaceFancyCiv(ExtraRaces[1]);
                 }
-                else if (Cycle > 58060800000 && ThirdNewCivPlaced == false)
+                else if (Cycle > ((MaxAge / 4) * 3) && ThirdNewCivPlaced == false)
                 {
                     ThirdNewCivPlaced = true;
                     PlaceFancyCiv(ExtraRaces[2]);
@@ -2408,7 +2408,24 @@ namespace Lightrealm
                     };
 
                     string name = FirstPartNames[r.Next(FirstPartNames.Count())] + SecondPartNames[r.Next(SecondPartNames.Count())] + ", the " + Adjectives[r.Next(Adjectives.Count())] + " " + (codeNameThemes[CalamityIdeologicalObsession])[r.Next(codeNameThemes[CalamityIdeologicalObsession].Count())];
-                    Calamity.Add(new Architect(name, Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 34), "calamity", new EntityList<Object>(), Civilizations[r.Next(Civilizations.Count())].Capitol, null, null, "", 10));
+                    var eligibleCivilizations = Civilizations.Where(c => HumanoidRaces.Contains(c.PrimaryInhabitantRace)).ToList();
+                    if (eligibleCivilizations.Count > 0)
+                    {
+                        var selectedCivilization = eligibleCivilizations[r.Next(eligibleCivilizations.Count)];
+                        Calamity.Add(new Architect(
+                            name,
+                            Game1.Sexes[r.Next(2)],
+                            HumanoidRaces[r.Next(HumanoidRaces.Count)],
+                            r.Next(13, 34),
+                            "calamity",
+                            new EntityList<Object>(),
+                            selectedCivilization.Capitol,
+                            null,
+                            null,
+                            "",
+                            10
+                        ));
+                    }
                     Calamity[0].HomeLocation = Calamity[0].Location;
                     Calamity[0].InteractionLocation = Calamity[0].Location;
                     CalamityLore.Add(Calamity[0].Name + " was a " + Calamity[0].Race.Name + " from " + Calamity[0].HomeLocation.Name + ".");
@@ -2517,6 +2534,8 @@ namespace Lightrealm
                         //recruit peoples
 
 
+                        // recruit peoples
+
                         if (Calamitizer.CalamityAge >= Calamitizer.CalamitySpawnTime && Calamitizer.Level >= 4)
                         {
                             Calamitizer.CalamitySpawnTime = 2140000000; // Prevent future spawns
@@ -2545,23 +2564,22 @@ namespace Lightrealm
                                     break;
                             }
 
+                            List<string> SearchTheWorldTypes = new List<string> { "archartificer", "archbard", "archluminary", "archmage", "artificer", "bard", "icosidodecahedron", "hypernexus", "luminary", "mage", "shadeheart", "sorcerer", "warlock" };
+                            List<string> CreateYourOwnTypes = new List<string> { "animal", "beast", "beastmaster", "conjumancer", "diplomancer", "duelist", "elemental", "embezzler", "fractalmancer", "hunter", "knight", "largebeast", "magician", "mercenary", "necromancer", "perceptomancer", "scout", "spatiomancer", "spy", "thief", "archduelist" };
+
                             for (int i = Count; i != 0; i--)
                             {
                                 Architect FoundGuy = null;
-                                int searchAttempts = 3; // Number of attempts to search for an existing architect
                                 bool foundInWorld = false;
+                                string ChosenType = Types[r.Next(Types.Count)];
 
-                                List<string> SearchTheWorldTypes = new List<string> { "archartificer", "archbard", "archluminary", "archmage", "artificer", "bard", "icosidodecahedron", "hypernexus", "luminary", "mage", "shadeheart", "sorcerer", "warlock" };
-                                List<string> CreateYourOwnTypes = new List<string> { "animal", "beast", "beastmaster", "conjumancer", "diplomancer", "duelist", "elemental", "embezzler", "fractalmancer", "hunter", "knight", "largebeast", "magician", "mercenary", "necromancer", "perceptomancer", "scout", "spatiomancer", "spy", "thief", "archduelist" };
-
-                                bool initialSearchWorld = r.NextDouble() < 0.5; // 50/50 chance to search the world or create your own initially
-
-                                if (initialSearchWorld)
+                                if (SearchTheWorldTypes.Contains(ChosenType))
                                 {
+                                    // Try to find an existing architect of the chosen type
+                                    int searchAttempts = 3;
+
                                     while (searchAttempts > 0 && !foundInWorld)
                                     {
-                                        string ChosenType = SearchTheWorldTypes[r.Next(SearchTheWorldTypes.Count())];
-
                                         bool Breaking = false;
 
                                         foreach (Location l in AllLocations)
@@ -2597,38 +2615,28 @@ namespace Lightrealm
 
                                 if (!foundInWorld)
                                 {
-                                    // Filter CreateYourOwnTypes based on Calamitizer.Level - 2
-                                    List<string> filteredCreateYourOwnTypes = new List<string>();
+                                    // If not found, create a new architect from CreateYourOwnTypes
+                                    List<string> filteredCreateYourOwnTypes = Types.Intersect(CreateYourOwnTypes).ToList();
 
-                                    switch (Calamitizer.Level - 2)
+                                    if (filteredCreateYourOwnTypes.Count == 0)
                                     {
-                                        case 8:
-                                            filteredCreateYourOwnTypes.AddRange(new List<string> { "archbard", "archluminary", "archartificer", "archduelist", "warlock", "sorcerer", "elemental", "necromancer", "spatiomancer", "perceptomancer", "conjumancer", "fractalmancer" });
-                                            break;
-                                        case 6:
-                                            filteredCreateYourOwnTypes.AddRange(new List<string> { "necromancer", "spatiomancer", "perceptomancer", "conjumancer", "fractalmancer", "embezzler", "beast", "knight", "thief", "archmage", "beastmaster", "duelist", "luminary", "artificer", "bard", "mage", "largebeast", "spy", "diplomancer" });
-                                            break;
-                                        case 4:
-                                            filteredCreateYourOwnTypes.AddRange(new List<string> { "scout", "animal", "hunter", "mercenary", "magician", "embezzler", "beast", "knight", "thief", "duelist", "luminary", "artificer", "bard", "mage", "largebeast", "spy", "diplomancer" });
-                                            break;
-                                        case 2:
-                                            filteredCreateYourOwnTypes.AddRange(new List<string> { "scout", "animal", "hunter", "mercenary", "embezzler", "beast", "knight", "thief", "magician" });
-                                            break;
+                                        // Default to any CreateYourOwnType if none match the Types list
+                                        filteredCreateYourOwnTypes = CreateYourOwnTypes;
                                     }
 
-                                    string ChosenType = filteredCreateYourOwnTypes[r.Next(filteredCreateYourOwnTypes.Count())];
+                                    ChosenType = filteredCreateYourOwnTypes[r.Next(filteredCreateYourOwnTypes.Count)];
 
                                     Race R = null;
                                     if (ChosenType == "animal" || ChosenType == "beast" || ChosenType == "largebeast")
                                     {
-                                        R = WildRaces[r.Next(WildRaces.Count())];
+                                        R = WildRaces[r.Next(WildRaces.Count)];
                                     }
                                     else if (ChosenType == "elemental")
                                     {
-                                        R = ConstructRaces[r.Next(ConstructRaces.Count())];
+                                        R = ConstructRaces[r.Next(ConstructRaces.Count)];
                                     }
 
-                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count())], R ?? HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(10, 80), ChosenType, new EntityList<Object>(), null, null, null, "", Calamitizer.Level - 2);
+                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], R ?? HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10, 80), ChosenType, new EntityList<Object>(), null, null, null, "", Calamitizer.Level - 2);
                                     FoundGuy.Name = GenerateUniqueArchitectName(FoundGuy);
                                 }
 
@@ -2687,9 +2695,9 @@ namespace Lightrealm
                 "herald"
             };
 
-                                    FoundGuy.MasterRelation = Relations[r.Next(Relations.Count())];
+                                    FoundGuy.MasterRelation = Relations[r.Next(Relations.Count)];
 
-                                    LocationBuilderPacket l = new LocationBuilderPacket(FoundGuy, X, Z, Type, GetRace(""), 0, 0, Civilizations[r.Next(Civilizations.Count())], LootTableMachine("bosstreasure" + Math.Round((double)(FoundGuy.Level / 2), MidpointRounding.ToPositiveInfinity)), AllLocations[r.Next(AllLocations.Count())], "none");
+                                    LocationBuilderPacket l = new LocationBuilderPacket(FoundGuy, X, Z, Type, GetRace(""), 0, 0, Civilizations[r.Next(Civilizations.Count)], LootTableMachine("bosstreasure" + Math.Round((double)(FoundGuy.Level / 2), MidpointRounding.ToPositiveInfinity)), AllLocations[r.Next(AllLocations.Count)], "none");
                                     LocationBuilderPackets.Add(l);
 
                                     FoundGuy.Strength = Math.Max(FoundGuy.Strength, FoundGuy.Level);
@@ -2707,6 +2715,7 @@ namespace Lightrealm
                                 }
                             }
                         }
+
 
                         // do actions
 
@@ -6350,7 +6359,7 @@ namespace Lightrealm
 
                         ((Group)l.Government).Base = NewLocation;
                     }
-                    else if (l.Government is Architect && ((Architect)l.Government).Profession != "soverign" && ((Architect)l.Government).Profession != "heart")
+                    else if (l.Government is Architect && ((Architect)l.Government).Profession != "sovereign" && ((Architect)l.Government).Profession != "heart")
                     {
                         ((Architect)l.Government).NextMigrationLocation = NewLocation;
                     }

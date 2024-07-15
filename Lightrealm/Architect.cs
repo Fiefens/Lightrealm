@@ -226,27 +226,23 @@ namespace Lightrealm
             if (index >= 0)
             {
                 newDistance = _distances[index] + distanceChange;
-                _distances[index] = newDistance;
-                if (_distances[index] < 0)
+                if (newDistance < 0)
                 {
-                    _architects.RemoveAt(index);
-                    _distances.RemoveAt(index);
+                    newDistance = 0;
                 }
-            }
-            else if (distanceChange > 0)
-            {
-                newDistance = distanceChange;
-                _architects.Add(architect);
-                _distances.Add(newDistance);
+                _distances[index] = newDistance;
             }
             else
             {
-                return;
+                newDistance = Game1.r.Next(2, 6); // Assign a random distance between 2 and 5
+                _architects.Add(architect);
+                _distances.Add(newDistance);
             }
 
             // Ensure the distance is mirrored in the other architect
             architect.SyncDistance(this, newDistance);
         }
+
 
         public void SyncDistance(Architect architect, int newDistance)
         {
@@ -260,27 +256,37 @@ namespace Lightrealm
                     _distances.RemoveAt(index);
                 }
             }
-            else if (newDistance > 0)
+            else
             {
                 _architects.Add(architect);
                 _distances.Add(newDistance);
             }
         }
 
-        public int GetDistance(Entity Object)
+        public int GetDistance(Entity entity)
         {
-            if (!(Object is Architect architect))
+            if (entity == null)
             {
-                return -1;
+                throw new ArgumentNullException(nameof(entity));
             }
 
-            int index = _architects.IndexOf(architect);
+            if (!(entity is Architect targetArchitect))
+            {
+                return 0;
+            }
+
+            int index = _architects.IndexOf(targetArchitect);
             if (index >= 0)
             {
                 return _distances[index];
             }
-            return -1; // Return -1 if the distance is not found
+
+            // Automatically assign a random value between 2 and 5 if no distance exists
+            int randomDistance = Game1.r.Next(2, 6);
+            ModifyDistance(targetArchitect, randomDistance);
+            return randomDistance;
         }
+
 
         public void RemoveDistance(Architect architect)
         {
@@ -2972,17 +2978,7 @@ namespace Lightrealm
             // Add or update distances for current architects
             foreach (Architect a in currentArchitects)
             {
-                int distanceChange;
-                if (GetDistance(a) == -1 && a.GetDistance(this) == -1)
-                {
-                    // Generate a new random distance if neither has a distance
-                    distanceChange = Game1.r.Next(2, 6);
-                }
-                else
-                {
-                    // Use the existing distance from a to this
-                    distanceChange = a.GetDistance(this) - GetDistance(a);
-                }
+                int distanceChange = a.GetDistance(this) - GetDistance(a);
                 ModifyDistance(a, distanceChange);
             }
 
@@ -4769,7 +4765,7 @@ namespace Lightrealm
                     }
                     else if (Task == "sentinel")
                     {
-                        //spawn stuff if youre a heart/core. Those things will start killing.
+                        //spawn stuff if you're a heart/core. Those things will start killing.
 
                         if (CyclesLeftInTask % 10 == 1)
                         {
@@ -4777,7 +4773,7 @@ namespace Lightrealm
                             {
                                 if (a.Race != a.Location.PrimaryRace && a != this)
                                 {
-                                    //if youre an isofractal make sure that theyre a thief
+                                    //if you're an isofractal, make sure that they're a thief
 
                                     bool KillThemPlease = false;
 
@@ -4791,12 +4787,8 @@ namespace Lightrealm
                                     }
                                     else
                                     {
-                                        if ((a.Inventory.Any(item => item.Owner == this)))
-                                        {
-                                            KillThemPlease = true;
-                                        }
+                                        KillThemPlease = true;
                                     }
-
 
                                     if (KillThemPlease)
                                     {
@@ -4806,20 +4798,32 @@ namespace Lightrealm
 
                                         AnnounceToParty(this.ReferredToNames[0] + " erupts sentinels from an ancient era!", Color.OrangeRed, new EntityList<Entity>());
 
-                                        Architect A = new Architect("", "male", Location.PrimaryRace, 0, "sentinel", new EntityList<Object>(), Location, District, Block, "none", 4);
-                                        A.Name = Game1.GameWorld.GenerateUniqueArchitectName(A);
-
-                                        A.Room = this.Room;
-                                        A.Block = this.Block;
-
-                                        if (A.Room != null)
+                                        for (int i = 0; i < count; i++)
                                         {
-                                            A.Room.Architects.Add(A);
+                                            Architect A = new Architect("", "male", Location.PrimaryRace, 0, "sentinel", new EntityList<Object>(), Location, District, Block, "none", 4);
+                                            A.Name = Game1.GameWorld.GenerateUniqueArchitectName(A);
+
+                                            A.Room = this.Room;
+                                            A.Block = this.Block;
+
+                                            if (A.Room != null)
+                                            {
+                                                A.Room.Architects.Add(A);
+                                            }
+                                            else
+                                            {
+                                                A.Block.Architects.Add(A);
+                                            }
+
+                                            A.Task = "killtarget";
+                                            A.TargetArchitect = a;
+                                            A.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room, "");
+                                            A.CyclesLeftInTask = 500;
                                         }
-                                        else
-                                        {
-                                            A.Block.Architects.Add(A);
-                                        }
+
+                                        //break the loop so we don't spawn more or break things
+
+                                        break;
                                     }
                                 }
                             }
@@ -5284,16 +5288,8 @@ namespace Lightrealm
                 if (Spell == "water bolt")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
-
-                    foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
-                    {
-                        if (a.Room == this.Room && a.Block == this.Block)
-                        {
-                            Announcements.Add(new TextStorage($"{casterName} curves their hand inwards, accumulating vapor. They hurl the concentrated sphere...", Color.Purple, new EntityList<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"It crashes into {CurrentTarget.ReferredToNames[0]}, splashing into them!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-                            break;
-                        }
-                    }
+                    AnnounceToParty($"{casterName} curves their hand inwards, accumulating vapor. They hurl the concentrated sphere...", Color.Purple, new EntityList<Entity>() { this });
+                    AnnounceToParty($"It crashes into {CurrentTarget.ReferredToNames[0]}, splashing into them!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
@@ -5318,16 +5314,8 @@ namespace Lightrealm
                 else if (Spell == "chaos flare")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
-
-                    foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
-                    {
-                        if (a.Room == this.Room && a.Block == this.Block)
-                        {
-                            Announcements.Add(new TextStorage($"{casterName} makes a fist and jerks their arm inwards, conjuring two spheres of light and dark rotating it. They throw them...", Color.Purple, new EntityList<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"They crash into {CurrentTarget.ReferredToNames[0]}, and react explosively!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-                            break;
-                        }
-                    }
+                    AnnounceToParty($"{casterName} makes a fist and jerks their arm inwards, conjuring two spheres of light and dark rotating it. They throw them...", Color.Purple, new EntityList<Entity>() { this });
+                    AnnounceToParty($"They crash into {CurrentTarget.ReferredToNames[0]}, and react explosively!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
@@ -5351,16 +5339,8 @@ namespace Lightrealm
                 else if (Spell == "ice shock")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
-
-                    foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
-                    {
-                        if (a.Room == this.Room && a.Block == this.Block)
-                        {
-                            Announcements.Add(new TextStorage($"{casterName} lifts up frozen particles...", Color.Purple, new EntityList<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"A swirl of icy magic envelops {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-                            break;
-                        }
-                    }
+                    AnnounceToParty($"{casterName} lifts up frozen particles...", Color.Purple, new EntityList<Entity>() { this });
+                    AnnounceToParty($"A swirl of icy magic envelops {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
@@ -5384,14 +5364,8 @@ namespace Lightrealm
                 else if (Spell == "concentrated ignition")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
-                    foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
-                    {
-                        if (a.Room == this.Room && a.Block == this.Block)
-                        {
-                            Announcements.Add(new TextStorage($"{casterName} holds their palms one over the other facing each other, and gathers heat energy...", Color.Purple, new EntityList<Entity>() { this }));
-                            Announcements.Add(new TextStorage($"It quickly dissipates, reassembling itself at {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-                        }
-                    }
+                    AnnounceToParty($"{casterName} holds their palms one over the other facing each other, and gathers heat energy...", Color.Purple, new EntityList<Entity>() { this });
+                    AnnounceToParty($"It quickly dissipates, reassembling itself at {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
@@ -5405,9 +5379,8 @@ namespace Lightrealm
                 else if (Spell == "tremor")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-
-                    Announcements.Add(new TextStorage($"{casterName} holds out their hands palms down and shoves into the ground...", Color.Purple, new EntityList<Entity>() { this }));
-                    Announcements.Add(new TextStorage($"A massive tremor shakes the ground, but {CurrentTarget.ReferredToNames[0]} is unshaken!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                    AnnounceToParty($"{casterName} holds out their hands palms down and shoves into the ground...", Color.Purple, new EntityList<Entity>() { this });
+                    AnnounceToParty($"A massive tremor shakes the ground, but {CurrentTarget.ReferredToNames[0]} is unshaken!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                     EntityList<Object> Objects = Room != null ? Room.Objects : Block.Objects;
                     EntityList<Architect> Architects = Room != null ? Room.Architects : Block.Architects;
@@ -5429,47 +5402,31 @@ namespace Lightrealm
                         }
                     }
                 }
-                else if (Spell == "immobile illusion")
+                else if (Spell == "immobile illusion" || Spell == "shadow veil" || Spell == "mobile illusion" || Spell == "reactive illusion")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
-                }
-                else if (Spell == "shadow veil")
-                {
-                    CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
-                }
-                else if (Spell == "mobile illusion")
-                {
-                    CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
-                }
-                else if (Spell == "reactive illusion")
-                {
-                    CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage("You have only decieved yourself.", Color.Purple, new EntityList<Entity>()));
+                    AnnounceToParty("You have only deceived yourself.", Color.Purple, new EntityList<Entity>());
                 }
                 else if (Spell == "truthfulness")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} waves across {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} waves across {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                     else if (CurrentTarget is Architect)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} looks at you with a loyal complexion...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} looks at you with a loyal complexion...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Architect)CurrentTarget).ArchitectsIWillTellTruthTo.Add(this);
                     }
                 }
                 else if (Spell == "rise")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} gestures their hand towards the sky...", Color.Purple, new EntityList<Entity>() { this }));
-                    Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " flies into the air!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                    AnnounceToParty($"{casterName} gestures their hand towards the sky...", Color.Purple, new EntityList<Entity>() { this });
+                    AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} flies into the air!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
@@ -5483,23 +5440,24 @@ namespace Lightrealm
                 else if (Spell == "hold")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} clenches their fist violently...", Color.Purple, new EntityList<Entity>() { this }));
+                    AnnounceToParty($"{casterName} clenches their fist violently...", Color.Purple, new EntityList<Entity>() { this });
+
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " stagnates.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} stagnates.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Object)CurrentTarget).AirborneTarget = null;
                         ((Object)CurrentTarget).AirborneCyclesToHitTarget = 0;
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " freezes in time!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} freezes in time!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Architect)CurrentTarget).HoldCycles = 40 + Focus * 5;
                     }
                 }
                 else if (Spell == "force throw")
                 {
                     CooldownCycles += (int)Math.Round(15 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} clenches their fist at " + CurrentTarget.ReferredToNames[0] + ", gathering material. They thrust it at " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget, CurrentTarget }));
+                    AnnounceToParty($"{casterName} clenches their fist at {CurrentTarget.ReferredToNames[0]}, gathering material. They thrust it at {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     Entity MainTarget = CurrentTarget;
                     Targets.RemoveAt(0);
@@ -5514,13 +5472,13 @@ namespace Lightrealm
                         {
                             if (o is Object)
                             {
-                                Announcements.Add(new TextStorage(o.ReferredToNames[0] + " flies at " + CurrentTarget.ReferredToNames[0] + "!", Color.Purple, new EntityList<Entity>() { o, CurrentTarget }));
+                                AnnounceToParty($"{o.ReferredToNames[0]} flies at {CurrentTarget.ReferredToNames[0]}!", Color.Purple, new EntityList<Entity>() { o, CurrentTarget });
                                 ((Object)o).AirborneTarget = MainTarget;
                                 ((Object)CurrentTarget).AirborneCyclesToHitTarget = 15 - Focus;
                             }
                             else
                             {
-                                Announcements.Add(new TextStorage(o.ReferredToNames[0] + " stumbles, but isnt yielding to your force!", Color.Purple, new EntityList<Entity>() { o }));
+                                AnnounceToParty($"{o.ReferredToNames[0]} stumbles, but isn't yielding to the force!", Color.Purple, new EntityList<Entity>() { o });
                                 ((Architect)o).DestabilizedCycles += 50;
                             }
                         }
@@ -5529,109 +5487,108 @@ namespace Lightrealm
                 else if (Spell == "shatter")
                 {
                     CooldownCycles += (int)Math.Round(30 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} brings his arms inward and swings them outward violently...", Color.Purple, new EntityList<Entity>() { this }));
+                    AnnounceToParty($"{casterName} brings his arms inward and swings them outward violently...", Color.Purple, new EntityList<Entity>() { this });
 
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissipates across the area!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} dissipates across the area!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         Block.Objects.Remove((Object)CurrentTarget);
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " struggles to hold together, destabilizing...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} struggles to hold together, destabilizing...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Architect)CurrentTarget).DestabilizedCycles += 100;
                     }
                 }
                 else if (Spell == "intercept")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} reaches their hand towards " + CurrentTarget.ReferredToNames[0] + " and grasps...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} reaches their hand towards {CurrentTarget.ReferredToNames[0]} and grasps...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Object && ((Object)CurrentTarget).AirborneTarget != null)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget + " dissapears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} disappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Object)CurrentTarget).Fractallize(999999);
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                 }
                 else if (Spell == "expel")
                 {
                     CooldownCycles += (int)Math.Round(20 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} reaches their hand towards " + CurrentTarget.ReferredToNames[0] + " and grasps...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} reaches their hand towards {CurrentTarget.ReferredToNames[0]} and grasps...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} disappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Object)CurrentTarget).Fractallize(999999);
                     }
                     else if (CurrentTarget is Architect)
                     {
                         if (((Architect)CurrentTarget).Energy < (((Architect)CurrentTarget).MaxEnergy() / 3))
                         {
-                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " dissapears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                            AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} disappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                             ((Architect)CurrentTarget).Fractallize(999999);
                         }
                         else
                         {
-                            Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " resists the fractallization!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                            AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} resists the fractallization!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         }
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " is enveloped in fractals, but does not fade.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} is enveloped in fractals, but does not fade.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                     }
                 }
                 else if (Spell == "extract")
                 {
                     CooldownCycles += (int)Math.Round(20 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} speaks the name of {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Object && Game1.GameWorld.FractalObjects.Contains((Object)CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " reappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} reappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Object)CurrentTarget).RematerializeLocation = (Location.Region, Location, District, Block, Structure, Room);
                         ((Object)CurrentTarget).FractalCycles = 0;
-
                     }
                     else if (CurrentTarget is Architect && Game1.GameWorld.FractalArchitects.Contains((Architect)CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " reappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} reappears in a web of fractals!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Architect)CurrentTarget).RematerializeLocation = (Location.Region, Location, District, Block, Structure, Room);
                         ((Architect)CurrentTarget).FractalCycles = 0;
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                 }
                 else if (Spell == "revive")
                 {
                     CooldownCycles += (int)Math.Round(100 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} speaks the name of {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Architect && ((Architect)CurrentTarget).IsAlive == false && (((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == this.Room))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " rises from the dead!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} rises from the dead!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Architect)CurrentTarget).IsAlive = true;
                         ((Architect)CurrentTarget).IsImmortal = true;
                         ((Architect)CurrentTarget).Energy = Math.Min(50, ((Architect)CurrentTarget).MaxEnergy());
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                 }
-                else if (Spell == "ressurect")
+                else if (Spell == "resurrect")
                 {
                     CooldownCycles += (int)Math.Round(500 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} speaks the name of " + CurrentTarget.ReferredToNames[0] + " and meditates...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} speaks the name of {CurrentTarget.ReferredToNames[0]} and meditates...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Architect && ((Architect)CurrentTarget).IsAlive == false && (((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == this.Room))
                     {
-                        Announcements.Add(new TextStorage(CurrentTarget.ReferredToNames[0] + " is surrounded in crystals and returns from the dead!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} is surrounded in crystals and returns from the dead!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         ((Architect)CurrentTarget).IsAlive = true;
                         ((Architect)CurrentTarget).IsImmortal = true;
                         ((Architect)CurrentTarget).Energy = 100;
@@ -5643,13 +5600,13 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                 }
                 else if (Spell == "animate")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} conjures a spark of necromantic energy and passes it to " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} conjures a spark of necromantic energy and passes it to {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (CurrentTarget is Architect architect)
                     {
@@ -5665,10 +5622,9 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                 }
-
                 else if (Spell == "ethereal rupture")
                 {
                     RuptureMode = true;
@@ -5676,23 +5632,20 @@ namespace Lightrealm
                 else if (Spell == "emergence")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} holds out a hand and speaks the name of " + CurrentTarget.ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} holds out a hand and speaks the name of {CurrentTarget.ReferredToNames[0]}...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if (!(CurrentTarget is Architect) || ((Architect)CurrentTarget).IsAlive == true)
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                     else
                     {
                         Architect target = (Architect)CurrentTarget;
-
-                        Announcements.Add(new TextStorage(CurrentTarget.Name + " appears in front of them!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.Name} appears in front of them!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         target.Block = Block;
-
                         target.BodyParts.Clear();
                         target.AddBodyParts();
-
                         target.Inventory = new EntityList<Object>();
                         target.Clothing = new EntityList<Object>();
                         target.Energy = target.MaxEnergy();
@@ -5711,18 +5664,16 @@ namespace Lightrealm
                 else if (Spell == "eternal bind")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} stares deeply into " + CurrentTarget.ReferredToNames[0] + "'s eyes...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget }));
+                    AnnounceToParty($"{casterName} stares deeply into {CurrentTarget.ReferredToNames[0]}'s eyes...", Color.Purple, new EntityList<Entity>() { this, CurrentTarget });
 
                     if ((!(CurrentTarget is Architect) || ((Architect)CurrentTarget).IsAlive == false) && ((Architect)CurrentTarget).Block == Block && ((Architect)CurrentTarget).Room == Room)
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                     else
                     {
                         Architect target = (Architect)CurrentTarget;
-
-                        Announcements.Add(new TextStorage(CurrentTarget.Name + " stares back in awe...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-
+                        AnnounceToParty($"{CurrentTarget.Name} stares back in awe...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         target.ChangeOpinion(this, 999999);
 
                         if (target.TargetArchitect == this && (target.Task == "killtarget" || target.Task == "disabletarget"))
@@ -5740,12 +5691,11 @@ namespace Lightrealm
                 else if (Spell == "expunge")
                 {
                     CooldownCycles += (int)Math.Round(5 / Speed());
-                    Announcements.Add(new TextStorage($"{casterName} gestures agressively...", Color.Purple, new EntityList<Entity>() { this }));
-
+                    AnnounceToParty($"{casterName} gestures aggressively...", Color.Purple, new EntityList<Entity>() { this });
 
                     if (CurrentTarget is Civilization)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} and its legacy have fallen...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.Name} and its legacy have fallen...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         foreach (Location l in Game1.GameWorld.AllLocations)
                         {
@@ -5757,7 +5707,7 @@ namespace Lightrealm
                     }
                     else if (Game1.GameWorld.AllSpells.Contains(CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                         Game1.GameWorld.DeletedSpells.Add(CurrentTarget);
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
@@ -5767,11 +5717,11 @@ namespace Lightrealm
                     }
                     else if (Game1.GameWorld.AllLegendarySpells.Contains(CurrentTarget))
                     {
-                        Announcements.Add(new TextStorage($"An accursed relic locks this spell away. Perhaps you can find and banish this artifact instead.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty($"An accursed relic locks this spell away. Perhaps you can find and banish this artifact instead.", Color.Purple, new EntityList<Entity>());
                     }
                     else if (CurrentTarget is Blight)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} has been entirely purified...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.Name} has been entirely purified...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         for (int x = 0; x < Game1.GameWorld.Width; x++)
                         {
@@ -5786,7 +5736,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Composition)
                     {
-                        Announcements.Add(new TextStorage($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"The knowledge of {CurrentTarget.Name} has been erased from the land...", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
                         {
@@ -5797,12 +5747,12 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Deity)
                     {
-                        Announcements.Add(new TextStorage($"You feel an intense pain...", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty($"You feel an intense pain...", Color.Purple, new EntityList<Entity>());
                         Energy = 1;
                     }
                     else if (CurrentTarget is District)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         ((District)CurrentTarget).Location.Districts.Remove(((District)CurrentTarget));
 
@@ -5819,11 +5769,6 @@ namespace Lightrealm
                                     if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
                                     {
                                         Game1.GameState = "dead";
-
-                                        if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
-                                        {
-                                            Game1.GameState = "dead";
-                                        }
                                     }
                                 }
                             }
@@ -5831,7 +5776,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Location)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         ((Location)CurrentTarget).Region.MyLocation = null;
 
@@ -5843,19 +5788,11 @@ namespace Lightrealm
                                 {
                                     Game1.MakeObservation(a.Name + " was successfully teleported into oblivion. How embarrassing...", Color.Magenta, new EntityList<Entity>() { a });
                                     a.IsAlive = false;
-                                    if (Game1.GameWorld.GamePlayerParty.Architects.Contains(a))
+                                    Game1.GameWorld.GamePlayerParty.Architects.Remove(a);
+
+                                    if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
                                     {
-                                        Game1.GameWorld.GamePlayerParty.Architects.Remove(a);
-
-                                        if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
-                                        {
-                                            Game1.GameState = "dead";
-
-                                            if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
-                                            {
-                                                Game1.GameState = "dead";
-                                            }
-                                        }
+                                        Game1.GameState = "dead";
                                     }
                                 }
                             }
@@ -5863,7 +5800,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Party)
                     {
-                        Announcements.Add(new TextStorage($"Your party has disbanded.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty($"Your party has disbanded.", Color.Purple, new EntityList<Entity>());
 
                         EntityList<Architect> ArchitectsToBanish = new EntityList<Architect>();
                         foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
@@ -5881,8 +5818,8 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Group)
                     {
-                        //disbands the group, removes it from any power, does not kill the members
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        // disbands the group, removes it from any power, does not kill the members
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
                         Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
@@ -5902,8 +5839,7 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Architect)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} is banished and forgotten.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} is banished and forgotten.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         Architect a = (Architect)CurrentTarget;
 
@@ -5936,7 +5872,6 @@ namespace Lightrealm
                             }
                         }
 
-
                         if (Game1.GameWorld.Colossals.Contains(a))
                         {
                             Game1.GameWorld.Colossals.Remove(a);
@@ -5957,7 +5892,7 @@ namespace Lightrealm
 
                         for (int x = 0; x < Game1.GameWorld.Width; x++)
                         {
-                            for (int z = 0; z < Game1.GameWorld.Width; z++)
+                            for (int z = 0; x < Game1.GameWorld.Width; z++)
                             {
                                 foreach (InteractableEvent e in Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width].Events)
                                 {
@@ -5996,8 +5931,8 @@ namespace Lightrealm
                         {
                             if (a.Group.Leader == a)
                             {
-                                //disbands the group, removes it from any power, does not kill the members
-                                Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                                // disbands the group, removes it from any power, does not kill the members
+                                AnnounceToParty($"{CurrentTarget.ReferredToNames[0]}'s relationship has fractured.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                                 Game1.GameWorld.Groups.Remove((Group)CurrentTarget);
                                 Game1.GameWorld.TradingGroups.Remove((Group)CurrentTarget);
@@ -6033,14 +5968,12 @@ namespace Lightrealm
                         {
                             Game1.GameWorld.Shadeheart = null;
                         }
-
                     }
                     else if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]} collapses into a singularity.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} collapses into a singularity.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
-                        //delete it from all architects, historical objects, and other stuff. If it ever exists in the world elsewhere, we will just delete it when it gets loaded.
-
+                        // delete it from all architects, historical objects, and other stuff. If it ever exists in the world elsewhere, we will just delete it when it gets loaded.
                         Game1.GameWorld.DeletedObjects.Add((Object)CurrentTarget);
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
@@ -6064,21 +5997,21 @@ namespace Lightrealm
                     }
                     else if (CurrentTarget is Material)
                     {
-                        //add the material to a list of banished materials. Replace objects iwth these materials with Void Energy, a new material when they update. You cannot cast this spell on Void Material.
-                        Announcements.Add(new TextStorage($"{CurrentTarget.ReferredToNames[0]}'s properties have been reduced to void.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        // add the material to a list of banished materials. Replace objects with these materials with Void Energy, a new material when they update. You cannot cast this spell on Void Material.
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]}'s properties have been reduced to void.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         Game1.GameWorld.DeletedMaterials.Add((Material)CurrentTarget);
                     }
                     else if (CurrentTarget is Race)
                     {
-                        Announcements.Add(new TextStorage($"The members of {CurrentTarget.ReferredToNames[0]} have been reduced to indistinguishable lifeforms.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
-                        //a banished race makes all members of that race shades. this is stored in a static list.
+                        AnnounceToParty($"The members of {CurrentTarget.ReferredToNames[0]} have been reduced to indistinguishable lifeforms.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
+                        // a banished race makes all members of that race shades. this is stored in a static list.
                         Game1.GameWorld.DeletedRaces.Add((Race)CurrentTarget);
                     }
                     else if (CurrentTarget is Structure)
                     {
-                        Announcements.Add(new TextStorage($"{CurrentTarget.Name} vanishes.", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"{CurrentTarget.Name} vanishes.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
                         Structure s = ((Structure)CurrentTarget);
 
@@ -6097,7 +6030,7 @@ namespace Lightrealm
                             }
                         }
 
-                        if(s.Block.District.IsLoaded)
+                        if (s.Block.District.IsLoaded)
                         {
                             foreach (Object o in s.HistoricalObjects)
                             {
@@ -6112,12 +6045,12 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("...but nothing happens.", Color.Purple, new EntityList<Entity>());
                     }
                 }
                 else if (Spell == "echo")
                 {
-                    Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new EntityList<Entity>()));
+                    AnnounceToParty("You manifest spatial particles...", Color.Purple, new EntityList<Entity>());
 
                     if (CurrentTarget is Architect)
                     {
@@ -6127,7 +6060,6 @@ namespace Lightrealm
                         Game1.GameWorld.AllArchitects.Add(Clone);
 
                         Clone.Clothing.Clear();
-
                         Clone.MoralCompass = Base.MoralCompass;
                         Clone.StabilityCompass = Base.StabilityCompass;
                         Clone.PropertyValue = Base.PropertyValue;
@@ -6148,8 +6080,6 @@ namespace Lightrealm
                         Clone.Endurance = Base.Endurance;
                         Clone.Creativity = Base.Creativity;
                         Clone.Agility = Base.Agility;
-
-
                         Clone.CultureBank = new EntityList<Composition>(Base.CultureBank);
 
                         // Cloning XPValues
@@ -6174,12 +6104,11 @@ namespace Lightrealm
                             Base.District.Architects.Add(Clone);
                         }
 
-
-                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.ReferredToNames[0] + " appears!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"An echo of {CurrentTarget.ReferredToNames[0]} appears!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                     }
                     else if (CurrentTarget is Object)
                     {
-                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("You manifest spatial particles...", Color.Purple, new EntityList<Entity>());
                         Object Base = (Object)CurrentTarget;
                         Object Clone = new Object();
 
@@ -6232,8 +6161,6 @@ namespace Lightrealm
                         Clone.Thrower = Base.Thrower;
                         Clone.Owner = Base.Owner;
 
-
-
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
                         {
                             if (a.District.IsLoaded)
@@ -6280,7 +6207,6 @@ namespace Lightrealm
                                         a.Block.Objects.Add(Clone);
                                     }
                                 }
-
                             }
                             else
                             {
@@ -6294,12 +6220,12 @@ namespace Lightrealm
                             }
                         }
 
-                        Announcements.Add(new TextStorage("An echo of " + CurrentTarget.ReferredToNames[0] + " appears!", Color.Purple, new EntityList<Entity>() { CurrentTarget }));
+                        AnnounceToParty($"An echo of {CurrentTarget.ReferredToNames[0]} appears!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                     }
                     else
                     {
-                        Announcements.Add(new TextStorage("You manifest spatial particles...", Color.Purple, new EntityList<Entity>()));
-                        Announcements.Add(new TextStorage("...but they just aren't strong enough. The spell only works on Architects and Objects.", Color.Purple, new EntityList<Entity>()));
+                        AnnounceToParty("You manifest spatial particles...", Color.Purple, new EntityList<Entity>());
+                        AnnounceToParty("...but they just aren't strong enough. The spell only works on Architects and Objects.", Color.Purple, new EntityList<Entity>());
                     }
                 }
             }

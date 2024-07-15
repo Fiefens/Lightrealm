@@ -3166,7 +3166,7 @@ namespace Lightrealm
 }, new List<string> { "nearby_architect", "body_part_type", "hand_object" }));
 
             RecognizedCommands.Add("become_invisible", (new List<string> { "become one with shadow", "become one with the shadow" }, new List<string> { }));
-            RecognizedCommands.Add("exit_invisibility", (new List<string> { "exit the shadows", "exit the darkness", "return from the shadows", "return from the shadow", "return from shadow" }, new List<string> { }));
+            RecognizedCommands.Add("exit_invisibility", (new List<string> { "exit the shadow", "exit the darkness", "return from the shadow", "return from shadow" }, new List<string> { }));
             RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
             RecognizedCommands.Add("engage_target", (new List<string> { "engage ~", "engage with ~", "confront ~", "focus ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("approach_target", (new List<string> { "approach ~", "move closer to ~", "advance towards ~" }, new List<string> { "nearby_architect" }));
@@ -3596,7 +3596,7 @@ namespace Lightrealm
                 {"archartificer", "forge"},
                 {"archduelist", "watchtower"},
                 {"elemental", "none"},
-                {"soverign", "core"},
+                {"sovereign", "core"},
                 {"heart", "heart"},
                 {"shiba", "tavern"},
                 {"spatiomancer", "library"},
@@ -3659,7 +3659,13 @@ namespace Lightrealm
                 {"captain", "none"},
                 {"disruptor", "none"},
                 {"bomber", "none"},
-                {"inspiration", "none"}
+                {"inspiration", "none"},
+                {"curator", "scaffold"},
+                {"artist", "scaffold"},
+                {"manager", "scaffold"},
+                {"perfectionist", "scaffold"},
+                {"cluster", "scaffold"},
+                {"brute", "scaffold"}
             };
 
             ConvertTaskToArchitectPrefix = new Dictionary<string, string>
@@ -3683,8 +3689,18 @@ namespace Lightrealm
                 {"bound", "bound"},
                 {"study", "studying"},
                 {"druidcrafting", "druidcrafting"},
-                {"", "idle"}
+                {"", "idle"},
+                {"oversight", "overseeing"},
+                {"meditation", "meditating"},
+                {"polishing", "polishing"},
+                {"vibrating", "vibrating"},
+                {"pumping", "pumping"},
+                {"convulsing", "convulsing"},
+                {"sculpting", "sculpting"},
+                {"engraving", "engraving"},
+                {"radiating", "radiating"}
             };
+
 
 
             // Shouldn't have to do this, just install the TTF on dev machines.
@@ -5967,9 +5983,72 @@ namespace Lightrealm
                                 if (KeysNewlyPressed.Count() > 0)
                                 {
                                     var key = KeysNewlyPressed[0];
-                                    if (key >= Keys.D1 && key <= Keys.D9) index = key - Keys.D1;
-                                    else if (key == Keys.D0) index = 9;
-                                    else if (key >= Keys.Q && key <= Keys.P) index = 10 + (key - Keys.Q);
+                                    switch (key)
+                                    {
+                                        case Keys.D1:
+                                            index = 0;
+                                            break;
+                                        case Keys.D2:
+                                            index = 1;
+                                            break;
+                                        case Keys.D3:
+                                            index = 2;
+                                            break;
+                                        case Keys.D4:
+                                            index = 3;
+                                            break;
+                                        case Keys.D5:
+                                            index = 4;
+                                            break;
+                                        case Keys.D6:
+                                            index = 5;
+                                            break;
+                                        case Keys.D7:
+                                            index = 6;
+                                            break;
+                                        case Keys.D8:
+                                            index = 7;
+                                            break;
+                                        case Keys.D9:
+                                            index = 8;
+                                            break;
+                                        case Keys.D0:
+                                            index = 9;
+                                            break;
+                                        case Keys.Q:
+                                            index = 10;
+                                            break;
+                                        case Keys.W:
+                                            index = 11;
+                                            break;
+                                        case Keys.E:
+                                            index = 12;
+                                            break;
+                                        case Keys.R:
+                                            index = 13;
+                                            break;
+                                        case Keys.T:
+                                            index = 14;
+                                            break;
+                                        case Keys.Y:
+                                            index = 15;
+                                            break;
+                                        case Keys.U:
+                                            index = 16;
+                                            break;
+                                        case Keys.I:
+                                            index = 17;
+                                            break;
+                                        case Keys.O:
+                                            index = 18;
+                                            break;
+                                        case Keys.P:
+                                            index = 19;
+                                            break;
+                                        default:
+                                            // Handle invalid keys if necessary
+                                            break;
+                                    }
                                 }
 
                                 if (CommandBuilderStage == "commands" && index >= 0 && index < commands.Count())
@@ -7413,7 +7492,7 @@ namespace Lightrealm
 
 
 
-                        if (KeysNewlyPressed.Contains(Keys.S) && GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation == null)
+                        if (KeysNewlyPressed.Contains(Keys.S) && GameWorld.WorldMap[MapCursorX + MapCursorZ * GameWorld.Width].MyLocation == null && !Keyboard.GetState().IsKeyDown(Keys.LeftControl))
                         {
                             GameState = "gathering";
                         }
@@ -10143,9 +10222,6 @@ namespace Lightrealm
                             _spriteBatch.DrawString(Shibafont, condition.letter, currentPos, condition.color);
                             currentPos.X += Shibafont.MeasureString(condition.letter).X;
                         }
-
-
-
 
                         if (MostRecentPartyTurnArchitect.CombatCycles > 0)
                         {
