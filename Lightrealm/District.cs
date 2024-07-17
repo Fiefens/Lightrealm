@@ -344,6 +344,39 @@ namespace Lightrealm
                         }
                         break;
 
+                    case "coffee":
+                        List<string> coffeeMaterials = new List<string> { Location.HomeCivilization.CulturalWood.Name };
+
+                        void AddCoffeeCrate(string spiceType, string spiceMaterial)
+                        {
+                            List<string> containedItems = new List<string> { $"{spiceType},{Game1.r.Next(10, 15)},{spiceMaterial}" };
+                            string contained = GenerateContainedItems(containedItems);
+                            AddOrUpdateItem("coffee crate", coffeeMaterials, 1, contained);
+                        }
+
+                        for (int i = Game1.r.Next(0, 3); i != 0; i--)
+                        {
+                            AddCoffeeCrate("spice", "coffee");
+                        }
+                        break;
+
+                    case "tea":
+                        List<string> teaMaterials = new List<string> { Location.HomeCivilization.CulturalWood.Name };
+
+                        void AddTeaCrate(string spiceType, string spiceMaterial)
+                        {
+                            List<string> containedItems = new List<string> { $"{spiceType},{Game1.r.Next(10, 15)},{spiceMaterial}" };
+                            string contained = GenerateContainedItems(containedItems);
+                            AddOrUpdateItem("tea crate", teaMaterials, 1, contained);
+                        }
+
+                        for (int i = Game1.r.Next(0, 3); i != 0; i--)
+                        {
+                            AddTeaCrate("spice", "tea");
+                        }
+                        break;
+
+
                     case "metal":
                         if (Game1.r.Next(0, 2) == 0)
                             AddOrUpdateItem("bar", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
@@ -389,26 +422,7 @@ namespace Lightrealm
                         }
                         break;
 
-                    case "coffee":
-                        for (int i = Game1.r.Next(0, 3); i != 0; i--)
-                        {
-                            List<string> materials = new List<string> { Location.HomeCivilization.CulturalWood.Name };
-                            List<string> containedItems = new List<string> { $"spice,{Game1.r.Next(10, 15)},coffee" };
-                            string contained = GenerateContainedItems(containedItems);
-                            AddOrUpdateItem("coffee crate", materials, 1, contained);
-                        }
-                        break;
-
-                    case "tea":
-                        for (int i = Game1.r.Next(0, 3); i != 0; i--)
-                        {
-                            List<string> materials = new List<string> { Location.HomeCivilization.CulturalWood.Name };
-                            List<string> containedItems = new List<string> { $"spice,{Game1.r.Next(10, 15)},tea" };
-                            string contained = GenerateContainedItems(containedItems);
-                            AddOrUpdateItem("tea crate", materials, 1, contained);
-                        }
-                        break;
-
+                    
                     case "wood":
                         AddOrUpdateItem("log", new List<string> { Location.HomeCivilization.CulturalWood.Name }, Game1.r.Next(1, 4));
                         break;
@@ -629,29 +643,32 @@ namespace Lightrealm
                 }
             }
 
-            
+
             if (possibleTasks.Count() > 0)
             {
                 architect.Task = possibleTasks[Game1.r.Next(possibleTasks.Count())];
-                int maxCycles = architect.Task switch
+                architect.CyclesLeftInTask = architect.Task switch
                 {
+                    "vacanttfortrade" => 600, // spend a minute before deciding if you want to do something again
+                    "druidcrafting" => 300, // druidcraft for 30 seconds
+                    "drinking" => 300, // drinking a glass or bucketish cup water takes roughly around 30 seconds
+                    "drinkingcaffeine" => 500, // savor caffeine a bit, though. also it's hot
+                    "eating" => 500, // this takes longer for a similar reason, also it's food
                     "sleeping" => 350000,
-                    "eating" => 500,
-                    "drinking" => 500,
-                    "socializing" => 500,
-                    "drinkingcaffeine" => 500,
-                    "discussion" => 500,
-                    "study" => 500,
+                    "discussion" => 500, // chat chat chat chat
+                    "study" => 3000, // takes five minutes at minimum
+                    "socializing" => 300, // conversations don't last too long, but I want them going in and out often if it's the well
                     "performmusic" => 500,
-                    "performpoetry" => 500,
                     "performdance" => 500,
-                    "cook" => 500,
-                    "industry" => 500,
-                    "contemplate" => 500,
+                    "performtheater" => 500,
+                    "performpoetry" => 500,
+                    "industry" => 300, // one single instance might take half a minute
+                    "contemplate" => 300, // stare off into the sunset for about a minute
                     _ => 1000
                 };
 
-                architect.CyclesLeftInTask = Game1.r.Next(1, maxCycles);
+                // Randomly adjust CyclesLeftInTask with a variation of -50 to +50, ensuring a minimum of 50
+                architect.CyclesLeftInTask = Math.Max(architect.CyclesLeftInTask + Game1.r.Next(-50, 51), 50);
             }
             architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room, "");
         }
@@ -1284,9 +1301,13 @@ namespace Lightrealm
                 Game1.GameWorld.GamePlayerParty.CurrentEvent = null;
             }
 
+            foreach(Architect a in Game1.LoadedArchitects)
+            {
+                a.Room = null;
+                a.Block = null;
+            }
 
             Game1.LoadedArchitects.Clear();
-
         }
     }
 }

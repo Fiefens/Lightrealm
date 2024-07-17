@@ -181,5 +181,80 @@ namespace Lightrealm
 
             return DeterminedLocation;
         }
+
+        public (Region, Location, District, Block, Room, string) FindRandomThingInCurrentDistrict(string thing)
+        {
+            (Region, Location, District, Block, Room, string) RandomLocation = (null, null, null, null, null, "");
+
+            List<(Region, Location, District, Block, Room, string)> potentialLocations = new List<(Region, Location, District, Block, Room, string)>();
+
+            // Get the current district
+            District currentDistrict = this.District;
+
+            foreach (Block block in currentDistrict.DistrictMap)
+            {
+                if (thing == "well" && block.HasWell())
+                {
+                    potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null, "well"));
+                }
+                else if (thing == "structure")
+                {
+                    foreach (Structure s in block.Structures)
+                    {
+                        if (s.Block.District.IsLoaded)
+                        {
+                            Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                            potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom, s.Name));
+                        }
+                        else
+                        {
+                            potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null, s.Name));
+                        }
+                    }
+                }
+                else if (Game1.StructureTypes.Contains(thing))
+                {
+                    foreach (Structure s in block.Structures)
+                    {
+                        if (s.Type == thing)
+                        {
+                            if (s.Block.District.IsLoaded)
+                            {
+                                Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                                potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom, s.Name));
+                            }
+                            else
+                            {
+                                potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null, s.Name));
+                            }
+                        }
+                    }
+                }
+                else if (Game1.GameWorld.SubjectCatalogue.ContainsKey(thing))
+                {
+                    // Handle finding Object, Architect, or Group from SubjectCatalogue if necessary
+                    var subject = Game1.GameWorld.SubjectCatalogue[thing];
+                    if (subject is Object obj)
+                    {
+                        // Handle object-specific logic
+                    }
+                    else if (subject is Architect architect)
+                    {
+                        // Handle architect-specific logic
+                    }
+                    else if (subject is Group group)
+                    {
+                        // Handle group-specific logic
+                    }
+                }
+            }
+
+            if (potentialLocations.Count > 0)
+            {
+                RandomLocation = potentialLocations[Game1.r.Next(potentialLocations.Count)];
+            }
+
+            return RandomLocation;
+        }
     }
 }

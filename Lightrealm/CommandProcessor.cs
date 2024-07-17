@@ -557,6 +557,41 @@ namespace Lightrealm
                     MakeObservation("The target is not an architect.", Color.Red, new EntityList<Entity>());
                 }
             }
+            else if (CommandID == "pet")
+            {
+                if (Subjects[0] is Architect targetArchitect)
+                {
+                    if (ArchitectsToUse.Contains(targetArchitect))
+                    {
+                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
+                        MakeObservation("You deliver headpats to " + targetArchitect.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>());
+
+                        if (!Game1.GameWorld.HumanoidRaces.Contains(targetArchitect.Race) && !Game1.GameWorld.ExtraRaces.Contains(targetArchitect.Race))
+                        {
+                            if (targetArchitect.CombatCycles == 0)
+                            {
+                                MakeObservation(targetArchitect.ReferredToNames[0] + ": *happy shibesque noises*", Color.Lime, new EntityList<Entity>());
+                            }
+                            else
+                            {
+                                MakeObservation(targetArchitect.ReferredToNames[0] + " doesn't appear to be in the mood...", Color.Yellow, new EntityList<Entity>());
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation(targetArchitect.ReferredToNames[0] + " looks very uncomfortable.", Color.Orange, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("The target is not in the same area.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You weren't supposed to pet this.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
 
             else if (CommandID == "wield_item")
             {
@@ -2354,7 +2389,7 @@ namespace Lightrealm
                     // React to performance in the vicinity
                     foreach (var architect in reactingArchitects)
                     {
-                        if (architect != Executor)
+                        if (architect != Executor && Game1.GameWorld.HumanoidRaces.Contains(architect.Race))
                         {
                             int randomModifier = Game1.r.Next(-2, 3);  // Random number from -2 to 2
                             int score = Executor.Charisma + randomModifier;
@@ -2746,13 +2781,14 @@ namespace Lightrealm
                             Object BP = architectTarget.BodyParts[r.Next(architectTarget.BodyParts.Count())];
                             BP.Integrity -= r.Next(10, Executor.PathOfStarsLevel * 5);
                             architectTarget.Bleeding += Game1.r.Next(5);
-                            architectTarget.ChangeOpinion(Executor, -60);
-                            MakeObservation("A heavenly beam pierces through " + BP.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { BP });
+                            architectTarget.Pain += Game1.r.Next(5);
+                            architectTarget.ChangeOpinion(Executor, -100);
+                            MakeObservation("A heavenly beam pierces through " + BP.ReferredToNames[0] + ", leaving a burning hole!", Color.Magenta, new EntityList<Entity>() { BP });
                         }
                         else if (Subjects[0] is Object objectTarget && objectsInArea.Contains(objectTarget))
                         {
                             objectTarget.Integrity -= r.Next(10, Executor.PathOfStarsLevel * 5);
-                            MakeObservation("A heavenly beam pierces through " + objectTarget.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { objectTarget });
+                            MakeObservation("A heavenly beam pierces through " + objectTarget.ReferredToNames[0] + ", leaving a burning hole!", Color.Magenta, new EntityList<Entity>() { objectTarget });
                         }
                         else
                         {
@@ -2903,7 +2939,9 @@ namespace Lightrealm
                     if (FoundSpark != null)
                     {
                         Architect a = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count())], Game1.GameWorld.GetRace("photonexus"), 0, "prismancer", new EntityList<Object>(), Executor.Location, Executor.District, Executor.Block, "", 1);
+                        a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                         GameWorld.GamePlayerParty.Architects.Add(a);
+                        Game1.LoadedArchitects.Add(a);
                         MakeObservation("A photonexus appears!", Color.Cyan, new EntityList<Entity>());
 
                         if (Executor.Room != null)
@@ -3040,7 +3078,7 @@ namespace Lightrealm
 
                         if (architect.IsAlive)
                         {
-                            if (GameWorld.GamePlayerParty.Architects.Contains(architect))
+                            if (!GameWorld.GamePlayerParty.Architects.Contains(architect))
                             {
                                 GameWorld.GamePlayerParty.Architects.Add(architect);
                             }

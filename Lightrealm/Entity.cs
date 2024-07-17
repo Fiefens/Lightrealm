@@ -5,13 +5,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Lightrealm
 {
     [Serializable]
     public class Entity
     {
-        public string Name { get; set; }
+        private string _name;
+
+        public string Name
+        {
+            get { return _name; }
+            set
+            {
+                _name = value;
+                if (!ReferredToNames.Contains(value))
+                {
+                    ReferredToNames.Add(value);
+                }
+            }
+        }
+
+
         public int ID;
         private List<string> _referredToNames = new List<string>();
 
@@ -117,6 +133,8 @@ namespace Lightrealm
                 Game1.TemporaryNextUniqueID++;
                 Game1.TemporaryEntityLedger.Add(ID, this);
             }
+
+            AddReferredToName(ID.ToString());
         }
 
         public Entity(string metadata)
@@ -139,6 +157,8 @@ namespace Lightrealm
                 Game1.TemporaryNextUniqueID++;
                 Game1.TemporaryEntityLedger.Add(ID, this);
             }
+
+            AddReferredToName(ID.ToString());
         }
     }
 }

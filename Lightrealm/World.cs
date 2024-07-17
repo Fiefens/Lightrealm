@@ -62,7 +62,7 @@ namespace Lightrealm
     {
         new Entity("water bolt"),
         new Entity("chaos flare"),
-        new Entity("concentrated ignition"),
+        new Entity("flash flame"),
         new Entity("tremor"),
         new Entity("ice shock"),
         new Entity("truthfulness"),
@@ -99,7 +99,7 @@ namespace Lightrealm
         new Entity("space"),
         new Entity("reality"),
         new Entity("chaos"),
-        new Entity("order"),
+        new Entity("stability"),
         new Entity("nature"),
         new Entity("earth"),
         new Entity("water"),
@@ -1091,73 +1091,73 @@ namespace Lightrealm
             Enchromalite = new Material("enchromalite", "cloth", 3, 4, "white");
             Materials["enchromalite"] = Enchromalite;
 
-            Illuminite = new Material("illuminite", "cloth", 3, 4, "white");
+            Illuminite = new Material("illuminite", "metal", 3, 4, "white");
             Materials["illuminite"] = Illuminite;
 
-            Darkstone = new Material("darkstone", "cloth", 3, 4, "white");
+            Darkstone = new Material("darkstone", "metal", 3, 4, "gray");
             Materials["darkstone"] = Darkstone;
 
-            Prismite = new Material("prismite", "cloth", 3, 4, "white");
+            Prismite = new Material("prismite", "metal", 3, 4, "white");
             Materials["prismite"] = Prismite;
 
-            Shadesteel = new Material("shadesteel", "cloth", 3, 4, "white");
+            Shadesteel = new Material("shadesteel", "metal", 3, 4, "gray");
             Materials["shadesteel"] = Shadesteel;
 
-            Archaeon = new Material("archaeon", "cloth", 3, 4, "white");
+            Archaeon = new Material("archaeon", "glass", 3, 4, "white");
             Materials["archaeon"] = Archaeon;
 
-            Membrane = new Material("membrane", "cloth", 3, 4, "white");
+            Membrane = new Material("membrane", "living", 3, 4, "white");
             Materials["membrane"] = Membrane;
 
-            Biocrystal = new Material("biocrystal", "cloth", 3, 4, "white");
+            Biocrystal = new Material("biocrystal", "living", 3, 4, "white");
             Materials["biocrystal"] = Biocrystal;
 
-            Glass = new Material("glass", "cloth", 3, 4, "white");
+            Glass = new Material("glass", "glass", 3, 4, "white");
             Materials["glass"] = Glass;
 
-            Clay = new Material("clay", "cloth", 3, 4, "white");
+            Clay = new Material("clay", "stone", 3, 4, "maroon");
             Materials["clay"] = Clay;
 
-            ShadeSludge = new Material("shadesludge", "cloth", 3, 4, "white");
+            ShadeSludge = new Material("shadesludge", "living", 3, 4, "gray");
             Materials["shadesludge"] = ShadeSludge;
 
-            Coffee = new Material("coffee", "cloth", 3, 4, "white");
+            Coffee = new Material("coffee", "plant", 3, 4, "brown");
             Materials["coffee"] = Coffee;
 
-            Tea = new Material("tea", "cloth", 3, 4, "white");
+            Tea = new Material("tea", "plant", 3, 4, "green");
             Materials["tea"] = Tea;
 
-            Vitalium = new Material("vitalium", "cloth", 3, 4, "white");
+            Vitalium = new Material("vitalium", "stone", 3, 4, "magenta");
             Materials["vitalium"] = Vitalium;
 
-            Paprika = new Material("paprika", "cloth", 3, 4, "white");
+            Paprika = new Material("paprika", "plant", 3, 4, "maroon");
             Materials["paprika"] = Paprika;
 
-            Salt = new Material("salt", "cloth", 3, 4, "white");
+            Salt = new Material("salt", "stone", 3, 4, "white");
             Materials["salt"] = Salt;
 
-            Pepper = new Material("pepper", "cloth", 3, 4, "white");
+            Pepper = new Material("pepper", "plant", 3, 4, "gray");
             Materials["pepper"] = Pepper;
 
-            Isodust = new Material("isodust", "cloth", 3, 4, "white");
+            Isodust = new Material("isodust", "stone", 3, 4, "purple");
             Materials["isodust"] = Isodust;
 
-            Spectre = new Material("spectre", "cloth", 3, 4, "white");
+            Spectre = new Material("spectre", "metaphysic", 3, 4, "cyan");
             Materials["spectre"] = Spectre;
 
-            Energy = new Material("energy", "cloth", 3, 4, "white");
+            Energy = new Material("energy", "metaphysic", 3, 4, "white");
             Materials["energy"] = Energy;
 
-            Flame = new Material("flame", "cloth", 3, 4, "white");
+            Flame = new Material("flame", "metaphysic", 3, 4, "orange");
             Materials["flame"] = Flame;
 
-            Void = new Material("void", "cloth", 3, 4, "white");
+            Void = new Material("void", "metaphysic", 3, 4, "purple");
             Materials["void"] = Void;
 
-            Honey = new Material("honey", "cloth", 3, 4, "white");
+            Honey = new Material("honey", "plant", 3, 4, "orange");
             Materials["honey"] = Honey;
 
-            Waspwax = new Material("waspwax", "cloth", 3, 4, "white");
+            Waspwax = new Material("waspwax", "plant", 3, 4, "yellow");
             Materials["waspwax"] = Waspwax;
 
             foreach (string c in Game1.Colors)
@@ -2071,7 +2071,7 @@ namespace Lightrealm
                             l.HomeCivilization.Citizens.Add(Icosidodecahedron);
                             l.Government = Icosidodecahedron;
                             l.Districts[0].Architects.Add(Icosidodecahedron);
-                            HistoricalEvents.Add(Date + " The prism of expression, " + l.Name + ", was forged as a beacon of reality, manifesting under the control of " + Icosidodecahedron.Name + ".");
+                            HistoricalEvents.Add(Date + " The prism of expression, " + l.Name + ", was forged as a beacon for a creative reality, manifesting under the control of " + Icosidodecahedron.Name + ".");
                         }
                         else if (race.Name == "shade")
                         {
@@ -6602,10 +6602,10 @@ namespace Lightrealm
 
                         if (new List<string>() { "commune", "mound", "monastery", "outpost" }.Contains(a.NextMigrationLocation.Type) || CalamityStructures.Contains(a.NextMigrationLocation.Type))
                         {
-                            if (Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type) && a.Diplomakitted == false)
+                            if ((Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type)) && a.MigrationKitted == false)
                             {
                                 a.KitOutArchitect("warriorpower" + a.Level);
-                                a.Diplomakitted = true;
+                                a.MigrationKitted = true;
                             }
 
                             if(!a.OppositionTags.Contains("intruders") && a.Bound == false)
@@ -6615,7 +6615,6 @@ namespace Lightrealm
                         }
                         
                         a.NextMigrationLocation = null;
-
                     }
                 }
 

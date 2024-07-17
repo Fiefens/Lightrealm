@@ -15,6 +15,9 @@ namespace Lightrealm
 
         public EntityList<TextStorage> Intrigue = new EntityList<TextStorage>();
 
+        public int MapCursorX;
+        public int MapCursorZ;
+
         private int _currentEventId;
         
         public InteractableEvent CurrentEvent
@@ -57,28 +60,20 @@ namespace Lightrealm
 
                 EntityList<Material> materials = new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count())] };
 
-                a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
+                //replacing with starter frags                  a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
 
-                int count = Game1.r.Next(10, 21);
+                int count = Game1.r.Next(50, 101);
 
                 for (int i = 0; i < count; i++)
                 {
                     a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
                 }
 
+                /*
                 a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
                 a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
                 a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
-
-
-                a.PathOfBodyLevel = 8;
-                a.PathOfDeathLevel = 8;
-                a.PathOfHeatLevel = 8;
-                a.PathOfLightLevel = 8;
-                a.PathOfLifeLevel = 8;
-                a.PathOfStarsLevel = 8;
-                a.PathOfRealityLevel = 8;
-                a.PathOfShadowLevel = 8;
+                */
 
                 int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
 
