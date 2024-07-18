@@ -13,6 +13,12 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin audio/introspection.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:audio/introspection.mp3
+
 #begin audio/lightrealm main theme (2023).mp3
 /importer:Mp3Importer
 /processor:SongProcessor

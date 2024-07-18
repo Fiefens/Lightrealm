@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework.Media;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing.Imaging;
@@ -1111,7 +1112,92 @@ namespace Lightrealm
         }
 
 
+        public void Perform(string type)
+        {
+            if (type != "song" && type != "poem")
+            {
+                throw new ArgumentException("Invalid type. Must be either 'song' or 'poem'.");
+            }
 
+            // Search for all compositions in the game world with the specified type
+            var compositionsToPerform = Game1.GameWorld.EntityLedger.Values
+                    .OfType<Composition>()
+                    .Where(c => c.Type == type)
+                    .ToList();
+
+            if (compositionsToPerform.Count == 0)
+            {
+                AnnounceToParty($"{this.Name} finishes improvising a {type}. It sounds alright.", Color.Pink, new EntityList<Entity>() { this });
+                return;
+            }
+
+            // Pick a random composition from the list
+            var compositionToPerform = compositionsToPerform[Game1.r.Next(compositionsToPerform.Count)];
+
+            // Announce the performance to the party
+            string action = type == "song" ? "singing" : "reciting";
+            AnnounceToParty($"{this.ReferredToNames[0]} finishes their {action} of {compositionToPerform.Name}. {compositionToPerform.GetCompleteWorkDescription()}", Color.Green, new EntityList<Entity>() { this });
+
+            // Determine the list of architects based on the location of the Executor
+            var architects = this.Room == null ? this.Block.Architects : this.Room.Architects;
+
+            // Randomly select a subset of architects to react, between 1 and 6
+            int numReactions = Math.Min(Game1.r.Next(1, 7), architects.Count());
+            EntityList<Architect> reactingArchitects = architects.ShuffleNew().Take(numReactions);
+
+            // React to performance in the vicinity
+            foreach (var architect in reactingArchitects)
+            {
+                if (architect != this && !Game1.GameWorld.GamePlayerParty.Architects.Contains(architect) && Game1.GameWorld.HumanoidRaces.Contains(architect.Race))
+                {
+                    int randomModifier = Game1.r.Next(-2, 3);  // Random number from -2 to 2
+                    int score = this.Charisma + randomModifier;
+                    score = Math.Clamp(score, 0, 9); // Ensure score is within 0-9
+
+                    // Determine the reaction based on the score
+                    string reaction;
+                    switch (score)
+                    {
+                        case 0:
+                            reaction = "Go find a merchant, peddler.";
+                            break;
+                        case 1:
+                            reaction = "I've heard better from my shiba.";
+                            break;
+                        case 2:
+                            reaction = "Keep practicing... far away from here.";
+                            break;
+                        case 3:
+                            reaction = "Hmm, I guess everyone starts somewhere.";
+                            break;
+                        case 4:
+                            reaction = "Not the worst I've endured.";
+                            break;
+                        case 5:
+                            reaction = "Average, but you could improve.";
+                            break;
+                        case 6:
+                            reaction = "Quite decent, I must say!";
+                            break;
+                        case 7:
+                            reaction = "That was actually quite engaging!";
+                            break;
+                        case 8:
+                            reaction = "Impressive performance, truly!";
+                            break;
+                        case 9:
+                            reaction = "Astonishing! You've truly mastered your craft!";
+                            break;
+                        default:
+                            reaction = "How indescribable... I'm unsure how to put my amazement into words.";
+                            break;
+                    }
+
+                    // Display the reaction
+                    AnnounceToParty(architect.Name + ": " + reaction, Color.Magenta, new EntityList<Entity>() { architect });
+                }
+            }
+        }
 
 
         public void SetProficiency(string proficiencyName, int value)
@@ -1151,7 +1237,7 @@ namespace Lightrealm
                 int chanceToGetArmor = baseChance + (powerLevel * chancePerPowerLevel);
 
                 // Create a weapon
-                Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Level * 2);
+                Material weaponMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Math.Min(16, powerLevel * 2));
                 string weaponType = Game1.AllWeapons[Game1.r.Next(Game1.AllWeapons.Count())];
                 Object weapon = new Object(null, weaponType, new EntityList<Material>() { weaponMaterial }, null);
 
@@ -1159,7 +1245,7 @@ namespace Lightrealm
 
                 // List of possible armor types to create
                 List<string> armorTypes = new List<string> { "helmet", "chestplate", "gauntlet", "leggings", "boot" };
-                Material armorMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, powerLevel * 2); // Material for the armor
+                Material armorMaterial = Game1.GameWorld.GetRandomMaterialByStrength(Game1.GameWorld.Metals, Math.Min(16, powerLevel * 2)); // Material for the armor
 
                 // Random chance generator
                 Random r = new Random();
@@ -2849,7 +2935,16 @@ namespace Lightrealm
             OffHeldObject?.UpdateNames();
             MainHeldObject?.UpdateNames();
 
-
+            if(Game1.MostRecentPartyTurnArchitect == this)
+            {
+                foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                {
+                    a.ReferredToNames.Remove("myself");
+                    a.ReferredToNames.Remove("me");
+                }
+                ReferredToNames.Add("myself");
+                ReferredToNames.Add("me");
+            }
 
             if (Game1.SplitMode)
             {
@@ -3166,10 +3261,13 @@ namespace Lightrealm
                         else if (this == Game1.GameWorld.Calamity[0])
                         {
                             AnnounceToParty(this.Name + ": So... This is how it ends...", Color.PaleGoldenrod, new EntityList<Entity>());
-                            AnnounceToParty(this.Name + ": My legacy, ending just like that, to a pitiful fool such as yourself.", Color.PaleGoldenrod, new EntityList<Entity>());
-                            AnnounceToParty(this.Name + ": My ideology must live on though...", Color.PaleGoldenrod, new EntityList<Entity>());
+                            AnnounceToParty(this.Name + ": Why must my great legacy end to a pitiful fool such as yourself...", Color.PaleGoldenrod, new EntityList<Entity>());
+                            AnnounceToParty(this.Name + ": My ideology shall live on though...", Color.PaleGoldenrod, new EntityList<Entity>());
                             AnnounceToParty(this.Name + ": Won't it...?", Color.PaleGoldenrod, new EntityList<Entity>());
-                            AnnounceToParty("The primeval source of evil throughout the land, " + this.Name + ", has finally fallen. The continent is filled with rest and hope.", Color.Coral, new EntityList<Entity>() { this });
+                            AnnounceToParty("A primeval source of evil throughout the land, " + this.Name + ", has finally fallen.", Color.Coral, new EntityList<Entity>() { this });
+
+                            MediaPlayer.Play(Game1.Introspection);
+                            MediaPlayer.Volume = 1.0f;
 
                             foreach (Architect a in Game1.GameWorld.Calamity)
                             {
@@ -3664,6 +3762,17 @@ namespace Lightrealm
                 Energy = Math.Min(MaxEnergy(), Energy + ExtraEnergyRegen);
             }
 
+            if (Game1.GameWorld.Cycle % 50 == 0 && !Race.Name.Contains("shade"))
+            {
+                foreach (Object o in this.BodyParts)
+                {
+                    if (o.Integrity < 100)
+                    {
+                        o.Integrity++;
+                    }
+                }
+            }
+
             //Handle A variety of On Tick Effects
 
             if (WetCycles > 0)
@@ -3756,7 +3865,7 @@ namespace Lightrealm
                     // Check if the message has been seen before and is a question
                     bool messageSeenBefore = MessageDatabase.Any(dbMessage => dbMessage.MessageContent == m.MessageContent && dbMessage.MessageType == "question");
 
-                    if (messageSeenBefore)
+                    if (messageSeenBefore && !(m.Receiver.ArchitectsIWillTellTruthTo.Contains(m.Sender) || m.Sender.ArchitectsWhoSurrenderedToMe.Contains(m.Receiver) || m.MessageContent.StartsWith("Would you tell me where I can find")))
                     {
                         // Message has been seen before, respond with the same response
                         AnnounceToParty(ReferredToNames[0] + ": " + ResponseDatabase[m.MessageContent], new Color(0, 255, 0), new EntityList<Entity> { this }.Union(m.Subjects));
@@ -4368,7 +4477,7 @@ namespace Lightrealm
                         }
                         else if ((DaysSincePerforming > 5 || (Profession == "musician" && DaysSincePerforming > 0)) && Task != "performmusic" && Task != "performdance" && Task != "performtheater" && Task != "performpoetry")
                         {
-                            Task = new List<string>() { "performmusic", "performdance", "performtheater", "performpoetry" }[Game1.r.Next(3)];
+                            Task = new List<string>() { "performmusic", "performpoetry" }[Game1.r.Next(2)];
                         }
                         else if (Game1.r.Next(1, 5) == 1)
                         {
@@ -4381,7 +4490,7 @@ namespace Lightrealm
 
                             if (TaskDecider == 0)
                             {
-                                Task = new List<string>() { "performmusic", "performdance", "performtheater", "performpoetry" }[Game1.r.Next(3)];
+                                Task = new List<string>() { "performmusic", "performpoetry" }[Game1.r.Next(2)];
                             }
                             else if (TaskDecider < 7)
                             {
@@ -4536,9 +4645,11 @@ namespace Lightrealm
                             break;
                         case "performmusic":
                             DaysSincePerforming = 0;
+                            Perform("song");
                             break;
                         case "performpoetry":
                             DaysSincePerforming = 0;
+                            Perform("poem");
                             break;
                         case "performdance":
                             DaysSincePerforming = 0;
@@ -4667,7 +4778,7 @@ namespace Lightrealm
 
                                     if (Ability == "energybolts")
                                     {
-                                        for (int i = Game1.r.Next(3, 6); i != 0; i--)
+                                        for (int i = Game1.r.Next(1, 5); i != 0; i--)
                                         {
                                             Object o = new Object(null, "energy bolt", new EntityList<Material>() { new Material("energy", "energy", 3, 0, "white") }, this);
                                             objects.Add(o);
@@ -4705,7 +4816,7 @@ namespace Lightrealm
                                             if (!a.Race.Name.EndsWith("guardian"))
                                             {
                                                 AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Magenta, new EntityList<Entity>() { a });
-                                                a.DestabilizedCycles += Game1.r.Next(10, 25);
+                                                a.DestabilizedCycles += Game1.r.Next(10, 20);
                                             }
                                         }
                                     }
@@ -4717,7 +4828,7 @@ namespace Lightrealm
                                             if (!a.Race.Name.EndsWith("guardian"))
                                             {
                                                 AnnounceToParty(a.ReferredToNames[0] + " is frozen temporarily!", Color.Magenta, new EntityList<Entity>() { this });
-                                                a.HoldCycles += Game1.r.Next(4, 8);
+                                                a.HoldCycles += Game1.r.Next(1, 8);
                                             }
                                         }
                                     }
@@ -4731,7 +4842,11 @@ namespace Lightrealm
                                             PulseCharge = 0;
                                             AnnounceToParty(TargetArchitect.ReferredToNames[0] + " pulse bashes " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this });
                                             TargetArchitect.DestabilizedCycles += 200;
-                                            TargetArchitect.Energy -= 30;
+                                            TargetArchitect.Energy -= 16;
+                                            if (Energy <= 0)
+                                            {
+                                                DeathCause = "was pulse bashed by a construct";
+                                            }
                                         }
                                     }
                                     else if (Ability == "harvest")

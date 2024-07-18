@@ -290,7 +290,7 @@ namespace Lightrealm
 
         public EntityList<Object> AllWrittenContent { get; set; } = new EntityList<Object>();
 
-        public List<string> CalamityStructures { get; set; } = new List<string> { "tower", "keep", "monument", "fortress" };
+        public List<string> CalamityStructures { get; set; } = new List<string> { "tower", "keep", "monument", "fortress", "stronghold" };
         public List<string> ProcgenStructures { get; set; } = new List<string>
     {
         "observatory",
@@ -2407,7 +2407,7 @@ namespace Lightrealm
                         { "power", new List<string> { "aspired to attain ultimate power", "dreamed of transcending their current limitations", "sought to wield supreme unchallenged magical power" } }
                     };
 
-                    string name = FirstPartNames[r.Next(FirstPartNames.Count())] + SecondPartNames[r.Next(SecondPartNames.Count())] + ", the " + Adjectives[r.Next(Adjectives.Count())] + " " + (codeNameThemes[CalamityIdeologicalObsession])[r.Next(codeNameThemes[CalamityIdeologicalObsession].Count())];
+                    string name = FirstPartNames[r.Next(FirstPartNames.Count())] + SecondPartNames[r.Next(SecondPartNames.Count())] + " the " + Adjectives[r.Next(Adjectives.Count())] + " " + (codeNameThemes[CalamityIdeologicalObsession])[r.Next(codeNameThemes[CalamityIdeologicalObsession].Count())];
                     var eligibleCivilizations = Civilizations.Where(c => HumanoidRaces.Contains(c.PrimaryInhabitantRace)).ToList();
                     if (eligibleCivilizations.Count > 0)
                     {

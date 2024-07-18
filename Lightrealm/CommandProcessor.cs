@@ -3096,7 +3096,7 @@ namespace Lightrealm
             {
                 Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
                 Executor.Energy -= Math.Max(0, 15 - Executor.PathOfDeathLevel);
-                if (Executor.PathOfDeathLevel >= 4 || (Executor.UndeadCreator != null && Executor.UndeadCreator.PathOfDeathLevel >= 6))
+                if (Executor.PathOfDeathLevel >= 4 || (Executor.UndeadCreator != null && Executor.UndeadCreator.PathOfDeathLevel >= 8))
                 {
                     if (Subjects[0] is Architect)
                     {

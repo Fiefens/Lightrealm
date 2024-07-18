@@ -769,7 +769,7 @@ namespace Lightrealm
                 Materials.Add(Game1.GameWorld.Void);
             }
 
-
+            Materials = Materials.Distinct();
 
             //gravity
 
@@ -1127,7 +1127,7 @@ namespace Lightrealm
                     Weight = 150;
                     IsContainer = true;
                     IsGeneralGood = true;
-                    Description = "A small pouch. The inscription shows it is intended to contain isodust, a powder with various magical uses.";
+                    Description = "A small pouch. The inscription shows it is intended to contain isodust.";
                     break;
                 case "coffee crate":
                     Weight = 2000;
@@ -1699,6 +1699,7 @@ namespace Lightrealm
                     break;
 
                 default:
+                    
                     throw new Exception("Trying to create an unimplemented object!");
 
             }

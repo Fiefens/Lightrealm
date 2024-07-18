@@ -19,7 +19,9 @@ namespace Lightrealm
         public int MapCursorZ;
 
         private int _currentEventId;
-        
+        public int RanCommands { get; set; } = 0;
+        public bool UsedThis { get; set; } = false;
+
         public InteractableEvent CurrentEvent
         {
             get => EntityGet<InteractableEvent>(_currentEventId);
@@ -58,8 +60,7 @@ namespace Lightrealm
             {
                 a.HairID = Game1.r.Next(0, 2);
 
-                EntityList<Material> materials = new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count())] };
-
+                //EntityList<Material> materials = new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count())] };
                 //replacing with starter frags                  a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
 
                 int count = Game1.r.Next(50, 101);
@@ -75,6 +76,7 @@ namespace Lightrealm
                 a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
                 */
 
+                /*
                 int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
 
                 switch (healingItem)
@@ -92,6 +94,7 @@ namespace Lightrealm
                         a.Inventory.Add(new Object(null, "vial", new EntityList<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
                         break;
                 }
+                */
             }
         }
     }

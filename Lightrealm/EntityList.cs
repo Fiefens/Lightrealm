@@ -32,6 +32,7 @@ namespace Lightrealm
             {
                 if (index < 0 || index >= _entityIds.Count)
                 {
+                     
                     throw new IndexOutOfRangeException($"Index {index} is out of range for entity IDs list.");
                 }
 

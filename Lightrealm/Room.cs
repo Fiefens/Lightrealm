@@ -1804,12 +1804,6 @@ namespace Lightrealm
                     AddObject("altar", m);
                 }
 
-                // Add some decorative items
-                if (Game1.r.Next(1, 3) == 1)
-                {
-                    AddObject("statue", m); // Assuming "statue" is a valid object type
-                }
-
                 if (Game1.r.Next(1, 4) == 1)
                 {
                     AddObject("urn", m);

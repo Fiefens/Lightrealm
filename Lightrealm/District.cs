@@ -637,6 +637,9 @@ namespace Lightrealm
                     case "commune":
                         possibleTasks.AddRange(new List<string> { "study", "discussion" });
                         break;
+                    case "tavern":
+                        possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing", "performmusic", "performpoetry" });
+                        break;
                     default:
                         possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
                         break;
@@ -966,7 +969,7 @@ namespace Lightrealm
                         a.Room = chosenRoom;
                         a.Block = chosenRoom.Structure.Block;
                     }
-                    else if (a.IsCalamity == false || Game1.r.Next(3) == 0)
+                    else if (a.IsCalamity == false || Game1.r.Next(6) == 0)
                     {
                         Block b = DistrictMap[Game1.r.Next(0, 49)];
                         b.Architects.Add(a);
