@@ -161,9 +161,9 @@ namespace Lightrealm
                         {
                             Game1.Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow, new EntityList<Entity>()));
                         }
-                        if (((Structure)Subjects[0]).Type == "temple" && ((Structure)Subjects[0]).Rooms.Any(room => room.Objects.Any(obj => obj.Type == "altar")))
+                        if (((Structure)Subjects[0]).Type == "shrine" && ((Structure)Subjects[0]).Rooms.Any(room => room.Objects.Any(obj => obj.Type == "altar")))
                         {
-                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this temple. Maybe you could offer it something?", Color.Yellow, new EntityList<Entity>()));
+                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this shrine. Perhaps you could offer it something?", Color.Yellow, new EntityList<Entity>()));
                         }
 
                         Game1.GameState = "exposition";
@@ -223,6 +223,12 @@ namespace Lightrealm
             else if (CommandID == "basic_attack")
             {
                 // Find weapon and then calculate the attack
+
+                if(!Game1.GameWorld.GamePlayerParty.HasAttacked)
+                {
+                    Game1.GameWorld.GamePlayerParty.HasAttacked = true;
+                    MakeObservation("Try attacking a specific part, with a specific weapon, or both.", Color.Green, new EntityList<Entity>());
+                }
 
                 Object Weapon;
 
@@ -1074,7 +1080,6 @@ namespace Lightrealm
 
                 if (Subjects[0] is Object || Subjects[0].Metadata == "all")
                 {
-
                     EntityList<Object> objectList = null;
 
                     if (Executor.Room != null)
@@ -1675,7 +1680,7 @@ namespace Lightrealm
                                 }
                             case "spatialgrenade":
                                 {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with purple energy...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with violet energy...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
                                     Executor.Block.Objects.Add(new Object(null, "spatial grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
                                     break;
                                 }
@@ -2337,12 +2342,12 @@ namespace Lightrealm
                                 MakeObservation("You learned the skill \"" + objectToRead.SpecialKnowledge.Metadata + "\"!", Color.Blue, new EntityList<Entity>() { objectToRead.SpecialKnowledge });
                                 MakeObservation(Game1.SkillSpellDescriptions[objectToRead.SpecialKnowledge.Metadata], Color.LightBlue, new EntityList<Entity>());
 
-                                if (Executor.SkillsKnown.Count() == 2)
+                                Executor.SkillsKnown.Add(objectToRead.SpecialKnowledge);
+
+                                if (Executor.SkillsKnown.Count() == 3)
                                 {
                                     MakeObservation("Learning additional skills past 3 will replace older skills.", Color.OrangeRed, new EntityList<Entity>());
                                 }
-
-                                Executor.SkillsKnown.Add(objectToRead.SpecialKnowledge);
 
                                 if (Executor.SkillsKnown.Count() > 3)
                                 {

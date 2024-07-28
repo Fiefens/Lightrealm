@@ -205,10 +205,10 @@ namespace Lightrealm
                 {
                     // Logic to create and add doors to connect this room with the previous room
                     // For example, downward and upward spiral staircases as doors
-                    Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "downward spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(downStaircase);
 
-                    Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "upward spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
+                    Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
                     Structure.Rooms[Position - 1].Objects.Add(upStaircase);
                 }
 
@@ -248,10 +248,10 @@ namespace Lightrealm
                 {
                     // Logic to create and add doors to connect this room with the previous room
                     // For example, downward and upward spiral staircases as doors
-                    Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "downward spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                    Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(downStaircase);
 
-                    Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "upward spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
+                    Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "spiral staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
                     Structure.Rooms[Position - 1].Objects.Add(upStaircase);
                 }
 
@@ -344,10 +344,10 @@ namespace Lightrealm
                     // First 1/4 rooms: going upwards
                     if (Position > 0)
                     {
-                        Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "upward staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
+                        Door upStaircase = new Door(Structure.Rooms[Position - 1], this, "up", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
                         Structure.Rooms[Position - 1].Objects.Add(upStaircase);
 
-                        Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "downward staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                         Objects.Add(downStaircase);
                     }
                 }
@@ -370,10 +370,10 @@ namespace Lightrealm
                     // Last 1/4 rooms: going downward
                     if (Position > 0)
                     {
-                        Door downStaircase = new Door(Structure.Rooms[Position - 1], this, "down", null, "downward staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
+                        Door downStaircase = new Door(Structure.Rooms[Position - 1], this, "down", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[Position - 1].NumberOfDoors(), Structure.Block, Structure, this);
                         Structure.Rooms[Position - 1].Objects.Add(downStaircase);
 
-                        Door upStaircase = new Door(this, Structure.Rooms[Position - 1], "up", null, "upward staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
+                        Door upStaircase = new Door(this, Structure.Rooms[Position - 1], "up", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                         Objects.Add(upStaircase);
                     }
 
@@ -726,7 +726,7 @@ namespace Lightrealm
                 }
             }
 
-            else if (Structure.Type == "monument")
+            else if (Structure.Type == "monument" || Structure.Type == "stronghold")
             {
                 Material m = this.Structure.Block.District.Location.HomeCivilization.CulturalStone;
                 int Position = Structure.Rooms.IndexOf(this);
@@ -738,8 +738,21 @@ namespace Lightrealm
                 }
                 else
                 {
-                    // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
+                    // Create a weighted list of previous room indices
+                    List<int> weightedRoomIndices = new List<int>();
+                    for (int i = 0; i < Position; i++)
+                    {
+                        // Add the index multiple times based on its position
+                        // Newer rooms get more entries, making them more likely to be chosen
+                        int weight = Position - i;
+                        for (int j = 0; j < weight; j++)
+                        {
+                            weightedRoomIndices.Add(i);
+                        }
+                    }
+
+                    // Randomly pick an index from the weighted list
+                    int randomPreviousRoomIndex = weightedRoomIndices[Game1.r.Next(weightedRoomIndices.Count)];
                     string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
 
                     // Create door from current room to previous room
@@ -776,6 +789,7 @@ namespace Lightrealm
                     Structure.Rooms[randomPreviousRoomIndex].Objects.Add(previousRoomDoor);
                 }
             }
+
 
             else if (Structure.Type == "dock")
             {

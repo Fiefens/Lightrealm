@@ -18,6 +18,8 @@ namespace Lightrealm
         public int MapCursorX;
         public int MapCursorZ;
 
+        public bool HasAttacked = false;
+
         private int _currentEventId;
         public int RanCommands { get; set; } = 0;
         public bool UsedThis { get; set; } = false;
@@ -68,14 +70,13 @@ namespace Lightrealm
                 for (int i = 0; i < count; i++)
                 {
                     a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
-                }
 
+                }
                 /*
                 a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
                 a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
                 a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
                 */
-
                 /*
                 int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
 

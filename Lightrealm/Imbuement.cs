@@ -38,7 +38,7 @@ namespace Lightrealm
             return conditionDescription + buffDescription;
         }
 
-        private string GetConditionDescription()
+        public string GetConditionDescription()
         {
             string description = "";
             if (IsTrigger)

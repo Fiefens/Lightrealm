@@ -182,6 +182,9 @@ namespace Lightrealm
                     case "stronghold":
                         GuardiansInNetwork = Game1.r.Next(10, 15); // Half of 20-30 rooms
                         break;
+                    case "monument":
+                        GuardiansInNetwork = Game1.r.Next(4, 7); // Half of 20-30 rooms
+                        break;
                     case "monastery":
                         GuardiansInNetwork = Game1.r.Next(0, 2); // Half of 0-4 rooms
                         break;

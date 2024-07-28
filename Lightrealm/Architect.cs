@@ -2276,7 +2276,7 @@ namespace Lightrealm
 
         public void AddSpell()
         {
-            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "tremor", "ice shock" };
+            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "ice shock" };
 
             EntityList<Entity> unknownSpells = Game1.GameWorld.AllSpells
                 .Where(spell => OffensiveSpells.Contains(spell.Metadata) && !SpellsKnown.Contains(spell));
@@ -2841,6 +2841,12 @@ namespace Lightrealm
 
             string TrueProfession = Profession;
 
+            if(Game1.GameWorld.GamePlayerParty == null)
+            {
+                AddReferredToName(Name);
+                return;
+            }
+
             if (IsAlive)
             {
                 if(Game1.MostRecentPartyTurnArchitect.KnownArchitects.Contains(this) || Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
@@ -2995,25 +3001,32 @@ namespace Lightrealm
                     // Check if the current Architect is a direct subordinate of this
                     if (a.Master == this && a.IsAlive)
                     {
-                        // Update the location of all direct and indirect subordinates
-                        UpdateSubordinatesMigrationLocation(a, this);
+                        // Update the location of all direct and indirect subordinates up to 2 levels
+                        UpdateSubordinatesMigrationLocation(a, this, 1);
                     }
                 }
             }
         }
 
-        // Recursive function to update the migration location for all subordinates
-        public void UpdateSubordinatesMigrationLocation(Architect architect, Architect newMaster)
+        // Recursive function to update the migration location for subordinates up to 2 levels
+        public void UpdateSubordinatesMigrationLocation(Architect architect, Architect newMaster, int level)
         {
             // Set the migration location to the new master's location
             architect.NextMigrationLocation = newMaster.Location;
+            architect.HomeLocation = newMaster.Location;
+
+            // Stop the recursion after 2 levels
+            if (level >= 2)
+            {
+                return;
+            }
 
             // Recursively update for all direct subordinates
             foreach (Architect a in Game1.GameWorld.Calamity)
             {
                 if (a.Master == architect)
                 {
-                    UpdateSubordinatesMigrationLocation(a, newMaster);
+                    UpdateSubordinatesMigrationLocation(a, newMaster, level + 1);
                 }
             }
         }
@@ -3243,18 +3256,37 @@ namespace Lightrealm
                                     break;
                             }
 
-                            AnnounceToParty("You sense something odd about the name " + Master.Name + "...", Color.Aqua, new EntityList<Entity>() { Master });
-                            AnnounceToParty("[Intrigue Updated]", Color.Aqua, new EntityList<Entity>());
+                            bool AlreadyKnows = false;
 
-                            foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                            foreach (TextStorage t in Game1.GameWorld.GamePlayerParty.Intrigue)
                             {
-                                if (a.District == District)
+                                if(t.Entities.Contains(this))
                                 {
-                                    Game1.GameWorld.GamePlayerParty.Intrigue.Add(new TextStorage(Name + " said something about " + Master.Name + ".", Color.LimeGreen, new EntityList<Entity>() { this, Master }));
-                                    Game1.GameWorld.GamePlayerParty.Intrigue.Add(new TextStorage("Perhaps someone can tell us more.", Color.LimeGreen, new EntityList<Entity>()));
-                                    break;
+                                    AlreadyKnows = true;
                                 }
                             }
+
+                            if(!AlreadyKnows)
+                            {
+                                AnnounceToParty("You sense something odd about the name " + Master.Name + "...", Color.Aqua, new EntityList<Entity>() { Master });
+                                AnnounceToParty("[Intrigue Updated]", Color.Aqua, new EntityList<Entity>());
+
+                                foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                                {
+                                    if (a.District == District)
+                                    {
+                                        if(Game1.GameWorld.GamePlayerParty.Intrigue.Count == 0)
+                                        {
+                                            Game1.GameWorld.GamePlayerParty.Intrigue.Add(new TextStorage("Perhaps someone can tell us more about these figures...", Color.LimeGreen, new EntityList<Entity>()));
+                                        }
+
+                                        Game1.GameWorld.GamePlayerParty.Intrigue.Add(new TextStorage(Name + " said something about " + Master.Name + ".", Color.LimeGreen, new EntityList<Entity>() { this, Master }));
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if(Game1.GameWorld.GamePlayerParty.Intrigue.Count > 20)
 
                             Master.UpdateChildrenLocationsOnOneChildDeath();
                         }
@@ -3282,6 +3314,15 @@ namespace Lightrealm
                                     string Date = "(" + Month + "/" + Year + ")";
 
                                     Game1.GameWorld.HistoricalEvents.Add(Date + " " + a.Name + " left behind the calamity that " + this.Name + " had caused.");
+                                }
+                            }
+
+                            foreach(Architect a in Game1.LoadedArchitects)
+                            {
+                                if(Game1.GameWorld.ConstructRaces.Contains(a.Race))
+                                {
+                                    a.UnconsciousCycles = 99999999;
+                                    a.AnnounceToParty(a.ReferredToNames[0] + " has deactivated.", Color.LimeGreen, new EntityList<Entity>() { a });
                                 }
                             }
 
@@ -3880,7 +3921,7 @@ namespace Lightrealm
 
                     bool canReceiveMessage = bothAreSapient || this.PathOfLifeLevel >= 4 || m.Sender.PathOfLifeLevel >= 4;
 
-                    if ((CombatCycles > 0 && !(m.MessageID == "surrender" || m.MessageID == "demand_surrender")) || !canReceiveMessage)
+                    if ((CombatCycles > 0 && !(m.MessageID == "surrender" || m.MessageID == "demand_surrender")) || !canReceiveMessage || Bound)
                     {
                         AnnounceToParty(ReferredToNames[0] + " does not reply.", Color.Yellow, new EntityList<Entity>() { this });
                         continue;
@@ -4217,7 +4258,7 @@ namespace Lightrealm
 
 
                 //send messages of your own
-                if (Game1.r.Next(1, 15) < Charisma && this.Task != "killtarget" && this.Task != "disabletarget" && MessageCooldown == 0)
+                if (Game1.r.Next(1, 15) < Charisma && this.Task != "killtarget" && this.Task != "disabletarget" && Bound == false && MessageCooldown == 0)
                 {
                     var ArchList = Room != null ? Room.Architects : Block.Architects;
 
@@ -4719,7 +4760,7 @@ namespace Lightrealm
 
                         if (TargetArchitect != null && ArchitectsToUse.Contains(TargetArchitect)) // Check if the target is in the same area
                         {
-                            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "tremor", "ice shock" };
+                            List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "ice shock" };
 
                             if (Game1.r.Next(50) == 1)
                             {
@@ -4772,7 +4813,7 @@ namespace Lightrealm
                                     //use epic ability
                                     EntityList<Object> objects = Room != null ? Room.Objects : Block.Objects;
 
-                                    CooldownCycles += (int)Math.Round(10 / Speed());
+                                    CooldownCycles += (int)Math.Round(20 / Speed());
 
                                     string Ability = Race.Powers[Game1.r.Next(Race.Powers.Count())];
 
@@ -4799,9 +4840,13 @@ namespace Lightrealm
                                         AnnounceToParty(ReferredToNames[0] + " radiates magnetic energy!", Color.Magenta, new EntityList<Entity>() { this });
                                         foreach (Object o in objects)
                                         {
-                                            AnnounceToParty(o.ReferredToNames[0] + " falls to the ground!", Color.Magenta, new EntityList<Entity>() { o });
                                             if (o.Owner != this)
                                             {
+                                                if(o.AirborneTarget != null)
+                                                {
+                                                    AnnounceToParty(o.ReferredToNames[0] + " falls to the ground!", Color.Magenta, new EntityList<Entity>() { o });
+                                                }
+
                                                 o.AirborneTarget = null;
                                                 o.AirborneCyclesToHitTarget = 0;
                                                 o.AirbornePower = 0;
@@ -4813,7 +4858,7 @@ namespace Lightrealm
                                         AnnounceToParty(ReferredToNames[0] + " radiates an explosive shockwave!", Color.Magenta, new EntityList<Entity>() { this });
                                         foreach (Architect a in ArchitectsToUse)
                                         {
-                                            if (!a.Race.Name.EndsWith("guardian"))
+                                            if (!a.Race.Name.EndsWith("guardian") && a.HomeLocation != this.Location)
                                             {
                                                 AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Magenta, new EntityList<Entity>() { a });
                                                 a.DestabilizedCycles += Game1.r.Next(10, 20);
@@ -4825,7 +4870,7 @@ namespace Lightrealm
                                         AnnounceToParty(ReferredToNames[0] + " fires an array of brilliant white beams!", Color.Magenta, new EntityList<Entity>() { this });
                                         foreach (Architect a in ArchitectsToUse)
                                         {
-                                            if (!a.Race.Name.EndsWith("guardian"))
+                                            if (!a.Race.Name.EndsWith("guardian") && a.HomeLocation != this.Location)
                                             {
                                                 AnnounceToParty(a.ReferredToNames[0] + " is frozen temporarily!", Color.Magenta, new EntityList<Entity>() { this });
                                                 a.HoldCycles += Game1.r.Next(1, 8);
@@ -5036,7 +5081,7 @@ namespace Lightrealm
 
                 if (Task != "" && Target != (Location.Region, Location, District, Block, Room, "") && Target != (null, null, null, null, null, "") && BlindCycles == 0)
                 {   
-                    if (Room != null && (Target.Item5 != null && (Target.Item5.Structure == null || Target.Item5.Structure != Structure)))
+                    if (Room != null && (Target.Item5 == null || Target.Item5.Structure != Structure))
                     {
                         //oh crap im in a building, but I don't want to be in this one. I should find the exit.
 
@@ -5460,18 +5505,15 @@ namespace Lightrealm
 
                     if (CurrentTarget is Object)
                     {
-                        if (((Object)CurrentTarget).FireCycles > 0)
-                        {
-                            ((Object)CurrentTarget).FireCycles = 0;
-                        }
-                        ((Object)CurrentTarget).Integrity = ((Object)CurrentTarget).Integrity - 2;
+                        ((Object)CurrentTarget).Integrity = ((Object)CurrentTarget).Integrity - Game1.r.Next(3, 6 + Focus);
+                        ((Object)CurrentTarget).WetCycles += Game1.r.Next(50, 100);
                     }
                     else
                     {
-                        if (((Architect)CurrentTarget).FireSeconds > 0)
-                        {
-                            ((Architect)CurrentTarget).FireSeconds = 0;
-                        }
+                        ((Architect)CurrentTarget).Energy -= Game1.r.Next(3, 6 + Focus);
+                        ((Architect)CurrentTarget).DestabilizedCycles += Game1.r.Next(0, 50);
+                        ((Architect)CurrentTarget).WetCycles += Game1.r.Next(50, 100);
+
                         foreach (Object o in ((Architect)CurrentTarget).BodyParts)
                         {
                             o.Integrity = o.Integrity - 2;
@@ -5493,6 +5535,7 @@ namespace Lightrealm
                     else
                     {
                         ((Architect)CurrentTarget).FireSeconds += Game1.r.Next(0, 4);
+                        ((Architect)CurrentTarget).Energy -= Game1.r.Next(4, 8 + Focus);
                         ((Architect)CurrentTarget).DestabilizedCycles += Game1.r.Next(0, 50);
                         foreach (Object o in ((Architect)CurrentTarget).BodyParts)
                         {
@@ -5513,6 +5556,7 @@ namespace Lightrealm
                     {
                         ((Object)CurrentTarget).WetCycles += Game1.r.Next(0, 100);
                         ((Object)CurrentTarget).DestabilizedCycles += Game1.r.Next(0, 100);
+                        ((Architect)CurrentTarget).Energy -= Game1.r.Next(4, 8 + Focus);
                         ((Object)CurrentTarget).Integrity = ((Object)CurrentTarget).Integrity - 50;
                     }
                     else
@@ -5602,6 +5646,21 @@ namespace Lightrealm
                     else
                     {
                         ((Architect)CurrentTarget).YLevelInFeet += Game1.r.Next(50, 100);
+                    }
+                }
+                else if (Spell == "immortalize")
+                {
+                    CooldownCycles += (int)Math.Round(30 / Speed());
+                    AnnounceToParty($"{casterName} conjures a magenta light in their hands...", Color.Purple, new EntityList<Entity>() { this });
+
+                    if (CurrentTarget is Architect)
+                    {
+                        AnnounceToParty($"{CurrentTarget.ReferredToNames[0]} is enveloped in a beautiful purple light!", Color.Purple, new EntityList<Entity>() { CurrentTarget });
+                        ((Architect)CurrentTarget).IsImmortal = true;
+                    }
+                    else
+                    {
+                        AnnounceToParty($"{casterName} cannot grant {CurrentTarget.ReferredToNames[0]} immortality.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
                     }
                 }
                 else if (Spell == "hold")
@@ -6479,7 +6538,7 @@ namespace Lightrealm
             else if (Power == "ignite" && hostiles.Count() > 0)
             {
                 Architect target = hostiles[0];
-                target.FireSeconds += 3;
+                target.FireSeconds += 2;
                 return new TextStorage(ReferredToNames[0] + " ignites " + target.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, target });
             }
             else if (Power == "destabilize" && hostiles.Count() > 0)

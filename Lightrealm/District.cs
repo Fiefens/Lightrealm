@@ -778,9 +778,9 @@ namespace Lightrealm
                     int extraRoomCount = Layout switch
                     {
                         "house" or "ship" or "cove" or "mound" or "monastery" => Game1.r.Next(0, 4),
-                        "spire" or "archway" or "hallway" or "fortress" or "monument" or "toroid" or "towers" or "outpost" or "pyramid" or "sanctum" => Game1.r.Next(10, 20),
+                        "spire" or "archway" or "hallway" or "fortress" or "monument" or "toroid" or "towers" or "outpost" or "pyramid" or "sanctum" => Game1.r.Next(10, 18),
                         "keep" => Game1.r.Next(1, 4),
-                        "core" or "heart" or "stronghold" => 20,
+                        "core" or "heart" or "stronghold" => 18,
                         "tower" or "commune" => Game1.r.Next(10, 13),
                         _ => 2,
                     };

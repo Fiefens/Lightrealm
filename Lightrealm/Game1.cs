@@ -690,7 +690,10 @@ namespace Lightrealm
                 string trimmedName = materialName.Trim();
                 if (Game1.GameWorld.Materials.TryGetValue(trimmedName, out Material material))
                 {
-                    materials.Add(material);
+                    if(!materials.Contains(material))
+                    {
+                        materials.Add(material);
+                    }
                 }
             }
 
@@ -3127,7 +3130,7 @@ namespace Lightrealm
 
             RecognizedCommands.Add("become_invisible", (new List<string> { "become one with shadow", "become one with the shadow" }, new List<string> { }));
             RecognizedCommands.Add("exit_invisibility", (new List<string> { "exit the shadow", "exit the darkness", "return from the shadow", "return from shadow" }, new List<string> { }));
-            RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
+            //RecognizedCommands.Add("level_up", (new List<string> { "level ~" }, new List<string> { "direction" }));
             RecognizedCommands.Add("engage_target", (new List<string> { "engage ~", "engage with ~", "confront ~", "focus ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("approach_target", (new List<string> { "approach ~", "move closer to ~", "advance towards ~" }, new List<string> { "nearby_architect" }));
             RecognizedCommands.Add("distance_from_target", (new List<string> { "distance from ~", "move away from ~", "retreat from ~" }, new List<string> { "nearby_architect" }));
@@ -4245,6 +4248,11 @@ namespace Lightrealm
                         {
                             objectsToRemove.Add(o);
                         }
+
+                        if(objects.Count == 0)
+                        {
+                            break;
+                        }
                     }
 
                     foreach (var obj in objectsToRemove)
@@ -4260,12 +4268,15 @@ namespace Lightrealm
                     if (o.Type == "spatial grenade")
                     {
                         MakeObservation("The grenade explodes into a portal, sucking everything in!", Color.Purple, new EntityList<Entity>());
+
+                        List<Architect> architectsToRemove = new List<Architect>();
+
                         foreach (Architect a in architects)
                         {
                             a.IsAlive = false;
                             if (GameWorld.GamePlayerParty.Architects.Contains(a))
                             {
-                                GameWorld.GamePlayerParty.Architects.Remove(a);
+                                architectsToRemove.Add(a);
 
                                 if (GameWorld.GamePlayerParty.Architects.Count() == 0)
                                 {
@@ -4274,12 +4285,20 @@ namespace Lightrealm
                             }
                             MakeObservation(a.ReferredToNames[0] + " has been consumed by the portal.", Color.Purple, new EntityList<Entity>() { a });
                         }
+
+                        // Remove the architects after the loop
+                        foreach (Architect a in architectsToRemove)
+                        {
+                            GameWorld.GamePlayerParty.Architects.Remove(a);
+                        }
+
                         objects.Clear();
                         architects.Clear();
                     }
+
                     else if (o.Type == "lightning grenade")
                     {
-                        MakeObservation("The grenade explodes into a swarm of lightning, striking everything around!", Color.Purple, new EntityList<Entity>());
+                        MakeObservation("The grenade explodes into a swarm of lightning, striking everything around!", Color.Cyan, new EntityList<Entity>());
                         foreach (Architect a in architects)
                         {
                             a.UnconsciousCycles = 1000;
@@ -4556,218 +4575,214 @@ namespace Lightrealm
                 }
             }
 
-            void SetUpRelevantEntities(List<string> subjects)
+            void SetUpRelevantEntities(string subject)
             {
-                foreach (var subject in subjects)
+                switch (subject)
                 {
-                    switch (subject)
-                    {
-                        case "entity":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Entity>());
-                            break;
-                        case "architect":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Architect>());
-                            break;
-                        case "object":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Object>());
-                            break;
-                        case "door":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Door>());
-                            break;
-                        case "structure":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Structure>());
-                            break;
-                        case "nearby_architect":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
-                            break;
-                        case "structure_type":
-                            var structures = RelevantEntities.OfType<Structure>();
-                            var uniqueStructureTypes = structures.Select(s => s.Type).Distinct();
-                            var newEntities = uniqueStructureTypes.Select(type => new Entity(type));
-                            RelevantEntities.AddRange(newEntities);
-                            break;
-                        case "nearby_object":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
-                            break;
-                        case "nearby_target":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
-                            RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
-                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
-                            }
-                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
-                            }
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
-                            break;
-                        case "nearby_structure":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Structure>().Where(s => MostRecentPartyTurnArchitect.Block.Structures.Contains(s)));
-                            break;
-                        case "nearby_super_target":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
+                    case "entity":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Entity>());
+                        break;
+                    case "architect":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Architect>());
+                        break;
+                    case "object":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Object>());
+                        break;
+                    case "door":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Door>());
+                        break;
+                    case "structure":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Structure>());
+                        break;
+                    case "nearby_architect":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
+                        break;
+                    case "structure_type":
+                        var structures = RelevantEntities.OfType<Structure>();
+                        var uniqueStructureTypes = structures.Select(s => s.Type).Distinct();
+                        var newEntities = uniqueStructureTypes.Select(type => new Entity(type));
+                        RelevantEntities.AddRange(newEntities);
+                        break;
+                    case "nearby_object":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
+                        break;
+                    case "nearby_target":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
+                        RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
+                        if (MostRecentPartyTurnArchitect.OffHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
+                        }
+                        if (MostRecentPartyTurnArchitect.MainHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
+                        }
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
+                        break;
+                    case "nearby_structure":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Structure>().Where(s => MostRecentPartyTurnArchitect.Block.Structures.Contains(s)));
+                        break;
+                    case "nearby_super_target":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))));
 
-                            RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
+                        RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o))));
 
-                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
-                            }
-                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
-                            }
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
-                            RelevantEntities.AddRange(AllSubjects.OfType<Structure>().Where(s => MostRecentPartyTurnArchitect.Block.Structures.Contains(s)));
-                            break;
+                        if (MostRecentPartyTurnArchitect.OffHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
+                        }
+                        if (MostRecentPartyTurnArchitect.MainHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
+                        }
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
+                        RelevantEntities.AddRange(AllSubjects.OfType<Structure>().Where(s => MostRecentPartyTurnArchitect.Block.Structures.Contains(s)));
+                        break;
 
-                        case "composition_types":
-                            RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "book" || e.Metadata == "song" || e.Metadata == "poem"));
-                            break;
-                        case "known_compositions":
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.CultureBank);
-                            break;
-                        case "hand_object":
-                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
-                            }
-                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
-                            }
-                            break;
-                        case "non_hand_inventory":
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
-                            break;
-                        case "inventory":
-                            if (MostRecentPartyTurnArchitect.OffHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
-                            }
-                            if (MostRecentPartyTurnArchitect.MainHeldObject != null)
-                            {
-                                RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
-                            }
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
-                            break;
-                        case "corpse":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => (MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))) && !a.IsAlive));
-                            break;
-                        case "spell":
+                    case "composition_types":
+                        RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "book" || e.Metadata == "song" || e.Metadata == "poem"));
+                        break;
+                    case "known_compositions":
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.CultureBank);
+                        break;
+                    case "hand_object":
+                        if (MostRecentPartyTurnArchitect.OffHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
+                        }
+                        if (MostRecentPartyTurnArchitect.MainHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
+                        }
+                        break;
+                    case "non_hand_inventory":
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
+                        break;
+                    case "inventory":
+                        if (MostRecentPartyTurnArchitect.OffHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.OffHeldObject);
+                        }
+                        if (MostRecentPartyTurnArchitect.MainHeldObject != null)
+                        {
+                            RelevantEntities.Add(MostRecentPartyTurnArchitect.MainHeldObject);
+                        }
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Inventory);
+                        break;
+                    case "corpse":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Architect>().Where(a => (MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))) && !a.IsAlive));
+                        break;
+                    case "spell":
 
-                            // Iterate through the player's inventory objects
-                            foreach (var item in MostRecentPartyTurnArchitect.Inventory)
+                        // Iterate through the player's inventory objects
+                        foreach (var item in MostRecentPartyTurnArchitect.Inventory)
+                        {
+                            if (item.SpecialKnowledge != null)
                             {
-                                if (item.SpecialKnowledge != null)
-                                {
-                                    var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == item.SpecialKnowledge);
-                                    if (spellEntity != null)
-                                    {
-                                        RelevantEntities.Add(spellEntity);
-                                    }
-                                }
-                            }
-
-                            // Check main hand object
-                            if (MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge != null)
-                            {
-                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge);
+                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == item.SpecialKnowledge);
                                 if (spellEntity != null)
                                 {
                                     RelevantEntities.Add(spellEntity);
                                 }
                             }
+                        }
 
-                            // Check off hand object
-                            if (MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge != null)
+                        // Check main hand object
+                        if (MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge != null)
+                        {
+                            var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge);
+                            if (spellEntity != null)
                             {
-                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge);
+                                RelevantEntities.Add(spellEntity);
+                            }
+                        }
+
+                        // Check off hand object
+                        if (MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge != null)
+                        {
+                            var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge);
+                            if (spellEntity != null)
+                            {
+                                RelevantEntities.Add(spellEntity);
+                            }
+                        }
+
+                        // Check clothing items
+                        foreach (var clothingItem in MostRecentPartyTurnArchitect.Clothing)
+                        {
+                            if (clothingItem.SpecialKnowledge != null)
+                            {
+                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == clothingItem.SpecialKnowledge);
                                 if (spellEntity != null)
                                 {
                                     RelevantEntities.Add(spellEntity);
                                 }
                             }
+                        }
 
-                            // Check clothing items
-                            foreach (var clothingItem in MostRecentPartyTurnArchitect.Clothing)
+                        // Get all spells known by the player and add them as entities
+                        foreach (var knownSpell in MostRecentPartyTurnArchitect.SpellsKnown)
+                        {
+                            var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == knownSpell);
+                            if (spellEntity != null)
                             {
-                                if (clothingItem.SpecialKnowledge != null)
-                                {
-                                    var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == clothingItem.SpecialKnowledge);
-                                    if (spellEntity != null)
-                                    {
-                                        RelevantEntities.Add(spellEntity);
-                                    }
-                                }
+                                RelevantEntities.Add(spellEntity);
                             }
+                        }
+                        break;
 
-                            // Get all spells known by the player and add them as entities
-                            foreach (var knownSpell in MostRecentPartyTurnArchitect.SpellsKnown)
+
+                    case "skill":
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.SkillsKnown);
+                        break;
+                    case "direction":
+                        RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "north" || e.Metadata == "south" || e.Metadata == "east" || e.Metadata == "west" || e.Metadata == "northeast" || e.Metadata == "southeast" || e.Metadata == "southwest" || e.Metadata == "northwest"));
+                        break;
+                    case "body_part_type":
+                        var uniqueBodyPartNames = GameWorld.Races
+                            .SelectMany(race => race.BodyPartNames)
+                            .Distinct();
+
+                        RelevantEntities.AddRange(uniqueBodyPartNames
+                            .Select(bpName => AllSubjects.FirstOrDefault(e => e.Metadata == bpName))
+                            .Where(e => e != null));
+                        break;
+
+                    case "clothing":
+                        RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Clothing);
+                        break;
+                    case "rememberance":
+                        RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "spells" || e.Metadata == "skills"));
+                        break;
+                    case "composition_object_types":
+                        RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "book" || e.Metadata == "scroll" || e.Metadata == "waxtablet" || e.Metadata == "sheet"));
+                        break;
+                    case "enterable":
+                        RelevantEntities.AddRange(AllSubjects.OfType<Door>().Where(d => MostRecentPartyTurnArchitect.Block.Objects.Contains(d) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(d))));
+                        RelevantEntities.AddRange(AllSubjects.OfType<Structure>().Where(s => MostRecentPartyTurnArchitect.Block.Structures.Contains(s)));
+                        RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => o.Type == "exit door" && (MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o)))));
+                        break;
+                    case "nearby_architect_object":
+                        var nearbyArchitects = AllSubjects.OfType<Architect>()
+                            .Where(a => (MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))) && a != MostRecentPartyTurnArchitect);
+
+                        foreach (var architect in nearbyArchitects)
+                        {
+                            if (architect.OffHeldObject != null)
                             {
-                                var spellEntity = GameWorld.AllSpells.Concat(GameWorld.AllLegendarySpells).FirstOrDefault(spell => spell == knownSpell);
-                                if (spellEntity != null)
-                                {
-                                    RelevantEntities.Add(spellEntity);
-                                }
+                                RelevantEntities.Add(architect.OffHeldObject);
                             }
-                            break;
-
-
-                        case "skill":
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.SkillsKnown);
-                            break;
-                        case "direction":
-                            RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "north" || e.Metadata == "south" || e.Metadata == "east" || e.Metadata == "west" || e.Metadata == "northeast" || e.Metadata == "southeast" || e.Metadata == "southwest" || e.Metadata == "northwest"));
-                            break;
-                        case "body_part_type":
-                            var uniqueBodyPartNames = GameWorld.Races
-                                .SelectMany(race => race.BodyPartNames)
-                                .Distinct();
-
-                            RelevantEntities.AddRange(uniqueBodyPartNames
-                                .Select(bpName => AllSubjects.FirstOrDefault(e => e.Metadata == bpName))
-                                .Where(e => e != null));
-                            break;
-
-                        case "clothing":
-                            RelevantEntities.AddRange(MostRecentPartyTurnArchitect.Clothing);
-                            break;
-                        case "rememberance":
-                            RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "spells" || e.Metadata == "skills"));
-                            break;
-                        case "composition_object_types":
-                            RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "book" || e.Metadata == "scroll" || e.Metadata == "waxtablet" || e.Metadata == "sheet"));
-                            break;
-                        case "enterable":
-                            RelevantEntities.AddRange(AllSubjects.OfType<Door>().Where(d => MostRecentPartyTurnArchitect.Block.Objects.Contains(d) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(d))));
-                            RelevantEntities.AddRange(AllSubjects.OfType<Structure>().Where(s => MostRecentPartyTurnArchitect.Block.Structures.Contains(s)));
-                            RelevantEntities.AddRange(AllSubjects.OfType<Object>().Where(o => o.Type == "exit door" && (MostRecentPartyTurnArchitect.Block.Objects.Contains(o) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Objects.Contains(o)))));
-                            break;
-                        case "nearby_architect_object":
-                            var nearbyArchitects = AllSubjects.OfType<Architect>()
-                                .Where(a => (MostRecentPartyTurnArchitect.Block.Architects.Contains(a) || (MostRecentPartyTurnArchitect.Room != null && MostRecentPartyTurnArchitect.Room.Architects.Contains(a))) && a != MostRecentPartyTurnArchitect);
-
-                            foreach (var architect in nearbyArchitects)
+                            if (architect.MainHeldObject != null)
                             {
-                                if (architect.OffHeldObject != null)
-                                {
-                                    RelevantEntities.Add(architect.OffHeldObject);
-                                }
-                                if (architect.MainHeldObject != null)
-                                {
-                                    RelevantEntities.Add(architect.MainHeldObject);
-                                }
-                                RelevantEntities.AddRange(architect.Inventory);
-                                RelevantEntities.AddRange(architect.Clothing);
+                                RelevantEntities.Add(architect.MainHeldObject);
                             }
-                            break;
+                            RelevantEntities.AddRange(architect.Inventory);
+                            RelevantEntities.AddRange(architect.Clothing);
+                        }
+                        break;
 
-                        default:
-                            break;
-                    }
-
+                    default:
+                        break;
                 }
             }
 
@@ -5208,7 +5223,7 @@ namespace Lightrealm
                         double maxAgeCycles = ((double)GameWorld.MaxAge) * ((double)290304000);
 
 
-                        if (Keyboard.GetState().IsKeyDown(Keys.Q) && Keyboard.GetState().IsKeyDown(Keys.R) && Keyboard.GetState().IsKeyDown(Keys.M))
+                        if (Keyboard.GetState().GetPressedKeys().Count() == 3 && Keyboard.GetState().IsKeyDown(Keys.Q) && Keyboard.GetState().IsKeyDown(Keys.R) && Keyboard.GetState().IsKeyDown(Keys.M))
                         {
                             RickRollCycles++;
 
@@ -5229,7 +5244,7 @@ namespace Lightrealm
                         }
 
 
-
+                        /*
                         if (GameWorld.Cycle < maxAgeCycles/2)
                         {
                             for (int i = 6; i != 0; i--)
@@ -5237,6 +5252,7 @@ namespace Lightrealm
                                 GameWorld.ProgressDays(28, true);
                             }
                         }
+                        */
                         if (GameWorld.Cycle < maxAgeCycles)
                         {
                             GameWorld.ProgressDays(28, true);
@@ -5255,6 +5271,11 @@ namespace Lightrealm
 
                             // Add the historical events to the list
                             fileContent.AddRange(GameWorld.HistoricalEvents);
+
+                            foreach(Architect a in GameWorld.AllArchitects)
+                            {
+                                a.UpdateNames();
+                            }
 
                             // Write the content to the file
                             File.WriteAllLines(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "/lightrealmhistory.txt", fileContent.ToArray());
@@ -5697,7 +5718,7 @@ namespace Lightrealm
 
 
                             string expositionText =
-                            GameWorld.Calamity[0].Name + " and " + GameWorld.Calamity[0].PossessivePronoun +
+                            GameWorld.Calamity[0].Name.Split(' ')[0] + " and " + GameWorld.Calamity[0].PossessivePronoun +
                             " gang of " + CalamityIdeologicalObsessionMapping[GameWorld.CalamityIdeologicalObsession] +
                             " have plagued " + GameWorld.Name + " for decades, but you cannot stand another second. " +
                             "It has been a long time since " + GrievanceDoer + GrievanceReason +
@@ -6034,13 +6055,21 @@ namespace Lightrealm
                                 {
                                     SelectedCommand = commands[index];
                                     // Set up RelevantEntities based on the selected command's required subjects
-                                    SetUpRelevantEntities(RecognizedCommands[SelectedCommand].Item2);
 
-                                    // Sort RelevantEntities by proximity score
-                                    RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect)).ToList();
-                                    MaxCommandBuilderPage = (int)Math.Ceiling((decimal)RelevantEntities.Count() / 20);
-                                    CurrentCommandBuilderPage = 0;
-                                    CommandBuilderStage = "pickingsubjects";
+                                    if(RecognizedCommands[SelectedCommand].Item2.Count > 0)
+                                    {
+                                        SetUpRelevantEntities(RecognizedCommands[SelectedCommand].Item2[0]);
+                                        // Sort RelevantEntities by proximity score
+                                        RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect)).ToList();
+                                        MaxCommandBuilderPage = (int)Math.Ceiling((decimal)RelevantEntities.Count() / 20);
+                                        CurrentCommandBuilderPage = 0;
+                                        CommandBuilderStage = "pickingsubjects";
+                                    }
+                                    else
+                                    {
+                                        CurrentCommandBuilderPage = 0;
+                                        CommandBuilderStage = "execution";
+                                    }
                                 }
                                 else if (CommandBuilderStage == "pickingsubjects")
                                 {
@@ -6093,7 +6122,7 @@ namespace Lightrealm
                                             // Reset RelevantEntities for the next subject selection
                                             RelevantEntities.Clear();
                                             var nextSubject = RecognizedCommands[SelectedCommand].Item2[CurrentSubjectIndex];
-                                            SetUpRelevantEntities(new List<string> { nextSubject });
+                                            SetUpRelevantEntities(nextSubject);
 
                                             // Sort RelevantEntities by proximity score
                                             RelevantEntities = RelevantEntities.OrderBy(e => CalculateProximityScore(e, MostRecentPartyTurnArchitect)).ToList();
@@ -7696,7 +7725,7 @@ namespace Lightrealm
 
                                         if (InspirationSelected == "Learn a random offensive spell.")
                                         {
-                                            List<string> offSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "tremor", "ice shock" };
+                                            List<string> offSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "ice shock" };
                                             var knownSpells = GameWorld.GamePlayerParty.Architects[0].SpellsKnown;
 
                                             EntityList<Entity> OffensiveSpells = new EntityList<Entity>(
@@ -11154,22 +11183,28 @@ namespace Lightrealm
                         }
 
                         line = 0;
-                        if (GameWorld.GamePlayerParty.Intrigue.Count() == 0)
+                        int intrigueCount = GameWorld.GamePlayerParty.Intrigue.Count();
+
+                        if (intrigueCount == 0)
                         {
                             DrawCenteredTextAtPosition(_spriteBatch, "Nothing is here yet...", 1625, 1150, BabyShibafont, Color.White);
                         }
                         else
                         {
-                            foreach (var intrigue in GameWorld.GamePlayerParty.Intrigue)
+                            // Calculate the starting index to only draw the last 10 lines
+                            int startIndex = intrigueCount > 10 ? intrigueCount - 10 : 0;
+                            var intriguesToDraw = GameWorld.GamePlayerParty.Intrigue.Skip(startIndex);
+
+                            foreach (var intrigue in intriguesToDraw)
                             {
-                                Vector2 textPosition = new Vector2(1640, 1150 + 15 * line);
+                                Vector2 textPosition = new Vector2(1640, 1150 + 20 * line);
                                 DrawCenteredTextAtPosition(_spriteBatch, intrigue.Data, (int)textPosition.X, (int)textPosition.Y, BabyShibafont, intrigue.Color);
 
                                 // Create hitbox for the intrigue text
                                 Vector2 textSize = Shibafont.MeasureString(intrigue.Data);
                                 Rectangle hitbox = new Rectangle(textPosition.ToPoint(), textSize.ToPoint());
 
-                                if(intrigue.Entities.Count > 1)
+                                if (intrigue.Entities.Count > 1)
                                 {
                                     EntityHitboxes.Add((hitbox, intrigue.Entities[1]));
                                 }
@@ -11178,6 +11213,7 @@ namespace Lightrealm
                         }
 
                         line = 0;
+
 
                         // Check for melded shibas and list them first
                         if (MostRecentPartyTurnArchitect.MeldedShibas.Count() > 0)
@@ -11190,12 +11226,73 @@ namespace Lightrealm
                             line++;
                         }
 
-                        // Check for active imbuements and list them
-                        if (MostRecentPartyTurnArchitect.CurrentlyActiveImbuements.Count() > 0)
+                        // Preprocess descriptions and combine imbuements
+                        Dictionary<string, (int Count, int CombinedSecondPower, Imbuement Imbuement, int Contributors)> imbuementData = new Dictionary<string, (int, int, Imbuement, int)>();
+
+                        foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
                         {
-                            foreach (Imbuement i in MostRecentPartyTurnArchitect.CurrentlyActiveImbuements)
+                            string description = i.GetDescription();
+
+                            if (i.IsTrigger)
                             {
-                                string description = i.GetDescription();
+                                if (imbuementData.ContainsKey(description))
+                                {
+                                    imbuementData[description] = (imbuementData[description].Count + 1, imbuementData[description].CombinedSecondPower, i, imbuementData[description].Contributors);
+                                }
+                                else
+                                {
+                                    imbuementData[description] = (1, i.SecondPower, i, 1);
+                                }
+                            }
+                            else
+                            {
+                                // Combine non-trigger imbuements with matching properties
+                                bool combined = false;
+                                foreach (var key in imbuementData.Keys.ToList())
+                                {
+                                    var existingImbuement = imbuementData[key].Imbuement;
+                                    if (!existingImbuement.IsTrigger &&
+                                        existingImbuement.ConditionOrTrigger == i.ConditionOrTrigger &&
+                                        existingImbuement.BuffOrResult == i.BuffOrResult &&
+                                        existingImbuement.FirstPower == i.FirstPower)
+                                    {
+                                        int newSecondPower = existingImbuement.SecondPower + i.SecondPower;
+                                        string newDescription = $"{existingImbuement.GetConditionDescription()}increase {existingImbuement.BuffOrResult} by {newSecondPower}%";
+                                        imbuementData.Remove(key);
+                                        imbuementData[newDescription] = (1, newSecondPower, i, imbuementData[key].Contributors + 1);
+                                        combined = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!combined)
+                                {
+                                    imbuementData[description] = (1, i.SecondPower, i, 1);
+                                }
+                            }
+                        }
+
+                        // Draw descriptions
+                        if (imbuementData.Count > 0)
+                        {
+                            foreach (var entry in imbuementData)
+                            {
+                                string description = entry.Key;
+                                int count = entry.Value.Count;
+                                int combinedSecondPower = entry.Value.CombinedSecondPower;
+                                Imbuement imbuement = entry.Value.Imbuement;
+                                int contributors = entry.Value.Contributors;
+
+                                if (count > 1)
+                                {
+                                    description += $" (x{count})";
+                                }
+
+                                if (contributors > 1)
+                                {
+                                    description += $" ({contributors} Contributing)";
+                                }
+
                                 while (description.Length > 40)
                                 {
                                     int splitIndex = 40;
@@ -11205,12 +11302,12 @@ namespace Lightrealm
                                         if (splitIndex == -1) splitIndex = 40;
                                     }
 
-                                    DrawCenteredTextAtPosition(_spriteBatch, description.Substring(0, splitIndex), 950, 425 + 20 * line, BabyShibafont, i.IsTrigger ? Color.Goldenrod : (i.IsSatisfied ? Color.Lime : Color.White));
+                                    DrawCenteredTextAtPosition(_spriteBatch, description.Substring(0, splitIndex), 950, 425 + 20 * line, BabyShibafont, imbuement.IsTrigger ? Color.Goldenrod : (imbuement.IsSatisfied ? Color.Lime : Color.White));
                                     description = description.Substring(splitIndex).Trim();
                                     line++;
                                 }
 
-                                DrawCenteredTextAtPosition(_spriteBatch, description, 950, 425 + 20 * line, BabyShibafont, i.IsTrigger ? Color.Goldenrod : (i.IsSatisfied ? Color.Lime : Color.White));
+                                DrawCenteredTextAtPosition(_spriteBatch, description, 950, 425 + 20 * line, BabyShibafont, imbuement.IsTrigger ? Color.Goldenrod : (imbuement.IsSatisfied ? Color.Lime : Color.White));
                                 line++;
                             }
                         }
@@ -11221,9 +11318,7 @@ namespace Lightrealm
                         }
 
 
-
                         // XPValues processing remains unchanged as you already have a check for no entries.
-
 
                         line = 0;
 

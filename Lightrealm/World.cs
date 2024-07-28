@@ -1091,16 +1091,16 @@ namespace Lightrealm
             Enchromalite = new Material("enchromalite", "cloth", 3, 4, "white");
             Materials["enchromalite"] = Enchromalite;
 
-            Illuminite = new Material("illuminite", "metal", 3, 4, "white");
+            Illuminite = new Material("illuminite", "metal", 12, 4, "white");
             Materials["illuminite"] = Illuminite;
 
-            Darkstone = new Material("darkstone", "metal", 3, 4, "gray");
+            Darkstone = new Material("darkstone", "metal", 12, 4, "gray");
             Materials["darkstone"] = Darkstone;
 
-            Prismite = new Material("prismite", "metal", 3, 4, "white");
+            Prismite = new Material("prismite", "metal", 14, 4, "white");
             Materials["prismite"] = Prismite;
 
-            Shadesteel = new Material("shadesteel", "metal", 3, 4, "gray");
+            Shadesteel = new Material("shadesteel", "metal", 14, 4, "gray");
             Materials["shadesteel"] = Shadesteel;
 
             Archaeon = new Material("archaeon", "glass", 3, 4, "white");
@@ -5145,8 +5145,6 @@ namespace Lightrealm
 
                             if (a.Age >= a.DestinyArrivalYear && a.Profession != a.Destiny && (a.Destiny == "sorcerer" || a.Destiny == "warlock") && a.IsImmortal == false /*this will prevent multiple infusions from happening*/)
                             {
-                                a.AssignSpells();
-
                                 if (a.Destiny == "warlock")
                                 {
                                     a.Profession = a.Destiny;
@@ -5165,6 +5163,8 @@ namespace Lightrealm
                                     a.Inventory.AddRange(LootTableMachine("magictreasure34"));
                                     a.IsImmortal = true;
                                 }
+
+                                a.AssignSpells();
                             }
                         }
 
