@@ -63,7 +63,6 @@ namespace Lightrealm
 
         public List<string> PrimaryLightingStyles { get; set; } = new List<string>();
 
-        public List<string> LocationHistoricalEvents { get; set; } = new List<string>();
         public int Wealth { get; set; } // value is measured in Shobes, an arbitrary unit
         public int PassiveStructuralIncome { get; set; } // value is measured in Shobes, an arbitrary unit
 
@@ -153,7 +152,15 @@ namespace Lightrealm
                 Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
             }
 
+            ReferredToNames.Clear();
             AddReferredToName(Name);
+            AddReferredToName(ID.ToString());
+
+            if(Game1.GameWorld.ProcgenStructures.Contains(this.Type))
+            {
+                Color = new List<string>() { "white", "gray", "black", "brown", "maroon" }[Game1.r.Next(5)];
+                Layout = new List<string>() { "archway", "hallway", "toroid", "towers", "pyramid" }[Game1.r.Next(5)];
+            }
 
             PrimaryRace = primaryrace;
             Wealth = wealth;
@@ -169,39 +176,35 @@ namespace Lightrealm
                 Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count())]
             };
 
-            if (new List<string> { "archway", "commune", "stronghold", "monastery", "towers", "sanctum" }.Contains(Type))
+            switch (Type)
             {
-                switch (Type)
-                {
-                    case "archway":
-                        GuardiansInNetwork = Game1.r.Next(5, 10); // Half of 10-20 rooms
-                        break;
-                    case "commune":
-                        GuardiansInNetwork = Game1.r.Next(5, 7); // Half of 10-13 rooms
-                        break;
-                    case "stronghold":
-                        GuardiansInNetwork = Game1.r.Next(10, 15); // Half of 20-30 rooms
-                        break;
-                    case "monument":
-                        GuardiansInNetwork = Game1.r.Next(4, 7); // Half of 20-30 rooms
-                        break;
-                    case "monastery":
-                        GuardiansInNetwork = Game1.r.Next(0, 2); // Half of 0-4 rooms
-                        break;
-                    case "towers":
-                        GuardiansInNetwork = Game1.r.Next(5, 10); // Half of 10-20 rooms
-                        break;
-                    case "sanctum":
-                        GuardiansInNetwork = Game1.r.Next(15, 30); // a lottteee
-                        break;
-                    default:
-                        GuardiansInNetwork = 0;
-                        break;
-                }
-
-                GuardianType = Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count())];
+                case "archway":
+                    GuardiansInNetwork = Game1.r.Next(5, 10); // Half of 10-20 rooms
+                    break;
+                case "commune":
+                    GuardiansInNetwork = Game1.r.Next(5, 7); // Half of 10-13 rooms
+                    break;
+                case "stronghold":
+                    GuardiansInNetwork = Game1.r.Next(15, 20); // MOAR
+                    break;
+                case "monument":
+                    GuardiansInNetwork = Game1.r.Next(10, 15); // Half of 20-30 rooms
+                    break;
+                case "monastery":
+                    GuardiansInNetwork = Game1.r.Next(0, 2); // Half of 0-4 rooms
+                    break;
+                case "towers":
+                    GuardiansInNetwork = Game1.r.Next(5, 10); // Half of 10-20 rooms
+                    break;
+                case "sanctum":
+                    GuardiansInNetwork = Game1.r.Next(20, 40); // a lottteee
+                    break;
+                default:
+                    GuardiansInNetwork = 0;
+                    break;
             }
 
+            GuardianType = Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count())];
         }
         public Location()
         {

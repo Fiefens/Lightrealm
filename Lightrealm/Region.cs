@@ -18,9 +18,11 @@ namespace Lightrealm
         public int X { get; set; }
         public int Z { get; set; }
 
+        public Realm Realm;
+
         private int _myLocationId;
         
-        public Location MyLocation
+        public Location Location
         {
             get => EntityGet<Location>(_myLocationId);
             set => _myLocationId = value?.ID ?? 0;
@@ -29,7 +31,7 @@ namespace Lightrealm
         public List<(int, int)> TragedyPoints { get; set; } = new List<(int, int)>();
 
         public bool Explored { get; set; } = false;
-        public bool RegionallyExplored { get; set; } = false;
+        public bool DeepExplored { get; set; } = false;
 
         private int _blightId;
         

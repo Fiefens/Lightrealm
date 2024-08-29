@@ -38,7 +38,10 @@ namespace Lightrealm
         public int WeaponMaximumRange { get; set; } = 0;
         public bool RealityAugmented { get; set; } = false;
 
+        public Structure TemporaryStructureStorage { get; set; } = null;
         
+
+
         public Structure Structure
         {
             get => Room?.Structure;
@@ -376,14 +379,14 @@ namespace Lightrealm
                 //heat damage
                 if (o.HeatInCelsius > 50)
                 {
-                    Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new EntityList<Entity>()));
+                    Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new EntityList<Entity>(){}));
                     EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
                 }
 
                 // Determine if the attack gets blocked by coverage or armor
                 if (Game1.r.Next(100) < Coverage)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>(){}));
                     return Announcements;
                 }
 
@@ -391,7 +394,7 @@ namespace Lightrealm
                 {
                     if (Game1.r.Next(100) < a.BarrierStacks * 10)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>() { }));
+                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>(){}));
                         a.BarrierStacks--;
                         return Announcements;
                     }
@@ -427,15 +430,15 @@ namespace Lightrealm
 
                 if (Bleeding > 5)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>(){}));
                 }
                 else if (Bleeding > 3)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>(){}));
                 }
                 else if (Bleeding > 1)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " draws a small amount of blood!", Color.Green, new EntityList<Entity>()));
+                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " draws a small amount of blood!", Color.Green, new EntityList<Entity>(){}));
                 }
 
                 if (Pain > 20)
@@ -451,7 +454,7 @@ namespace Lightrealm
                     Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
                 }
 
-            ((Architect)Owner).Bleeding += Bleeding;
+                ((Architect)Owner).Bleeding += Bleeding;
                 ((Architect)Owner).Pain += Pain;
 
                 ((Architect)Owner).Energy -= EnergyLoss;
@@ -498,8 +501,8 @@ namespace Lightrealm
                     foreach (Architect A in nearbyPeoples)
                     {
                         if (A.TargetArchitect == MeleeAttacker ||
-        (Game1.GameWorld.GamePlayerParty.Architects.Contains(MeleeAttacker) &&
-         Game1.GameWorld.GamePlayerParty.Architects.Any(architect =>
+        (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(MeleeAttacker) &&
+         Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Any(architect =>
              architect.TargetArchitect == A &&
              (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
                         {
@@ -670,7 +673,7 @@ namespace Lightrealm
             }
 
             if (Game1.MostRecentPartyTurnArchitect != null &&
-                Game1.GameWorld.GamePlayerParty != null &&
+                Game1.GameWorld.GamePlayerAssociation.ActiveParty != null &&
                 (Game1.MostRecentPartyTurnArchitect.OffHeldObject == this ||
                  Game1.MostRecentPartyTurnArchitect.MainHeldObject == this ||
                  Game1.MostRecentPartyTurnArchitect.Inventory.Contains(this)))
@@ -1346,13 +1349,13 @@ namespace Lightrealm
                     Description = "A defensive tool that can be used to bash, causing significant damage.";
                     break;
                 case "whip":
-                    Weight = 600;
+                    Weight = 1200;
                     IsWeapon = true;
                     DamageType = "scourging";
                     Description = "A flexible weapon that can cause high levels of pain and bleeding.";
                     break;
                 case "scourge":
-                    Weight = 700;
+                    Weight = 1300;
                     IsWeapon = true;
                     DamageType = "scourging";
                     Description = "A multi-tailed whip, causing extensive bleeding and pain.";

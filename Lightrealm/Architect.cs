@@ -2,11 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json.Serialization;
+using static System.Collections.Specialized.BitVector32;
 using Color = Microsoft.Xna.Framework.Color;
 
 namespace Lightrealm
@@ -855,13 +857,20 @@ namespace Lightrealm
         public int DaysSincePlayingGame { get; set; } = 0;
 
         private int _targetArchitect;
-
-        
         public Architect TargetArchitect
         {
             get => EntityGet<Architect>(_targetArchitect);
-            set => _targetArchitect = value?.ID ?? 0;
+            set
+            {
+                if (value != null && Game1.r.Next(100) < value.ExtraStealth)
+                {
+                    // Fail to set the architect as the target if the random check fails
+                    return;
+                }
+                _targetArchitect = value?.ID ?? 0;
+            }
         }
+
 
         private int _targetObject;
 
@@ -1080,7 +1089,7 @@ namespace Lightrealm
         {
             // Assuming HomeLocation is not null and there are Colors to choose from
 
-            if (HomeLocation != null)
+            if (HomeLocation != null && HomeLocation.HomeCivilization != null)
             {
                 int decider = Game1.r.Next(100);
                 string colorToApply = null;
@@ -1120,10 +1129,11 @@ namespace Lightrealm
             }
 
             // Search for all compositions in the game world with the specified type
-            var compositionsToPerform = Game1.GameWorld.EntityLedger.Values
-                    .OfType<Composition>()
-                    .Where(c => c.Type == type)
-                    .ToList();
+            EntityList<Composition> compositionsToPerform = new EntityList<Composition>(Game1.GameWorld.EntityLedger.Values
+            .OfType<Composition>()
+            .Where(c => c.Type == type)
+            .ToList());
+
 
             if (compositionsToPerform.Count == 0)
             {
@@ -1132,7 +1142,7 @@ namespace Lightrealm
             }
 
             // Pick a random composition from the list
-            var compositionToPerform = compositionsToPerform[Game1.r.Next(compositionsToPerform.Count)];
+            Composition compositionToPerform = compositionsToPerform[Game1.r.Next(compositionsToPerform.Count)];
 
             // Announce the performance to the party
             string action = type == "song" ? "singing" : "reciting";
@@ -1148,7 +1158,7 @@ namespace Lightrealm
             // React to performance in the vicinity
             foreach (var architect in reactingArchitects)
             {
-                if (architect != this && !Game1.GameWorld.GamePlayerParty.Architects.Contains(architect) && Game1.GameWorld.HumanoidRaces.Contains(architect.Race))
+                if (architect != this && !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(architect) && Game1.GameWorld.HumanoidRaces.Contains(architect.Race))
                 {
                     int randomModifier = Game1.r.Next(-2, 3);  // Random number from -2 to 2
                     int score = this.Charisma + randomModifier;
@@ -1194,7 +1204,15 @@ namespace Lightrealm
                     }
 
                     // Display the reaction
-                    AnnounceToParty(architect.Name + ": " + reaction, Color.Magenta, new EntityList<Entity>() { architect });
+                    AnnounceToParty(architect.ReferredToNames[0] + ": " + reaction, Color.Pink, new EntityList<Entity>() { architect });
+                }
+            }
+
+            foreach(Architect a in reactingArchitects)
+            {
+                if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
+                {
+                    AnnounceToParty(a.Name + " has learned the " + compositionToPerform.Type + " " + compositionToPerform.Name + ".", Color.LimeGreen, new EntityList<Entity>() { compositionToPerform });
                 }
             }
         }
@@ -2232,9 +2250,9 @@ namespace Lightrealm
                 }
             }
             else if (Profession == "archbard" || Profession == "archluminary" ||
-            Profession == "archartificer" || Profession == "archduelist")
-            {
-                SpellcastingPower = 4;
+            Profession == "archartificer")
+            { 
+                SpellcastingPower = 7;
                 for (int i = 0; i < 4; i++)
                 {
                     AddSpell();
@@ -2245,7 +2263,7 @@ namespace Lightrealm
                      Profession == "perceptomancer" || Profession == "conjumancer" ||
                      Profession == "fractalmancer")
             {
-                SpellcastingPower = 3;
+                SpellcastingPower = 5;
                 for (int i = 0; i < 3; i++)
                 {
                     AddSpell();
@@ -2480,10 +2498,15 @@ namespace Lightrealm
                 }
             }
 
+            if (description[description.Length - 1] != '.')
+            {
+                description.Append('.');
+            }
+
             // Describe clothing
             if (clothingItemCounts.Count > 0)
             {
-                description.Append($". {Game1.Capitalize(Pronoun)} is wearing ");
+                description.Append($" {Game1.Capitalize(Pronoun)} is wearing ");
                 List<string> clothingDescriptions = clothingItemCounts.Select(kvp =>
                 {
                     string itemName = kvp.Key;
@@ -2506,11 +2529,16 @@ namespace Lightrealm
                 }
             }
 
-            return description.ToString() + ".";
+            if (description[description.Length - 1] != '.')
+            {
+                description.Append('.');
+            }
+
+            return description.ToString();
         }
 
 
-        public (int sustain, int parry, int block, int duck, int jump, int roll, int disarm, int redirect) CalculateSuccessChances(Attack attack, int reactionModifierInt, Architect Attacker, int attackersProficiency)
+        public (int sustain, int parry, int block, int duck, int jump, int roll, int disarm, int redirect) CalculateSuccessChances(Attack attack, int ReactionModifierInt, Architect Attacker, int attackersProficiency)
         {
             // Assuming you have methods to get these values from imbuements
             int extraDodgeChance = ExtraDodgeChance + (DismissalCycles > 0 ? 5 : 0);
@@ -2561,7 +2589,7 @@ namespace Lightrealm
             Architect targetOwner = (Architect)attack.Target.Owner;
 
             // Calculate chances with uniqueness
-            int parryChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("parrying") + extraRedirectionChance, 50, 4), reactionModifierInt, 1);
+            int parryChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("parrying") + extraRedirectionChance, 50, 4), ReactionModifierInt, 1);
             string[] parryWeaponTypes = { "shortsword", "greatsword", "battle axe", "rapier", "mace" };
             // Adjust parry chance if NOT holding parry weapons
             bool leftHandParryWeapon = targetOwner.OffHeldObject != null && parryWeaponTypes.Contains(targetOwner.OffHeldObject.Type);
@@ -2574,7 +2602,7 @@ namespace Lightrealm
             if (targetOwner.OffHeldObject?.Type == "shield" || targetOwner.MainHeldObject?.Type == "shield")
             {
                 int shieldToughness = (targetOwner.OffHeldObject?.Materials?[0].Toughness ?? 0) + (targetOwner.MainHeldObject?.Materials?[0].Toughness ?? 0);
-                blockChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("blocking") + extraShieldEffectiveness, 50 + shieldToughness, 4), reactionModifierInt, 2);
+                blockChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("blocking") + extraShieldEffectiveness, 50 + shieldToughness, 4), ReactionModifierInt, 2);
             }
 
             int baseDuckChance = CalculateChance(GetProficiency("dodging") + extraDodgeChance, 50, 4);
@@ -2584,9 +2612,9 @@ namespace Lightrealm
             int duckChance = targetAffectsDuck ? ModifyChanceBasedOnTarget(baseDuckChance, true) : baseDuckChance;
             int jumpChance = targetAffectsJump ? ModifyChanceBasedOnTarget(baseJumpChance, true) : baseJumpChance;
 
-            int rollChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("dodging") + extraDodgeChance, 40, 4), reactionModifierInt, 5);
-            int disarmChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("disarming"), 0, 6), reactionModifierInt, 6);
-            int redirectChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("redirection") + extraRedirectionChance, 50, 4), reactionModifierInt, 7);
+            int rollChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("dodging") + extraDodgeChance, 35, 4), ReactionModifierInt, 5);
+            int disarmChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("disarming"), 0, 6), ReactionModifierInt, 6);
+            int redirectChance = ApplyRandomMultiplier(CalculateChance(GetProficiency("redirection") + extraRedirectionChance, 50, 4), ReactionModifierInt, 7);
 
             // Apply multipliers
             float multiplier = 1.0f;
@@ -2653,10 +2681,10 @@ namespace Lightrealm
 
 
         // Random multiplier function
-        private int ApplyRandomMultiplier(int baseChance, int reactionModifierInt, int actionIndex)
+        private int ApplyRandomMultiplier(int baseChance, int ReactionModifierInt, int actionIndex)
         {
-            // Create a unique seed based on reactionModifierInt and actionIndex
-            int uniqueSeed = reactionModifierInt + actionIndex * 1000; // Ensure actionIndex significantly changes the seed
+            // Create a unique seed based on ReactionModifierInt and actionIndex
+            int uniqueSeed = ReactionModifierInt + actionIndex * 1000; // Ensure actionIndex significantly changes the seed
             Random random = new Random(uniqueSeed);
 
             // Generate a multiplier in the range of -15 to +15
@@ -2795,7 +2823,7 @@ namespace Lightrealm
 
             // Count undead already in the party
             int shadeCount = 0;
-            foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+            foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
             {
                 if (a.Race == Game1.GameWorld.GetRace("shade"))
                 {
@@ -2830,7 +2858,7 @@ namespace Lightrealm
             }
             else
             {
-                Game1.Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>()));
+                Game1.Announcements.Add(new TextStorage("...but nothing happens.", Color.Purple, new EntityList<Entity>(){}));
             }
         }
 
@@ -2840,8 +2868,8 @@ namespace Lightrealm
             ClearReferredToNames();
 
             string TrueProfession = Profession;
-
-            if(Game1.GameWorld.GamePlayerParty == null)
+             
+            if(Game1.GameWorld.GamePlayerAssociation == null || Game1.GameWorld.GamePlayerAssociation.ActiveParty == null || Game1.GameMode == "ascendant")
             {
                 AddReferredToName(Name);
                 return;
@@ -2849,12 +2877,12 @@ namespace Lightrealm
 
             if (IsAlive)
             {
-                if(Game1.MostRecentPartyTurnArchitect.KnownArchitects.Contains(this) || Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                if(Game1.MostRecentPartyTurnArchitect.KnownArchitects.Contains(this) || Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                 {
                     PlayerKnowsArch = true;
                 }
 
-                if (PlayerKnowsArch || Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                if (PlayerKnowsArch || Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                 {
                     AddReferredToName(Name);
 
@@ -2943,13 +2971,13 @@ namespace Lightrealm
 
             if(Game1.MostRecentPartyTurnArchitect == this)
             {
-                foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                 {
                     a.ReferredToNames.Remove("myself");
                     a.ReferredToNames.Remove("me");
                 }
-                ReferredToNames.Add("myself");
-                ReferredToNames.Add("me");
+                AddReferredToName("myself");
+                AddReferredToName("me");
             }
 
             if (Game1.SplitMode)
@@ -3047,7 +3075,7 @@ namespace Lightrealm
 
         public void AnnounceToParty(string announcement, Color color, EntityList<Entity> Entities)
         {
-            foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+            foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
             {
                 if (a.Room == Room && a.Block == Block)
                 {
@@ -3057,9 +3085,8 @@ namespace Lightrealm
             }
         }
 
-        public EntityList<Attack> UpdateSelfActionsAndSuch()
+        public Attack UpdateSelfActionsAndSuch()
         {
-
             //reset imbuements
 
             ExtraShieldEffectiveness = 0;
@@ -3078,7 +3105,7 @@ namespace Lightrealm
             if (Block == null && Room == null)
             {
                 //idk whats happening but I actually want to play my game;
-                return new EntityList<Attack>();
+                return null;
             }
 
             foreach (Object b in BodyParts)
@@ -3087,7 +3114,7 @@ namespace Lightrealm
             }
 
             EntityList<Architect> ArchitectsToUse = (Room != null) ? Room.Architects : Block.Architects;
-            EntityList<Attack> Attacks = new EntityList<Attack>();
+            Attack ReturningAttack = null;
 
             //distancing
 
@@ -3110,25 +3137,7 @@ namespace Lightrealm
             }
             */
 
-            if (Pain > 100)
-            {
-                this.UnconsciousCycles = 500;
-
-                this.Pain = 50;
-
-                AnnounceToParty(this.ReferredToNames[0] + " goes unconscious in pain.", Color.DarkRed, new EntityList<Entity>() { this });
-            }
-            else if (Game1.r.Next(1, 1000) < (Pain - Focus * 10) && !Race.Name.StartsWith("shade") && IsAlive)
-            {
-                AnnounceToParty(this.ReferredToNames[0] + " falters in pain!", Color.DarkRed, new EntityList<Entity>() { this });
-                CooldownCycles += 5;
-            }
-
-            if (Pain > 0 && Game1.r.Next(10) == 0)
-            {
-                Pain -= 1;
-            }
-
+            
 
             if (!BroadcastedDeathMessage && IsAlive == false && DeathCause != "")
             {
@@ -3140,12 +3149,11 @@ namespace Lightrealm
 
                 if (Location != null)
                 {
-                    Location.LocationHistoricalEvents.Add(Date + " " + Name + " " + DeathCause + " in " + Location.Name + ".");
-                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Name + " " + DeathCause + " in " + Location.Name + ".");
+                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Name + " " + DeathCause + " in " + Location.Name + ".", Location.Region, new EntityList<Entity>(){this, Location}));
                 }
                 else
                 {
-                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Name + " " + DeathCause + ".");
+                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Name + " " + DeathCause + ".", Game1.GameWorld.WorldMap[10000], new EntityList<Entity>(){this, Location}));
                 }
             }
 
@@ -3153,11 +3161,11 @@ namespace Lightrealm
 
             bool NoOneAliveAngy = true;
 
-            if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+            if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
             {
                 foreach (Architect a in ArchitectsToUse)
                 {
-                    if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && a.IsAlive)
+                    if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && a.IsAlive)
                     {
                         NoOneAliveAngy = false;
                         break;
@@ -3179,14 +3187,6 @@ namespace Lightrealm
 
             bool allNecessaryPartsIntact = Race.NecessaryBodyParts.All(requiredType => BodyParts.Any(bp => bp.Type == requiredType && bp.Integrity > 0));
 
-            if (!allNecessaryPartsIntact && Game1.GameWorld.Cycle % 20 == 0)
-            {
-                Bleeding += 10;
-                if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
-                {
-                    AnnounceToParty(this.Name + " is critically wounded and bleeding heavily!", Color.Red, new EntityList<Entity>() { this });
-                }
-            }
 
             if (Energy <= 0 && IsAlive == true)
             {
@@ -3226,11 +3226,14 @@ namespace Lightrealm
                 {
                     IsAlive = false;
                     DropInventory(false);
+                    int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
+                    int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+                    string Date = "(" + Month + "/" + Year + ")";
 
-                    if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                    if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                     {
                         AnnounceToParty(this.Name + " has fallen. ", Color.Red, new EntityList<Entity>() { this });
-                        Game1.GameWorld.GamePlayerParty.Architects.Remove(this);
+                        Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(this);
                     }
                     else
                     {
@@ -3258,9 +3261,9 @@ namespace Lightrealm
 
                             bool AlreadyKnows = false;
 
-                            foreach (TextStorage t in Game1.GameWorld.GamePlayerParty.Intrigue)
+                            foreach (TextStorage t in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue)
                             {
-                                if(t.Entities.Contains(this))
+                                if(t.Entities.Contains(Master))
                                 {
                                     AlreadyKnows = true;
                                 }
@@ -3271,22 +3274,25 @@ namespace Lightrealm
                                 AnnounceToParty("You sense something odd about the name " + Master.Name + "...", Color.Aqua, new EntityList<Entity>() { Master });
                                 AnnounceToParty("[Intrigue Updated]", Color.Aqua, new EntityList<Entity>());
 
-                                foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                                foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                                 {
                                     if (a.District == District)
                                     {
-                                        if(Game1.GameWorld.GamePlayerParty.Intrigue.Count == 0)
+                                        if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Count == 0)
                                         {
-                                            Game1.GameWorld.GamePlayerParty.Intrigue.Add(new TextStorage("Perhaps someone can tell us more about these figures...", Color.LimeGreen, new EntityList<Entity>()));
+                                            Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Add(new TextStorage("Perhaps someone can tell us more about these figures...", Color.LimeGreen, new EntityList<Entity>(){}));
                                         }
 
-                                        Game1.GameWorld.GamePlayerParty.Intrigue.Add(new TextStorage(Name + " said something about " + Master.Name + ".", Color.LimeGreen, new EntityList<Entity>() { this, Master }));
+                                        Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Add(new TextStorage(Name + " said something about " + Master.Name + ".", Color.LimeGreen, new EntityList<Entity>() { this, Master }));
                                         break;
                                     }
                                 }
                             }
 
-                            if(Game1.GameWorld.GamePlayerParty.Intrigue.Count > 20)
+                            if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Count > 20)
+                            {
+                                Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.RemoveAt(0);
+                            }
 
                             Master.UpdateChildrenLocationsOnOneChildDeath();
                         }
@@ -3308,12 +3314,7 @@ namespace Lightrealm
                                     a.Master = null;
                                     a.MasterRelation = "";
 
-                                    int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
-                                    int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
-
-                                    string Date = "(" + Month + "/" + Year + ")";
-
-                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + a.Name + " left behind the calamity that " + this.Name + " had caused.");
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + a.Name + " left behind the calamity that " + this.Name + " had caused.", a.Location.Region, new EntityList<Entity>(){a, this}));
                                 }
                             }
 
@@ -3346,6 +3347,56 @@ namespace Lightrealm
                                 a.Level++;
                                 a.SpendableLevels++;
                             }
+                        }
+                    }
+                }
+            }
+
+
+            if (IsAlive)
+            {
+                if (!allNecessaryPartsIntact && Game1.GameWorld.Cycle % 20 == 0)
+                {
+                    Bleeding += 10;
+                    if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
+                    {
+                        AnnounceToParty(this.Name + " is critically wounded and bleeding heavily!", Color.Red, new EntityList<Entity>() { this });
+                    }
+                }
+
+                if (Pain > 100)
+                {
+                    this.UnconsciousCycles = 500;
+
+                    this.Pain = 50;
+
+                    AnnounceToParty(this.ReferredToNames[0] + " goes unconscious in pain.", Color.DarkRed, new EntityList<Entity>() { this });
+                }
+                else if (Game1.r.Next(1, 1000) < (Pain - Focus * 10) && !Race.Name.StartsWith("shade") && IsAlive)
+                {
+                    AnnounceToParty(this.ReferredToNames[0] + " falters in pain!", Color.DarkRed, new EntityList<Entity>() { this });
+                    CooldownCycles += 5;
+                }
+
+                if (Pain > 0 && Game1.r.Next(10) == 0)
+                {
+                    Pain -= 1;
+                }
+
+                //regenerate
+
+                if (Game1.GameWorld.Cycle % 10 == 0)
+                {
+                    Energy = Math.Min(MaxEnergy(), Energy + ExtraEnergyRegen);
+                }
+
+                if (Game1.GameWorld.Cycle % 50 == 0 && !Race.Name.Contains("shade"))
+                {
+                    foreach (Object o in this.BodyParts)
+                    {
+                        if (o.Integrity < 100)
+                        {
+                            o.Integrity++;
                         }
                     }
                 }
@@ -3425,8 +3476,8 @@ namespace Lightrealm
             }
 
             //test hand items to see if they will burn you
-            bool isSameRoomOrBlockMatch = Game1.GameWorld.GamePlayerParty.Architects.Any(architect => architect.Room == this.Room)
-                              || Game1.GameWorld.GamePlayerParty.Architects.Any(architect => architect.Block == this.Block);
+            bool isSameRoomOrBlockMatch = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Any(architect => architect.Room == this.Room)
+                              || Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Any(architect => architect.Block == this.Block);
 
 
 
@@ -3470,7 +3521,7 @@ namespace Lightrealm
                     }
                 }
 
-                if (Game1.GameWorld.Cycle % 10 == 0)
+                if (Game1.GameWorld.Cycle % 10 == 0 && this.IsAlive)
                 {
                     foreach (Object clothingItem in Clothing)
                     {
@@ -3480,7 +3531,7 @@ namespace Lightrealm
 
                             if (isSameRoomOrBlockMatch)
                             {
-                                Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singing their skin!", Color.Orange, new EntityList<Entity>() { clothingItem, this, this });
+                                Game1.MakeObservation("The " + clothingItem.ReferredToNames[0] + " on " + ReferredToNames[0] + " is too hot, and is singeing their skin!", Color.Orange, new EntityList<Entity>() { clothingItem, this, this });
                             }
 
                             if (Energy <= 0)
@@ -3679,7 +3730,7 @@ namespace Lightrealm
                         {
                             foreach (Architect e in Room.Architects)
                             {
-                                if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this) && Game1.GameWorld.GamePlayerParty.Architects.Contains(e.TargetArchitect) && (e.Task == "killtarget" || e.Task == "disabletarget"))
+                                if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this) && Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(e.TargetArchitect) && (e.Task == "killtarget" || e.Task == "disabletarget"))
                                 {
                                     Quota++;
                                 }
@@ -3689,7 +3740,7 @@ namespace Lightrealm
                         {
                             foreach (Architect e in Block.Architects)
                             {
-                                if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this) && Game1.GameWorld.GamePlayerParty.Architects.Contains(e.TargetArchitect) && (e.Task == "killtarget" || e.Task == "disabletarget"))
+                                if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this) && Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(e.TargetArchitect) && (e.Task == "killtarget" || e.Task == "disabletarget"))
                                 {
                                     Quota++;
                                 }
@@ -3796,24 +3847,6 @@ namespace Lightrealm
             }
 
 
-            //regenerate
-
-            if(Game1.GameWorld.Cycle % 10 == 0)
-            {
-                Energy = Math.Min(MaxEnergy(), Energy + ExtraEnergyRegen);
-            }
-
-            if (Game1.GameWorld.Cycle % 50 == 0 && !Race.Name.Contains("shade"))
-            {
-                foreach (Object o in this.BodyParts)
-                {
-                    if (o.Integrity < 100)
-                    {
-                        o.Integrity++;
-                    }
-                }
-            }
-
             //Handle A variety of On Tick Effects
 
             if (WetCycles > 0)
@@ -3892,8 +3925,9 @@ namespace Lightrealm
 
             IEnumerable<Architect> architects = (Room == null) ? Block.Architects : Room.Architects;
 
-            if ((IsAlive && !Game1.GameWorld.GamePlayerParty.Architects.Contains(this) && UnconsciousCycles == 0 && HoldCycles == 0))
+            if ((IsAlive && !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this) && UnconsciousCycles == 0 && HoldCycles == 0))
             {
+
                 // Clamp function to ensure a value stays within a specified range
                 int Clamp(int value, int min, int max)
                 {
@@ -4064,7 +4098,7 @@ namespace Lightrealm
 
                     int randomNumber = Game1.r.Next(1, 101);
                     string response;
-                    Color ResponseColor = Game1.GameWorld.GamePlayerParty.Architects.Contains(m.Sender) ? new Color(0, 255, 0) : new Color(0, 75, 0);
+                    Color ResponseColor = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(m.Sender) ? new Color(0, 255, 0) : new Color(0, 75, 0);
 
                     if (randomNumber <= baseChanceToTruth)
                     {
@@ -4105,7 +4139,7 @@ namespace Lightrealm
 
             string StoredAltMove = "";
 
-            if (IsAlive && CooldownCycles == 0 && !Game1.GameWorld.GamePlayerParty.Architects.Contains(this) && UnconsciousCycles == 0 && HoldCycles == 0 && Race != Game1.GameWorld.GetRace("moari"))
+            if (IsAlive && CooldownCycles == 0 && !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this) && UnconsciousCycles == 0 && HoldCycles == 0 && Race != Game1.GameWorld.GetRace("moari"))
             {
                 //opinions
 
@@ -4169,7 +4203,7 @@ namespace Lightrealm
                             isOpposed = true;
                         }
 
-                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GameWorld.GamePlayerParty.CurrentEvent != null && (Game1.GameWorld.GamePlayerParty.CurrentEvent.GuaranteedArchitects.Contains(this) && !Game1.GameWorld.GamePlayerParty.CurrentEvent.GuaranteedArchitects.Contains(a)))))
+                        if (OppositionTags.Contains("intruders") && (a.HomeLocation != Location || (Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent != null && (Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.GuaranteedArchitects.Contains(this) && !Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.GuaranteedArchitects.Contains(a)))))
                         {
                             FinalOpinion = Math.Min(FinalOpinion, -247);
                             isOpposed = true;
@@ -4183,7 +4217,7 @@ namespace Lightrealm
                         SetOpinion(a, FinalOpinion);
                     }
 
-                    if (OppositionTags.Contains("indebted") && HomeStructure.MarketDebt <= -1 && Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && a.Structure == null && Game1.r.Next(0, 100) < a.ExtraStealth == false)
+                    if (OppositionTags.Contains("indebted") && HomeStructure.MarketDebt <= -1 && Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && a.Structure == null && Game1.r.Next(0, 100) < a.ExtraStealth == false)
                     {
                         SetOpinion(a, -247);
                     }
@@ -4271,7 +4305,7 @@ namespace Lightrealm
                     {
                         Architect ChosenArchitect = OtherArchitects[Game1.r.Next(OtherArchitects.Count())];
 
-                        bool isTargetPlayerArchitect = Game1.GameWorld.GamePlayerParty.Architects.Contains(ChosenArchitect);
+                        bool isTargetPlayerArchitect = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(ChosenArchitect);
 
                         // 50 percent chance to ignore messages to a player, so people will talk a lot more often but it won't be annoying
                         if (isTargetPlayerArchitect && Game1.r.Next(2) == 0)
@@ -4395,7 +4429,7 @@ namespace Lightrealm
                 Architect DisableTarget = null;
 
                 //stop tryin to kill iftheyre allready dead lmao
-                if ((Task == "killtarget" || Task == "disabletarget") && TargetArchitect.IsAlive == false)
+                if ((Task == "killtarget" || Task == "disabletarget") && TargetArchitect != null && TargetArchitect.IsAlive == false)
                 {
                     Task = "";
                     TargetArchitect = null;
@@ -4449,17 +4483,12 @@ namespace Lightrealm
 
                 //lose track of invisible targets
 
-                if (Game1.GameWorld.Cycle % 10 == 0 && TargetArchitect != null && !(Game1.r.Next(0, 100) < TargetArchitect.ExtraStealth))
+                if (Game1.GameWorld.Cycle % 10 == 0 && TargetArchitect != null && (Game1.r.Next(0, 100) < TargetArchitect.ExtraStealth))
                 {
-                    if (TargetArchitect.PathOfShadowLevel >= 6 || (TargetArchitect.Inventory.Count() == 0 && TargetArchitect.Clothing.Count() == 0))
-                    {
-                        AnnounceToParty(this.ReferredToNames[0] + " loses track of " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, TargetArchitect });
-                        TargetArchitect = null;
-                        Task = "";
-                    }
+                    AnnounceToParty(this.ReferredToNames[0] + " loses track of " + TargetArchitect.ReferredToNames[0] + "!", Color.Magenta, new EntityList<Entity>() { this, TargetArchitect });
+                    TargetArchitect = null;
+                    Task = "";
                 }
-
-
 
                 int ChangeInX = 0;
                 int ChangeInZ = 0;
@@ -4524,9 +4553,9 @@ namespace Lightrealm
                         {
                             Task = "industry";
                         }
-                        else if (Block.FindNearestThing("tavern").Item2 != Location)
+                        else if (Block.FindNearestThing("tavern").Item2 == Location && Game1.r.Next(1, 4) == 1)
                         {
-                            // Pick random task for the fun of it
+                            // Pick random tavern task
                             int TaskDecider = Game1.r.Next(0, 30);
 
                             if (TaskDecider == 0)
@@ -4534,6 +4563,32 @@ namespace Lightrealm
                                 Task = new List<string>() { "performmusic", "performpoetry" }[Game1.r.Next(2)];
                             }
                             else if (TaskDecider < 7)
+                            {
+                                Task = "socializing";
+                            }
+                            else if (TaskDecider < 12)
+                            {
+                                Task = "drinking";
+                            }
+                            else if (TaskDecider < 15)
+                            {
+                                Task = "drinkingcaffeine";
+                            }
+                            else if (TaskDecider < 25)
+                            {
+                                Task = "eating";
+                            }
+                            else
+                            {
+                                Task = "contemplate";
+                            }
+                        }
+                        else
+                        {
+                            // Pick random general task
+                            int TaskDecider = Game1.r.Next(0, 30);
+
+                            if (TaskDecider < 7)
                             {
                                 Task = "socializing";
                             }
@@ -4951,7 +5006,7 @@ namespace Lightrealm
                                             }
                                         }
 
-                                        Attacks.Add(new Attack(attackVerb, this, targetBodyPart, Weapon));
+                                        ReturningAttack = new Attack(attackVerb, this, targetBodyPart, Weapon);
                                     }
                                     else // If neither spell nor weapon attack is possible, approach the target
                                     {
@@ -4971,6 +5026,14 @@ namespace Lightrealm
                     else if (Task == "sentinel")
                     {
                         //spawn stuff if you're a heart/core. Those things will start killing.
+
+                        //also add the stuff for the room
+
+                        if(this.Room != null)
+                        {
+                            ArchitectsToUse.AddRange(this.Room.Structure.Block.Architects);
+                            ArchitectsToUse = ArchitectsToUse.Distinct();
+                        }
 
                         if (CyclesLeftInTask % 10 == 1)
                         {
@@ -5024,6 +5087,8 @@ namespace Lightrealm
                                             A.TargetArchitect = a;
                                             A.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room, "");
                                             A.CyclesLeftInTask = 500;
+
+                                            Game1.LoadedArchitects.Add(A);
                                         }
 
                                         //break the loop so we don't spawn more or break things
@@ -5232,7 +5297,7 @@ namespace Lightrealm
                                     }
 
                                     // Assuming Attacks is a collection that's being returned
-                                    return Attacks;
+                                    return null;
                                 }
                                 else
                                 {
@@ -5367,7 +5432,7 @@ namespace Lightrealm
                 int shibe = 1;
             }
 
-            return Attacks;
+            return ReturningAttack;
         }
 
 
@@ -5448,8 +5513,12 @@ namespace Lightrealm
             {
                 if (!Game1.GameWorld.AllLegendarySpells.Any(e => e.Metadata == Spell) && e is Architect architect && GetDistance(architect) >= 4 && this != e)
                 {
-                    Announcements.Add(new TextStorage($"{e.ReferredToNames[0]} is outside of casting range.", Color.Yellow, new EntityList<Entity>() { e }));
                     TargetsToPurge.Add(e);
+
+                    if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
+                    {
+                        Announcements.Add(new TextStorage($"{e.ReferredToNames[0]} is outside of casting range.", Color.Yellow, new EntityList<Entity>() { e }));
+                    }
                 }
             }
             foreach (Entity e in TargetsToPurge)
@@ -5471,7 +5540,7 @@ namespace Lightrealm
             {
                 Energy = 1;
                 HalfFocusTicks = 5000;
-                Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed, new EntityList<Entity>()));
+                Announcements.Add(new TextStorage($"You feel incredibly drained...", Color.OrangeRed, new EntityList<Entity>(){}));
             }
             else
             {
@@ -5492,7 +5561,7 @@ namespace Lightrealm
                     Names.Add(e.Name);
                 }
 
-                Game1.GameWorld.HistoricalEvents.Add(Date + " " + this.Name + " casted " + Spell + " at " + Game1.FormatList(Names));
+                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + this.Name + " casted " + Spell + " at " + Game1.FormatList(Names), Location.Region, new EntityList<Entity>(){this}.Union(Targets)));
             }
 
             foreach (Entity CurrentTarget in Targets)
@@ -5836,9 +5905,9 @@ namespace Lightrealm
 
                         if (architect.IsAlive)
                         {
-                            if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(architect))
+                            if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(architect))
                             {
-                                Game1.GameWorld.GamePlayerParty.Architects.Add(architect);
+                                Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(architect);
                             }
                         }
                     }
@@ -5904,9 +5973,9 @@ namespace Lightrealm
                             target.TargetArchitect = null;
                         }
 
-                        if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(target))
+                        if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(target))
                         {
-                            Game1.GameWorld.GamePlayerParty.Architects.Add(target);
+                            Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(target);
                         }
                     }
                 }
@@ -5923,11 +5992,11 @@ namespace Lightrealm
                         {
                             if (l.HomeCivilization == CurrentTarget)
                             {
-                                l.Region.MyLocation = null;
+                                l.Region.Location = null;
                             }
                         }
                     }
-                    else if (CurrentTarget is World || (Game1.GameWorld.GamePlayerParty.Architects.Contains(CurrentTarget) && Game1.GameWorld.GamePlayerParty.Architects.Count == 1))
+                    else if (CurrentTarget is World || (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(CurrentTarget) && Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count == 1))
                     {
                         Game1.GameState = "mainscreen";
                         Game1.GameWorld = null;
@@ -5984,11 +6053,11 @@ namespace Lightrealm
 
                         ((District)CurrentTarget).Location.Districts.Remove(((District)CurrentTarget));
 
-                        if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                         {
                             var architectsToRemove = new List<Architect>();
 
-                            foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                            foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                             {
                                 if (a.District == CurrentTarget)
                                 {
@@ -6000,10 +6069,10 @@ namespace Lightrealm
 
                             foreach (Architect a in architectsToRemove)
                             {
-                                Game1.GameWorld.GamePlayerParty.Architects.Remove(a);
+                                Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(a);
                             }
 
-                            if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
+                            if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                             {
                                 Game1.GameState = "dead";
                             }
@@ -6013,13 +6082,13 @@ namespace Lightrealm
                     {
                         AnnounceToParty($"{CurrentTarget.Name} detaches from the ground and levitates into infinite nothing.", Color.Purple, new EntityList<Entity>() { CurrentTarget });
 
-                        ((Location)CurrentTarget).Region.MyLocation = null;
+                        ((Location)CurrentTarget).Region.Location = null;
 
-                        if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                         {
                             var architectsToRemove = new List<Architect>();
 
-                            foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                            foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                             {
                                 if (a.Location == (Location)CurrentTarget)
                                 {
@@ -6031,10 +6100,10 @@ namespace Lightrealm
 
                             foreach (Architect a in architectsToRemove)
                             {
-                                Game1.GameWorld.GamePlayerParty.Architects.Remove(a);
+                                Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(a);
                             }
 
-                            if (Game1.GameWorld.GamePlayerParty.Architects.Count() == 0)
+                            if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                             {
                                 Game1.GameState = "dead";
                             }
@@ -6046,7 +6115,7 @@ namespace Lightrealm
                         AnnounceToParty($"Your party has disbanded.", Color.Purple, new EntityList<Entity>());
 
                         EntityList<Architect> ArchitectsToBanish = new EntityList<Architect>();
-                        foreach (Architect a in Game1.GameWorld.GamePlayerParty.Architects)
+                        foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                         {
                             if (a != this)
                             {
@@ -6056,7 +6125,7 @@ namespace Lightrealm
 
                         foreach (Architect a in ArchitectsToBanish)
                         {
-                            Game1.GameWorld.GamePlayerParty.Architects.Remove(a);
+                            Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(a);
                         }
                     }
                     else if (CurrentTarget is Group)
@@ -6177,9 +6246,9 @@ namespace Lightrealm
                             a.Block = null;
                         }
 
-                        if (Game1.GameWorld.GamePlayerParty.Architects.Contains(a))
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                         {
-                            Game1.GameWorld.GamePlayerParty.Architects.Remove(a);
+                            Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(a);
                         }
 
                         if (a.Group != null)
@@ -6421,7 +6490,7 @@ namespace Lightrealm
 
                         foreach (Architect a in Game1.GameWorld.AllArchitects)
                         {
-                            if (a.District.IsLoaded)
+                            if (a.District != null && a.District.IsLoaded)
                             {
                                 if (a.OffHeldObject == Base)
                                 {
@@ -6605,26 +6674,57 @@ namespace Lightrealm
                 {
                     if (CurrentlyMovingPlace == direction)
                     {
-                        if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                         {
                             TryingToTravel = true;
-                            bool allTryingToTravel = Game1.GameWorld.GamePlayerParty.Architects.All(a => a.TryingToTravel);
+                            bool allTryingToTravel = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.All(a => a.TryingToTravel);
 
                             if (allTryingToTravel)
                             {
-                                Game1.GameState = "travelmenu";
-                                Game1.GameWorld.GamePlayerParty.ClearSkillData();
-                                Game1.GameWorld.GamePlayerParty.MapCursorDistrict = 0;
-                                Game1.GameWorld.GamePlayerParty.MapCursorX = Location.X;
-                                Game1.GameWorld.GamePlayerParty.MapCursorZ = Location.Z;
-
-                                Game1.GameWorld.RevealNearbyTiles(Game1.GameWorld.GamePlayerParty.MapCursorX, Game1.GameWorld.GamePlayerParty.MapCursorZ);
-
-                                Game1.GameWorld.GamePlayerParty.Architects[0].District.Unload();
-
-                                foreach (var architect in Game1.GameWorld.GamePlayerParty.Architects)
+                                if(Game1.GameMode == "chronicle")
                                 {
-                                    architect.CurrentlyMovingPlace = "none"; // Reset movement place after successful travel
+                                    Game1.GameState = "travelmenu";
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.ClearSkillData();
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict = 0;
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX = Location.X;
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ = Location.Z;
+
+                                    foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                                    {
+                                        int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
+                                        int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+                                        string Date = "(" + Month + "/" + Year + ")";
+                                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + a.Name + " left " + a.Location.Name + ".", a.Location.Region, new EntityList<Entity>(){a, Location}));
+                                    }
+
+                                    Game1.GameWorld.RevealNearbyTiles(Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, 3, true);
+
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].District.Unload();
+
+                                    foreach (var architect in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                                    {
+                                        architect.CurrentlyMovingPlace = "none"; // Reset movement place after successful travel
+                                    }
+                                }
+                                else
+                                {
+                                    Game1.GameState = "ascendant";
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.ClearSkillData();
+
+                                    foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                                    {
+                                        int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
+                                        int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+                                        string Date = "(" + Month + "/" + Year + ")";
+                                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + a.Name + " completed their mission in  " + a.Location.Name + ".", a.Location.Region, new EntityList<Entity>(){a, a.Location}));
+                                    }
+
+                                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].District.Unload();
+
+                                    foreach (var architect in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                                    {
+                                        architect.CurrentlyMovingPlace = "none"; // Reset movement place after successful travel
+                                    }
                                 }
                             }
                         }
@@ -6675,7 +6775,7 @@ namespace Lightrealm
                             {
                                 if (s.Type != "house" && s.Type != "bighouse")
                                 {
-                                    if(Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                                    if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                                     {
                                         AnnounceToParty(s.GetStructureDescription(), Color.DarkGray, new EntityList<Entity>() { s });
                                     }
@@ -6687,7 +6787,7 @@ namespace Lightrealm
                         }
                         else
                         {
-                            if (Game1.GameWorld.GamePlayerParty.Architects.Contains(this))
+                            if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(this))
                             {
                                 AnnounceToParty("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
                             }

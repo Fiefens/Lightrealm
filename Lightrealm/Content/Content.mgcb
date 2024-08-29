@@ -697,6 +697,18 @@
 /processorParam:TextureFormat=Color
 /build:distmap/archway.png
 
+#begin distmap/bastion.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:distmap/bastion.png
+
 #begin distmap/buildings.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -792,6 +804,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:distmap/emptytrees.png
+
+#begin distmap/fort.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:distmap/fort.png
 
 #begin distmap/fortress.png
 /importer:TextureImporter
@@ -1153,6 +1177,18 @@
 /processorParam:TextureFormat=Color
 /build:gui/frame.png
 
+#begin gui/gettingstarted.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:gui/gettingstarted.png
+
 #begin gui/gui.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -1345,6 +1381,18 @@
 /processorParam:TextureFormat=Color
 /build:locationtiles/archway.png
 
+#begin locationtiles/bastion.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:locationtiles/bastion.png
+
 #begin locationtiles/commune.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -1368,6 +1416,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:locationtiles/cove.png
+
+#begin locationtiles/fort.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:locationtiles/fort.png
 
 #begin locationtiles/fortress.png
 /importer:TextureImporter

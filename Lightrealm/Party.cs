@@ -56,47 +56,11 @@ namespace Lightrealm
             }
         }
 
-        public Party(EntityList<Architect> architects, string type, Architect leader, Location basee) : base(architects, type, leader, basee)
+        public Party(EntityList<Architect> architects, string type, Architect leader, Location basee)
+            : base(architects, type, leader, basee)
         {
-            foreach (Architect a in architects)
-            {
-                a.HairID = Game1.r.Next(0, 2);
-
-                //EntityList<Material> materials = new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(Game1.GameWorld.Metals.Count())] };
-                //replacing with starter frags                  a.MainHeldObject = Game1.GenerateRandomWeapon(Game1.GameWorld.Metals[0], "common");
-
-                int count = Game1.r.Next(50, 101);
-
-                for (int i = 0; i < count; i++)
-                {
-                    a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
-
-                }
-                /*
-                a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
-                a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
-                a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
-                */
-                /*
-                int healingItem = Game1.r.Next(1, 4); // Adjust the range based on the number of healing items available
-
-                switch (healingItem)
-                {
-                    case 1:
-                        // Adding a salve
-                        a.Inventory.Add(new Object(null, "salve", new EntityList<Material> { a.Location.Region.HarvestableFiber }, null));
-                        break;
-                    case 2:
-                        // Adding a bandage
-                        a.Inventory.Add(new Object(null, "bandage", new EntityList<Material> { a.Location.HomeCivilization.CulturalCloth }, null));
-                        break;
-                    case 3:
-                        // Adding a vitality vial
-                        a.Inventory.Add(new Object(null, "vial", new EntityList<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
-                        break;
-                }
-                */
-            }
+            // Constructor logic, if any, goes here.
         }
+
     }
 }

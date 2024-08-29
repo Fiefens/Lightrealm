@@ -65,8 +65,6 @@ namespace Lightrealm
             set => _baseId = value?.ID ?? 0;
         }
 
-        public EntityList<Architect> Enemies { get; set; } = new EntityList<Architect>();
-
         public EntityList<Architect> ArchitectsWhoDeclined { get; set; } = new EntityList<Architect>();
 
         public List<string> CaravanItems { get; set; } = new List<string>();
@@ -93,6 +91,44 @@ namespace Lightrealm
         public int PatriotismValue { get; set; } = 0;
         public int CourageValue { get; set; } = 0;
         public int CreativityValue { get; set; } = 0;
+
+        private int _factionId;
+        public Faction HomeFaction
+        {
+            get => EntityGet<Faction>(_factionId);
+            set => _factionId = value?.ID ?? 0;
+        }
+
+
+        public void Recruit(World world, string Date)
+        {
+            // Ensure the leader has a valid location and region
+            if (this.Leader?.Location?.Region?.Realm == null)
+                return;
+
+            // Select an architect from the World based on the criteria
+            var validArchitects = world.AllArchitects.Where(arch =>
+                arch.HomeLocation != null &&  // The architect has a home location
+                world.SettlementTypes.Contains(arch.HomeLocation.Type) &&  // The home location is a settlement
+                arch.HomeLocation.Region?.Realm == this.Leader.Location.Region.Realm &&  // The architect is in the same Realm as the leader
+                !(
+                    (arch.HomeLocation.Government is Architect && arch.HomeLocation.Government == arch) ||  // The architect is not the government
+                    (arch.HomeLocation.Government is Group && ((Group)(arch.HomeLocation.Government)).Architects.Contains(arch))  // The architect is not a member of a group that is the government
+                ) &&
+                world.HumanoidRaces.Contains(arch.Race)  // The architect is a humanoid
+            ).ToList();
+
+            if (validArchitects.Any())
+            {
+                // Select a random architect from the valid architects
+                Architect selectedArchitect = validArchitects[new Random().Next(validArchitects.Count)];
+
+                // Add the selected architect to the group
+                Architects.Add(selectedArchitect);
+
+                world.HistoricalEvents.Add(new Event($"{Date} {this.Name} sought out and recruited {selectedArchitect.Name} to their group.", selectedArchitect.Location.Region, new EntityList<Entity>()));
+            }
+        }
 
         public string CaravanCatalogue()
         {

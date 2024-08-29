@@ -19,8 +19,6 @@ namespace Lightrealm
         public bool IsPrimary { get; set; } = false;
 
         private int _locationId;
-
-        
         public Location Location
         {
             get => EntityGet<Location>(_locationId);
@@ -581,6 +579,8 @@ namespace Lightrealm
                 if (architect.Profession == "druidcrafter" || (architect.Profession == "gardener" && Game1.r.Next(3) == 0))
                 {
                     architect.Task = "druidcrafting";
+
+                    architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room, "");
                     architect.CyclesLeftInTask = 500;
 
                     return;
@@ -611,6 +611,8 @@ namespace Lightrealm
                     case "cove":
                     case "mound":
                     case "monastery":
+                    case "bastion":
+                    case "fort":
                         possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing" });
                         break;
                     case "spire":
@@ -775,10 +777,10 @@ namespace Lightrealm
                         Layout = Location.Layout;
                     }
 
-                    int extraRoomCount = Layout switch
+                      int extraRoomCount = Layout switch
                     {
                         "house" or "ship" or "cove" or "mound" or "monastery" => Game1.r.Next(0, 4),
-                        "spire" or "archway" or "hallway" or "fortress" or "monument" or "toroid" or "towers" or "outpost" or "pyramid" or "sanctum" => Game1.r.Next(10, 18),
+                        "spire" or "archway" or "hallway" or "fortress" or "monument" or "toroid" or "towers" or "outpost" or "fort" or "bastion" or "pyramid" or "sanctum" => Game1.r.Next(10, 18),
                         "keep" => Game1.r.Next(1, 4),
                         "core" or "heart" or "stronghold" => 18,
                         "tower" or "commune" => Game1.r.Next(10, 13),
@@ -918,7 +920,7 @@ namespace Lightrealm
                 {
                     foreach (Architect a in g.Architects)
                     {
-                        if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a))
+                        if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                         {
                             Location.Market.Rooms[0].Architects.Add(a);
                             a.Room = Location.Market.Rooms[0];
@@ -954,7 +956,7 @@ namespace Lightrealm
                     }
                 }
 
-                if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
+                if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
                 {
                     a.Loaded = true;
                     a.UpdateNames();
@@ -1037,7 +1039,7 @@ namespace Lightrealm
             }
 
 
-            Game1.LoadedArchitects.AddRange(Game1.GameWorld.GamePlayerParty.Architects);
+            Game1.LoadedArchitects.AddRange(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects);
 
             bool EverythingBelongsToTheQueen = false;
 
@@ -1173,7 +1175,7 @@ namespace Lightrealm
                 {
                     foreach (Architect a in DistrictMap[DistrictX + DistrictZ * 7].Architects)
                     {
-                        if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a))
+                        if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                         {
                             if (!a.IsLoadedTrader && !Game1.GameWorld.ConstructRaces.Contains(a.Race))
                             {
@@ -1204,12 +1206,12 @@ namespace Lightrealm
 
                     foreach (Object o in DistrictMap[DistrictX + DistrictZ * 7].Objects)
                     {
+                        objectsToRemove.Add(o);
+
                         if (o.Type == "shadow storage" || o.Type == "well")
                         {
                             continue;
                         }
-
-                        objectsToRemove.Add(o);
 
                         if (o.IsGeneralGood)
                         {
@@ -1226,6 +1228,7 @@ namespace Lightrealm
                             {
                                 Location.AllStructures[0].HistoricalObjects.Add(o);
                             }
+
                         }
                     }
 
@@ -1248,7 +1251,7 @@ namespace Lightrealm
                             EntityList<Architect> ArchitectsToRemove = new EntityList<Architect>();
                             foreach (Architect a in r.Architects)
                             {
-                                if (!Game1.GameWorld.GamePlayerParty.Architects.Contains(a) && !a.IsLoadedTrader)
+                                if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && !a.IsLoadedTrader)
                                 {
                                     if (a.Race == Game1.GameWorld.GetRace("debtshiba"))
                                     {
@@ -1293,15 +1296,15 @@ namespace Lightrealm
             }
 
 
-            bool AllArchitectsDeadOrInParty = Game1.LoadedArchitects.All(architect => !architect.IsAlive || Game1.GameWorld.GamePlayerParty.Architects.Contains(architect));
+            bool AllArchitectsDeadOrInParty = Game1.LoadedArchitects.All(architect => !architect.IsAlive || Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(architect));
 
-            if (Game1.GameWorld.GamePlayerParty.CurrentEvent != null)
+            if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent != null)
             {
                 if (AllArchitectsDeadOrInParty)
                 {
-                    Game1.GameWorld.GamePlayerParty.CurrentEvent.Region.Events.Remove(Game1.GameWorld.GamePlayerParty.CurrentEvent);
+                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.Region.Events.Remove(Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent);
                 }
-                Game1.GameWorld.GamePlayerParty.CurrentEvent = null;
+                Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent = null;
             }
 
             foreach(Architect a in Game1.LoadedArchitects)

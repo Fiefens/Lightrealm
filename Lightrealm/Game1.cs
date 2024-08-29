@@ -1,17 +1,22 @@
 ﻿using Lightrealm.Diagnostics;
 using Lightrealm.Input;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
-using NAudio.Wave;
 using Newtonsoft.Json.Linq;
+using PortAudioSharp;
 using System;
+using System.Buffers.Text;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Text.Json;
@@ -30,7 +35,7 @@ namespace Lightrealm
 {
     public class Game1 : Game
     {
-        public static string Version = "alpha1";
+        public static string Version = "alpha2";
 
         public static T GetRandomItem<T>(EntityHashSet<T> set) where T : Entity
         {
@@ -146,7 +151,7 @@ namespace Lightrealm
         public int HistoricalScrollValue = 0;
 
         private static bool _isRecording = false;
-        private static WaveInEvent _waveIn;
+        private static PortAudioSharp.Stream _stream;
         private static VoskRecognizer _recognizer;
         public static int DeviceNumber;
 
@@ -159,6 +164,24 @@ namespace Lightrealm
 
 
         public Model VoskModel;
+
+
+        public int CurrentlySelectingRegionIndexOr100 = 100;
+        public int MaxRegionIndex = 0;
+        public bool ShowSignificant = false;
+
+
+        public int AscendantCursor = 0;
+        public int AscendantPage = 0;
+        public Party CurrentlySelectedAscendantParty = null;
+        public Architect CurrentlySelectedAscendantArchitect = null;
+        public District CurrentlySelectedAscendantDistrict = null;
+        public string AscendantActingMode = "";
+        public static string AscendantState = "";
+        public static string AscendantAction = "";
+        public EntityList<Entity> AscendantEntityLedger = new EntityList<Entity>();
+        public Entity SelectedAscendantTarget;
+
 
         public bool SpeechToText = true;
         public bool GoToLoadingGameAfterLibrariesAreInstalled = false;
@@ -208,7 +231,10 @@ namespace Lightrealm
 
             foreach (Entity e in subjects)
             {
-                if (e is Architect architect && architect.Block == executor.Block && architect.Room == executor.Room)
+                if (e is Architect architect &&
+        (architect == executor ||
+        (architect.Block != null && executor.Block != null && architect.Block == executor.Block && executor.Block.Architects.Contains(architect)) ||
+        (executor.Room != null && architect.Room != null && architect.Room == executor.Room)))
                 {
                     if (Modifier != "get")
                     {
@@ -228,7 +254,7 @@ namespace Lightrealm
 
                     subjectsToAdd.AddRange(architect.CultureBank);
 
-                    if (GameWorld.GamePlayerParty.Architects.Contains(architect))
+                    if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(architect))
                     {
                         subjectsToAdd.AddRange(architect.ShadowStorage);
                     }
@@ -289,7 +315,7 @@ namespace Lightrealm
             // Add types of body parts
             var uniqueBodyPartNames = new HashSet<string>();
 
-            foreach (Race r in GameWorld.Races)
+            foreach (Race r in Game1.GameWorld.Races)
             {
                 foreach (string part in r.BodyPartNames)
                 {
@@ -318,7 +344,7 @@ namespace Lightrealm
             subjects.AddRange(GameWorld.AllBodyParts);
             subjects.AddRange(GameWorld.Groups);
             subjects.AddRange(GameWorld.CoreMaterials());
-            subjects.AddRange(GameWorld.Races);
+            subjects.AddRange(Game1.GameWorld.Races);
             subjects.Add(GameWorld);
 
             // Collect the objects hiding inside containers
@@ -349,6 +375,9 @@ namespace Lightrealm
             }
 
             subjects.AddRange(allObjects);
+
+            MostRecentPartyTurnArchitect.AddReferredToName("myself");
+            MostRecentPartyTurnArchitect.AddReferredToName("me");
 
             return subjects;
         }
@@ -590,14 +619,10 @@ namespace Lightrealm
 
         public bool HasPlayerBeenAttacked(Architect architect)
         {
-            foreach (var attack in StoredAttacks)
+            if (architect.BodyParts.Contains(StoredAttack.Target))
             {
-                if (architect.BodyParts.Contains(attack.Target))
-                {
-                    return true;
-                }
+                return true;
             }
-
             return false;
         }
 
@@ -628,7 +653,7 @@ namespace Lightrealm
             }
         }
 
-        public static List<Attack> StoredAttacks = new List<Attack>();
+        public static Attack StoredAttack = null;
         public static List<Message> StoredMessages = new List<Message>();
 
         public static InteractableEvent StoredEvent = null;
@@ -730,28 +755,32 @@ namespace Lightrealm
 
         public static int CalculateProximityScore(Entity entity, Architect player)
         {
+            if (player.CultureBank.Contains(entity))
+            {
+                return 0;
+            }
             // Check if the entity is in the player's hands
             if (player.OffHeldObject == entity || player.MainHeldObject == entity)
             {
-                return 0;
+                return 1;
             }
 
             // Check if the entity is in the player's shadow storage
             if (player.ShadowStorage.Contains(entity))
             {
-                return 1;
+                return 2;
             }
 
             // Check if the entity is in the player's clothing
             if (player.Clothing.Contains(entity))
             {
-                return 2;
+                return 3;
             }
 
             // Check if the entity is in the player's inventory
             if (player.Inventory.Contains(entity))
             {
-                return 3;
+                return 4;
             }
 
             // Check if the entity is in the same room as the player
@@ -760,11 +789,11 @@ namespace Lightrealm
             {
                 if (entity is Architect architect && currentRoom.Architects.Contains(architect))
                 {
-                    return 4;
+                    return 5;
                 }
                 else if (entity is Object obj && currentRoom.Objects.Contains(obj))
                 {
-                    return 4;
+                    return 5;
                 }
             }
 
@@ -774,7 +803,7 @@ namespace Lightrealm
             {
                 if (currentBlock.Architects.Contains(entity) || currentBlock.Objects.Contains(entity) || currentBlock.Structures.Contains(entity)) 
                 {
-                    return 5;
+                    return 6;
                 }
 
                 foreach (Structure structure in currentBlock.Structures)
@@ -783,7 +812,7 @@ namespace Lightrealm
                     {
                         if (room.Objects.Contains(entity) || room.Architects.Contains(entity))
                         {
-                            return 5;
+                            return 6;
                         }
                     }
                 }
@@ -796,7 +825,7 @@ namespace Lightrealm
                 {
                     if (LoadedArchitects.Contains(entity))
                     {
-                        return 6;
+                        return 7;
                     }
                 }
                 else if (entity is Object)
@@ -805,7 +834,7 @@ namespace Lightrealm
                     {
                         if (block.Objects.Contains(entity))
                         {
-                            return 6;
+                            return 7;
                         }
 
                         foreach (Structure structure in block.Structures)
@@ -814,7 +843,7 @@ namespace Lightrealm
                             {
                                 if (room.Objects.Contains(entity))
                                 {
-                                    return 6;
+                                    return 7;
                                 }
                             }
                         }
@@ -822,7 +851,7 @@ namespace Lightrealm
                 }
                 else if (entity is Structure s && s.Block.District == currentDistrict)
                 {
-                    return 6;
+                    return 7;
                 }
             }
 
@@ -833,7 +862,7 @@ namespace Lightrealm
             }
 
             // Default score for entities that are farthest away
-            return 7;
+            return 8;
         }
 
         public static List<string> GetCommandsForCategory(string category)
@@ -930,19 +959,18 @@ namespace Lightrealm
                     switch (MessageID)
                     {
                         case "ask_them_join":
-                            if (GameWorld.GamePlayerParty.Architects.Contains(Sender) || GameWorld.GamePlayerParty.Architects.Contains(Reciever))
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) || GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Reciever))
                             {
-                                // Ensure the receiver joins the GameWorld.GamePlayerParty
+                                // Ensure the receiver joins the GameWorld.GamePlayerAssociation.ActiveParty
                                 if (Reciever.Group != null)
                                 {
                                     Reciever.Group.Architects.Remove(Reciever);
                                 }
-                                if (!GameWorld.GamePlayerParty.Architects.Contains(Reciever))
+                                if (!GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Reciever))
                                 {
-                                    GameWorld.GamePlayerParty.Architects.Add(Reciever);
+                                    GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(Reciever);
 
-                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Reciever.Name + " joined " + GameWorld.GamePlayerParty.Name + ".");
-                                    Sender.Location.LocationHistoricalEvents.Add(Date + " " + Reciever.Name + " joined " + GameWorld.GamePlayerParty.Name + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Reciever.Name + " joined " + GameWorld.GamePlayerAssociation.ActiveParty.Name + ".", GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Location.Region, new EntityList<Entity>(){Reciever, GameWorld.GamePlayerAssociation.ActiveParty}));
                                 }
                                 Reciever.Group = null;
                             }
@@ -960,25 +988,23 @@ namespace Lightrealm
                                 Reciever.Group = Sender.Group;
 
                                 // Log the historical event for AI joining AI group
-                                Game1.GameWorld.HistoricalEvents.Add(Date + " " + Reciever.Name + " joined the group of " + Sender.Name + ".");
-                                Sender.Location.LocationHistoricalEvents.Add(Date + " " + Reciever.Name + " joined the group of " + Sender.Name + ".");
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Reciever.Name + " joined the group of " + Sender.Group.Name + ".", Sender.Location.Region, new EntityList<Entity>(){Reciever, Sender}));
                             }
                             break;
 
                         case "ask_me_join":
-                            if (GameWorld.GamePlayerParty.Architects.Contains(Sender) || GameWorld.GamePlayerParty.Architects.Contains(Reciever))
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) || GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Reciever))
                             {
-                                // Ensure the sender joins the GameWorld.GamePlayerParty
+                                // Ensure the sender joins the GameWorld.GamePlayerAssociation.ActiveParty
                                 if (Sender.Group != null)
                                 {
                                     Sender.Group.Architects.Remove(Sender);
                                 }
-                                if (!GameWorld.GamePlayerParty.Architects.Contains(Sender))
+                                if (!GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender))
                                 {
-                                    GameWorld.GamePlayerParty.Architects.Add(Sender);
+                                    GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(Sender);
 
-                                    Game1.GameWorld.HistoricalEvents.Add(Date + " " + Sender.Name + " joined " + GameWorld.GamePlayerParty.Name + ".");
-                                    Sender.Location.LocationHistoricalEvents.Add(Date + " " + Sender.Name + " joined " + GameWorld.GamePlayerParty.Name + ".");
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Sender.Name + " joined " + GameWorld.GamePlayerAssociation.ActiveParty.Name + ".", Sender.Location.Region, new EntityList<Entity>() { Sender, GameWorld.GamePlayerAssociation.ActiveParty }));
                                 }
                                 Sender.Group = null;
                             }
@@ -996,8 +1022,7 @@ namespace Lightrealm
                                 Sender.Group = Reciever.Group;
 
                                 // Log the historical event for AI joining AI group
-                                Game1.GameWorld.HistoricalEvents.Add(Date + " " + Sender.Name + " joined the group of " + Reciever.Name + ".");
-                                Sender.Location.LocationHistoricalEvents.Add(Date + " " + Sender.Name + " joined the group of " + Reciever.Name + ".");
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Sender.Name + " joined the group of " + Reciever.Name + ".", Sender.Location.Region, new EntityList<Entity>() { Sender, Reciever }));
                             }
                             break;
 
@@ -1017,8 +1042,7 @@ namespace Lightrealm
                                 Sender.ShieldTokens.Add(Reciever);
                                 Reciever.ShieldTokens.Add(Sender);
 
-                                Game1.GameWorld.HistoricalEvents.Add(Date + " " + Sender.Name + " challenged " + Reciever.Name + " in " + Sender.Location.Name + ".");
-                                Sender.Location.LocationHistoricalEvents.Add(Date + " " + Sender.Name + " challenged " + Reciever.Name + " in " + Sender.Location.Name + ".");
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Sender.Name + " challenged " + Reciever.Name + " in " + Sender.Location.Name + ".", Sender.Location.Region, new EntityList<Entity>(){Sender, Reciever, Sender.Location}));
                             }
                             break;
 
@@ -1127,15 +1151,15 @@ namespace Lightrealm
             }
 
             // Check for storedRevealLocations and update the map accordingly
-            if (storedRevealLocations.Count() > 0 && GameWorld.GamePlayerParty.Architects.Contains(Sender) && Response.EndsWith("[Map Updated]"))
+            if (storedRevealLocations.Count() > 0 && GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) && Response.EndsWith("[Map Updated]"))
             {
                 foreach (var location in storedRevealLocations)
                 {
                     var region = location.Region;
                     region.Explored = true;
-                    region.RegionallyExplored = true;
+                    region.DeepExplored = true;
                     location.Explored = true;
-                    Game1.GameWorld.GamePlayerParty.CurrentlyMarkedRegions.Add(region);
+                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentlyMarkedRegions.Add(region);
                 }
             }
         }
@@ -1240,24 +1264,34 @@ namespace Lightrealm
 
             if (TargetArchitect != null)
             {
-                if (!GameWorld.GamePlayerParty.Architects.Contains(TargetArchitect))
+                if (!GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(TargetArchitect))
                 {
                     TargetArchitect.ChangeOpinion(attacker, -75);
                 }
 
-                string newEvent = Date + " " + attacker.Name + " attacked " + TargetArchitect.Name + ".";
+                string eventText = $"{Date} {attacker.Name} attacked {TargetArchitect.Name}.";
+                Event newEvent = new Event(eventText, TargetArchitect.Location.Region, new EntityList<Entity>());
+                bool addEvent = true;
 
-                if (GameWorld.HistoricalEvents.Count() < 2 ||
-                    GameWorld.HistoricalEvents[GameWorld.HistoricalEvents.Count() - 1] != newEvent ||
-                    GameWorld.HistoricalEvents[GameWorld.HistoricalEvents.Count() - 2] != newEvent)
+                // Check the last ten historical events
+                int startIndex = Math.Max(0, GameWorld.HistoricalEvents.Count - 10);
+                for (int i = startIndex; i < GameWorld.HistoricalEvents.Count; i++)
+                {
+                    if (GameWorld.HistoricalEvents[i].EventData == eventText) // Assuming HistoricalEvents[i] is an Event object
+                    {
+                        addEvent = false;
+                        break;
+                    }
+                }
+
+                if (addEvent)
                 {
                     GameWorld.HistoricalEvents.Add(newEvent);
-                    attacker.Location.LocationHistoricalEvents.Add(newEvent);
                 }
             }
 
 
-            if(!Game1.OffensiveTasks.Contains(TargetArchitect.Task))
+            if (!Game1.OffensiveTasks.Contains(TargetArchitect.Task))
             {
                 TargetArchitect.CyclesLeftInTask = 0;
                 TargetArchitect.Task = "";
@@ -1265,7 +1299,7 @@ namespace Lightrealm
 
             bool IsPlayerPartyNearby(Architect attacker)
             {
-                foreach (Architect partyMember in GameWorld.GamePlayerParty.Architects)
+                foreach (Architect partyMember in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                 {
                     if ((attacker.Room != null && attacker.Room == partyMember.Room) ||
                         (attacker.Room == null && attacker.Block == partyMember.Block))
@@ -1355,7 +1389,7 @@ namespace Lightrealm
                     DefenderAction = PossibleActions[r.Next(PossibleActions.Count())];
                 }
 
-                var successChances = TargetArchitect.CalculateSuccessChances(new Attack(verb, attacker, target, weapon), GameWorld.ReactionModifierInt, attacker, proficiencyModifier);
+                var successChances = TargetArchitect.CalculateSuccessChances(new Attack(verb, attacker, target, weapon), Game1.GameWorld.ReactionModifierInt, attacker, proficiencyModifier);
 
                 // Falling star logic
                 int StarCount = 0;
@@ -1363,12 +1397,12 @@ namespace Lightrealm
                 if (attacker.PathOfStarsLevel >= 2)
                 {
                     StarCount = 1;
-                    announcements.Add(new TextStorage($"A star falls from the heavens!", Color.Goldenrod, new EntityList<Entity>()));
+                    announcements.Add(new TextStorage($"A star falls from the heavens!", Color.Goldenrod, new EntityList<Entity>(){}));
                 }
                 else if (attacker.PathOfStarsLevel >= 6)
                 {
                     StarCount = 3;
-                    announcements.Add(new TextStorage($"Stars fall from the heavens!", Color.Goldenrod, new EntityList<Entity>()));
+                    announcements.Add(new TextStorage($"Stars fall from the heavens!", Color.Goldenrod, new EntityList<Entity>(){}));
                 }
 
                 for (int i = 0; i < StarCount; i++)
@@ -1376,7 +1410,7 @@ namespace Lightrealm
                     EntityList<Architect> FightingArchitects = new EntityList<Architect>();
                     foreach (Architect a in attacker.Room != null ? attacker.Room.Architects : attacker.Block.Architects)
                     {
-                        if ((a.Task == "killtarget" || a.Task == "disabletarget") && ((GameWorld.GamePlayerParty.Architects.Contains(attacker) && !GameWorld.GamePlayerParty.Architects.Contains(TargetArchitect)) || (!GameWorld.GamePlayerParty.Architects.Contains(attacker) && GameWorld.GamePlayerParty.Architects.Contains(TargetArchitect))))
+                        if ((a.Task == "killtarget" || a.Task == "disabletarget") && ((GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(attacker) && !GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(TargetArchitect)) || (!GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(attacker) && GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(TargetArchitect))))
                         {
                             FightingArchitects.Add(a);
                         }
@@ -1417,7 +1451,7 @@ namespace Lightrealm
                         if (IsPlayerPartyNearby(attacker))
                         {
                             string simplifiedVerb;
-                            if (verb.EndsWith("e"))
+                            if (verb.EndsWith("e") || new List<string> { "whip", "hack", "whack", "cut", "bludgeon", "club", "kick", "headbutt", "slap", "jab" }.Contains(verb))
                             {
                                 simplifiedVerb = verb + "s";
                             }
@@ -1873,7 +1907,7 @@ namespace Lightrealm
 
                             if (AvoidFeedback != "")
                             {
-                                announcements.Add(new TextStorage(AvoidFeedback, Color.HotPink, new EntityList<Entity>()));
+                                announcements.Add(new TextStorage(AvoidFeedback, Color.HotPink, new EntityList<Entity>(){}));
                             }
 
                         }
@@ -1883,11 +1917,11 @@ namespace Lightrealm
                     {
                         CalculateAndApplyDamage(attacker, weapon, target, announcements);
 
-                        foreach (Imbuement i in TargetArchitect.CurrentlyActiveImbuements)
+                        foreach (Imbuement i in attacker.CurrentlyActiveImbuements)
                         {
                             if (i.IsTrigger && i.ConditionOrTrigger == "onattack")
                             {
-                                TextStorage result = TargetArchitect.ActivatePower(i.BuffOrResult);
+                                TextStorage result = attacker.ActivatePower(i.BuffOrResult);
                                 if (result.Data != "unknown")
                                 {
                                     announcements.Add(result);
@@ -1921,7 +1955,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    announcements.Add(new TextStorage($"The attack was unsuccessful", Color.Red, new EntityList<Entity>()));
+                    announcements.Add(new TextStorage($"The attack was unsuccessful", Color.Red, new EntityList<Entity>(){}));
                 }
             }
             else if (target != null && TargetArchitect == null)
@@ -1940,20 +1974,20 @@ namespace Lightrealm
                 if (attacker.DivineMight > 0)
                 {
                     attacker.DivineMight--;
-                    announcements.Add(new TextStorage("The divine have intervened! The attack is empowered with brilliant energy!", Color.Aquamarine, new EntityList<Entity>()));
+                    announcements.Add(new TextStorage("The divine have intervened! The attack is empowered with brilliant energy!", Color.Aquamarine, new EntityList<Entity>(){}));
                     if (attacker.DivineMight == 0)
                     {
-                        announcements.Add(new TextStorage("The divine might has worn off!", Color.Aquamarine, new EntityList<Entity>()));
+                        announcements.Add(new TextStorage("The divine might has worn off!", Color.Aquamarine, new EntityList<Entity>(){}));
                     }
                 }
 
                 if (TargetArchitect != null && TargetArchitect.DivineProtection > 0)
                 {
                     TargetArchitect.DivineProtection--;
-                    announcements.Add(new TextStorage($"The divine have intervened! The attack is avoided by {targetObject.Owner}'s divine protection. It wears thin, though...", Color.Aquamarine, new EntityList<Entity>()));
+                    announcements.Add(new TextStorage($"The divine have intervened! The attack is avoided by {targetObject.Owner}'s divine protection. It wears thin, though...", Color.Aquamarine, new EntityList<Entity>(){}));
                     if (TargetArchitect.DivineProtection == 0)
                     {
-                        announcements.Add(new TextStorage("The divine protection has worn off!", Color.Aquamarine, new EntityList<Entity>()));
+                        announcements.Add(new TextStorage("The divine protection has worn off!", Color.Aquamarine, new EntityList<Entity>(){}));
                     }
                 }
 
@@ -1988,14 +2022,14 @@ namespace Lightrealm
 
                     if (attacker.DropKickReady && attacker.CyclesSinceJump <= 30 && (weapon.Type.EndsWith("foot") || weapon.Type.EndsWith("leg")))
                     {
-                        announcements.Add(new TextStorage("The attack is a devastating dropkick!", Color.Red, new EntityList<Entity>()));
+                        announcements.Add(new TextStorage("The attack is a devastating dropkick!", Color.Red, new EntityList<Entity>(){}));
                         DamageModifier *= 3;
                         attacker.DropKickReady = false;
                     }
 
                     if (attacker.SeveringStrikeReady && targetObject.Owner != null && targetObject.Owner is Architect)
                     {
-                        announcements.Add(new TextStorage("The attack severs many critical veins!", Color.Red, new EntityList<Entity>()));
+                        announcements.Add(new TextStorage("The attack severs many critical veins!", Color.Red, new EntityList<Entity>(){}));
                         ((Architect)(targetObject.Owner)).Bleeding += 6;
                         attacker.SeveringStrikeReady = false;
                     }
@@ -2023,7 +2057,7 @@ namespace Lightrealm
                     if (weapon.Type == "torso" && attacker.BodySlamReady)
                     {
                         attacker.BodySlamReady = false;
-                        announcements.Add(new TextStorage("The attack is a destabilizing body slam!", Color.Red, new EntityList<Entity>()));
+                        announcements.Add(new TextStorage("The attack is a destabilizing body slam!", Color.Red, new EntityList<Entity>(){}));
                         ((Architect)(targetObject.Owner)).DestabilizedCycles += (int)Math.Round(attacker.Energy / 2);
                         ((Architect)(targetObject.Owner)).Energy -= Game1.r.Next(5, 10);
 
@@ -2031,7 +2065,7 @@ namespace Lightrealm
                     else if ((weapon.Type.EndsWith("leg") || weapon.Type.EndsWith("foot")) && attacker.LegSweepReady)
                     {
                         attacker.LegSweepReady = false;
-                        announcements.Add(new TextStorage("The attack is a swift leg sweep!", Color.Red, new EntityList<Entity>()));
+                        announcements.Add(new TextStorage("The attack is a swift leg sweep!", Color.Red, new EntityList<Entity>(){}));
                         ((Architect)(targetObject.Owner)).DestabilizedCycles += (int)Math.Round(attacker.Energy / 2);
                         ((Architect)(targetObject.Owner)).ReactionBoostCycles += 30;
                     }
@@ -2076,7 +2110,7 @@ namespace Lightrealm
                             { "water bolt", "Fire a bolt of water at the target, damaging and extinguishing them. (Cast with \"cast water bolt at ~\")" },
                             { "chaos flare", "Fire a bolt of light and darkness at the target, causing destabilization, burning, and damage. (Cast with \"cast chaos flare at ~\")" },
                             { "ice shock", "Expose a target to an unrelenting swirl of frost. (Cast with \"cast ice shock at ~\")" },
-                            { "flash flame", "Ignites the target. (Cast with \"cast concentrated ignition at ~\")" },
+                            { "flash flame", "Concentrate heat energy at the target, igniting them. (Cast with \"cast flash flame at ~\")" },
                             { "tremor", "Destabilizes all architects and objects in the area except for the TARGET. (Cast with \"cast tremor at ~\")" },
                             { "truthfulness", "Permanently forces someone to always tell the truth to the caster. (Cast with \"cast truthfulness at ~\")" },
                             { "rise", "Send the target into the air. (Cast with \"cast rise at ~\")" },
@@ -2119,8 +2153,6 @@ namespace Lightrealm
             { "colossal", 2.0 },
             { "archancient", 3.0 }
         };
-
-        public List<(int, int, Color, int, int, int)> CivilizationParticles = new List<(int, int, Color, int, int, int)>();
 
         public static List<string> Colors = new List<string>
 {
@@ -2216,8 +2248,14 @@ namespace Lightrealm
         "" // Adding an empty line for better readability
     };
 
-            // Add the historical events to the list
-            fileContent.AddRange(world.HistoricalEvents);
+            // Format and add each historical event to the file content
+            foreach (var historicalEvent in world.HistoricalEvents)
+            {
+                int regionIndex = historicalEvent.Region != null ? GameWorld.Realms.IndexOf(historicalEvent.Region.Realm) : 11;
+                int significantFlag = historicalEvent.Significant ? 1 : 0;
+                string formattedEvent = $"[{regionIndex}/{significantFlag}]{historicalEvent.EventData}";
+                fileContent.Add(formattedEvent);
+            }
 
             // Write the content to the file
             File.WriteAllLines(Path.Combine(saveFolder, $"history.txt"), fileContent.ToArray());
@@ -2258,7 +2296,7 @@ namespace Lightrealm
             GameWorld.EntityLedger[gameWorldId] = GameWorld;
 
             // Temporary bandaid on this interesting problem
-            foreach (Architect a in GameWorld.GamePlayerParty.Architects)
+            foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
             {
                 if (!LoadedArchitects.Contains(a))
                 {
@@ -2266,14 +2304,14 @@ namespace Lightrealm
                 }
             }
 
-            MostRecentPartyTurnArchitect = GameWorld.GamePlayerParty.Architects[0];
-            foreach (Architect a in GameWorld.GamePlayerParty.Architects)
+            MostRecentPartyTurnArchitect = GameWorld.GamePlayerAssociation.ActiveParty.Architects[0];
+            foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
             {
                 a.ReferredToNames.Remove("myself");
                 a.ReferredToNames.Remove("me");
             }
-            MostRecentPartyTurnArchitect.ReferredToNames.Add("myself");
-            MostRecentPartyTurnArchitect.ReferredToNames.Add("me");
+            MostRecentPartyTurnArchitect.AddReferredToName("myself");
+            MostRecentPartyTurnArchitect.AddReferredToName("me");
         }
 
         private static void SerializeObjectToJsonFile<T>(string filePath, T obj)
@@ -2294,11 +2332,6 @@ namespace Lightrealm
         public static World GameWorld;
         
 
-
-
-
-
-        public static Civilization GamePlayerCivilization;
 
         public static string DocumentsFolderPath
         {
@@ -2424,10 +2457,10 @@ namespace Lightrealm
 
         public static List<string> LightingStyles = new List<string> { "nothing", "nothing", "nothing", "nothing", "nothing", "candles", "candles", "candles", "candles", "a lone torch in each room", "several braziers", "an oil lamp", "a candelabra", "an oil lantern", "a blazing fireplace" };
         
-        public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "bracelet", "left gauntlet", "staff", "amulet", "hourglass", "locket", "orb" };
+        public static List<string> PossibleMagicalItems = new List<string>() { "chalice", "scepter", "lantern", "staff", "hourglass", "locket", "orb" };
 
         public Dictionary<string, Texture2D> TileAtlas = new Dictionary<string, Texture2D>();
-        public static List<string> WeightedRandomArchitectProfessions = new List<string>() { "commander", "craftsman", "craftsman", "craftsman", "mercenary", "mercenary", "mercenary", "musician", "musician", "elder", "prophet", "trader", "trader", "anarchist", "political figure", "scholar", "scholar", "scholar", "scholar" };
+        public static List<string> WeightedRandomArchitectProfessions = new List<string>() { "commander", "craftsman", "craftsman", "craftsman", "mercenary", "mercenary", "mercenary", "musician", "musician", "elder", "prophet", "trader", "trader", "trader", "trader", "merchant", "merchant", "anarchist", "political figure", "scholar", "scholar", "scholar", "scholar" };
         public static List<string> WeightedRandomNormalProfessions = new List<string>() { "soldier", "peasant", "peasant", "peasant", "blacksmith", "miller", "baker", "merchant", "brewer", "brewer", "tanner", "tailor", "carpenter", "mason", "scribe", "butcher", "fisherman", "weaver", "potter", "miner", "miner", "indolent", "indolent", "indolent", "indolent" };
 
         public static List<string> ArchitectProfessions = new List<string>() { "commander", "craftsman", "mercenary", "musician", "elder", "prophet", "trader", "anarchist", "political figure", "scholar" };
@@ -2519,6 +2552,7 @@ namespace Lightrealm
         Texture2D whiteRect;
         Texture2D GUI;
         Texture2D HelpGUI;
+        Texture2D QuickStartGUI;
         Texture2D InventoryGUI;
         Texture2D ThisListT;
 
@@ -2542,7 +2576,7 @@ namespace Lightrealm
         public static bool CurrentlySelectingHandedness = true;
         public static int CurrentlySelectingRace = 1;
 
-        public bool FancyFont = true;
+        public bool FancyFont = false;
 
         public SpriteFont Shibafont
         {
@@ -2630,6 +2664,9 @@ namespace Lightrealm
         public Texture2D HallwayT;
         public Texture2D ArchwayT;
 
+        public Texture2D BastionT;
+        public Texture2D FortT;
+
         public Texture2D DistrictBuildingT;
         public Texture2D DistrictEmptyDesertT;
         public Texture2D DistrictEmptyPlainsT;
@@ -2667,6 +2704,8 @@ namespace Lightrealm
         public Texture2D DistrictToroidT;
         public Texture2D DistrictTowerT;
         public Texture2D DistrictTowersT;
+        public Texture2D DistrictBastionT;
+        public Texture2D DistrictFortT;
 
 
         public Texture2D AmuletT;
@@ -2978,12 +3017,14 @@ namespace Lightrealm
             Window.IsBorderless = true;
             IsMouseVisible = false;
 
+            PortAudio.Initialize();
+
             PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
 
             if(PreferredBackBufferWidth > 1920)
             {
-                FancyFont = true;
+                FancyFont = false;
             }
             else
             {
@@ -3165,6 +3206,10 @@ namespace Lightrealm
             RecognizedCommands.Add("cast_spell", (new List<string> { "cast ~" }, new List<string> { "spell" }));
 
             RecognizedCommands.Add("consume", (new List<string> { "consume ~", "apply ~", "eat ~", "drink ~", "ingest ~", "swallow ~", "devour ~", "use ~", "administer ~" }, new List<string> { "inventory" }));
+            RecognizedCommands.Add("ascend", (new List<string> { "ascend" }, new List<string> { }));
+            RecognizedCommands.Add("claim_structure", (new List<string> { "claim this building", "claim this structure", "claim this"}, new List<string> { }));
+
+
 
             RecognizedCommands.Add("recall_information", (new List<string> { "remember ~", "list ~", "list all ~", "list my ~", "list learned ~", "display ~", "show all ~" }, new List<string> { "rememberance" }));
             RecognizedCommands.Add("ditch_inventory", (new List<string> { "ditch my inventory", "drop everything", "clear my inventory", "discard all items", "empty my pockets", "drop my inventory" }, new List<string> { }));
@@ -3438,20 +3483,20 @@ namespace Lightrealm
                 { "thief", "none" },
                 { "archmage", "scholarly" },
                 { "beastmaster", "none" },
-                {"gardener", "none"},
-                {"druidcrafter", "none"},
-                {"archdruid", "none"},
-                {"salvager", "none"},
-                {"constructor", "none"},
-                {"scraplord", "none"},
-                {"cultist", "none"},
-                {"intermediary", "none"},
-                {"swashbuckler", "none"},
-                {"deadeye", "none"},
-                {"captain", "none"},
-                {"disruptor", "none"},
-                {"bomber", "none"},
-                {"inspiration", "none"}
+                { "gardener", "none"},
+                { "druidcrafter", "none"},
+                { "archdruid", "none"},
+                { "salvager", "none"},
+                { "constructor", "none"},
+                { "scraplord", "none"},
+                { "cultist", "none"},
+                { "intermediary", "none"},
+                { "swashbuckler", "none"},
+                { "deadeye", "none"},
+                { "captain", "none"},
+                { "disruptor", "none"},
+                { "bomber", "none"},
+                { "inspiration", "none"}
             };
 
 
@@ -3531,7 +3576,21 @@ namespace Lightrealm
                 {"rogue", "from questionable pursuits"},
                 {"artisan", "from selling your craft"},
                 {"diplomat", "from taxes and fees"},
-                {"enchanter", "from selling great enchantment"}
+                {"enchanter", "from selling great enchantment"},
+                { "gardener", "from your dedication to nature" },
+                { "druidcrafter", "from your druidic practices" },
+                { "archdruid", "from leading the druidic order" },
+                { "salvager", "from salvaging valuable materials" },
+                { "constructor", "from constructing various items" },
+                { "scraplord", "from ruling the scrapyard" },
+                { "cultist", "from serving the dark powers" },
+                { "intermediary", "from mediating between worlds" },
+                { "swashbuckler", "from your daring exploits" },
+                { "deadeye", "from your impeccable aim" },
+                { "captain", "from leading your crew" },
+                { "disruptor", "from causing chaos" },
+                { "bomber", "from your explosive tactics" },
+                { "inspiration", "from inspiring rebellion" }
             };
 
             ConvertProfessionToBuilding = new Dictionary<string, string>
@@ -3743,30 +3802,6 @@ namespace Lightrealm
             base.Initialize();
         }
 
-
-        private void OnDataAvailable(object sender, WaveInEventArgs e)
-        {
-            if (_recognizer.AcceptWaveform(e.Buffer, e.BytesRecorded))
-            {
-                var result = _recognizer.Result();
-                DisplayResult(result);
-            }
-            else
-            {
-                var partialResult = _recognizer.PartialResult();
-                DisplayResult(partialResult);
-            }
-        }
-
-        private void OnRecordingStopped(object sender, StoppedEventArgs e)
-        {
-            if (e.Exception != null)
-            {
-                // Handle exceptions here
-                Console.WriteLine($"Exception: {e.Exception.Message}");
-            }
-        }
-
         private void DisplayResult(string result)
         {
             var jsonResult = JObject.Parse(result);
@@ -3793,7 +3828,7 @@ namespace Lightrealm
             ContentRoot = Content.RootDirectory;
 
             ContentPath = Path.GetFullPath("Content");
-            string dataPath = string.Concat(ContentPath, "\\data\\");
+            string dataPath = string.Concat(ContentPath, "/data/");
 
             FirstNames = File.ReadAllLines(string.Concat(dataPath, "names.txt")).ToList();
             LastNames = File.ReadAllLines(string.Concat(dataPath, "last-names.txt")).ToList();
@@ -3885,10 +3920,14 @@ namespace Lightrealm
             DistrictTowerT = Content.Load<Texture2D>("distmap/tower");
             DistrictTowersT = Content.Load<Texture2D>("distmap/towers");
 
+            DistrictBastionT = Content.Load<Texture2D>("distmap/bastion");
+            DistrictFortT = Content.Load<Texture2D>("distmap/fort");
+
             TitleScreen = Content.Load<Texture2D>("other/title");
             EmptyTileT = Content.Load<Texture2D>("tiles/emptytile");
             GUI = Content.Load<Texture2D>("gui/gui");
             HelpGUI = Content.Load<Texture2D>("gui/helpgui");
+            QuickStartGUI = Content.Load<Texture2D>("gui/gettingstarted");
             InventoryGUI = Content.Load<Texture2D>("gui/inventory gui");
             ThisListT = Content.Load<Texture2D>("gui/thislist");
             SkillPullUpT = Content.Load<Texture2D>("gui/skillpullup");
@@ -3934,6 +3973,11 @@ namespace Lightrealm
             TileAtlas.Add("shadegarrison", ShadeOutpostT);
             ShadeCoreT = Content.Load<Texture2D>("locationtiles/shadecore");
             TileAtlas.Add("shadecore", ShadeCoreT);
+
+            BastionT = Content.Load<Texture2D>("locationtiles/bastion");
+            TileAtlas.Add("bastion", BastionT);
+            FortT = Content.Load<Texture2D>("locationtiles/fort");
+            TileAtlas.Add("fort", FortT);
 
             OutlineT = Content.Load<Texture2D>("tiles/outline");
 
@@ -4165,7 +4209,7 @@ namespace Lightrealm
                     UpdateNonPlayerWorld(); // Update the non-player world
                 }
 
-                if (GameWorld.GamePlayerParty.Architects.All(architect => !architect.IsAlive))
+                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.All(architect => !architect.IsAlive))
                 {
                     GameState = "dead";
                 }
@@ -4220,9 +4264,9 @@ namespace Lightrealm
                                             targetArchitect.IsAlive = false;
                                             targetArchitect.RaiseFromTheDead((Architect)o.Creator, targetArchitect.ReferredToNames[0], ((Architect)o.Creator).PathOfDeathLevel, 2);
 
-                                            if (targetArchitect.IsAlive && !Game1.GameWorld.GamePlayerParty.Architects.Contains(targetArchitect))
+                                            if (targetArchitect.IsAlive && !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(targetArchitect))
                                             {
-                                                Game1.GameWorld.GamePlayerParty.Architects.Add(targetArchitect);
+                                                Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(targetArchitect);
                                             }
                                         }
                                     }
@@ -4274,11 +4318,11 @@ namespace Lightrealm
                         foreach (Architect a in architects)
                         {
                             a.IsAlive = false;
-                            if (GameWorld.GamePlayerParty.Architects.Contains(a))
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                             {
                                 architectsToRemove.Add(a);
 
-                                if (GameWorld.GamePlayerParty.Architects.Count() == 0)
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                                 {
                                     GameState = "dead";
                                 }
@@ -4289,7 +4333,7 @@ namespace Lightrealm
                         // Remove the architects after the loop
                         foreach (Architect a in architectsToRemove)
                         {
-                            GameWorld.GamePlayerParty.Architects.Remove(a);
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(a);
                         }
 
                         objects.Clear();
@@ -4302,9 +4346,9 @@ namespace Lightrealm
                         foreach (Architect a in architects)
                         {
                             a.UnconsciousCycles = 1000;
-                            if (GameWorld.GamePlayerParty.Architects.Contains(a))
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                             {
-                                if (GameWorld.GamePlayerParty.Architects.Count() == 0)
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                                 {
                                     GameState = "dead";
                                 }
@@ -4395,6 +4439,13 @@ namespace Lightrealm
                         if (targetObject.Integrity < 0 && InitialStagnantObjectIntegrity > 0)
                         {
                             o.Thrower.AnnounceToParty("The " + targetObject.ReferredToNames[0] + " has been destroyed!", Color.Orange, new EntityList<Entity>() { targetObject });
+                        }
+
+                        if(targetObject.IsBodyPart && targetObject.Owner != null)
+                        {
+                            ((Architect)(targetObject.Owner)).CombatCycles = 100;
+                            ((Architect)(o.Thrower)).CombatCycles = 100;
+                            ((Architect)(targetObject.Owner)).ChangeOpinion(o.Thrower, -75);
                         }
                     }
                 }
@@ -4516,7 +4567,7 @@ namespace Lightrealm
 
 
                 //change the random int
-                GameWorld.ReactionModifierInt = r.Next(0, 100000);
+                Game1.GameWorld.ReactionModifierInt = r.Next(0, 100000);
             }
 
 
@@ -4567,7 +4618,7 @@ namespace Lightrealm
                     }
                 }
             }
-            else if (GameState == "partyturn" || GameState == "travelmenu")
+            else if (GameState == "partyturn" || GameState == "travelmenu" || GameState == "ascendant")
             {
                 if (MediaPlayer.Volume > 0 && !(MediaPlayer.Queue.ActiveSong == Introspection))
                 {
@@ -4739,7 +4790,7 @@ namespace Lightrealm
                         RelevantEntities.AddRange(AllSubjects.Where(e => e.Metadata == "north" || e.Metadata == "south" || e.Metadata == "east" || e.Metadata == "west" || e.Metadata == "northeast" || e.Metadata == "southeast" || e.Metadata == "southwest" || e.Metadata == "northwest"));
                         break;
                     case "body_part_type":
-                        var uniqueBodyPartNames = GameWorld.Races
+                        var uniqueBodyPartNames = Game1.GameWorld.Races
                             .SelectMany(race => race.BodyPartNames)
                             .Distinct();
 
@@ -4842,10 +4893,6 @@ namespace Lightrealm
                         {
                             GameState = "loadinggamemenu";
                         }
-                        if (KeysNewlyPressed.Contains(Keys.V))
-                        {
-                            SpeechToText = !SpeechToText;
-                        }
 
                         if (KeysNewlyPressed.Contains(Keys.F))
                         {
@@ -4859,12 +4906,6 @@ namespace Lightrealm
                     }
                     else if (GameState == "choosingaudio")
                     {
-                        for (int i = 0; i < Math.Min(10, WaveInEvent.DeviceCount); i++)
-                        {
-                            var deviceInfo = WaveInEvent.GetCapabilities(i);
-                        }
-
-                        // Listen for key presses 1-10
                         for (int i = 0; i < 10; i++)
                         {
                             if (KeysNewlyPressed.Contains(Keys.D1 + i))
@@ -4874,8 +4915,8 @@ namespace Lightrealm
                                 break;
                             }
                         }
-
                     }
+
                     else if (GameState == "worldgenscreen")
                     {
                         // Switch to generating world
@@ -5025,7 +5066,7 @@ namespace Lightrealm
                     else if (GameState == "savinggame")
                     {
                         SaveGame(GameWorld);
-                        GameWorld.GamePlayerParty = null;
+                        GameWorld.GamePlayerAssociation.ActiveParty = null;
                         GameWorld = null;
                         GameState = "mainscreen";
                     }
@@ -5074,7 +5115,21 @@ namespace Lightrealm
                                 GameState = "viewhistory";
                                 HistoricalScrollValue = 0;
                                 HistoryPrompt = "";
+                                MaxRegionIndex = CurrentlyViewingHistory
+    .Select(line =>
+    {
+        int regionIndex;
+        string[] parts = line.Trim('[', ']').Split('/');
+        if (parts.Length > 0 && int.TryParse(parts[0], out regionIndex) && regionIndex != 11)
+        {
+            return regionIndex;
+        }
+        return 0;
+    })
+    .Max();
+
                             }
+
 
                             if (KeysNewlyPressed.Contains(Keys.Delete))
                             {
@@ -5125,16 +5180,48 @@ namespace Lightrealm
 
                         foreach (Keys k in KeysNewlyPressed)
                         {
-                            if(KeyAtlas.ContainsKey(k))
+                            if (KeyAtlas.ContainsKey(k) && !Keyboard.GetState().IsKeyDown(Keys.LeftControl))
                             {
-                                HistoryPrompt += (KeyAtlas[k]);
+                                HistoryPrompt += KeyAtlas[k];
+                                HistoricalScrollValue = 0;
                             }
-                            else if(k == Keys.Back && HistoryPrompt.Length > 0)
+                            else if (k == Keys.Back && HistoryPrompt.Length > 0)
                             {
                                 HistoryPrompt = HistoryPrompt.Substring(0, HistoryPrompt.Length - 1);
+                                HistoricalScrollValue = 0;
+                            }
+                            else if (k == Keys.X)
+                            {
+                                // Set to 0 if '0' is pressed
+                                CurrentlySelectingRegionIndexOr100 = 0;
+                                HistoricalScrollValue = 0;
+                            }
+                            else if (k >= Keys.D1 && k <= Keys.D9)
+                            {
+                                int selectedRegionIndex = k - Keys.D1 + 1;
+                                if (selectedRegionIndex <= MaxRegionIndex)
+                                {
+                                    CurrentlySelectingRegionIndexOr100 = selectedRegionIndex;
+                                    HistoricalScrollValue = 0;
+                                }
+                            }
+                            else if (k >= Keys.NumPad1 && k <= Keys.NumPad9)
+                            {
+                                int selectedRegionIndex = k - Keys.NumPad1 + 1;
+                                if (selectedRegionIndex <= MaxRegionIndex)
+                                {
+                                    CurrentlySelectingRegionIndexOr100 = selectedRegionIndex;
+                                    HistoricalScrollValue = 0;
+                                }
+                            }
+                            else if (k == Keys.S)
+                            {
+                                ShowSignificant = !ShowSignificant;
+                                HistoricalScrollValue = 0;
                             }
                         }
                     }
+
                     else if (GameState == "deletinggame")
                     {
                         if (KeysNewlyPressed.Contains(Keys.Y) && (Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)))
@@ -5181,7 +5268,7 @@ namespace Lightrealm
                             int TryX = r.Next(GameWorld.Width);
                             int TryZ = r.Next(GameWorld.Length);
 
-                            if (GameWorld.WorldMap[TryX + TryZ * GameWorld.Width].Biome != "ocean" && GameWorld.WorldMap[TryX + TryZ * GameWorld.Width].Biome != "void" && GameWorld.WorldMap[TryX + TryZ * GameWorld.Width].MyLocation == null)
+                            if (GameWorld.WorldMap[TryX + TryZ * GameWorld.Width].Biome != "ocean" && GameWorld.WorldMap[TryX + TryZ * GameWorld.Width].Biome != "void" && GameWorld.WorldMap[TryX + TryZ * GameWorld.Width].Location == null)
                             {
                                 Race R;
                                 if (r.Next(1, 3) == 1)
@@ -5207,7 +5294,7 @@ namespace Lightrealm
                         }
                         else
                         {
-                            if (GameMode == "founder")
+                            if (GameMode == "ascendant")
                             {
                                 GameState = "choosefounderoptions";
                             }
@@ -5244,7 +5331,8 @@ namespace Lightrealm
                         }
 
 
-                        /*
+                        //TURN OF FSPEED GEN FOR NEXT RELEASE
+
                         if (GameWorld.Cycle < maxAgeCycles/2)
                         {
                             for (int i = 6; i != 0; i--)
@@ -5252,7 +5340,7 @@ namespace Lightrealm
                                 GameWorld.ProgressDays(28, true);
                             }
                         }
-                        */
+                        
                         if (GameWorld.Cycle < maxAgeCycles)
                         {
                             GameWorld.ProgressDays(28, true);
@@ -5270,21 +5358,31 @@ namespace Lightrealm
                             };
 
                             // Add the historical events to the list
-                            fileContent.AddRange(GameWorld.HistoricalEvents);
+                            //
+                            fileContent.AddRange(GameWorld.HistoricalEvents.Select(e => e.EventData));
 
-                            foreach(Architect a in GameWorld.AllArchitects)
+
+                            foreach (Architect a in GameWorld.AllArchitects)
                             {
                                 a.UpdateNames();
                             }
 
-                            // Write the content to the file
-                            File.WriteAllLines(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "/lightrealmhistory.txt", fileContent.ToArray());
+                            GameState = "choosegamemode";
+                        }
+                    }
+                    else if (GameState == "choosegamemode")
+                    {
+                        if(KeysNewlyPressed.Contains(Keys.A))
+                        {
+                            GameMode = "ascendant";
+                            GameState = "choosefounderoptions";
+                        }
+                        else if (KeysNewlyPressed.Contains(Keys.C))
+                        {
+                            GameMode = "chronicle";
                             GameState = "choosepreferences";
                         }
-
                     }
-
-
                     else if (GameState == "choosefounderoptions")
                     {
                         if (KeysNewlyPressed.Contains(Keys.D1))
@@ -5297,38 +5395,64 @@ namespace Lightrealm
                         }
                         if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            GameState = "founder";
+                            GameState = "ascendant";
+                            AscendantState = "main";
                             GameWorld.ProgressDays(28, true);
 
                             foreach (Civilization c in GameWorld.Civilizations)
                             {
-                                if (c.PrimaryInhabitantRace == GameWorld.Races[CurrentlySelectingRace])
+                                if (c.PrimaryInhabitantRace == Game1.GameWorld.Races[CurrentlySelectingRace])
                                 {
-                                    GamePlayerCivilization = c;
-                                    GameWorld.GamePlayerParty.MapCursorX = c.StartX;
-                                    GameWorld.GamePlayerParty.MapCursorZ = c.StartZ;
+                                    GameWorld.GamePlayerAssociation = new Association(new EntityList<Architect>() { c.Alpha }, "political", c.Alpha, c.Capitol, true);
+
+                                    //TODO: IMPLEMENT MORE RESOURCES FOR YOUR CIV TO WORK WITH HERE, and change the message from "symbol" to "autocrat" or "supreme leader" idk, just signify power levels.
+
+                                    Announcements.Add(new TextStorage("As alpha of " + c.Name + " and founder of " + Game1.GameWorld.GamePlayerAssociation.Name + ", " + c.Alpha.Name + " is an intriguing individual. True power does not come from petty titles, however. Gather influence throughout your lands, and who knows? Perhaps in time your power shall rise and you shall accomplish what those before you could not.", Color.HotPink, new EntityList<Entity>(){}));
+
+                                    MostRecentPartyTurnArchitect = c.Alpha;
+
+                                    GameWorld.GamePlayerAssociation.AscendantX = c.StartX;
+                                    GameWorld.GamePlayerAssociation.AscendantZ = c.StartZ;
+
+                                    GameWorld.GamePlayerAssociation.LatestHistoricalAnalysisIndex = GameWorld.HistoricalEvents.Count;
+
+
+                                    Game1.GameWorld.RevealNearbyTiles(Game1.GameWorld.GamePlayerAssociation.AscendantX, Game1.GameWorld.GamePlayerAssociation.AscendantZ, 24, false);
+
                                     break;
                                 }
                             }
                         }
                     }
-                    else if (GameState == "founder")
+                    else if (GameState == "ascendant")
                     {
-                        if (KeysNewlyPressed.Contains(Keys.Enter))
+                        while (GameWorld.HistoricalEvents.Count > GameWorld.GamePlayerAssociation.LatestHistoricalAnalysisIndex)
                         {
-                            GameWorld.ProgressDays(28, true);
+                            var (color, isRelevant) = GameWorld.GamePlayerAssociation.TestForRelevance(GameWorld.HistoricalEvents[GameWorld.GamePlayerAssociation.LatestHistoricalAnalysisIndex]);
+
+                            if (isRelevant)
+                            {
+                                Announcements.Add(new TextStorage(GameWorld.HistoricalEvents[GameWorld.GamePlayerAssociation.LatestHistoricalAnalysisIndex].EventData, color, new EntityList<Entity>(){}));
+                            }
+
+                            GameWorld.GamePlayerAssociation.LatestHistoricalAnalysisIndex++;
                         }
+
+
+
+
+
+
+
+
                         if (KeysNewlyPressed.Contains(Keys.R) || KeysNewlyPressed.Contains(Keys.T) || KeysNewlyPressed.Contains(Keys.D) || KeysNewlyPressed.Contains(Keys.G) || KeysNewlyPressed.Contains(Keys.C) || KeysNewlyPressed.Contains(Keys.V) || KeysNewlyPressed.Contains(Keys.NumPad7) || KeysNewlyPressed.Contains(Keys.NumPad9) || KeysNewlyPressed.Contains(Keys.NumPad4) || KeysNewlyPressed.Contains(Keys.NumPad6) || KeysNewlyPressed.Contains(Keys.NumPad1) || KeysNewlyPressed.Contains(Keys.NumPad3))
                         {
-                            //use GamePlayer.GameWorld.GamePlayerParty.MapCursorX++; GamePlayer.GameWorld.GamePlayerParty.MapCursorZ++; --, etc.
-
                             int DeltaX = 0;
                             int DeltaZ = 0;
 
-                            if (GameWorld.GamePlayerParty.MapCursorZ % 2 == 0)
+                            if (GameWorld.GamePlayerAssociation.AscendantZ % 2 == 0)
                             {
-                                //every other row starting with the top one
-
+                                // Even rows: Offset positions
                                 if (KeysNewlyPressed.Contains(Keys.R) || KeysNewlyPressed.Contains(Keys.NumPad7))
                                 {
                                     DeltaX = -1;
@@ -5358,8 +5482,7 @@ namespace Lightrealm
                             }
                             else
                             {
-                                //every other row starting with the second-to-top one
-
+                                // Odd rows: Different offset positions
                                 if (KeysNewlyPressed.Contains(Keys.R) || KeysNewlyPressed.Contains(Keys.NumPad7))
                                 {
                                     DeltaZ = -1;
@@ -5388,13 +5511,432 @@ namespace Lightrealm
                                 }
                             }
 
-                            if (!(GameWorld.GamePlayerParty.MapCursorX + DeltaX > GameWorld.Width || GameWorld.GamePlayerParty.MapCursorX + DeltaX < 0 || GameWorld.GamePlayerParty.MapCursorZ + DeltaZ > GameWorld.Length || GameWorld.GamePlayerParty.MapCursorZ + DeltaZ < 0 || GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "void" || GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "ocean" || GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "ethereal"))
+                            int newX = GameWorld.GamePlayerAssociation.AscendantX + DeltaX;
+                            int newZ = GameWorld.GamePlayerAssociation.AscendantZ + DeltaZ;
+
+                            // Ensure the new position is within the map boundaries
+                            if (newX >= 0 && newX < GameWorld.Width && newZ >= 0 && newZ < GameWorld.Length)
                             {
-                                GameWorld.GamePlayerParty.MapCursorX = GameWorld.GamePlayerParty.MapCursorX + DeltaX;
-                                GameWorld.GamePlayerParty.MapCursorZ = GameWorld.GamePlayerParty.MapCursorZ + DeltaZ;
+                                GameWorld.GamePlayerAssociation.AscendantX = newX;
+                                GameWorld.GamePlayerAssociation.AscendantZ = newZ;
                             }
                         }
+
+                        // Handle state changes from the "main" state
+                        if (AscendantState == "main")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.L))
+                            {
+                                AscendantState = "ledger";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.M))
+                            {
+                                AscendantState = "management";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.I))
+                            {
+                                AscendantState = "chooseactinggroup";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.B))
+                            {
+                                AscendantState = "build";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.P))
+                            {
+                                AscendantState = "deployment";
+                            }
+
+                            else if (KeysNewlyPressed.Contains(Keys.D1))
+                            {
+                                GameWorld.ProgressDays(1, true);
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.D2))
+                            {
+                                GameWorld.ProgressDays(7, true);
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.D3))
+                            {
+                                GameWorld.ProgressDays(28, true);
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.D4))
+                            {
+                                for(int I = 0; I < 12; I++)
+                                {
+                                    GameWorld.ProgressDays(28, true);
+                                }
+                            }
+                        }
+                        else if (AscendantState == "deployment")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.Up))
+                            {
+                                AscendantCursor--;
+
+                                if (AscendantCursor < 0)
+                                {
+                                    AscendantCursor = GameWorld.GamePlayerAssociation.Parties.Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down))
+                            {
+                                AscendantCursor++;
+
+                                if (AscendantCursor > GameWorld.GamePlayerAssociation.Parties.Count - 1)
+                                {
+                                    AscendantCursor = 0;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                CurrentlySelectedAscendantParty = GameWorld.GamePlayerAssociation.Parties[AscendantCursor];
+                                AscendantState = "selectrelocation";
+                            }
+                        }
+                        else if (AscendantState == "selectrelocation")
+                        {
+                            Region r = Game1.GameWorld.WorldMap[Game1.GameWorld.GamePlayerAssociation.AscendantX + Game1.GameWorld.GamePlayerAssociation.AscendantZ * Game1.GameWorld.Width];
+                            if (r.Explored && r.Location != null && KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                foreach (Architect a in CurrentlySelectedAscendantParty.Architects)
+                                {
+                                    a.NextMigrationLocation = r.Location;
+                                    GameWorld.ProgressDays(12, true);
+                                }
+
+                                AscendantState = "main";
+                            }
+                        }
+                        else if (AscendantState == "management")
+                        {
+                            int Count = 0;
+                            foreach (Party p in Game1.GameWorld.GamePlayerAssociation.Parties)
+                            {
+                                Count += p.Architects.Count;
+                            }
+
+                            if (KeysNewlyPressed.Contains(Keys.Up))
+                            {
+                                AscendantCursor--;
+
+                                if (AscendantCursor < 0)
+                                {
+                                    AscendantCursor = Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down))
+                            {
+                                AscendantCursor++;
+
+                                if (AscendantCursor > Count - 1)
+                                {
+                                    AscendantCursor = 0;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                int Archindex = 0;
+                                foreach (Party p in Game1.GameWorld.GamePlayerAssociation.Parties)
+                                {
+                                    foreach(Architect a in p.Architects)
+                                    {
+                                        if(Archindex == AscendantCursor)
+                                        {
+                                            CurrentlySelectedAscendantArchitect = a;
+                                            CurrentlySelectedAscendantParty = p;
+                                            break;
+                                        }
+                                        Archindex++;
+                                    }
+                                }
+
+                                AscendantState = "movetoparty";
+                            }
+                        }
+                        else if (AscendantState == "movetoparty")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.Up))
+                            {
+                                AscendantCursor--;
+
+                                if (AscendantCursor < 0)
+                                {
+                                    AscendantCursor = GameWorld.GamePlayerAssociation.Parties.Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down))
+                            {
+                                AscendantCursor++;
+
+                                if (AscendantCursor > GameWorld.GamePlayerAssociation.Parties.Count - 1)
+                                {
+                                    AscendantCursor = 0;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                GameWorld.GamePlayerAssociation.Parties[AscendantCursor].Architects.Add(CurrentlySelectedAscendantArchitect);
+                                CurrentlySelectedAscendantParty.Architects.Remove(CurrentlySelectedAscendantArchitect);
+                                AscendantState = "main";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.N))
+                            {
+                                GameWorld.GamePlayerAssociation.Parties.Add(new Party(new EntityList<Architect>() { CurrentlySelectedAscendantArchitect }, "political", CurrentlySelectedAscendantArchitect, GameWorld.GamePlayerAssociation.Parties[0].Base));
+                            }
+                        }
+                        else if (AscendantState == "chooseactinggroup")
+                        {
+                            int Count = 0;
+                            foreach (Party p in Game1.GameWorld.GamePlayerAssociation.Parties)
+                            {
+                                Count += p.Architects.Count;
+                            }
+
+                            if (KeysNewlyPressed.Contains(Keys.Up))
+                            {
+                                AscendantCursor--;
+
+                                if (AscendantCursor < 0)
+                                {
+                                    AscendantCursor = Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down))
+                            {
+                                AscendantCursor++;
+
+                                if (AscendantCursor > Count - 1)
+                                {
+                                    AscendantCursor = 0;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                int Archindex = 0;
+                                foreach (Party p in Game1.GameWorld.GamePlayerAssociation.Parties)
+                                {
+                                    foreach (Architect a in p.Architects)
+                                    {
+                                        if (Archindex == AscendantCursor)
+                                        {
+                                            CurrentlySelectedAscendantArchitect = a;
+                                            CurrentlySelectedAscendantParty = p;
+                                            break;
+                                        }
+                                        Archindex++;
+                                    }
+                                }
+
+                                AscendantState = "choosedistrict";
+                            }
+                        }
+                        else if (AscendantState == "choosedistrict")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.Up))
+                            {
+                                AscendantCursor--;
+
+                                if (AscendantCursor < 0)
+                                {
+                                    AscendantCursor = CurrentlySelectedAscendantParty.Leader.Location.Districts.Count - 1;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Down))
+                            {
+                                AscendantCursor++;
+
+                                if (AscendantCursor > CurrentlySelectedAscendantParty.Leader.Location.Districts.Count - 1)
+                                {
+                                    AscendantCursor = 0;
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Enter))
+                            {
+                                CurrentlySelectedAscendantDistrict = CurrentlySelectedAscendantParty.Leader.Location.Districts[AscendantCursor];
+
+                                AscendantState = "selectactingmode";
+                            }
+                        }
+                        else if (AscendantState == "selectactingmode")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.I))
+                            {
+                                AscendantState = "selectaction";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.D))
+                            {
+                                AscendantState = "main";
+
+                                GameState = "exposition";
+                                Location newLocation = CurrentlySelectedAscendantParty.Leader.Location;
+                                District newDistrict = CurrentlySelectedAscendantDistrict;
+
+                                // Create a collective arrival message for the party
+                                Exposition.Add(new TextStorage("You arrive at " + newLocation.Name + ", on the outskirts of " + newDistrict.Name + ".", Color.LightBlue, new EntityList<Entity>(){}));
+                                Exposition.Add(new TextStorage("Press SPACE to continue...", Color.LightBlue, new EntityList<Entity>(){}));
+
+                                // Define the blocks on the outskirts of a 7x7 district grid
+                                List<int> outskirtsBlockIndexes = new List<int>
+                                {
+                                    // Top row and bottom row
+                                    0, 1, 2, 3, 4, 5, 6, 42, 43, 44, 45, 46, 47, 48,
+                                    // Left column and right column, excluding corners already included
+                                    7, 14, 21, 28, 35, 13, 20, 27, 34, 41
+                                };
+
+                                // Randomly pick one block from the outskirts
+                                Random r = new Random();
+                                int randomBlockIndex = outskirtsBlockIndexes[r.Next(outskirtsBlockIndexes.Count())];
+                                Block arrivalBlock = newDistrict.DistrictMap[randomBlockIndex];
+
+                                // Load the new location and update all architects
+                                newDistrict.Load();
+                                foreach (Architect architect in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                                {
+                                    architect.Location = newLocation;
+                                    architect.District = newDistrict;
+                                    architect.Block = arrivalBlock;  // Set all architects to the randomly selected outskirts block
+                                    architect.TryingToTravel = false;  // Reset travel intent
+
+                                    int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
+                                    int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+                                    string Date = "(" + Month + "/" + Year + ")";
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + architect.Name + " began a special operation in " + architect.Location.Name + ".", architect.Location.Region, new EntityList<Entity>(){architect, architect.Location}));
+                                }
+
+                            }
+                        }
+                        else if (AscendantState == "selectaction")
+                        {
+                            if (KeysNewlyPressed.Contains(Keys.A))
+                            {
+                                AscendantAction = "artifacttheft";
+                                AscendantState = "chooseactioncomponent";
+
+                                AscendantEntityLedger.Clear();
+                                
+                                foreach(Structure s in CurrentlySelectedAscendantParty.Leader.Location.AllStructures)
+                                {
+                                    if(s.Block.District == CurrentlySelectedAscendantDistrict)
+                                    {
+                                        foreach (Object o in s.HistoricalObjects)
+                                        {
+                                            o.TemporaryStructureStorage = s;
+                                            AscendantEntityLedger.Add(o);
+                                        }
+                                    }
+                                }
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.R))
+                            {
+                                AscendantAction = "razebuilding";
+                                AscendantState = "chooseactioncomponent";
+                                AscendantEntityLedger.Clear();
+                                AscendantEntityLedger.AddRange(CurrentlySelectedAscendantParty.Leader.Location.AllStructures.Where(s => s.Block.District == CurrentlySelectedAscendantDistrict));
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.T))
+                            {
+                                AscendantAction = "takeover";
+                                AscendantState = "initiateaction";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.D))
+                            {
+                                AscendantAction = "killassorted";
+                                AscendantState = "initiateaction";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.K))
+                            {
+                                AscendantAction = "kidnapassorted";
+                                AscendantState = "initiateaction";
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.V))
+                            {
+                                AscendantAction = "killtarget";
+                                AscendantState = "chooseactioncomponent";
+                                AscendantEntityLedger.Clear();
+                                AscendantEntityLedger.AddRange(CurrentlySelectedAscendantDistrict.Architects);
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.Y))
+                            {
+                                AscendantAction = "kidnaptarget";
+                                AscendantState = "chooseactioncomponent";
+                                AscendantEntityLedger.Clear();
+                                AscendantEntityLedger.AddRange(CurrentlySelectedAscendantDistrict.Architects);
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.I))
+                            {
+                                AscendantAction = "incite";
+                                AscendantState = "initiateaction";
+                            }
+                        }
+                        else if (AscendantState == "chooseactioncomponent")
+                        {
+                            int totalEntities = AscendantEntityLedger.Count;
+                            int totalPages = (totalEntities + 9) / 10; // Calculate the total number of pages
+
+                            // Handle selection of entities using number keys 1-9 and 0
+                            for (int i = 0; i < 10; i++)
+                            {
+                                Keys key = (Keys)(i == 9 ? Keys.D0 : Keys.D1 + i);
+                                if (KeysNewlyPressed.Contains(key) && (10 * AscendantPage + i) < totalEntities)
+                                {
+                                    // Select the entity based on the key press
+                                    SelectedAscendantTarget = AscendantEntityLedger[10 * AscendantPage + i];
+                                    AscendantState = "initiateaction"; // Move to the next state after selection
+                                    break;
+                                }
+                            }
+
+                            // Handle page navigation
+                            if (KeysNewlyPressed.Contains(Keys.OemComma)) // Assuming `<` is mapped to OemComma
+                            {
+                                AscendantPage = Math.Max(0, AscendantPage - 1); // Move to the previous page, but not below 0
+                            }
+                            else if (KeysNewlyPressed.Contains(Keys.OemPeriod)) // Assuming `>` is mapped to OemPeriod
+                            {
+                                AscendantPage = Math.Min(totalPages - 1, AscendantPage + 1); // Move to the next page, but not beyond totalPages-1
+                            }
+                        }
+
+                        else if (AscendantState == "initiateaction")
+                        {
+                            //construct the correct entities first
+
+                            EntityList<Entity> Entities = new EntityList<Entity>
+                            {
+                                // Common entities for all actions
+                                CurrentlySelectedAscendantDistrict.Location,
+                                CurrentlySelectedAscendantDistrict
+                            };
+
+                            switch (AscendantAction)
+                            {
+                                case "artifacttheft":
+                                    Entities.Add(((Object)SelectedAscendantTarget).TemporaryStructureStorage);
+                                    Entities.Add(SelectedAscendantTarget);
+                                    break;
+
+                                case "killtarget":
+                                case "kidnaptarget":
+                                    Entities.Add(SelectedAscendantTarget);
+                                    break;
+
+                                    // No need to handle other cases since they only require the common entities
+                            }
+
+                            WorldActionInitiator.InitiateAction(GameWorld, AscendantAction, CurrentlySelectedAscendantParty, Entities);
+
+                            AscendantState = "main";
+                        }
+
+
+
+                        if (KeysNewlyPressed.Contains(Keys.X))
+                        {
+                            AscendantState = "main";
+                        }
                     }
+
+
                     else if (GameState == "choosepreferences")
                     {
                         if (KeysNewlyPressed.Contains(Keys.D1))
@@ -5499,7 +6041,7 @@ namespace Lightrealm
 
                                 // Add announcement for selected inspiration
 
-                                Announcements.Add(new TextStorage($"Your journey begins here. Direct your character to move, conversate, fight, gather, and whatever else you wish. More must lie beyond the borders of your district...", Color.Pink, new EntityList<Entity>()));
+                                Announcements.Add(new TextStorage($"Your journey begins here. Direct your character to move, conversate, fight, gather, and whatever else you wish. More must lie beyond the borders of your district...", Color.Pink, new EntityList<Entity>(){}));
                                 // Move to the next game state
                                 GameState = "architectfound"; // Update GameState
 
@@ -5536,12 +6078,21 @@ namespace Lightrealm
                                         break;
                                     }
                                 }
+
+                                if (a.Grievances.Count > 0)
+                                {
+                                    int shobe = 1;
+                                }
+                                if (a.Location != null && a.Location.TradersAtThisLocation.Count() > 0)
+                                {
+                                    int shobe = 1;
+                                }
                             }
 
                             //keep looking IG
 
 
-                            if(TheChosenOne != null)
+                            if (TheChosenOne != null)
                             {
                                 break;
                             }
@@ -5553,10 +6104,10 @@ namespace Lightrealm
                         if (TheChosenOne != null)
                         {
                             GameState = "architectfound";
-                            GameWorld.GamePlayerParty = new Party(new EntityList<Architect>() { TheChosenOne }, "adventurer", TheChosenOne, TheChosenOne.Location);
+                            GameWorld.GamePlayerAssociation = new Association(new EntityList<Architect>() { TheChosenOne }, "adventurer", TheChosenOne, TheChosenOne.Location, true);
                             MostRecentPartyTurnArchitect = TheChosenOne;
                             TheChosenOne.District.Architects.Remove(TheChosenOne);
-                            TheChosenOne.Group = GameWorld.GamePlayerParty;
+                            TheChosenOne.Group = GameWorld.GamePlayerAssociation.ActiveParty;
 
                             if (CurrentlySelectingHandedness == true)
                             {
@@ -5597,21 +6148,21 @@ namespace Lightrealm
                     {
                         if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            GameWorld.GamePlayerParty.Architects[0].District.Load();
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].District.Load();
 
                             //place player
 
                             int BlockX = Game1.r.Next(0, 7);
                             int BlockZ = Game1.r.Next(0, 7);
 
-                            GameWorld.GamePlayerParty.Architects[0].Block = LoadedArchitects[ArchitectIndex].District.DistrictMap[BlockX + BlockZ * 7];
-                            GameWorld.GamePlayerParty.Architects[0].District.DistrictMap[BlockX + BlockZ * 7].Architects.Add(GameWorld.GamePlayerParty.Architects[0]);
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Block = GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].District.DistrictMap[BlockX + BlockZ * 7];
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].District.DistrictMap[BlockX + BlockZ * 7].Architects.Add(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0]);
 
                             string GenderName = "";
 
-                            if (GameWorld.GamePlayerParty.Architects[0].Age > 16)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Age > 16)
                             {
-                                if (GameWorld.GamePlayerParty.Architects[0].Sex == "male")
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Sex == "male")
                                 {
                                     GenderName = "man";
                                 }
@@ -5622,7 +6173,7 @@ namespace Lightrealm
                             }
                             else
                             {
-                                if (GameWorld.GamePlayerParty.Architects[0].Sex == "male")
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Sex == "male")
                                 {
                                     GenderName = "boy";
                                 }
@@ -5632,89 +6183,89 @@ namespace Lightrealm
                                 }
                             }
 
-                            Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + " is a " + GameWorld.GamePlayerParty.Architects[0].Age + "-year-old " + GenderName + " from " + GameWorld.GamePlayerParty.Architects[0].Location.Name + ". ", Color.Blue, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerParty.Architects[0].Pronoun) + " lives in the " + GameWorld.GamePlayerParty.Architects[0].Location.Districts[Game1.r.Next(GameWorld.GamePlayerParty.Architects[0].Location.Districts.Count())].Name + " district as a " + GameWorld.GamePlayerParty.Architects[0].Profession + ".", Color.Purple, new EntityList<Entity>()));
+                            Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " is a " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Age + "-year-old " + GenderName + " from " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Location.Name + ". ", Color.Blue, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Pronoun) + " lives in the " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Location.Districts[Game1.r.Next(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Location.Districts.Count())].Name + " district as a " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Profession + ".", Color.Purple, new EntityList<Entity>(){}));
 
-                            if (GameWorld.GamePlayerParty.Architects[0].Group != null && GameWorld.GamePlayerParty.Architects[0].Group.Architects.Count() > 1)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group != null && GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Architects.Count() > 1)
                             {
-                                if (GameWorld.GamePlayerParty.Architects[0].Location.Government == GameWorld.GamePlayerParty.Architects[0].Group)
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Location.Government == GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group)
                                 {
-                                    if (GameWorld.GamePlayerParty.Architects[0].Group.Leader == GameWorld.GamePlayerParty.Architects[0])
+                                    if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Leader == GameWorld.GamePlayerAssociation.ActiveParty.Architects[0])
                                     {
-                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerParty.Architects[0].Pronoun) + " is the leader of " + GameWorld.GamePlayerParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerParty.Architects[0].Group.Type + " group that rules " + GameWorld.GamePlayerParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>()));
+                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Pronoun) + " is the leader of " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Type + " group that rules " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>(){}));
                                     }
                                     else
                                     {
-                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerParty.Architects[0].Pronoun) + " is a member of " + GameWorld.GamePlayerParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerParty.Architects[0].Group.Type + " group that rules " + GameWorld.GamePlayerParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>()));
+                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Pronoun) + " is a member of " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Type + " group that rules " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>(){}));
                                     }
                                 }
                                 else
                                 {
-                                    if (GameWorld.GamePlayerParty.Architects[0].Group.Leader == GameWorld.GamePlayerParty.Architects[0])
+                                    if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Leader == GameWorld.GamePlayerAssociation.ActiveParty.Architects[0])
                                     {
-                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerParty.Architects[0].Pronoun) + " is the leader of " + GameWorld.GamePlayerParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerParty.Architects[0].Group.Type + " group based in " + GameWorld.GamePlayerParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>()));
+                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Pronoun) + " is the leader of " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Type + " group based in " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>(){}));
                                     }
                                     else
                                     {
-                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerParty.Architects[0].Pronoun) + " is a member of " + GameWorld.GamePlayerParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerParty.Architects[0].Group.Type + " group based in " + GameWorld.GamePlayerParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>()));
+                                        Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Pronoun) + " is a member of " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Name + ", a " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Type + " group based in " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Leader.Location.Name + ", with " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Group.Architects.Count() + " members.", Color.Red, new EntityList<Entity>(){}));
                                     }
                                 }
                             }
 
-                            if (GameWorld.GamePlayerParty.Architects[0].ScienceStudyPoints == 0 && GameWorld.GamePlayerParty.Architects[0].CultureStudyPoints == 0 && GameWorld.GamePlayerParty.Architects[0].MagicStudyPoints == 0)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].ScienceStudyPoints == 0 && GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].CultureStudyPoints == 0 && GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].MagicStudyPoints == 0)
                             {
-                                Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerParty.Architects[0].Name + " finds " + GameWorld.GamePlayerParty.Architects[0].FavoriteScienceField + ", " + GameWorld.GamePlayerParty.Architects[0].FavoriteCultureField + ", and " + GameWorld.GamePlayerParty.Architects[0].FavoriteMagicField + " magic very intriguing."), Color.Orange, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(Capitalize(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " finds " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteScienceField + ", " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteCultureField + ", and " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteMagicField + " magic very intriguing."), Color.Orange, new EntityList<Entity>(){}));
                             }
-                            if (GameWorld.GamePlayerParty.Architects[0].ScienceStudyPoints > 0)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].ScienceStudyPoints > 0)
                             {
-                                Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + " studies " + GameWorld.GamePlayerParty.Architects[0].FavoriteScienceField + " very avidly.", Color.Orange, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " studies " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteScienceField + " very avidly.", Color.Orange, new EntityList<Entity>(){}));
                             }
-                            if (GameWorld.GamePlayerParty.Architects[0].CultureStudyPoints > 0)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].CultureStudyPoints > 0)
                             {
-                                Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + " composes " + GameWorld.GamePlayerParty.Architects[0].FavoriteCultureField + ", and explores it relentlessly.", Color.Orange, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " composes " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteCultureField + ", and explores it relentlessly.", Color.Orange, new EntityList<Entity>(){}));
                             }
-                            if (GameWorld.GamePlayerParty.Architects[0].MagicStudyPoints > 0)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].MagicStudyPoints > 0)
                             {
-                                Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + " practices " + GameWorld.GamePlayerParty.Architects[0].FavoriteMagicField + " magic, and dedicates much research to it's pursuit.", Color.Orange, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " practices " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteMagicField + " magic, and dedicates much research to it's pursuit.", Color.Orange, new EntityList<Entity>(){}));
                             }
 
-                            GameWorld.GamePlayerParty.Architects[0].Strength = StoredStr;
-                            GameWorld.GamePlayerParty.Architects[0].Dexterity = StoredDex;
-                            GameWorld.GamePlayerParty.Architects[0].Agility = StoredAgl;
-                            GameWorld.GamePlayerParty.Architects[0].Charisma = StoredCha;
-                            GameWorld.GamePlayerParty.Architects[0].Focus = StoredFoc;
-                            GameWorld.GamePlayerParty.Architects[0].Creativity = StoredCre;
-                            GameWorld.GamePlayerParty.Architects[0].Endurance = StoredEnd;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Strength = StoredStr;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Dexterity = StoredDex;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Agility = StoredAgl;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Charisma = StoredCha;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Focus = StoredFoc;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Creativity = StoredCre;
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Endurance = StoredEnd;
 
-                            GameWorld.GamePlayerParty.Architects[0].Energy = GameWorld.GamePlayerParty.Architects[0].MaxEnergy();
+                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Energy = GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].MaxEnergy();
 
 
-                            Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + " has a deep appreciation for " + GameWorld.GamePlayerParty.Architects[0].FavoriteCloth.Name + ", " + GameWorld.GamePlayerParty.Architects[0].FavoriteStone.Name + ", " + GameWorld.GamePlayerParty.Architects[0].FavoriteWood.Name + ", " + GameWorld.GamePlayerParty.Architects[0].FavoriteGemstone.Name + ", and " + GameWorld.GamePlayerParty.Architects[0].FavoriteMetal.Name + ".", Color.Orange, new EntityList<Entity>()));
+                            Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " has a deep appreciation for " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteCloth.Name + ", " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteStone.Name + ", " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteWood.Name + ", " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteGemstone.Name + ", and " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteMetal.Name + ".", Color.Orange, new EntityList<Entity>(){}));
                             Exposition.Add(new TextStorage(
-                            Capitalize($"{GameWorld.GamePlayerParty.Architects[0].Pronoun} has ") +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Strength)} strength, " +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Agility)} agility, " +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Dexterity)} dexterity, " +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Endurance)} endurance, " +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Creativity)} creativity, " +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Charisma)} charisma, and " +
-                            $"{GameWorld.GamePlayerParty.Architects[0].GetDescription(GameWorld.GamePlayerParty.Architects[0].Focus)} focus.", Color.Purple, new EntityList<Entity>()));
+                            Capitalize($"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Pronoun} has ") +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Strength)} strength, " +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Agility)} agility, " +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Dexterity)} dexterity, " +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Endurance)} endurance, " +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Creativity)} creativity, " +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Charisma)} charisma, and " +
+                            $"{GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].GetDescription(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Focus)} focus.", Color.Purple, new EntityList<Entity>(){}));
 
 
 
-                            if (GameWorld.GamePlayerParty.Architects[0].FavoriteBook == null)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteBook == null)
                             {
-                                Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + " has been taught to read, but never found any interesting books.", Color.Yellow, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " has been taught to read, but never found any interesting books.", Color.Yellow, new EntityList<Entity>(){}));
                             }
                             else
                             {
-                                Exposition.Add(new TextStorage(GameWorld.GamePlayerParty.Architects[0].Name + "'s favorite book is " + GameWorld.GamePlayerParty.Architects[0].FavoriteBook.Name + ", a book primarily on the subject of " + GameWorld.GamePlayerParty.Architects[0].FavoriteBook.CompositionContent.Subject.Name + ".", Color.Yellow, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + "'s favorite book is " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteBook.Name + ", a book primarily on the subject of " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].FavoriteBook.CompositionContent.Subject.Name + ".", Color.Yellow, new EntityList<Entity>(){}));
                             }
 
-                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>()));
+                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("", Color.Green, new EntityList<Entity>(){}));
 
 
                             string expositionText =
@@ -5724,8 +6275,8 @@ namespace Lightrealm
                             "It has been a long time since " + GrievanceDoer + GrievanceReason +
                             ", but as you hear more about the threat of the organization behind them, the memory continues to burden you. " +
                             "Regardless of your passion, your journey will be quite difficult without proper experience and equipment. " +
-                            "You've saved up a bit of fragments " + ConvertProfessionToCareerDescription[GameWorld.GamePlayerParty.Architects[0].Profession] +
-                            ", but the merchants from " + GameWorld.GamePlayerParty.Architects[0].Location.TradersAtThisLocation[0].Base.Name +
+                            "You've saved up a bit of fragments " + ConvertProfessionToCareerDescription[GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Profession] +
+                            ", but the merchants from " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Location.TradersAtThisLocation[0].Base.Name +
                             " won't be here forever. Perhaps they can assist you in getting some supplies before you embark on your journey. " +
                             "Do not displease them or their debtshibas, and your quest will be glorious and fortunate.";
 
@@ -5752,13 +6303,13 @@ namespace Lightrealm
 
                             foreach (var line in expositionLines)
                             {
-                                Exposition.Add(new TextStorage(line, Color.Aquamarine, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage(line, Color.Aquamarine, new EntityList<Entity>(){}));
                             }
 
-                            Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("Or maybe, " + GameWorld.GamePlayerParty.Architects[0].Name + " can move on, and find a different path.", Color.Magenta, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White, new EntityList<Entity>()));
+                            Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("Or perhaps, " + GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Name + " can move on, and find a different path.", Color.Magenta, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White, new EntityList<Entity>(){}));
 
 
                             GameState = "exposition";
@@ -5766,14 +6317,25 @@ namespace Lightrealm
                     }
                     else if (GameState == "partyturn")
                     {
+
+                        if (KeysNewlyPressed.Contains(Keys.F7))
+                        {
+                            foreach (Architect a in MostRecentPartyTurnArchitect.Room != null ? MostRecentPartyTurnArchitect.Room.Architects : MostRecentPartyTurnArchitect.Block.Architects)
+                            {
+                                if (a != MostRecentPartyTurnArchitect)
+                                {
+                                    a.Energy = 0;
+                                }
+                            }
+                        }
+
                         if (SpeechToText)
                         {
                             if (KeysNewlyPressed.Contains(Keys.RightAlt))
                             {
                                 if (!_isRecording)
                                 {
-                                    //enabling split mode is kinda required ngl
-
+                                    // Enabling split mode is kind of required
                                     SplitMode = true;
 
                                     foreach (Architect a in LoadedArchitects)
@@ -5796,18 +6358,35 @@ namespace Lightrealm
                                         }
                                     }
 
-                                    //START recording
+                                    // Start recording
                                     _recognizer = new VoskRecognizer(VoskModel, 16000.0f);
                                     _recognizer.SetMaxAlternatives(0);
                                     _recognizer.SetWords(true);
 
-                                    _waveIn = new WaveInEvent();
-                                    _waveIn.DeviceNumber = DeviceNumber;
-                                    _waveIn.WaveFormat = new WaveFormat(16000, 1);
+                                    PortAudio.Initialize();
 
-                                    _waveIn.DataAvailable += (sender, args) =>
+                                    var inputParameters = new StreamParameters
                                     {
-                                        if (_recognizer.AcceptWaveform(args.Buffer, args.BytesRecorded))
+                                        device = DeviceNumber,
+                                        channelCount = 1,
+                                        sampleFormat = SampleFormat.Int16,
+                                        suggestedLatency = PortAudio.GetDeviceInfo(DeviceNumber).defaultLowInputLatency,
+                                        hostApiSpecificStreamInfo = IntPtr.Zero
+                                    };
+
+                                    PortAudioSharp.Stream.Callback callback = (IntPtr input, IntPtr output,
+                                        UInt32 frameCount,
+                                        ref StreamCallbackTimeInfo timeInfo,
+                                        StreamCallbackFlags statusFlags,
+                                        IntPtr userData) =>
+                                    {
+                                        short[] samples = new short[frameCount];
+                                        Marshal.Copy(input, samples, 0, (int)frameCount);
+
+                                        byte[] byteArray = new byte[samples.Length * sizeof(short)];
+                                        Buffer.BlockCopy(samples, 0, byteArray, 0, byteArray.Length);
+
+                                        if (_recognizer.AcceptWaveform(byteArray, byteArray.Length))
                                         {
                                             var result = _recognizer.Result();
                                             DisplayResult(result);
@@ -5817,14 +6396,28 @@ namespace Lightrealm
                                             var partialResult = _recognizer.PartialResult();
                                             DisplayResult(partialResult);
                                         }
+
+                                        return StreamCallbackResult.Continue;
                                     };
 
-                                    _waveIn.StartRecording();
+                                    _stream = new PortAudioSharp.Stream(
+                                        inParams: inputParameters,
+                                        outParams: null,
+                                        sampleRate: 16000,
+                                        framesPerBuffer: 256,
+                                        streamFlags: StreamFlags.ClipOff,
+                                        callback: callback,
+                                        userData: IntPtr.Zero
+                                    );
+
+                                    _stream.Start();
                                     _isRecording = true;
                                 }
                                 else if (_isRecording)
                                 {
-                                    _waveIn.StopRecording();
+                                    _stream.Stop();
+                                    _stream.Dispose();
+                                    PortAudio.Terminate();
                                     _isRecording = false;
                                 }
                             }
@@ -5931,9 +6524,9 @@ namespace Lightrealm
                         }
 
 
-                        if (!GameWorld.GamePlayerParty.ReceivedPartyAdvice && GameWorld.GamePlayerParty.Architects.Count() > 1)
+                        if (!GameWorld.GamePlayerAssociation.ActiveParty.ReceivedPartyAdvice && GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() > 1)
                         {
-                            GameWorld.GamePlayerParty.ReceivedPartyAdvice = true;
+                            GameWorld.GamePlayerAssociation.ActiveParty.ReceivedPartyAdvice = true;
 
                             MakeObservation("While in a party, you will switch between each member and control them manually.", Color.HotPink, new EntityList<Entity>());
                             MakeObservation("Press Right Control or the Lock Symbol by the District Map to toggle Group-Move.", Color.HotPink, new EntityList<Entity>());
@@ -5942,11 +6535,11 @@ namespace Lightrealm
                         }
 
 
-                        if (GameWorld.GamePlayerParty.Architects.Count() == 0)
+                        if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                         {
                             GameState = "dead";
                         }
-                        else if (!(GameWorld.GamePlayerParty.Architects.Contains(LoadedArchitects[ArchitectIndex])))
+                        else if (!(GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(LoadedArchitects[ArchitectIndex])))
                         {
                             GameState = "otherturn";
                         }
@@ -6056,7 +6649,7 @@ namespace Lightrealm
                                     SelectedCommand = commands[index];
                                     // Set up RelevantEntities based on the selected command's required subjects
 
-                                    if(RecognizedCommands[SelectedCommand].Item2.Count > 0)
+                                    if (RecognizedCommands[SelectedCommand].Item2.Count > 0)
                                     {
                                         SetUpRelevantEntities(RecognizedCommands[SelectedCommand].Item2[0]);
                                         // Sort RelevantEntities by proximity score
@@ -6102,7 +6695,7 @@ namespace Lightrealm
                                         }
                                         else if (KeysNewlyPressed.Contains(Keys.S) || KeysNewlyPressed.Contains(Keys.Right))
                                         {
-                                            if (CurrentCommandBuilderPage < (MaxCommandBuilderPage-1))
+                                            if (CurrentCommandBuilderPage < (MaxCommandBuilderPage - 1))
                                             {
                                                 CurrentCommandBuilderPage++;
                                             }
@@ -6134,7 +6727,7 @@ namespace Lightrealm
 
                                 if (CommandBuilderStage == "execution")
                                 {
-                                    CommandProcessor.RunCommand(MostRecentPartyTurnArchitect, SelectedCommand, SelectedEntities, LoadedArchitects, GameWorld, r, GameWorld.GamePlayerParty, "attacks");
+                                    CommandProcessor.RunCommand(MostRecentPartyTurnArchitect, SelectedCommand, SelectedEntities, LoadedArchitects, GameWorld, r, "attacks");
                                     ThisList.Clear();
                                     ResetCommandBuilder();
                                 }
@@ -6171,13 +6764,13 @@ namespace Lightrealm
                         else
                         {
                             MostRecentPartyTurnArchitect = LoadedArchitects[ArchitectIndex];
-                            foreach (Architect a in GameWorld.GamePlayerParty.Architects)
+                            foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                             {
                                 a.ReferredToNames.Remove("myself");
                                 a.ReferredToNames.Remove("me");
                             }
-                            MostRecentPartyTurnArchitect.ReferredToNames.Add("myself");
-                            MostRecentPartyTurnArchitect.ReferredToNames.Add("me");
+                            MostRecentPartyTurnArchitect.AddReferredToName("myself");
+                            MostRecentPartyTurnArchitect.AddReferredToName("me");
 
                             if (LoadedArchitects[ArchitectIndex].CooldownCycles == 0 && LoadedArchitects[ArchitectIndex].IsAlive && LoadedArchitects[ArchitectIndex].HoldCycles == 0 && LoadedArchitects[ArchitectIndex].UnconsciousCycles == 0)
                             {
@@ -6209,7 +6802,7 @@ namespace Lightrealm
 
                                     if (match.Success)
                                     {
-                                        GameWorld.GamePlayerParty.UsedThis = true;
+                                        GameWorld.GamePlayerAssociation.ActiveParty.UsedThis = true;
 
                                         // Replace the first instance of "this" with the referredToName
                                         prompt = prompt.Substring(0, match.Index) + entity.ID.ToString() + prompt.Substring(match.Index + match.Length);
@@ -6546,9 +7139,9 @@ namespace Lightrealm
                                         }
                                         else if (KeysNewlyPressed.Contains(Keys.Enter) || (currentMouseState.RightButton == ButtonState.Pressed && previousMouseState.RightButton == ButtonState.Released))
                                         {
-                                            GameWorld.GamePlayerParty.RanCommands++;
+                                            GameWorld.GamePlayerAssociation.ActiveParty.RanCommands++;
 
-                                            if(GameWorld.GamePlayerParty.RanCommands == 3 && GameWorld.GamePlayerParty.UsedThis == false)
+                                            if (GameWorld.GamePlayerAssociation.ActiveParty.RanCommands == 3 && GameWorld.GamePlayerAssociation.ActiveParty.UsedThis == false)
                                             {
                                                 MakeObservation("To speed things up, you can press F3 to enable split mode. Using this, you can replace any instance of the word \"this\" in your prompt with any subject by clicking their name. For instance, try pressing F3, typing \"ask this their name\" and click a nearby person in the sentient list.", Color.LightSkyBlue, new EntityList<Entity>());
                                             }
@@ -6601,7 +7194,7 @@ namespace Lightrealm
 
                                             foreach (Object o in MostRecentPartyTurnArchitect.BodyParts)
                                             {
-                                                o.ReferredToNames.Add("my " + o.Type);
+                                                o.AddReferredToName("my " + o.Type);
                                             }
 
                                             if (commandParts.Length > 0)
@@ -6654,7 +7247,7 @@ namespace Lightrealm
 
                                                     // Assuming `RunCommand` is adapted to accept a command ID
                                                     ThisList.Clear();
-                                                    return CommandProcessor.RunCommand(executor, commandId, subjects, LoadedArchitects, GameWorld, r, GameWorld.GamePlayerParty, userInput);
+                                                    return CommandProcessor.RunCommand(executor, commandId, subjects, LoadedArchitects, GameWorld, r, userInput);
                                                 }
 
                                                 // This would be called in your game loop or command handling part
@@ -6765,7 +7358,7 @@ namespace Lightrealm
                                             {
                                                 if (StoredDirection != "")
                                                 {
-                                                    foreach (Architect a in GameWorld.GamePlayerParty.Architects)
+                                                    foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                                                     {
                                                         if (a != MostRecentPartyTurnArchitect)
                                                         {
@@ -6827,7 +7420,7 @@ namespace Lightrealm
                             {
                                 if (PlayerSpendableLevelsLastTick < MostRecentPartyTurnArchitect.SpendableLevels && MostRecentPartyTurnArchitect.SpendableLevels > 0)
                                 {
-                                    Announcements.Add(new TextStorage("You have leveled up to level " + MostRecentPartyTurnArchitect.Level + ". You have a new spendable level in Inventory.", Color.AliceBlue, new EntityList<Entity>()));
+                                    Announcements.Add(new TextStorage("You have leveled up to level " + MostRecentPartyTurnArchitect.Level + ". You have a new spendable level in Inventory.", Color.AliceBlue, new EntityList<Entity>(){}));
                                 }
                                 PlayerSpendableLevelsLastTick = MostRecentPartyTurnArchitect.SpendableLevels;
 
@@ -6870,7 +7463,7 @@ namespace Lightrealm
                             };
 
                             // Add the historical events to the list
-                            fileContent.AddRange(GameWorld.HistoricalEvents);
+                            fileContent.AddRange(GameWorld.HistoricalEvents.Select(e => e.EventData));
 
                             // Write the content to the file
                             File.WriteAllLines(Path.Combine(saveFolder, $"history.txt"), fileContent.ToArray());
@@ -6889,7 +7482,7 @@ namespace Lightrealm
                     }
                     else if (GameState == "otherturn")
                     {
-                        StoredAttacks.Clear();
+                        StoredAttack = null;
 
                         // We initialize a loop that continues until we find a party member or trigger a reaction state
                         while (true)
@@ -6898,26 +7491,30 @@ namespace Lightrealm
                             ArchitectIndex %= LoadedArchitects.Count();
                             Architect currentArchitect = LoadedArchitects[ArchitectIndex];
 
-                            EntityList<Attack> newAttacks = currentArchitect.UpdateSelfActionsAndSuch();
-                            StoredAttacks.AddRange(newAttacks);
+                            Attack attack = currentArchitect.UpdateSelfActionsAndSuch();
 
-                            foreach (var attack in newAttacks)
+                            if (attack != null)
                             {
                                 if (attack.Attacker.IsAlive == false)
                                 {
                                     continue;
                                 }
 
-                                if (GameWorld.GamePlayerParty.Architects.Any(a => a.BodyParts.Contains(attack.Target)))
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Any(a => a.BodyParts.Contains(attack.Target)))
                                 {
+                                    StoredAttack = attack;
                                     GameState = "reaction";
+                                }
+                                else
+                                {
+                                    CalculateAttack(attack.Verb, attack.Attacker, attack.Target, "decideforme", attack.Weapon);
                                 }
                             }
 
                             if (GameState == "reaction") break; // If reaction state is triggered, exit early
 
                             // If the architect is a party member, switch to party turn and break
-                            if (GameWorld.GamePlayerParty.Architects.Contains(currentArchitect) && !currentArchitect.TemporarilyIncapacitated())
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(currentArchitect) && !currentArchitect.TemporarilyIncapacitated())
                             {
                                 if (currentArchitect.RuptureMode == true)
                                 {
@@ -6958,7 +7555,7 @@ namespace Lightrealm
                             int DeltaX = 0;
                             int DeltaZ = 0;
 
-                            if (GameWorld.GamePlayerParty.MapCursorZ % 2 == 0)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ % 2 == 0)
                             {
                                 //every other row starting with the top one
 
@@ -7021,10 +7618,10 @@ namespace Lightrealm
                                 }
                             }
 
-                            if (!(GameWorld.GamePlayerParty.MapCursorX + DeltaX > GameWorld.Width || GameWorld.GamePlayerParty.MapCursorX + DeltaX < 0 || GameWorld.GamePlayerParty.MapCursorZ + DeltaZ > GameWorld.Length || GameWorld.GamePlayerParty.MapCursorZ + DeltaZ < 0))
+                            if (!(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX > GameWorld.Width || GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX < 0 || GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ > GameWorld.Length || GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ < 0))
                             {
-                                GameWorld.GamePlayerParty.MapCursorX += DeltaX;
-                                GameWorld.GamePlayerParty.MapCursorZ += DeltaZ;
+                                GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX += DeltaX;
+                                GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ += DeltaZ;
                             }
 
                         }
@@ -7032,7 +7629,7 @@ namespace Lightrealm
 
                         if (KeysNewlyPressed.Contains(Keys.Enter))
                         {
-                            GameWorld.TriggerRupture(GameWorld.GamePlayerParty.MapCursorX, GameWorld.GamePlayerParty.MapCursorZ, MostRecentPartyTurnArchitect, 10);
+                            GameWorld.TriggerRupture(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, MostRecentPartyTurnArchitect, 10);
 
                             MostRecentPartyTurnArchitect.RuptureMode = false;
 
@@ -7040,15 +7637,15 @@ namespace Lightrealm
                             {
                                 MakeObservation(MostRecentPartyTurnArchitect.Name + " successfully killed themselves in the fractal rift. How embarrassing...", Color.Magenta, new EntityList<Entity>() { LoadedArchitects[ArchitectIndex] });
                                 MostRecentPartyTurnArchitect.IsAlive = false;
-                                if (GameWorld.GamePlayerParty.Architects.Contains(MostRecentPartyTurnArchitect))
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(MostRecentPartyTurnArchitect))
                                 {
-                                    GameWorld.GamePlayerParty.Architects.Remove(MostRecentPartyTurnArchitect);
+                                    GameWorld.GamePlayerAssociation.ActiveParty.Architects.Remove(MostRecentPartyTurnArchitect);
 
-                                    if (GameWorld.GamePlayerParty.Architects.Count() == 0)
+                                    if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                                     {
                                         GameState = "dead";
 
-                                        if (GameWorld.GamePlayerParty.Architects.Count() == 0)
+                                        if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 0)
                                         {
                                             GameState = "dead";
                                         }
@@ -7059,7 +7656,7 @@ namespace Lightrealm
                             {
                                 IncrementAndCycleWorld();
 
-                                if (GameWorld.GamePlayerParty.Architects.Contains(MostRecentPartyTurnArchitect))
+                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(MostRecentPartyTurnArchitect))
                                 {
                                     GameState = "partyturn";
                                 }
@@ -7074,11 +7671,11 @@ namespace Lightrealm
                     else if (GameState == "reaction")
                     {
                         // Check if the target's creator has HoldCycles or UnconsciousCycles
-                        if (StoredAttacks.Count() > 0 &&
-                            ((Architect)(StoredAttacks[0].Target.Creator)).HoldCycles > 0 || ((Architect)(StoredAttacks[0].Target.Creator)).UnconsciousCycles > 0)
+                        if (StoredAttack != null &&
+                            ((Architect)(StoredAttack.Target.Creator)).HoldCycles > 0 || ((Architect)(StoredAttack.Target.Creator)).UnconsciousCycles > 0)
                         {
-                            CalculateAttack(StoredAttacks[0].Verb, StoredAttacks[0].Attacker, StoredAttacks[0].Target, "sustain", StoredAttacks[0].Weapon);
-                            StoredAttacks.RemoveAt(0);
+                            CalculateAttack(StoredAttack.Verb, StoredAttack.Attacker, StoredAttack.Target, "sustain", StoredAttack.Weapon);
+                            StoredAttack = null;
                         }
                         else if (KeysNewlyPressed.Any(key => key == Keys.S || key == Keys.P || key == Keys.B || key == Keys.D || key == Keys.J || key == Keys.R || key == Keys.N || key == Keys.C))
                         {
@@ -7115,12 +7712,13 @@ namespace Lightrealm
                                     break;
                             }
 
-                            CalculateAttack(StoredAttacks[0].Verb, StoredAttacks[0].Attacker, StoredAttacks[0].Target, Action, StoredAttacks[0].Weapon);
-                            StoredAttacks.RemoveAt(0);
+                            CalculateAttack(StoredAttack.Verb, StoredAttack.Attacker, StoredAttack.Target, Action, StoredAttack.Weapon);
+                            StoredAttack = null;
                         }
 
-                        if (StoredAttacks.Count() == 0)
+                        if (StoredAttack == null)
                         {
+                            IncrementAndCycleWorld();
                             GameState = "otherturn";
                         }
                     }
@@ -7336,11 +7934,11 @@ namespace Lightrealm
 
                         if (KeysNewlyPressed.Contains(Keys.A))
                         {
-                            GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].RegionallyExplored = true;
+                            GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].DeepExplored = true;
 
-                            if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation != null)
+                            if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location != null)
                             {
-                                GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation.Explored = true;
+                                GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location.Explored = true;
                             }
                         }
 
@@ -7355,7 +7953,7 @@ namespace Lightrealm
                             int DeltaX = 0;
                             int DeltaZ = 0;
 
-                            if (GameWorld.GamePlayerParty.MapCursorZ % 2 == 0)
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ % 2 == 0)
                             {
                                 //every other row starting with the top one
 
@@ -7418,21 +8016,21 @@ namespace Lightrealm
                                 }
                             }
 
-                            if (!(GameWorld.GamePlayerParty.MapCursorX + DeltaX >= GameWorld.Width || GameWorld.GamePlayerParty.MapCursorX + DeltaX < 0 || GameWorld.GamePlayerParty.MapCursorZ + DeltaZ >= GameWorld.Length || GameWorld.GamePlayerParty.MapCursorZ + DeltaZ < 0))
+                            if (!(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX >= GameWorld.Width || GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX < 0 || GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ >= GameWorld.Length || GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ < 0))
                             {
-                                bool isDestinationOcean = GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "ocean";
-                                bool isDestinationVoid = GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "void";
-                                bool isDestinationEthereal = GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "ethereal";
-                                bool isDestinationPort = (!string.IsNullOrEmpty(GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].PortName)) || (GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].MyLocation != null && GameWorld.WorldMap[(GameWorld.GamePlayerParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerParty.MapCursorZ + DeltaZ) * GameWorld.Width)].MyLocation.Type == "cove");
-                                bool isCurrentLocationWater = GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + (GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width)].Biome == "ocean";
+                                bool isDestinationOcean = GameWorld.WorldMap[(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "ocean";
+                                bool isDestinationVoid = GameWorld.WorldMap[(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "void";
+                                bool isDestinationEthereal = GameWorld.WorldMap[(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Biome == "ethereal";
+                                bool isDestinationPort = (!string.IsNullOrEmpty(GameWorld.WorldMap[(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ) * GameWorld.Width)].PortName)) || (GameWorld.WorldMap[(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Location != null && GameWorld.WorldMap[(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + DeltaX) + ((GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ + DeltaZ) * GameWorld.Width)].Location.Type == "cove");
+                                bool isCurrentLocationWater = GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + (GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width)].Biome == "ocean";
 
                                 // Allow moving to an ocean tile if it has a port, and always allow moving from water to any tile
                                 if (!isDestinationVoid && !isDestinationEthereal && (isCurrentLocationWater || (!isDestinationOcean || isDestinationPort)))
                                 {
-                                    GameWorld.GamePlayerParty.MapCursorX += DeltaX;
-                                    GameWorld.GamePlayerParty.MapCursorZ += DeltaZ;
+                                    GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX += DeltaX;
+                                    GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ += DeltaZ;
 
-                                    GameWorld.RevealNearbyTiles(GameWorld.GamePlayerParty.MapCursorX, GameWorld.GamePlayerParty.MapCursorZ);
+                                    Game1.GameWorld.RevealNearbyTiles(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, 3, true);
 
                                     //events lmaoooooz
 
@@ -7445,7 +8043,7 @@ namespace Lightrealm
 
 
 
-                                    GameWorld.Cycle += (int)Math.Round(18000 / GameWorld.GamePlayerParty.Architects.Min(architect => architect.Speed()));
+                                    GameWorld.Cycle += (int)Math.Round(18000 / GameWorld.GamePlayerAssociation.ActiveParty.Architects.Min(architect => architect.Speed()));
 
                                     int currentDay = (int)Math.Round((double)GameWorld.Cycle / 864000);
 
@@ -7456,20 +8054,16 @@ namespace Lightrealm
                                     }
 
 
-
-
-
-
                                     if (StoredEvent != null)
                                     {
-                                        if (StoredEvent.Region.X != GameWorld.GamePlayerParty.MapCursorX || StoredEvent.Region.Z != GameWorld.GamePlayerParty.MapCursorZ)
+                                        if (StoredEvent.Region.X != GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX || StoredEvent.Region.Z != GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ)
                                         {
                                             StoredEvent = null;
                                         }
                                     }
                                     else
                                     {
-                                        foreach (InteractableEvent e in GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].Events)
+                                        foreach (InteractableEvent e in GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Events)
                                         {
                                             if (r.Next(1, 4) != 1) //2/3 chance, you might miss it idk
                                             {
@@ -7484,7 +8078,7 @@ namespace Lightrealm
 
                         }
 
-                        if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation == null)
+                        if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location == null)
                         {
                             Dictionary<string, List<string>> biomeDictionary = new Dictionary<string, List<string>>();
 
@@ -7498,72 +8092,72 @@ namespace Lightrealm
                             biomeDictionary["taiga"] = new List<string> { "ice", "wood" };
                             biomeDictionary["void"] = new List<string> { "nothing" };
 
-                            if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].Biome == "ocean")
+                            if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Biome == "ocean")
                             {
-                                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].PortName != "")
+                                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].PortName != "")
                                 {
-                                    Exposition.Add(new TextStorage("You can leave this port to start sailing.", Color.LightBlue, new EntityList<Entity>()));
+                                    Exposition.Add(new TextStorage("You can leave this port to start sailing.", Color.LightBlue, new EntityList<Entity>(){}));
                                 }
                                 else
                                 {
-                                    Exposition.Add(new TextStorage("You are currently sailing.", Color.LightBlue, new EntityList<Entity>()));
+                                    Exposition.Add(new TextStorage("You are currently sailing.", Color.LightBlue, new EntityList<Entity>(){}));
                                 }
                             }
                             else
                             {
-                                Exposition.Add(new TextStorage("The area is vacant and beautiful.", Color.Magenta, new EntityList<Entity>()));
-                                Exposition.Add(new TextStorage("You could gather " + ConvertListToString(biomeDictionary[GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * 128].Biome]) + " here.", Color.Magenta, new EntityList<Entity>()));
-                                Exposition.Add(new TextStorage("Press [S] to stop here.", Color.Magenta, new EntityList<Entity>()));
+                                Exposition.Add(new TextStorage("The area is vacant and beautiful.", Color.Magenta, new EntityList<Entity>(){}));
+                                Exposition.Add(new TextStorage("You could gather " + ConvertListToString(biomeDictionary[GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * 128].Biome]) + " here.", Color.Magenta, new EntityList<Entity>(){}));
+                                Exposition.Add(new TextStorage("Press [S] to stop here.", Color.Magenta, new EntityList<Entity>(){}));
                             }
                         }
 
                         if (StoredEvent != null)
                         {
                             Exposition.Clear();
-                            Exposition.Add(new TextStorage(StoredEvent.Intrigue, Color.LimeGreen, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("Press [E] to approach.", Color.Red, new EntityList<Entity>()));
+                            Exposition.Add(new TextStorage(StoredEvent.Intrigue, Color.LimeGreen, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("Press [E] to approach.", Color.Red, new EntityList<Entity>(){}));
                         }
 
 
 
-                        if (KeysNewlyPressed.Contains(Keys.S) && GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation == null && !Keyboard.GetState().IsKeyDown(Keys.LeftControl))
+                        if (KeysNewlyPressed.Contains(Keys.S) && GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location == null && !Keyboard.GetState().IsKeyDown(Keys.LeftControl))
                         {
                             GameState = "gathering";
                         }
                         else if (KeysNewlyPressed.Contains(Keys.E) && StoredEvent != null)
                         {
-                            GameWorld.GamePlayerParty.CurrentEvent = StoredEvent;
+                            GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent = StoredEvent;
                             GameState = "exposition";
                             StoredEvent = null;
                         }
 
                         if (KeysNewlyPressed.Contains(Keys.OemComma))
                         {
-                            GameWorld.GamePlayerParty.MapCursorDistrict -= 1;
-                            if (GameWorld.GamePlayerParty.MapCursorDistrict < 0)
+                            GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict -= 1;
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict < 0)
                             {
-                                GameWorld.GamePlayerParty.MapCursorDistrict = GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation.Districts.Count() - 1;
+                                GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict = GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location.Districts.Count() - 1;
                             }
                         }
                         if (KeysNewlyPressed.Contains(Keys.OemPeriod))
                         {
-                            GameWorld.GamePlayerParty.MapCursorDistrict += 1;
-                            if (GameWorld.GamePlayerParty.MapCursorDistrict > GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation.Districts.Count() - 1)
+                            GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict += 1;
+                            if (GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict > GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location.Districts.Count() - 1)
                             {
-                                GameWorld.GamePlayerParty.MapCursorDistrict = 0;
+                                GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict = 0;
                             }
                         }
 
 
-                        if (KeysNewlyPressed.Contains(Keys.Enter) && GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation != null)
+                        if (KeysNewlyPressed.Contains(Keys.Enter) && GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location != null)
                         {
                             GameState = "exposition";
-                            Location newLocation = GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Width].MyLocation;
-                            District newDistrict = newLocation.Districts[GameWorld.GamePlayerParty.MapCursorDistrict];
+                            Location newLocation = GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Width].Location;
+                            District newDistrict = newLocation.Districts[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict];
 
                             // Create a collective arrival message for the party
-                            Exposition.Add(new TextStorage("You arrive at " + newLocation.Name + ", on the outskirts of " + newDistrict.Name + ".", Color.LightBlue, new EntityList<Entity>()));
-                            Exposition.Add(new TextStorage("Press SPACE to continue...", Color.LightBlue, new EntityList<Entity>()));
+                            Exposition.Add(new TextStorage("You arrive at " + newLocation.Name + ", on the outskirts of " + newDistrict.Name + ".", Color.LightBlue, new EntityList<Entity>(){}));
+                            Exposition.Add(new TextStorage("Press SPACE to continue...", Color.LightBlue, new EntityList<Entity>(){}));
 
                             // Define the blocks on the outskirts of a 7x7 district grid
                             List<int> outskirtsBlockIndexes = new List<int>
@@ -7579,44 +8173,19 @@ namespace Lightrealm
                             int randomBlockIndex = outskirtsBlockIndexes[r.Next(outskirtsBlockIndexes.Count())];
                             Block arrivalBlock = newDistrict.DistrictMap[randomBlockIndex];
 
-                            // Continue with the original logic...
-                            // Determine structure counts
-                            EntityList<Structure> taverns = new EntityList<Structure>();
-                            EntityList<Structure> markets = new EntityList<Structure>();
-                            EntityList<Structure> houses = new EntityList<Structure>();
-
-                            // Iterate over all blocks in the district to categorize structures
-                            for (int x = 0; x < 7; x++)
-                            {
-                                for (int z = 0; z < 7; z++)
-                                {
-                                    foreach (Structure s in newDistrict.DistrictMap[x + z * 7].Structures)
-                                    {
-                                        switch (s.Type)
-                                        {
-                                            case "tavern":
-                                                taverns.Add(s);
-                                                break;
-                                            case "market":
-                                                markets.Add(s);
-                                                break;
-                                            case "house":
-                                                houses.Add(s);
-                                                break;
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Add exposition for spires, architect counts, taverns, and markets, similar to previous code...
                             // Load the new location and update all architects
                             newDistrict.Load();
-                            foreach (Architect architect in GameWorld.GamePlayerParty.Architects)
+                            foreach (Architect architect in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                             {
                                 architect.Location = newLocation;
                                 architect.District = newDistrict;
                                 architect.Block = arrivalBlock;  // Set all architects to the randomly selected outskirts block
                                 architect.TryingToTravel = false;  // Reset travel intent
+
+                                int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
+                                int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+                                string Date = "(" + Month + "/" + Year + ")";
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + architect.Name + " arrived in " + architect.Location.Name + ".", architect.Location.Region, new EntityList<Entity>(){architect, architect.Location}));
                             }
                         }
 
@@ -7625,18 +8194,18 @@ namespace Lightrealm
                     }
                     else if (GameState == "exposition")
                     {
-                        if (GameWorld.GamePlayerParty.CurrentEvent != null)
+                        if (GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent != null)
                         {
                             Exposition = new EntityList<TextStorage>
     {
-        new TextStorage(GameWorld.GamePlayerParty.CurrentEvent.Info, Color.White, new EntityList<Entity>()),
+        new TextStorage(GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.Info, Color.White, new EntityList<Entity>()),
         new TextStorage("[Y] Approach cautiously.", Color.Yellow, new EntityList<Entity>()),
         new TextStorage("[N] Avoid the encounter.", Color.Yellow, new EntityList<Entity>())
     };
 
                             if (KeysNewlyPressed.Contains(Keys.Y))
                             {
-                                Location newLocation = new Location("clearing", GameWorld.GetRace(""), 0, 0, 0, GameWorld.GamePlayerParty.MapCursorX, GameWorld.GamePlayerParty.MapCursorZ, GameWorld.GamePlayerParty.CurrentEvent.HomeCivilization, GameWorld.GamePlayerParty.CurrentEvent.Region, "none");
+                                Location newLocation = new Location("clearing", GameWorld.GetRace(""), 0, 0, 0, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.HomeCivilization, GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.Region, "none");
                                 District newDistrict = newLocation.Districts[0];
 
                                 // Define the blocks on the outskirts of a 7x7 district grid
@@ -7668,7 +8237,7 @@ namespace Lightrealm
                                 LoadedArchitects.Clear();
 
                                 // Update all architects in the party
-                                foreach (Architect architect in GameWorld.GamePlayerParty.Architects)
+                                foreach (Architect architect in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                                 {
                                     architect.Location = newLocation;
                                     architect.District = newDistrict;
@@ -7678,7 +8247,7 @@ namespace Lightrealm
                                 }
 
                                 // Update all guaranteed architects from the event
-                                foreach (Architect a in GameWorld.GamePlayerParty.CurrentEvent.GuaranteedArchitects)
+                                foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.GuaranteedArchitects)
                                 {
                                     a.Location = newLocation;
                                     a.District = newDistrict;
@@ -7691,7 +8260,7 @@ namespace Lightrealm
                                     LoadedArchitects.Add(a);
                                 }
 
-                                foreach (Architect a in GameWorld.GamePlayerParty.Architects)
+                                foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                                 {
                                     if (!LoadedArchitects.Contains(a))
                                     {
@@ -7703,10 +8272,10 @@ namespace Lightrealm
                             }
                             else if (KeysNewlyPressed.Contains(Keys.N))
                             {
-                                GameWorld.GamePlayerParty.CurrentEvent = null;
+                                GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent = null;
                                 StoredEvent = null;
                                 GameState = "travelmenu";
-                                GameWorld.GamePlayerParty.ClearSkillData();
+                                GameWorld.GamePlayerAssociation.ActiveParty.ClearSkillData();
                             }
                         }
 
@@ -7717,16 +8286,16 @@ namespace Lightrealm
                                 if (SeenTips == true)
                                 {
                                     GameState = "otherturn";
-                                    GameWorld.GamePlayerParty.Architects[0].UpdateNames();
+                                    GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].UpdateNames();
 
                                     if (InspirationSelected != "")
                                     {
-                                        Announcements.Add(new TextStorage($"Selected inspiration: {InspirationSelected}", Color.White, new EntityList<Entity>()));
+                                        Announcements.Add(new TextStorage($"Selected inspiration: {InspirationSelected}", Color.White, new EntityList<Entity>(){}));
 
                                         if (InspirationSelected == "Learn a random offensive spell.")
                                         {
                                             List<string> offSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "ice shock" };
-                                            var knownSpells = GameWorld.GamePlayerParty.Architects[0].SpellsKnown;
+                                            var knownSpells = GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].SpellsKnown;
 
                                             EntityList<Entity> OffensiveSpells = new EntityList<Entity>(
                                                 Game1.GameWorld.AllSpells
@@ -7741,31 +8310,31 @@ namespace Lightrealm
                                                 Random random = new Random();
                                                 Entity randomSpell = OffensiveSpells[random.Next(OffensiveSpells.Count())];
                                                 knownSpells.Add(randomSpell);
-                                                Announcements.Add(new TextStorage($"Learned a new spell: {randomSpell.Metadata}", Color.White, new EntityList<Entity>()));
-                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSpell.Metadata], Color.Cyan, new EntityList<Entity>()));
+                                                Announcements.Add(new TextStorage($"Learned a new spell: {randomSpell.Metadata}", Color.White, new EntityList<Entity>(){}));
+                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSpell.Metadata], Color.Cyan, new EntityList<Entity>(){}));
 
                                             }
                                             else
                                             {
-                                                Announcements.Add(new TextStorage($"Cannot learn one because you somehow know them all...", Color.Red, new EntityList<Entity>()));
+                                                Announcements.Add(new TextStorage($"Cannot learn one because you somehow know them all...", Color.Red, new EntityList<Entity>(){}));
 
                                             }
                                         }
                                         else if (InspirationSelected == "Learn a random skill.")
                                         {
-                                            EntityList<Entity> knownSkills = GameWorld.GamePlayerParty.Architects[0].SkillsKnown;
+                                            EntityList<Entity> knownSkills = GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].SkillsKnown;
                                             EntityList<Entity> availableSkills = GameWorld.AllSkills.Except(knownSkills);
                                             if (availableSkills.Any())
                                             {
                                                 Random random = new Random();
                                                 Entity randomSkill = availableSkills[random.Next(availableSkills.Count())];
                                                 knownSkills.Add(randomSkill);
-                                                Announcements.Add(new TextStorage($"Learned a new random skill: {randomSkill.Metadata}", Color.White, new EntityList<Entity>()));
-                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSkill.Metadata], Color.Cyan, new EntityList<Entity>()));
+                                                Announcements.Add(new TextStorage($"Learned a new random skill: {randomSkill.Metadata}", Color.White, new EntityList<Entity>(){}));
+                                                Announcements.Add(new TextStorage(SkillSpellDescriptions[randomSkill.Metadata], Color.Cyan, new EntityList<Entity>(){}));
                                             }
                                             else
                                             {
-                                                Announcements.Add(new TextStorage($"Cannot learn one because you somehow know them all...", Color.Red, new EntityList<Entity>()));
+                                                Announcements.Add(new TextStorage($"Cannot learn one because you somehow know them all...", Color.Red, new EntityList<Entity>(){}));
                                             }
                                         }
                                         else if (InspirationSelected == "Gain 2 random stat improvements.")
@@ -7781,46 +8350,46 @@ namespace Lightrealm
                                                 switch (statToIncrease)
                                                 {
                                                     case "Strength":
-                                                        GameWorld.GamePlayerParty.Architects[0].Strength += 1;
-                                                        Announcements.Add(new TextStorage("Strength increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Strength += 1;
+                                                        Announcements.Add(new TextStorage("Strength increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                     case "Dexterity":
-                                                        GameWorld.GamePlayerParty.Architects[0].Dexterity += 1;
-                                                        Announcements.Add(new TextStorage("Dexterity increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Dexterity += 1;
+                                                        Announcements.Add(new TextStorage("Dexterity increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                     case "Agility":
-                                                        GameWorld.GamePlayerParty.Architects[0].Agility += 1;
-                                                        Announcements.Add(new TextStorage("Agility increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Agility += 1;
+                                                        Announcements.Add(new TextStorage("Agility increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                     case "Endurance":
-                                                        GameWorld.GamePlayerParty.Architects[0].Endurance += 1;
-                                                        Announcements.Add(new TextStorage("Endurance increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Endurance += 1;
+                                                        Announcements.Add(new TextStorage("Endurance increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                     case "Charisma":
-                                                        GameWorld.GamePlayerParty.Architects[0].Charisma += 1;
-                                                        Announcements.Add(new TextStorage("Charisma increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Charisma += 1;
+                                                        Announcements.Add(new TextStorage("Charisma increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                     case "Focus":
-                                                        GameWorld.GamePlayerParty.Architects[0].Focus += 1;
-                                                        Announcements.Add(new TextStorage("Focus increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Focus += 1;
+                                                        Announcements.Add(new TextStorage("Focus increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                     case "Creativity":
-                                                        GameWorld.GamePlayerParty.Architects[0].Creativity += 1;
-                                                        Announcements.Add(new TextStorage("Creativity increased by 1.", Color.White, new EntityList<Entity>()));
+                                                        GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Creativity += 1;
+                                                        Announcements.Add(new TextStorage("Creativity increased by 1.", Color.White, new EntityList<Entity>(){}));
                                                         break;
                                                 }
                                             }
                                         }
                                         else if (InspirationSelected == "Gain +5 Max Energy.")
                                         {
-                                            GameWorld.GamePlayerParty.Architects[0].MaxEnergyInspiration = true;
-                                            Announcements.Add(new TextStorage("Your max energy has been increased.", Color.White, new EntityList<Entity>()));
+                                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].MaxEnergyInspiration = true;
+                                            Announcements.Add(new TextStorage("Your max energy has been increased.", Color.White, new EntityList<Entity>(){}));
                                         }
                                         else if (InspirationSelected == "Obtain a minor magical item.")
                                         {
                                             var magicalItems = GameWorld.MagicalSuperLoot(5);
-                                            GameWorld.GamePlayerParty.Architects[0].Inventory.Add(magicalItems);
-                                            Announcements.Add(new TextStorage("You have obtained a magical item, an imbued " + magicalItems.ReferredToNames[0] + ".", Color.White, new EntityList<Entity>()));
+                                            GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].Inventory.Add(magicalItems);
+                                            Announcements.Add(new TextStorage("You have obtained a magical item, an imbued " + magicalItems.ReferredToNames[0] + ".", Color.White, new EntityList<Entity>(){}));
                                         }
 
                                         InspirationSelected = "";
@@ -7831,19 +8400,19 @@ namespace Lightrealm
                                 {
                                     SeenTips = true;
                                     Exposition.Clear();
-                                    Exposition.Add(new TextStorage("Press F5 for help with vocal/GUI/typed commands and navigating the world.", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("Watch your Energy and Bleeding, dictated by the Heart and its droplets at the top of the screen. Do not let it go dark.", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("Access player information with commands or use \"open menu\" to see all of it.", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("Press CTRL + S to save your game, while outside of a district. Instability is uncommon, but expected, so save your game often.", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("Good luck...", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>()));
-                                    Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White, new EntityList<Entity>()));
+                                    Exposition.Add(new TextStorage("Press F5 for help with vocal/GUI/typed commands and navigating the world.", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("Watch your Energy and Bleeding, dictated by the Heart and its droplets at the top of the screen. Do not let it go dark.", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("Access player information with commands or use \"open menu\" to see all of it.", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("Press CTRL + S to save your game, while outside of a district. Instability is uncommon, but expected, so save your game often.", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("Good luck...", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("", Color.White, new EntityList<Entity>(){}));
+                                    Exposition.Add(new TextStorage("Press SPACE to continue...", Color.White, new EntityList<Entity>(){}));
                                 }
                             }
                         }
@@ -7854,7 +8423,7 @@ namespace Lightrealm
                         {
                             // Transition to the travel menu
                             GameState = "travelmenu";
-                            GameWorld.GamePlayerParty.ClearSkillData();
+                            GameWorld.GamePlayerAssociation.ActiveParty.ClearSkillData();
                         }
 
                         // Mapping of biomes to the tools required for gathering
@@ -7868,26 +8437,26 @@ namespace Lightrealm
 
                         // Mapping of biomes to harvestable materials
                         var harvestableMaterials = new Dictionary<string, Material> {
-        {"forest", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableWood},
-        {"lightforest", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableWood},
-        {"taiga", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableWood},
-        {"mountain", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableStone},
-        {"snowpeak", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableMetal},
-        {"desert", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableSand},
-        {"plains", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableFiber},
-        {"tundra", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableIce},
-        {"ice", GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableIce}
+        {"forest", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableWood},
+        {"lightforest", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableWood},
+        {"taiga", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableWood},
+        {"mountain", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableStone},
+        {"snowpeak", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableMetal},
+        {"desert", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableSand},
+        {"plains", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableFiber},
+        {"tundra", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableIce},
+        {"ice", GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableIce}
     };
 
                         // Mapping materials to the type of resource they represent
                         Dictionary<Material, string> ResourcetoType = new Dictionary<Material, string>()
     {
-        {GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableWood, "log"},
-        {GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableStone, "stone"},
-        {GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableMetal, "ore"},
-        {GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableSand, "pile"},
-        {GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableFiber, "bunch"},
-        {GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].HarvestableIce, "block"}
+        {GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableWood, "log"},
+        {GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableStone, "stone"},
+        {GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableMetal, "ore"},
+        {GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableSand, "pile"},
+        {GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableFiber, "bunch"},
+        {GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].HarvestableIce, "block"}
     };
 
                         // Mapping of numeric keys to resource types
@@ -7927,7 +8496,7 @@ namespace Lightrealm
                         }
 
                         // Get the current biome
-                        string currentBiome = GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome;
+                        string currentBiome = GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome;
 
                         // Iterate through each mapped key to resource type
                         foreach (var resourceKey in resourceKeyMap)
@@ -7942,7 +8511,7 @@ namespace Lightrealm
                                     string toolRequired = gatheringActions.ContainsKey(currentBiome) ? gatheringActions[currentBiome] : null;
                                     bool toolNeeded = true;
 
-                                    foreach (var architect in GameWorld.GamePlayerParty.Architects)
+                                    foreach (var architect in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                                     {
                                         if (HasRequiredTool(architect, toolRequired))
                                         {
@@ -7981,7 +8550,7 @@ namespace Lightrealm
                                             // Code inside the harvesting loop
                                             if (count > 0)
                                             {
-                                                Exposition.Add(new TextStorage($"{architect.Name} harvested {count} {resourceType}.", Color.LightBlue, new EntityList<Entity>()));
+                                                Exposition.Add(new TextStorage($"{architect.Name} harvested {count} {resourceType}.", Color.LightBlue, new EntityList<Entity>(){}));
                                                 for (int i = 0; i < count; i++)
                                                 {
                                                     architect.Inventory.Add(new Object(null, resourceType, new EntityList<Material>() { resourceMaterial }, null));
@@ -7991,7 +8560,7 @@ namespace Lightrealm
                                             {
                                                 // Select a random break activity based on the number of architects in the party
                                                 string breakActivity;
-                                                if (GameWorld.GamePlayerParty.Architects.Count() == 1)
+                                                if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Count() == 1)
                                                 {
                                                     breakActivity = soloBreakActivities[r.Next(soloBreakActivities.Count())];
                                                 }
@@ -7999,7 +8568,7 @@ namespace Lightrealm
                                                 {
                                                     breakActivity = breakActivities[r.Next(breakActivities.Count())];
                                                 }
-                                                Exposition.Add(new TextStorage($"{architect.Name} {breakActivity}.", Color.LightBlue, new EntityList<Entity>()));
+                                                Exposition.Add(new TextStorage($"{architect.Name} {breakActivity}.", Color.LightBlue, new EntityList<Entity>(){}));
                                             }
                                         }
                                     }
@@ -8007,12 +8576,12 @@ namespace Lightrealm
 
                                     if (toolNeeded)
                                     {
-                                        Exposition.Add(new TextStorage($"You need a {toolRequired} to harvest {resourceMaterial.Type} here.", Color.Yellow, new EntityList<Entity>()));
+                                        Exposition.Add(new TextStorage($"You need a {toolRequired} to harvest {resourceMaterial.Type} here.", Color.Yellow, new EntityList<Entity>(){}));
                                     }
                                 }
                                 else
                                 {
-                                    Exposition.Add(new TextStorage($"There is no {resourceKey.Value.ToLower().Replace("harvestable", "")} to harvest in this biome.", Color.Red, new EntityList<Entity>()));
+                                    Exposition.Add(new TextStorage($"There is no {resourceKey.Value.ToLower().Replace("harvestable", "")} to harvest in this biome.", Color.Red, new EntityList<Entity>(){}));
                                 }
                             }
                         }
@@ -8145,8 +8714,11 @@ namespace Lightrealm
                                         // Initialize a counter for how many materials have been added
                                         int materialsAdded = 0;
 
+                                        // Collect indices to be removed after the iteration
+                                        var indicesToRemove = new List<int>();
+
                                         // Find and remove the required number of items from selected indexes in inventory
-                                        foreach (var index in IndexesForResources)
+                                        foreach (var index in IndexesForResources.ToList())
                                         {
                                             var item = relevantItems[index];
                                             if (item.Type == requiredObject)
@@ -8162,12 +8734,18 @@ namespace Lightrealm
                                                 }
 
                                                 MostRecentPartyTurnArchitect.Inventory.Remove(item);
-                                                IndexesForResources.Remove(index); // Remove the index from selected resources
+                                                indicesToRemove.Add(index); // Add the index to the removal list
 
                                                 // Break out of the loop if the required amount of materials has been added
                                                 if (materialsAdded >= requiredCount)
                                                     break;
                                             }
+                                        }
+
+                                        // Remove the indices from selected resources
+                                        foreach (var index in indicesToRemove)
+                                        {
+                                            IndexesForResources.Remove(index);
                                         }
                                     }
 
@@ -8226,11 +8804,11 @@ namespace Lightrealm
                                     // Update crafting phase or state as necessary
                                     GameState = "otherturn";
 
-                                    MostRecentPartyTurnArchitect.CooldownCycles += (int)Math.Round((600 / MostRecentPartyTurnArchitect.Speed()));
+                                    MostRecentPartyTurnArchitect.CooldownCycles += 600;
                                 }
                                 else
                                 {
-                                    Exposition.Add(new TextStorage("Not enough materials to craft.", Color.Red, new EntityList<Entity>()));
+                                    Exposition.Add(new TextStorage("Not enough materials to craft.", Color.Red, new EntityList<Entity>(){}));
                                     CraftingPhase = "selectrecipe";
                                 }
                             }
@@ -8269,6 +8847,49 @@ namespace Lightrealm
 
             void DrawWorld()
             {
+                if (Keyboard.GetState().IsKeyDown(Keys.R))
+                {
+                    _spriteBatch.End();
+                    _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
+
+                    for (int x = 0; x < GameWorld.Width; x++)
+                    {
+                        for (int z = 0; z < GameWorld.Length; z++)
+                        {
+                            int index = x + z * GameWorld.Width;
+                            Rectangle tileRect = new Rectangle(
+                                (RegionXMod + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0),
+                                RegionYMod + z * TileZDistance,
+                                TileSize,
+                                TileSize
+                            );
+
+                            // Directly use the ControllingRealm of the region
+                            var controllingRealm = GameWorld.WorldMap[index].Realm;
+                            if (controllingRealm != null && GameWorld.WorldMap[index].Biome != "void")
+                            {
+                                // Check if the current tile is the center of the controlling realm
+                                if (GameWorld.WorldMap[index].X == controllingRealm.X && GameWorld.WorldMap[index].Z == controllingRealm.Z)
+                                {
+                                    // Draw the center of the realm as DesertT with the realm's color
+                                    _spriteBatch.Draw(DesertT, tileRect, ColorConverter[controllingRealm.Color]);
+                                }
+                                else
+                                {
+                                    // Draw the outline of the tile with the color of the controlling realm
+                                    _spriteBatch.Draw(OutlineT, tileRect, ColorConverter[controllingRealm.Color]);
+                                }
+                            }
+                        }
+                    }
+
+                    _spriteBatch.End();
+                    _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
+                    return; // Skip the rest of the function if Keys.R is held down
+                }
+
+
+
                 // Variables for elevation-based color adjustment
                 float minBrightness = 0.0f; // Minimum brightness for the lowest elevation
                 float maxBrightness = 1.55f; // Maximum brightness for the highest elevation
@@ -8308,34 +8929,42 @@ namespace Lightrealm
                             TileSize
                         );
 
-                        if ((GameState == "travelmenu" || GameState == "etherealrupture") && !GameWorld.WorldMap[index].Explored)
+                        // Skip unexplored tiles only if in travelmenu or ascendant mode
+                        if ((GameState == "travelmenu" || GameState == "ascendant") && !GameWorld.WorldMap[index].Explored)
                         {
-                            continue; // Skip drawing unexplored tiles in travel mode
+                            continue; // Skip drawing unexplored tiles in travel and ascendant modes
                         }
 
-                        // Draw cursor or tile
-                        if (GameState == "travelmenu" && GameWorld.GamePlayerParty.MapCursorX == x && GameWorld.GamePlayerParty.MapCursorZ == z && GameWorld.GamePlayerParty.MapCursorX != 0 && GameWorld.GamePlayerParty.MapCursorZ != 0)
-                        {
-                            _spriteBatch.Draw(CursorT, tileRect, Color.White);
-                        }
-                        else if (GameWorld.GamePlayerParty != null && GameWorld.GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
-                        {
-                            _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
-                        }
-                        else
-                        {
-                            // Adjust tile brightness based on elevation
-                            float elevation = GameWorld.ElevationNoiseValues[index];
-                            float normalizedElevation = elevation / 256f;
-                            float brightness = MathHelper.Lerp(minBrightness, maxBrightness, normalizedElevation);
-                            Color baseColor = new Color(brightness, brightness, brightness); // Base color adjusted by elevation
+                        // Adjust tile brightness based on elevation
+                        float elevation = GameWorld.ElevationNoiseValues[index];
+                        float normalizedElevation = elevation / 256f;
+                        float brightness = MathHelper.Lerp(minBrightness, maxBrightness, normalizedElevation);
+                        Color baseColor = new Color(brightness, brightness, brightness); // Base color adjusted by elevation
 
-                            // Apply blight effect on top of the elevation-adjusted base color
-                            Color finalColor = GameWorld.WorldMap[index].Blight != GameWorld.Purity ?
-                                Color.Lerp(baseColor, new Color(100, 100, 100), 1.0f) : baseColor;
+                        // Apply blight effect on top of the elevation-adjusted base color
+                        Color finalColor = GameWorld.WorldMap[index].Blight != GameWorld.Purity ?
+                            Color.Lerp(baseColor, new Color(100, 100, 100), 1.0f) : baseColor;
 
-                            // Draw the region tile with combined elevation and blight-adjusted color
-                            _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
+                        // Draw the region tile with combined elevation and blight-adjusted color
+                        _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[index].Biome], tileRect, finalColor);
+
+                        if (GameState == "ascendant" && GameWorld.GamePlayerAssociation != null)
+                        {
+                            foreach (var party in GameWorld.GamePlayerAssociation.Parties)
+                            {
+                                if (party.Leader == null && party.Architects.Count > 0)
+                                {
+                                    party.Leader = party.Architects[0];
+                                }
+
+                                if (party.Leader != null && party.Leader.Location != null)
+                                {
+                                    if (party.Leader.Location.Region.X == x && party.Leader.Location.Region.Z == z)
+                                    {
+                                        // Flash tick drawing logic will be moved to the end
+                                    }
+                                }
+                            }
                         }
 
                         if (GameState == "generatehistory")
@@ -8361,57 +8990,77 @@ namespace Lightrealm
                         int index = x + z * GameWorld.Width;
                         Rectangle tileRect = GameWorld.WorldMap[index].BoundingBox();
 
-                        // Check if the region is explored or game state is not travel menu
-                        if (GameWorld.WorldMap[index].Explored || GameState != "travelmenu")
+                        // Skip unexplored tiles only if in travelmenu or ascendant mode
+                        if ((GameState == "travelmenu" || GameState == "ascendant") && !GameWorld.WorldMap[index].Explored)
                         {
-                            // Draw Ownership
-                            if (GameWorld.WorldMap[index].Owner != null && GameState == "generatehistory")
+                            continue; // Skip drawing unexplored tiles in travel and ascendant modes
+                        }
+
+                        // Draw Ownership
+                        if (GameWorld.WorldMap[index].Owner != null && GameState == "generatehistory")
+                        {
+                            _spriteBatch.Draw(OutlineT, tileRect, ColorConverter[GameWorld.WorldMap[index].Owner.Color]);
+                        }
+
+                        // Draw the port if it exists
+                        if (!string.IsNullOrEmpty(GameWorld.WorldMap[index].PortName))
+                        {
+                            _spriteBatch.Draw(PortT, tileRect, Color.White);
+                        }
+
+                        // Draw locations based on exploration status
+                        if (GameWorld.WorldMap[index].Location != null)
+                        {
+                            var location = GameWorld.WorldMap[index].Location;
+
+                            // Draw the location normally
+                            if (GameWorld.ProcgenStructures.Contains(location.Type))
                             {
-                                _spriteBatch.Draw(OutlineT, tileRect, ColorConverter[GameWorld.WorldMap[index].Owner.Color]);
+                                _spriteBatch.Draw(
+                                    TileAtlas[location.Layout],
+                                    tileRect,
+                                    ColorConverter[location.Color]
+                                );
+                            }
+                            else
+                            {
+                                _spriteBatch.Draw(
+                                    TileAtlas[location.PrimaryRace.Name + location.Type],
+                                    tileRect,
+                                    Color.White
+                                );
                             }
 
-                            // Draw the port if it exists and the region is explored
-                            if (GameWorld.WorldMap[index].PortName != "" &&
-                                (GameState != "travelmenu" || GameWorld.WorldMap[index].Explored))
-                            {
-                                _spriteBatch.Draw(PortT, tileRect, Color.White);
-                            }
 
-                            // Draw locations based on exploration status
-                            if (GameWorld.WorldMap[index].MyLocation != null &&
-                                (GameState != "travelmenu" || GameWorld.WorldMap[index].MyLocation.Explored))
-                            {
-                                var location = GameWorld.WorldMap[index].MyLocation;
 
-                                // Draw the location normally
-                                if (GameWorld.ProcgenStructures.Contains(location.Type))
+                            if(GameMode == "ascendant" && Game1.GameWorld.GamePlayerAssociation != null)
+                            {
+                                if(location.Government != null && ((location.Government is Group g && Game1.GameWorld.GamePlayerAssociation.Parties.Contains(g)) || (location.Government is Architect a && Game1.GameWorld.GamePlayerAssociation.Parties.Any(p => p.Architects.Contains(a)))))
                                 {
-                                    _spriteBatch.Draw(
-                                        TileAtlas[location.Layout],
-                                        tileRect,
-                                        ColorConverter[location.Color]
-                                    );
+                                    _spriteBatch.Draw(OutlineT, tileRect, new Color(125, 0, 255));
+                                }
+                                else if(Game1.GameWorld.GamePlayerAssociation.Enemies.Contains(location) || Game1.GameWorld.GamePlayerAssociation.Enemies.Contains(location.Government))
+                                {
+                                    _spriteBatch.Draw(OutlineT, tileRect, Color.Red);
                                 }
                                 else
                                 {
-                                    _spriteBatch.Draw(
-                                        TileAtlas[location.PrimaryRace.Name + location.Type],
-                                        tileRect,
-                                        Color.White
-                                    );
+                                    _spriteBatch.Draw(OutlineT, tileRect, Color.Yellow);
                                 }
+                            }
 
-                                // Draw the party-highlighted green cursor if applicable
-                                if (GameWorld.GamePlayerParty != null && GameWorld.GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
-                                {
-                                    _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
-                                }
+
+
+                            // Draw the party-highlighted green cursor if applicable
+                            if (GameWorld.GamePlayerAssociation != null && GameWorld.GamePlayerAssociation.ActiveParty != null && GameWorld.GamePlayerAssociation.ActiveParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
+                            {
+                                _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
                             }
                         }
                     }
                 }
 
-                // Draw trade lines in generate history mode
+                // Draw trade lines in generatehistory mode
                 if (GameState == "generatehistory")
                 {
                     foreach (Group g in GameWorld.Groups)
@@ -8441,13 +9090,10 @@ namespace Lightrealm
                 {
                     for (int z = 0; z < GameWorld.Length; z++)
                     {
-                        // Define the radius of the detection sphere
                         int radius = 0; // Example: radius of 2 tiles. Adjust this value as needed.
 
-                        // Function to check if a given tile is within the specified radius of the cursor
                         bool IsWithinRadius(int centerX, int centerZ, int checkX, int checkZ, int radius)
                         {
-                            // Convert hex coordinates to cube coordinates
                             int x = checkX - (checkZ - (checkZ & 1)) / 2;
                             int z = checkZ;
                             int y = -x - z;
@@ -8456,38 +9102,33 @@ namespace Lightrealm
                             int centerZ_cube = centerZ;
                             int centerY_cube = -centerX_cube - centerZ_cube;
 
-                            // Calculate distance in cube coordinates
                             int distance = (Math.Abs(x - centerX_cube) + Math.Abs(y - centerY_cube) + Math.Abs(z - centerZ_cube)) / 2;
                             return distance <= radius;
                         }
 
-                        if(GameWorld != null && GameWorld.GamePlayerParty != null)
+                        if (GameWorld != null && GameWorld.GamePlayerAssociation != null && GameWorld.GamePlayerAssociation.ActiveParty != null)
                         {
-                            // Usage of IsWithinRadius in your loop (assuming x and z are the coordinates you're iterating over)
-                            bool isWithinRadius = IsWithinRadius(GameWorld.GamePlayerParty.MapCursorX, GameWorld.GamePlayerParty.MapCursorZ, x, z, radius);
+                            bool isWithinRadius = IsWithinRadius(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, x, z, radius);
 
                             if (isWithinRadius)
                             {
-                                // Initialize flag to check for colossal event
                                 bool hasColossal = false;
                                 bool hasAnyEvent = false;
 
-                                // Scan for InteractableEvent with Type "colossal" in Region.InteractableEvents
                                 foreach (var interactableEvent in GameWorld.WorldMap[x + z * GameWorld.Width].Events)
                                 {
                                     if (interactableEvent != null)
                                     {
-                                        hasAnyEvent = true; // There's at least one event
+                                        hasAnyEvent = true;
                                         if (interactableEvent.Type == "colossal")
                                         {
-                                            hasColossal = true; // Found a colossal event
-                                            break; // No need to check further
+                                            hasColossal = true;
+                                            break;
                                         }
                                     }
                                 }
 
-                                // Decide the color based on the presence of a colossal event
-                                Color drawColor = hasColossal ? Color.Red : hasAnyEvent ? Color.White : Color.Gray; // Gray if no events are present
+                                Color drawColor = hasColossal ? Color.Red : hasAnyEvent ? Color.White : Color.Gray;
 
                                 if (drawColor != Color.Gray)
                                 {
@@ -8501,8 +9142,60 @@ namespace Lightrealm
                 // End the second phase of drawing
                 _spriteBatch.End();
                 _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
-            }
 
+                // Start of Flash Tick Drawing logic
+
+                
+                for (int x = 0; x < GameWorld.Width; x++)
+                {
+                    for (int z = 0; z < GameWorld.Length; z++)
+                    {
+                        int index = x + z * GameWorld.Width;
+                        Rectangle tileRect = new Rectangle(
+                            (RegionXMod + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0),
+                            RegionYMod + z * TileZDistance,
+                            TileSize,
+                            TileSize
+                        );
+
+                        // Draw cursor if it matches the current tile, with Cyan color
+                        bool isCursorOnTile = (GameState == "travelmenu" && GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX == x && GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ == z && GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX != 0 && GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ != 0) ||
+                                                (GameState == "ascendant" && GameWorld.GamePlayerAssociation != null && GameWorld.GamePlayerAssociation.AscendantX == x && GameWorld.GamePlayerAssociation.AscendantZ == z);
+
+                        if (isCursorOnTile)
+                        {
+                            _spriteBatch.Draw(EmptyTileT, tileRect, Color.Black);
+                            _spriteBatch.Draw(CursorT, tileRect, Color.Cyan);
+                        }
+
+                        if (GameState == "ascendant" && GameWorld.GamePlayerAssociation != null && FlashTick < 50)
+                        {
+                            foreach (var party in GameWorld.GamePlayerAssociation.Parties)
+                            {
+                                if (party.Leader == null && party.Architects.Count > 0)
+                                {
+                                    party.Leader = party.Architects[0];
+                                }
+
+                                if (party.Leader != null && party.Leader.Location != null)
+                                {
+                                    if (party.Leader.Location.Region.X == x && party.Leader.Location.Region.Z == z)
+                                    {
+                                        // Selected parties are Magenta, Unselected parties are White
+                                        Color partyColor = party == CurrentlySelectedAscendantParty ? Color.Magenta : Color.White;
+                                        _spriteBatch.Draw(EmptyTileT, tileRect, Color.Black);
+                                        _spriteBatch.Draw(CursorT, tileRect, partyColor);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // End the Flash Tick Drawing logic
+                _spriteBatch.End();
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, scaleMatrix);
+            }
 
 
             void DrawCenteredText(SpriteBatch spriteBatch, string text, int yPosition, SpriteFont Font, Color color)
@@ -8631,7 +9324,7 @@ namespace Lightrealm
                         }
 
                         // Draw cursor or tile
-                        if (GameWorld.GamePlayerParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
+                        if (GameWorld.GamePlayerAssociation.ActiveParty.CurrentlyMarkedRegions.Contains(GameWorld.WorldMap[index]) && FlashTick < 50)
                         {
                             _spriteBatch.Draw(CursorT, tileRect, Color.LimeGreen);
                         }
@@ -8712,10 +9405,10 @@ namespace Lightrealm
                             }
 
                             // Draw locations based on exploration status
-                            if (GameWorld.WorldMap[index].MyLocation != null &&
-                                (GameState != "travelmenu" || GameWorld.WorldMap[index].MyLocation.Explored))
+                            if (GameWorld.WorldMap[index].Location != null &&
+                                (GameState != "travelmenu" || GameWorld.WorldMap[index].Location.Explored))
                             {
-                                var location = GameWorld.WorldMap[index].MyLocation;
+                                var location = GameWorld.WorldMap[index].Location;
 
                                 if (GameWorld.ProcgenStructures.Contains(location.Type))
                                 {
@@ -8798,7 +9491,7 @@ namespace Lightrealm
                         }
 
                         // Usage of IsWithinRadius in your loop (assuming x and z are the coordinates you're iterating over)
-                        bool isWithinRadius = IsWithinRadius(GameWorld.GamePlayerParty.MapCursorX, GameWorld.GamePlayerParty.MapCursorZ, worldX, worldZ, radius);
+                        bool isWithinRadius = IsWithinRadius(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, worldX, worldZ, radius);
 
                         if (isWithinRadius)
                         {
@@ -8844,7 +9537,7 @@ namespace Lightrealm
             }
 
 
-            void DrawCharacter(Architect a, int x, int y, double Scale)
+            void DrawCharacter(Architect a, int x, int y, double Scale, bool Inverted = false)
             {
                 // Calculate scaled dimensions
                 int scaledWidth = (int)(300 * Scale);
@@ -8867,13 +9560,13 @@ namespace Lightrealm
 
                 Rectangle newRect = new Rectangle(newX, newY, newWidth, newHeight);
 
-                // Continue with drawing
+                // Always draw the mirror texture without inversion
                 _spriteBatch.Draw(MirrorT, newRect, Color.White);
 
                 // Add hitbox for the character frame
                 if (!IsShowingSkills && !IsShowingSpells && !IsShowingBodyParts)
                 {
-                    if (SplitMode && GameWorld.GamePlayerParty.Architects.Contains(a))
+                    if (SplitMode && GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                     {
                         // Add a hitbox that only encompasses the top half of the original rectangle
                         Rectangle halfRect = new Rectangle(newRect.X, newRect.Y, newRect.Width, newRect.Height / 2);
@@ -8888,7 +9581,6 @@ namespace Lightrealm
                 // Draw character based on their race and sex
                 if (!GameWorld.HumanoidRaces.Contains(a.Race))
                 {
-                    _spriteBatch.Draw(FlairT, ChosenRect, Color.White);
                     return;
                 }
 
@@ -8898,20 +9590,41 @@ namespace Lightrealm
                 switch (race)
                 {
                     case "luminarch":
-                        _spriteBatch.Draw(baseTexture == "FemaleT" ? LuminarchFemaleT : LuminarchMaleT, ChosenRect, Color.White);
-                        DrawHairTexture(a, "white", ChosenRect);
+                        if (Inverted)
+                        {
+                            _spriteBatch.Draw(baseTexture == "FemaleT" ? LuminarchFemaleT : LuminarchMaleT, ChosenRect, null, Color.White, 0f, Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);
+                        }
+                        else
+                        {
+                            _spriteBatch.Draw(baseTexture == "FemaleT" ? LuminarchFemaleT : LuminarchMaleT, ChosenRect, Color.White);
+                        }
+                        DrawHairTexture(a, "white", ChosenRect, Inverted);
                         break;
                     case "nightfell":
-                        _spriteBatch.Draw(baseTexture == "FemaleT" ? NightfellFemaleT : NightfellMaleT, ChosenRect, Color.White);
-                        DrawHairTexture(a, "black", ChosenRect);
+                        if (Inverted)
+                        {
+                            _spriteBatch.Draw(baseTexture == "FemaleT" ? NightfellFemaleT : NightfellMaleT, ChosenRect, null, Color.White, 0f, Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);
+                        }
+                        else
+                        {
+                            _spriteBatch.Draw(baseTexture == "FemaleT" ? NightfellFemaleT : NightfellMaleT, ChosenRect, Color.White);
+                        }
+                        DrawHairTexture(a, "black", ChosenRect, Inverted);
                         break;
                     default:
-                        _spriteBatch.Draw(baseTexture == "FemaleT" ? ArchaixFemaleT : ArchaixMaleT, ChosenRect, Color.White);
-                        DrawHairTexture(a, "gray", ChosenRect);
+                        if (Inverted)
+                        {
+                            _spriteBatch.Draw(baseTexture == "FemaleT" ? ArchaixFemaleT : ArchaixMaleT, ChosenRect, null, Color.White, 0f, Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);
+                        }
+                        else
+                        {
+                            _spriteBatch.Draw(baseTexture == "FemaleT" ? ArchaixFemaleT : ArchaixMaleT, ChosenRect, Color.White);
+                        }
+                        DrawHairTexture(a, "gray", ChosenRect, Inverted);
                         break;
                 }
 
-                void DrawHairTexture(Architect a, string raceColor, Rectangle rect)
+                void DrawHairTexture(Architect a, string raceColor, Rectangle rect, bool inverted)
                 {
                     Texture2D hairTexture = null;
 
@@ -8972,23 +9685,30 @@ namespace Lightrealm
 
                     if (hairTexture != null)
                     {
-                        _spriteBatch.Draw(hairTexture, rect, Color.White);
+                        if (inverted)
+                        {
+                            _spriteBatch.Draw(hairTexture, rect, null, Color.White, 0f, Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);
+                        }
+                        else
+                        {
+                            _spriteBatch.Draw(hairTexture, rect, Color.White);
+                        }
                     }
                 }
 
                 // Define the drawing order
                 var drawOrder = new List<string[]>
-                {
-                    new string[] { "body" },
-                    new string[] { "undergarment", "brassiere" },
-                    new string[] { "flair" },  // Draw flair before anything that ends with "shirt"
-                    new string[] { "leggings", "pants" },  // Always draw these first within this category
-                    new string[] { "otherClothing" },
-                    new string[] { "robe" },
-                    new string[] { "armor" },
-                    new string[] { "skirt", "kilt" },
-                    new string[] { "hats" }
-                };
+    {
+        new string[] { "body" },
+        new string[] { "undergarment", "brassiere" },
+        new string[] { "flair" },  // Draw flair before anything that ends with "shirt"
+        new string[] { "leggings", "pants" },  // Always draw these first within this category
+        new string[] { "otherClothing" },
+        new string[] { "robe" },
+        new string[] { "armor" },
+        new string[] { "skirt", "kilt" },
+        new string[] { "left boot", "right boot" } // Boots are drawn last to be on top
+    };
 
                 // Define armor and clothing categories
                 var armorItems = new HashSet<string> { "chestplate", "helmet", "left boot", "right boot", "left gauntlet", "right gauntlet", "leggings" };
@@ -9023,9 +9743,16 @@ namespace Lightrealm
 
                                 Color drawColor = o.DyedColor != "none" ? ColorConverter[o.DyedColor] : ColorConverter[o.Materials[0].Color];
 
-                                if(CharacterAtlas.ContainsKey(s))
+                                if (CharacterAtlas.ContainsKey(s))
                                 {
-                                    _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
+                                    if (Inverted)
+                                    {
+                                        _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, null, drawColor, 0f, Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);
+                                    }
+                                    else
+                                    {
+                                        _spriteBatch.Draw(CharacterAtlas[s], ChosenRect, drawColor);
+                                    }
                                 }
                             }
                         }
@@ -9261,17 +9988,17 @@ namespace Lightrealm
 
                         if (scaledBoundingBox.Contains(Mouse.GetState().Position))
                         {
-                            if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
+                            if (GameWorld.WorldMap[x + z * GameWorld.Width].Location == null)
                             {
                                 _spriteBatch.DrawString(BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].Location.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type + ".", new Vector2(DrawX, DrawY), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont,
-                                                "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation() +
-                                                (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace != null && GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name != "" ?
-                                                " (Primarily " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + ")" : ""),
+                                                "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.TruePopulation() +
+                                                (GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace != null && GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace.Name != "" ?
+                                                " (Primarily " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace.Name + ")" : ""),
                                                 new Vector2(DrawX, DrawY + 30),
                                                 Color.White);
 
@@ -9282,11 +10009,11 @@ namespace Lightrealm
 
                                 foreach (Group g in Game1.GameWorld.Groups)
                                 {
-                                    if (g.Leader.Location == GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation)
+                                    if (g.Leader.Location == GameWorld.WorldMap[x + z * GameWorld.Width].Location)
                                         groups++;
                                 }
 
-                                foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts)
+                                foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].Location.Districts)
                                 {
                                     ArchitectPopulation += d.Architects.Count();
 
@@ -9304,23 +10031,23 @@ namespace Lightrealm
 
                                 _spriteBatch.DrawString(BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
 
-                                if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
+                                if (GameWorld.WorldMap[x + z * GameWorld.Width].Location.Government == null)
                                 {
                                     _spriteBatch.DrawString(BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
                                 }
 
-                                _spriteBatch.DrawString(BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
 
 
                                 _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count(), new Vector2(DrawX, DrawY + 270), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Districts.Count(), new Vector2(DrawX, DrawY + 270), Color.White);
                             }
                         }
                     }
@@ -9349,6 +10076,11 @@ namespace Lightrealm
                     MaxLines = 70; // Set the maximum number of lines you want to display
                     yPos = screenHeight - 50; // Initial Y position at the bottom
                 }
+                else if (GameState == "ascendant")
+                {
+                    MaxLines = 36; // Set the maximum number of lines you want to display
+                    yPos = screenHeight - 100; // Initial Y position at the bottom
+                }
                 else
                 {
                     MaxLines = 26; // Set the maximum number of lines you want to display
@@ -9361,63 +10093,55 @@ namespace Lightrealm
 
                 // Convert the announcements to a list
                 EntityList<TextStorage> announcementsList = new EntityList<TextStorage>(Announcements);
+                for (int i = announcementsList.Count - 1; i >= 0; i--)
+                {
+                    TextStorage announcement = announcementsList[i];
+                    List<string> lines = new List<string>();
 
-                if (MostRecentPartyTurnArchitect.BlindCycles > 0)
-                {
-                    _spriteBatch.DrawString(BabyShibafont, "You are currently blind.", new Vector2(50, yPos), Color.Yellow);
-                }
-                else
-                {
-                    for (int i = announcementsList.Count - 1; i >= 0; i--)
+                    if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
                     {
-                        TextStorage announcement = announcementsList[i];
-                        List<string> lines = new List<string>();
+                        // Split announcement into lines if it exceeds MaxLength
+                        string[] words = announcement.Data.Split(' ');
+                        string currentLine = "";
 
-                        if (BabyShibafont.MeasureString(announcement.Data).X > MaxLength)
+                        foreach (var word in words)
                         {
-                            // Split announcement into lines if it exceeds MaxLength
-                            string[] words = announcement.Data.Split(' ');
-                            string currentLine = "";
-
-                            foreach (var word in words)
+                            if (BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
                             {
-                                if (BabyShibafont.MeasureString(currentLine + word).X > MaxLength)
-                                {
-                                    lines.Add(currentLine.TrimEnd());
-                                    currentLine = word + " ";
-                                }
-                                else
-                                {
-                                    currentLine += word + " ";
-                                }
-                            }
-
-                            lines.Add(currentLine.TrimEnd());
-                        }
-                        else
-                        {
-                            lines.Add(announcement.Data);
-                        }
-
-                        // Draw lines in normal order but start from the bottom
-                        for (int j = lines.Count - 1; j >= 0; j--)
-                        {
-                            if (totalLinesDisplayed < MaxLines)
-                            {
-                                yPos -= lineHeight;
-                                DrawAnnouncementLine(lines[j], yPos, announcement.Color, announcement.Entities);
-                                totalLinesDisplayed++;
+                                lines.Add(currentLine.TrimEnd());
+                                currentLine = word + " ";
                             }
                             else
                             {
-                                break; // Exit the loop if the maximum number of lines is reached
+                                currentLine += word + " ";
                             }
                         }
 
-                        if (totalLinesDisplayed >= MaxLines)
+                        lines.Add(currentLine.TrimEnd());
+                    }
+                    else
+                    {
+                        lines.Add(announcement.Data);
+                    }
+
+                    // Draw lines in normal order but start from the bottom
+                    for (int j = lines.Count - 1; j >= 0; j--)
+                    {
+                        if (totalLinesDisplayed < MaxLines)
                         {
-                            break; // Exit the outer loop if the maximum number of lines is reached
+                            yPos -= lineHeight;
+                            DrawAnnouncementLine(lines[j], yPos, announcement.Color, announcement.Entities);
+                            totalLinesDisplayed++;
                         }
+                        else
+                        {
+                            break; // Exit the loop if the maximum number of lines is reached
+                        }
+                    }
+
+                    if (totalLinesDisplayed >= MaxLines)
+                    {
+                        break; // Exit the outer loop if the maximum number of lines is reached
                     }
                 }
 
@@ -9546,7 +10270,6 @@ namespace Lightrealm
                 DrawCenteredText(_spriteBatch, "Press L to load an existing save.", 550, Shibafont, Color.White);
 
 
-                DrawCenteredText(_spriteBatch, "Press V to toggle Speech-To-Text. " + (SpeechToText ? "[Enabled]" : "[Disabled]"), 700, Shibafont, Color.White);
                 DrawCenteredText(_spriteBatch, "Press F to toggle the font.", 750, Shibafont, Color.White);
 
                 _spriteBatch.Draw(Astrionalis, new Rectangle(100, 200, 640, 1280), Color.White);
@@ -9709,7 +10432,7 @@ namespace Lightrealm
 
             else if (GameState == "viewhistory")
             {
-                int Line = 0;
+                int line = 0;
                 bool foundMatchingHistory = false;
                 bool foundVisibleMatchingHistory = false;
 
@@ -9718,29 +10441,46 @@ namespace Lightrealm
                 {
                     if (CurrentlyViewingHistory.Count() > i)
                     {
-                        _spriteBatch.DrawString(BabyShibafont, CurrentlyViewingHistory[i], new Vector2(50, 50 + (Line * 30)), Color.White);
-                        Line++;
+                        _spriteBatch.DrawString(BabyShibafont, CurrentlyViewingHistory[i], new Vector2(50, 50 + (line * 30)), Color.White);
+                        line++;
                     }
                 }
 
-                // Create a new list of historical events that contain the HistoryPrompt, excluding the first 3 lines
+                // Create a new list of filtered historical events based on region, significance, and search prompt
                 List<string> filteredHistory = new List<string>();
                 for (int i = 3; i < CurrentlyViewingHistory.Count(); i++)
                 {
-                    if (CurrentlyViewingHistory[i].Contains(HistoryPrompt, StringComparison.OrdinalIgnoreCase))
+                    string[] parts = CurrentlyViewingHistory[i].Trim('[', ']').Split(']');
+                    if (parts.Length == 2)
                     {
-                        filteredHistory.Add(CurrentlyViewingHistory[i]);
-                        foundMatchingHistory = true; // Track if any matching history is found
+                        string[] numbers = parts[0].Split('/');
+                        if (numbers.Length == 2 && int.TryParse(numbers[0], out int regionIndex) && int.TryParse(numbers[1], out int significance))
+                        {
+                            if ((CurrentlySelectingRegionIndexOr100 == 100 || regionIndex == CurrentlySelectingRegionIndexOr100) &&
+                                (!ShowSignificant || (ShowSignificant && significance == 1)) &&
+                                parts[1].Trim().Contains(HistoryPrompt, StringComparison.OrdinalIgnoreCase))
+                            {
+                                filteredHistory.Add(parts[1].Trim());
+                                foundMatchingHistory = true; // Track if any matching history is found
+                            }
+                        }
                     }
                 }
 
-                // Draw up to 50 lines from the filtered history that match the HistoryPrompt, respecting scrolling
-                for (int i = HistoricalScrollValue; i < HistoricalScrollValue + 50; i++)
+                // Ensure HistoricalScrollValue is within bounds of the filtered history list
+                if (HistoricalScrollValue > filteredHistory.Count - 1)
                 {
-                    if (filteredHistory.Count() > i - HistoricalScrollValue && filteredHistory.Count() > i)
+                    HistoricalScrollValue = Math.Max(0, filteredHistory.Count - 1);
+                }
+
+                // Draw up to 50 lines from the filtered history, starting from HistoricalScrollValue
+                for (int i = 0; i < 50; i++)
+                {
+                    int index = i + HistoricalScrollValue;
+                    if (index < filteredHistory.Count)
                     {
-                        _spriteBatch.DrawString(BabyShibafont, filteredHistory[i], new Vector2(50, 50 + (Line * 30)), Color.White);
-                        Line++;
+                        _spriteBatch.DrawString(BabyShibafont, filteredHistory[index], new Vector2(50, 50 + (line * 30)), Color.White);
+                        line++;
                         foundVisibleMatchingHistory = true; // Track if any visible matching history is found
                     }
                 }
@@ -9748,19 +10488,38 @@ namespace Lightrealm
                 // Display messages based on the presence of matching history
                 if (!foundMatchingHistory)
                 {
-                    _spriteBatch.DrawString(BabyShibafont, "Nothing related to \"" + HistoryPrompt + "\" happened here.", new Vector2(50, 50 + (Line * 30)), Color.White);
-                    Line++;
+                    _spriteBatch.DrawString(BabyShibafont, "Nothing related to \"" + HistoryPrompt + "\" happened here.", new Vector2(50, 50 + (line * 30)), Color.White);
+                    line++;
                 }
                 else if (!foundVisibleMatchingHistory)
                 {
-                    _spriteBatch.DrawString(BabyShibafont, "Looks like you scrolled too far. This empty space is still for you to write...", new Vector2(50, 50 + (Line * 30)), Color.White);
-                    Line++;
+                    _spriteBatch.DrawString(BabyShibafont, "Looks like you scrolled too far. This empty space is still for you to write...", new Vector2(50, 50 + (line * 30)), Color.White);
+                    line++;
                 }
 
                 // Draw the search prompt
                 _spriteBatch.DrawString(BabyShibafont, "Use scroll to go through events. CTRL + Scroll to scroll faster.", new Vector2(1600, 50), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "Start typing to Search: " + HistoryPrompt + "_", new Vector2(1600, 80), Color.White);
+
+                // Draw the instructions at the bottom right
+                string regionInstruction = $"LCTRL + 1-{MaxRegionIndex}: Focus Region";
+                string cancelInstruction = "LCTRL + X: Unfocus";
+                string toggleSignificantInstruction = ShowSignificant ? "LCTRL + S: Show All Events" : "LCTRL + S: Only Show Significant Ones";
+
+                Vector2 regionInstructionSize = BabyShibafont.MeasureString(regionInstruction);
+                Vector2 cancelInstructionSize = BabyShibafont.MeasureString(cancelInstruction);
+                Vector2 toggleSignificantInstructionSize = BabyShibafont.MeasureString(toggleSignificantInstruction);
+
+                float padding = 10f;
+                float bottomRightX = GraphicsDevice.Viewport.Width - padding;
+                float bottomRightY = GraphicsDevice.Viewport.Height - padding;
+
+                _spriteBatch.DrawString(BabyShibafont, regionInstruction, new Vector2(bottomRightX - regionInstructionSize.X, bottomRightY - toggleSignificantInstructionSize.Y - cancelInstructionSize.Y - regionInstructionSize.Y), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, cancelInstruction, new Vector2(bottomRightX - cancelInstructionSize.X, bottomRightY - toggleSignificantInstructionSize.Y - cancelInstructionSize.Y), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, toggleSignificantInstruction, new Vector2(bottomRightX - toggleSignificantInstructionSize.X, bottomRightY - toggleSignificantInstructionSize.Y), Color.White);
             }
+
+
 
             else if (GameState == "deletinggame")
             {
@@ -9778,7 +10537,6 @@ namespace Lightrealm
                 _spriteBatch.Draw(TitleScreen, destinationRectangle, Color.White);
 
                 DrawCenteredText(_spriteBatch, "Loading Speech To Text Libraries...", 500, Shibafont, Color.White);
-                DrawCenteredText(_spriteBatch, "This may take up to 20 seconds.", 550, Shibafont, Color.White);
 
                 _spriteBatch.Draw(Astrionalis, new Rectangle(100, 200, 640, 1280), Color.White);
                 _spriteBatch.Draw(Celestrioris, new Rectangle(1800, 200, 720, 1270), Color.White);
@@ -9787,21 +10545,20 @@ namespace Lightrealm
             {
                 _spriteBatch.DrawString(Shibafont, "Choose A Microphone:", new Vector2(30, 40), Color.White);
 
-                if (WaveInEvent.DeviceCount > 0)
+                if (PortAudio.DeviceCount > 0)
                 {
-                    for (int i = 0; i < Math.Min(10, WaveInEvent.DeviceCount); i++)
+                    for (int i = 0; i < Math.Min(10, PortAudio.DeviceCount); i++)
                     {
-                        var deviceInfo = WaveInEvent.GetCapabilities(i);
-                        _spriteBatch.DrawString(Shibafont, $"[{i + 1}] {deviceInfo.ProductName}", new Vector2(30, 120 + i * 40), Color.White);
+                        var deviceInfo = PortAudio.GetDeviceInfo(i);
+                        _spriteBatch.DrawString(Shibafont, $"[{i + 1}] {deviceInfo.name}", new Vector2(30, 120 + i * 40), Color.White);
                     }
-                    _spriteBatch.DrawString(Shibafont, "Press the corresponding number key to select an audio device.", new Vector2(30, 500), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Press the corresponding number key to select an audio device.", new Vector2(30, 800), Color.White);
                 }
                 else
                 {
                     _spriteBatch.DrawString(Shibafont, "No audio devices detected, try installing or reinstalling a device and restart the game.", new Vector2(30, 120), Color.White);
                 }
             }
-
             else if (GameState == "loadinggame")
             {
                 _spriteBatch.DrawString(Shibafont, "Loading save data, this may take half a minute...", new Vector2(200, 200), Color.White);
@@ -9850,7 +10607,7 @@ namespace Lightrealm
                     int CurrentItemListing = (GameWorld.HistoricalEvents.Count() - i);
                     if (CurrentItemListing >= 0)
                     {
-                        _spriteBatch.DrawString(BabyShibafont, GameWorld.HistoricalEvents[CurrentItemListing], new Vector2(1750, 400 + ((-1) * (20 * i))), Color.White);
+                        _spriteBatch.DrawString(BabyShibafont, GameWorld.HistoricalEvents[CurrentItemListing].EventData, new Vector2(1750, 400 + ((-1) * (20 * i))), Color.White);
                     }
                 }
 
@@ -9913,7 +10670,7 @@ namespace Lightrealm
 
                 Dictionary<string, string> BonusDictionary = new Dictionary<string, string>() { { "luminarch", "(+10% Max Energy, -10% Attack Power)" }, { "nightfell", "(-10% Max Energy, +10% Attack Power)" }, { "archaix", "(Average Energy, Average Attack Power)" } };
 
-                _spriteBatch.DrawString(BabyShibafont, "[1] Race: " + Capitalize(GameWorld.Races[CurrentlySelectingRace].Name) + " " + BonusDictionary[GameWorld.Races[CurrentlySelectingRace].Name], new Vector2(DrawX + 500, 150), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "[1] Race: " + Capitalize(Game1.GameWorld.HumanoidRaces[CurrentlySelectingRace - 1].Name) + " " + BonusDictionary[Game1.GameWorld.HumanoidRaces[CurrentlySelectingRace - 1].Name], new Vector2(DrawX + 500, 150), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "[2] Sex: " + Capitalize(Sexes[CurrentlySelectingSex]), new Vector2(DrawX + 500, 200), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "[3] Dominant Hand: " + Capitalize((CurrentlySelectingHandedness ? "Right" : "Left")), new Vector2(DrawX + 500, 250), Color.White);
                 _spriteBatch.DrawString(BabyShibafont, "Press ENTER to continue...", new Vector2(DrawX + 500, 350), Color.White);
@@ -9923,10 +10680,28 @@ namespace Lightrealm
                 WorldMouseLogic();
 
             }
+            else if (GameState == "choosegamemode")
+            {
+                DrawCenteredText(_spriteBatch, "Choose a Gamemode", 200, Shibafont, Color.White);
+
+                DrawCenteredTextAtPosition(_spriteBatch, "Chronicle", 500, 500, Shibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "(Press [C])", 500, 520, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Take on the role of an average citizen with a tragic (or petty) backstory", 500, 560, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Grow your power through experience, knowledge, skills, and equipment", 500, 580, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Take on the threats of the world individually or recruit friends to help you", 500, 600, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "With enough power, ascend to a throne and switch to Ascendant mode at any time", 500, 620, BabyShibafont, Color.White);
+
+                DrawCenteredTextAtPosition(_spriteBatch, "Ascendant", 2060, 500, Shibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "(Press [A])", 2060, 520, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Inherit a network of people, places, and resources", 2060, 560, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Manage resources, build outposts, grow your association, bring peace or sow evil", 2060, 580, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Deploy parties to locations and dictate their actions, down to the finest detail", 2060, 600, BabyShibafont, Color.White);
+                DrawCenteredTextAtPosition(_spriteBatch, "Switch to Chronicle mode at any time", 2060, 620, BabyShibafont, Color.White);
+            }
             else if (GameState == "choosefounderoptions")
             {
-                _spriteBatch.DrawString(BabyShibafont, "Choose your civilization preferences ([] denotes a keybind!):", new Vector2(DrawX + 500, 100), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "[1] Race: " + GameWorld.Races[CurrentlySelectingRace], new Vector2(DrawX + 500, 150), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Choose your base-of-operations preference ([] denotes a keybind!):", new Vector2(DrawX + 500, 100), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "[1] Civilization Type: " + Game1.GameWorld.Races[CurrentlySelectingRace].Name, new Vector2(DrawX + 500, 150), Color.White);
 
                 DrawWorld();
 
@@ -9937,172 +10712,361 @@ namespace Lightrealm
                 WorldMouseLogic();
 
             }
-            else if (GameState == "founder")
+            else if (GameState == "ascendant")
             {
                 _spriteBatch.Draw(GuideT, new Rectangle(0, 0, 192, 192), Color.White);
 
-                // Render tiles and update CivilizationParticles
-                for (int x = 0; x < GameWorld.Width; x++)
-                {
-                    for (int z = 0; z < GameWorld.Length; z++)
-                    {
-                        if (GameWorld.GamePlayerParty.MapCursorX == x && GameWorld.GamePlayerParty.MapCursorZ == z)
-                        {
-                            _spriteBatch.Draw(CursorT, new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize), Color.White);
-                        }
-                        else
-                        {
-                            // Draw the tile
-                            _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].Biome],
-                                new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize),
-                                new Color(100, 100, 100));
+                // Draw the world using the new function
+                DrawWorld();
 
-                            if (GameWorld.WorldMap[x + z * GameWorld.Width].Owner != null)
-                            {
-                                // Draw outline for owned tile
-                                _spriteBatch.Draw(OutlineT,
-                                    new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize),
-                                    ColorConverter[GameWorld.WorldMap[x + z * GameWorld.Width].Owner.Color]);
-
-                                if (GameWorld.WorldMap[x + z * GameWorld.Width].Owner == GamePlayerCivilization)
-                                {
-                                    if (r.Next(1, 10) == 1)
-                                    {
-                                        // Add CivilizationParticles
-                                        CivilizationParticles.Add((
-                                            (10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0),
-                                            10 + z * TileZDistance,
-                                            ColorConverter[GamePlayerCivilization.Color],
-                                            r.Next(1, 4),
-                                            r.Next(20, 40),
-                                            r.Next(1, 5) // Assuming 1-4 for direction
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-
-
-                        if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null)
-                        {
-                            // Draw tile for custom location
-                            _spriteBatch.Draw(TileAtlas[GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type],
-                                new Rectangle((10 + x * TileXDistance) + ((z % 2 == 1) ? TileXDistance / 2 : 0), 10 + z * TileZDistance, TileSize, TileSize),
-                                Color.White);
-                        }
-
-                    }
-                }
-
-                // Update CivilizationParticles
-                for (int index = 0; index < CivilizationParticles.Count(); index++)
-                {
-                    var i = CivilizationParticles[index];
-                    _spriteBatch.Draw(whiteRect, new Rectangle(i.Item1, i.Item2, i.Item4, i.Item4), i.Item3);
-
-                    if (i.Item6 == 1)
-                    {
-                        CivilizationParticles[index] = (i.Item1 + 1, i.Item2 + 1, i.Item3, i.Item4, i.Item5 - 1, i.Item6);
-                    }
-                    else if (i.Item6 == 2)
-                    {
-                        CivilizationParticles[index] = (i.Item1 + 1, i.Item2 - 1, i.Item3, i.Item4, i.Item5 - 1, i.Item6);
-                    }
-                    else if (i.Item6 == 3)
-                    {
-                        CivilizationParticles[index] = (i.Item1 - 1, i.Item2 + 1, i.Item3, i.Item4, i.Item5 - 1, i.Item6);
-                    }
-                    else if (i.Item6 == 4)
-                    {
-                        CivilizationParticles[index] = (i.Item1 - 1, i.Item2 - 1, i.Item3, i.Item4, i.Item5 - 1, i.Item6);
-                    }
-                }
-
-                CivilizationParticles.RemoveAll(i => i.Item5 < 1);
                 _spriteBatch.DrawString(BabyShibafont, GameWorld.Name + " (hover over map for more info)", new Vector2(DrawX + 500, DrawY), Color.White);
 
-                _spriteBatch.DrawString(BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 120960)), new Vector2(1900, 1280), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 483840), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 5806080), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Week " + Math.Round((decimal)(GameWorld.Cycle / 6048000)), new Vector2(1900, 1280), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Month " + Math.Round((decimal)(GameWorld.Cycle / 24192000), 0, MidpointRounding.ToNegativeInfinity).ToString(), new Vector2(1900, 1240), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Year " + Math.Round((decimal)(Math.Round((decimal)(GameWorld.Cycle / 290304000), 0, MidpointRounding.ToNegativeInfinity)), 0, MidpointRounding.ToNegativeInfinity), new Vector2(1900, 1200), Color.White);
+
+                _spriteBatch.DrawString(BabyShibafont, GameWorld.GamePlayerAssociation.Name, new Vector2(1900, 200), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "[RTDGCV] Cursor", new Vector2(1900, 240), Color.White);
+
+                DrawAnnouncements();
 
 
-                _spriteBatch.DrawString(Shibafont, GamePlayerCivilization.Name, new Vector2(1900, 200), ColorConverter[GamePlayerCivilization.Color]);
-                _spriteBatch.DrawString(BabyShibafont, "Cursor: RTDGCV", new Vector2(1900, 220), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Select: F", new Vector2(1900, 240), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "[S]tructures", new Vector2(1900, 260), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "[M]illitary", new Vector2(1900, 280), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "D[I]stricts", new Vector2(1900, 300), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Res[O]urces", new Vector2(1900, 320), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Di[P]lomacy", new Vector2(1900, 340), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "Sett[L]ement", new Vector2(1900, 360), Color.White);
+                // Draw the icon and text for cursor and parties
+                int startX = 192; // Start drawing to the right of the GuideT rectangle
+                int startY = 0; // Start at the top
+                int iconSize = 24;
+                int spacingY = 30;
 
-                _spriteBatch.DrawString(BabyShibafont, "Wait and Build up Resources", new Vector2(1900, 420), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "[1] Wait 1 Month", new Vector2(1900, 440), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "[2] Wait 1 Year", new Vector2(1900, 460), Color.White);
-                _spriteBatch.DrawString(BabyShibafont, "[3] Wait 10 Years", new Vector2(1900, 480), Color.White);
+                // Cursor icon and text
+                _spriteBatch.Draw(CursorT, new Rectangle(startX, startY, iconSize, iconSize), Color.Cyan);
+                _spriteBatch.DrawString(BabyShibafont, "Cursor", new Vector2(startX + iconSize + 5, startY), Color.Cyan);
+
+                startY += spacingY;
+
+                // Active Party icon and text
+                _spriteBatch.Draw(CursorT, new Rectangle(startX, startY, iconSize, iconSize), Color.Magenta);
+                _spriteBatch.DrawString(BabyShibafont, "Active Party", new Vector2(startX + iconSize + 5, startY), Color.Magenta);
+
+                startY += spacingY;
+
+                // Inactive Party icon and text
+                _spriteBatch.Draw(CursorT, new Rectangle(startX, startY, iconSize, iconSize), Color.White);
+                _spriteBatch.DrawString(BabyShibafont, "Inactive Party", new Vector2(startX + iconSize + 5, startY), Color.White);
+
+                // Skip a line
+                startY += spacingY * 2;
+
+                // Outline icons and text
+                _spriteBatch.Draw(OutlineT, new Rectangle(startX, startY, iconSize, iconSize), new Color(125, 0, 255));
+                _spriteBatch.DrawString(BabyShibafont, "Controlled", new Vector2(startX + iconSize + 5, startY), new Color(125, 0, 255));
+
+                startY += spacingY;
+
+                _spriteBatch.Draw(OutlineT, new Rectangle(startX, startY, iconSize, iconSize), Color.Yellow);
+                _spriteBatch.DrawString(BabyShibafont, "Neutral", new Vector2(startX + iconSize + 5, startY), Color.Yellow);
+
+                startY += spacingY;
+
+                _spriteBatch.Draw(OutlineT, new Rectangle(startX, startY, iconSize, iconSize), Color.Red);
+                _spriteBatch.DrawString(BabyShibafont, "Hostile", new Vector2(startX + iconSize + 5, startY), Color.Red);
 
 
 
-                for (int x = 0; x < GameWorld.Width; x++)
+
+
+                int y = 300;
+
+                if (AscendantState == "ledger")
                 {
-                    for (int z = 0; z < GameWorld.Length; z++)
+                    // Handle the logic for the "expenses" state
+                    _spriteBatch.DrawString(BabyShibafont, "Ledger", new Vector2(1900, y), Color.White);
+                }
+                else if (AscendantState == "management")
+                {
+                    // Handle the logic for the "manageAssociates" state
+
+                    _spriteBatch.DrawString(BabyShibafont, "Management", new Vector2(1900, y), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "Use Arrow Keys and Enter to Select an Individual", new Vector2(1900, y + 30), Color.White);
+
+                    y += 60;
+
+                    int Archindex = 0;
+
+                    foreach (Party p in Game1.GameWorld.GamePlayerAssociation.Parties)
                     {
-                        if (GameWorld.GamePlayerParty.MapCursorX == x && GameWorld.GamePlayerParty.MapCursorZ == z)
+                        _spriteBatch.DrawString(BabyShibafont, p.Name, new Vector2(1900, y), Color.White);
+                        y += 30;
+
+                        foreach(Architect a in p.Architects)
                         {
-                            if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null)
+                            if(Archindex == AscendantCursor)
                             {
-                                _spriteBatch.DrawString(BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "   [X] " + a.Name, new Vector2(1900, y), Color.White);
                             }
                             else
                             {
-                                _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX, DrawY), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "   [ ] " + a.Name, new Vector2(1900, y), Color.White);
+                            }
+                            Archindex++;
+                            y += 30;
+                        }
+                    }
+                }
+                else if (AscendantState == "actions")
+                {
+                    // Handle the logic for the "deployment" state
+                    _spriteBatch.DrawString(BabyShibafont, "Select a Party/Location to Act and press Enter.", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Press X to Cancel.", new Vector2(1900, y), Color.White);
+                    y += 30;
 
-                                int ArchitectPopulation = 0;
-                                int structures = 0;
-                                int groups = 0;
+                    foreach (Party p in GameWorld.GamePlayerAssociation.Parties)
+                    {
+                        y += 30;
+                        if (GameWorld.GamePlayerAssociation.ActiveParty == p)
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[X] " + p.Name + "(" + p.Leader.Location + ")", new Vector2(1900, y), Color.White);
+                        }
+                        else
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[ ] " + p.Name + "(" + p.Leader.Location + ")", new Vector2(1900, y), Color.White);
+                        }
+                    }
+                }
+                else if (AscendantState == "selectaction")
+                {
+                    // Handle the logic for the "actions" state
+                    _spriteBatch.DrawString(BabyShibafont, "Actions", new Vector2(1900, y), Color.White); y += 60;
 
-                                foreach (Group g in Game1.GameWorld.Groups)
+                    _spriteBatch.DrawString(BabyShibafont, "[A] Steal an Artifact", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[R] Raze a Building", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[T] Sieze Location Control", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[D] Kill Assorted", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[K] Kidnap Assorted", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[V] Kill Target", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[Y] Kidnap Target", new Vector2(1900, y), Color.White); y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[I] Incite Violence", new Vector2(1900, y), Color.White); y += 30;
+
+                    _spriteBatch.DrawString(BabyShibafont, "[X] Cancel", new Vector2(1900, y), Color.White); y += 30;
+                }
+                else if (AscendantState == "chooseactioncomponent")
+                {
+                    
+                }
+                else if (AscendantState == "build")
+                {
+                    // Handle the logic for the "build" state
+                    _spriteBatch.DrawString(BabyShibafont, "Build", new Vector2(1900, y), Color.White);
+                }
+                else if (AscendantState == "movetoparty")
+                {
+                    // Handle the logic for the "deployment" state
+                    _spriteBatch.DrawString(BabyShibafont, "Select a party to move " + CurrentlySelectedAscendantArchitect.Name + " to.", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Press N to make a new party.", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Press X to Cancel.", new Vector2(1900, y), Color.White);
+
+                    y += 60;
+
+                    foreach (Party p in GameWorld.GamePlayerAssociation.Parties)
+                    {
+                        y += 20;
+                        if (GameWorld.GamePlayerAssociation.ActiveParty == p)
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[X] " + p.Name, new Vector2(1900, y), Color.White);
+                        }
+                        else
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[ ] " + p.Name, new Vector2(1900, y), Color.White);
+                        }
+                    }
+                }
+                else if (AscendantState == "deployment")
+                {
+                    // Handle the logic for the "deployment" state
+                    _spriteBatch.DrawString(BabyShibafont, "Select a Party to Deploy and press Enter.", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Press X to Cancel.", new Vector2(1900, y), Color.White);
+                    y += 30;
+
+                    foreach(Party p in GameWorld.GamePlayerAssociation.Parties)
+                    {
+                        y += 30;
+                        if (GameWorld.GamePlayerAssociation.ActiveParty == p)
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[X] " + p.Name, new Vector2(1900, y), Color.White);
+                        }
+                        else
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[ ] " + p.Name, new Vector2(1900, y), Color.White);
+                        }
+                    }
+                }
+                else if (AscendantState == "chooseactinggroup")
+                {
+                    // Handle the logic for the "deployment" state
+                    _spriteBatch.DrawString(BabyShibafont, "Select a Party to act and press Enter.", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Press X to Cancel.", new Vector2(1900, y), Color.White);
+                    y += 30;
+
+                    foreach (Party p in GameWorld.GamePlayerAssociation.Parties)
+                    {
+                        y += 30;
+                        if (GameWorld.GamePlayerAssociation.ActiveParty == p)
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[X] " + p.Name, new Vector2(1900, y), Color.White);
+                        }
+                        else
+                        {
+                            _spriteBatch.DrawString(BabyShibafont, "[ ] " + p.Name, new Vector2(1900, y), Color.White);
+                        }
+                    }
+                }
+                else if (AscendantState == "choosedistrict")
+                {
+                    _spriteBatch.DrawString(BabyShibafont, "Select a District", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Use Arrow Keys to Navigate, Enter to Select.", new Vector2(1900, y), Color.White);
+                    y += 30;
+
+                    for (int i = 0; i < CurrentlySelectedAscendantParty.Leader.Location.Districts.Count; i++)
+                    {
+                        string prefix = (i == AscendantCursor) ? "[X]" : "[ ]";
+                        _spriteBatch.DrawString(BabyShibafont, $"{prefix} {CurrentlySelectedAscendantParty.Leader.Location.Districts[i].Name}", new Vector2(1900, y), Color.White);
+                        y += 30;
+                    }
+                }
+                else if (AscendantState == "selectrelocation")
+                {
+                    _spriteBatch.DrawString(BabyShibafont, "Use Cursor and Press Enter to Restation your Party", new Vector2(1900, y), Color.White);
+                }
+                else if (AscendantState == "selectactingmode")
+                {
+                    _spriteBatch.DrawString(BabyShibafont, "Select Acting Mode", new Vector2(1900, y), Color.White);
+                    y += 30;
+
+                    _spriteBatch.DrawString(BabyShibafont, "[D] Directly Control Party", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[I] Issue Automatic Order", new Vector2(1900, y), Color.White);
+                }
+
+                else if (AscendantState == "chooseactioncomponent")
+                {
+                    int totalEntities = AscendantEntityLedger.Count;
+                    int totalPages = (totalEntities + 9) / 10; // Calculate the total number of pages
+
+                    // Display instructions
+                    _spriteBatch.DrawString(BabyShibafont, "Select an Action Component", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "Use Numbers to select.", new Vector2(1900, y), Color.White);
+                    y += 30;
+
+                    // Display the current page of entities
+                    int startEntity = AscendantPage * 10;
+                    int endEntity = Math.Min(startEntity + 10, totalEntities);
+
+                    for (int i = startEntity; i < endEntity; i++)
+                    {
+                        int displayIndex = i % 10; // This gives values from 0-9
+
+                        // Map 9 to '0' for display purposes
+                        string keyDisplay = (displayIndex == 9) ? "0" : (displayIndex + 1).ToString();
+
+                        _spriteBatch.DrawString(BabyShibafont, $"[{keyDisplay}] {AscendantEntityLedger[i].Name}", new Vector2(1900, y), Color.White);
+                        y += 30;
+                    }
+
+                    // Page navigation
+                    _spriteBatch.DrawString(BabyShibafont, $"Page {AscendantPage + 1} of {totalPages}", new Vector2(1900, y), Color.White);
+                    y += 30;
+                    _spriteBatch.DrawString(BabyShibafont, "[<] Previous Page   [>] Next Page", new Vector2(1900, y), Color.White);
+                }
+
+                else if (AscendantState == "main")
+                {
+                    // The main state logic (default screen with all options)
+                    _spriteBatch.DrawString(BabyShibafont, "[E]xpenses", new Vector2(1900, 260), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[M]anage Associates", new Vector2(1900, 280), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[I]nitiate Action", new Vector2(1900, 300), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[B]uild", new Vector2(1900, 320), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[P]arty Deployment", new Vector2(1900, 340), Color.White);
+
+                    _spriteBatch.DrawString(BabyShibafont, "[1] Wait One Day", new Vector2(1900, 420), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[2] Wait One Week", new Vector2(1900, 440), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[3] Wait One Month", new Vector2(1900, 460), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "[4] Wait One Year", new Vector2(1900, 480), Color.White);
+                }
+
+                // Draw world info when cursor hovers over a map tile
+                for (int x = 0; x < GameWorld.Width; x++)
+                {
+                    for (int z = 0; z < GameWorld.Length; z++)
+                    {
+                        if (GameWorld.GamePlayerAssociation.AscendantX == x && GameWorld.GamePlayerAssociation.AscendantZ == z)
+                        {
+                            if (GameWorld.WorldMap[x + z * GameWorld.Width].Explored == true)
+                            {
+                                if (GameWorld.WorldMap[x + z * GameWorld.Width].Location == null)
                                 {
-                                    if (g.Leader.Location == GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation)
-                                        groups++;
-                                }
-
-                                foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts)
-                                {
-                                    ArchitectPopulation += d.Architects.Count();
-
-                                    for (int DistrictX = 0; DistrictX < 7; DistrictX++)
-                                    {
-                                        for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
-                                        {
-                                            foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
-                                            {
-                                                structures++;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                _spriteBatch.DrawString(BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
-
-                                if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
-                                {
-                                    _spriteBatch.DrawString(BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX, DrawY), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].Location.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type + ".", new Vector2(DrawX, DrawY), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.TruePopulation(), new Vector2(DrawX, DrawY + 30), Color.White);
+
+                                    int ArchitectPopulation = 0;
+                                    int structures = 0;
+                                    int groups = 0;
+
+                                    foreach (Group g in Game1.GameWorld.Groups)
+                                    {
+                                        if (g.Leader.Location == GameWorld.WorldMap[x + z * GameWorld.Width].Location)
+                                            groups++;
+                                    }
+
+                                    foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].Location.Districts)
+                                    {
+                                        ArchitectPopulation += d.Architects.Count();
+
+                                        for (int DistrictX = 0; DistrictX < 7; DistrictX++)
+                                        {
+                                            for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
+                                            {
+                                                foreach (Structure s in d.DistrictMap[DistrictX + DistrictZ * 7].Structures)
+                                                {
+                                                    structures++;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    _spriteBatch.DrawString(BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX, DrawY + 60), Color.White);
+
+                                    if (GameWorld.WorldMap[x + z * GameWorld.Width].Location.Government == null)
+                                    {
+                                        _spriteBatch.DrawString(BabyShibafont, "No Notable Government", new Vector2(DrawX, DrawY + 90), Color.White);
+                                    }
+                                    else
+                                    {
+                                        _spriteBatch.DrawString(BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Government.Name, new Vector2(DrawX, DrawY + 90), Color.White);
+                                    }
+
+                                    _spriteBatch.DrawString(BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
+
+                                    _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Districts.Count(), new Vector2(DrawX, DrawY + 270), Color.White);
                                 }
+                            }
+                            else
+                            {
+                                _spriteBatch.DrawString(BabyShibafont, "Unexplored", new Vector2(DrawX, DrawY), Color.White);
 
-                                _spriteBatch.DrawString(BabyShibafont, "Colonization Desire: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.ColonizationDesire, new Vector2(DrawX, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Wealth: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Wealth, new Vector2(DrawX, DrawY + 150), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Is Saving Up To Settle: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.IsSavingUpToSettle.ToString(), new Vector2(DrawX, DrawY + 180), Color.White);
-
-
-                                _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX, DrawY + 210), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Distinct Groups: " + groups, new Vector2(DrawX, DrawY + 240), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count(), new Vector2(DrawX, DrawY + 270), Color.White);
                             }
                         }
                     }
@@ -10310,7 +11274,7 @@ namespace Lightrealm
                         _spriteBatch.DrawString(Shibafont, "O", oPosition, oColor);
 
                         Vector2 helpPosition = new Vector2(basePosition.X, basePosition.Y + 50);
-                        _spriteBatch.DrawString(Shibafont, "Press CTRL + ? for GUI Info", helpPosition, Color.White);
+                        _spriteBatch.DrawString(Shibafont, "Press CTRL and ? or + for Help", helpPosition, Color.White);
 
                         Rectangle backgroundRect = new Rectangle(50, 1258, 176, 176);
 
@@ -10417,6 +11381,12 @@ namespace Lightrealm
                                                 break;
                                             case "outpost":
                                                 DecidedTexture = DistrictOutpostT;
+                                                break;
+                                            case "bastion":
+                                                DecidedTexture = DistrictBastionT;
+                                                break;
+                                            case "fort":
+                                                DecidedTexture = DistrictFortT;
                                                 break;
                                             case "sanctum":
                                                 DecidedTexture = DistrictSanctumT;
@@ -10794,26 +11764,31 @@ namespace Lightrealm
                                 _spriteBatch.Draw(ReactionGUIT, new Rectangle(320, 180, 1920, 1080), Color.White);
 
                                 // Calculate the success chances for the MostRecentPartyTurnArchitect
-                                var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttacks[0], GameWorld.ReactionModifierInt, StoredAttacks[0].Attacker, StoredAttacks[0].Attacker.GetProficiency(StoredAttacks[0].Weapon.DamageType));
+                                var successChances = MostRecentPartyTurnArchitect.CalculateSuccessChances(StoredAttack, Game1.GameWorld.ReactionModifierInt, StoredAttack.Attacker, StoredAttack.Attacker.GetProficiency(StoredAttack.Weapon.DamageType));
+
+                                // Draw the MostRecentPartyTurnArchitect on the left
+                                DrawCharacter((Architect)(StoredAttack.Target.Creator), 900, 820, 0.2);
+
+                                // Draw the attacker on the right, inverted
+                                DrawCharacter(StoredAttack.Attacker, 1570, 820, 0.2, Inverted: true);
 
                                 int y = 600;
                                 int d = 30;
 
                                 string Exposed = "";
 
-                                if (StoredAttacks[0].Target.Exposure > 49)
+                                if (StoredAttack.Target.Exposure > 49)
                                 {
                                     Exposed = "exposed ";
                                 }
 
-                                DrawCenteredText(_spriteBatch, StoredAttacks[0].Attacker.ReferredToNames[0] + " is aiming a " + StoredAttacks[0].Verb, y, Shibafont, Color.White);
-                                DrawCenteredText(_spriteBatch, "at your " + Exposed + StoredAttacks[0].Target.Type + " with their " + StoredAttacks[0].Weapon.ReferredToNames[0], y + d, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, StoredAttack.Attacker.ReferredToNames[0] + " is aiming a " + StoredAttack.Verb, y, Shibafont, Color.White);
+                                DrawCenteredText(_spriteBatch, "at your " + Exposed + StoredAttack.Target.Type + " with their " + StoredAttack.Weapon.ReferredToNames[0], y + d, Shibafont, Color.White);
 
                                 int RoundToNearestFive(int value)
                                 {
                                     return ((value + 2) / 5) * 5;
                                 }
-
 
                                 DrawCenteredText(_spriteBatch, "[S] Sustain (" + RoundToNearestFive(successChances.sustain) + "% evs.?)", y + d * 2, Shibafont, Color.White);
                                 DrawCenteredText(_spriteBatch, "[D] Duck (" + RoundToNearestFive(successChances.duck) + "% evs.?)", y + d * 3, Shibafont, Color.White);
@@ -10824,16 +11799,17 @@ namespace Lightrealm
 
                                 if ((MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.IsWeapon) || (MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.IsWeapon))
                                 {
-                                    DrawCenteredText(_spriteBatch, "[P] Parry the Attack (requires weapon) (" + RoundToNearestFive(successChances.parry) + "%?)", y + d * 8, Shibafont, Color.White);
+                                    DrawCenteredText(_spriteBatch, "[P] Parry the Attack (" + RoundToNearestFive(successChances.parry) + "%?)", y + d * 8, Shibafont, Color.White);
                                 }
                                 if ((MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.Type == "shield") || (MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.Type == "shield"))
                                 {
-                                    DrawCenteredText(_spriteBatch, "[B] Block the Attack (requires shield) (" + RoundToNearestFive(successChances.block) + "%?)", y + d * 9, Shibafont, Color.White);
+                                    DrawCenteredText(_spriteBatch, "[B] Block the Attack (" + RoundToNearestFive(successChances.block) + "%?)", y + d * 9, Shibafont, Color.White);
                                 }
 
                                 DrawCenteredText(_spriteBatch, "Press ? for detailed info.", y + d * 10, Shibafont, Color.White);
                             }
                         }
+
                         else if (GameState == "trypickup")
                         {
                             int GetHalfCount(string itemType)
@@ -10894,6 +11870,12 @@ namespace Lightrealm
                         {
                             _spriteBatch.Draw(MessageGUIT, new Rectangle(0, 0, 2560, 1440), Color.White);
 
+                            // Draw the MostRecentPartyTurnArchitect on the left
+                            DrawCharacter(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Receiver, 675, 300, 0.2);
+
+                            // Draw the message sender on the right, inverted
+                            DrawCharacter(MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender, 1800, 300, 0.2, Inverted: true);
+
                             string TruncateText(string text, int maxLength)
                             {
                                 if (text.Length <= maxLength)
@@ -10905,7 +11887,6 @@ namespace Lightrealm
                             int d = 30;
                             DrawCenteredText(_spriteBatch, MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].Sender.ReferredToNames[0] + " says:", y, Shibafont, Color.White);
                             DrawCenteredText(_spriteBatch, "\"" + MostRecentPartyTurnArchitect.MessagesNotRespondedTo[0].MessageContent + "\"", y + d, Shibafont, Color.White);
-
 
                             int TruncationLength = 70;
 
@@ -10928,6 +11909,7 @@ namespace Lightrealm
                                 DrawCenteredText(_spriteBatch, "[X] Do not respond.", y + d * 7, Shibafont, Color.White);
                             }
                         }
+
                         else if (CommandBuilderStage != "none")
                         {
                             // Draw the message GUI
@@ -11066,7 +12048,7 @@ namespace Lightrealm
                         // Declare the static adjustment variable
                         int PositionAdjustment = 400;
 
-                        var sortedArchitects = GameWorld.GamePlayerParty.Architects.OrderBy(a => a.CooldownCycles);
+                        var sortedArchitects = GameWorld.GamePlayerAssociation.ActiveParty.Architects.OrderBy(a => a.CooldownCycles);
                         int currentX = 1400 + PositionAdjustment; // Apply the adjustment
 
                         foreach (var architect in sortedArchitects)
@@ -11121,13 +12103,18 @@ namespace Lightrealm
                         {
                             int exposure = MostRecentPartyTurnArchitect.FindBodyPart(bodyPartType).Exposure;
 
-                            // Calculate the red and blue values based on the exposure
-                            int red = (exposure <= 50) ? (int)(1 + 124 * (exposure / 50f)) : 125;
+                            // Calculate the red and blue values based on the exposure (0 to 100 scale)
+                            int red = (exposure <= 50) ? (int)(1 + 124 * (exposure / 50f)) : (int)(125 + 130 * ((exposure - 50) / 50f));
                             int blue = (exposure <= 50) ? (int)(1 + 254 * (exposure / 50f)) : 255;
 
                             Color color = new Color(red, 0, blue);
 
                             spriteBatch.Draw(texture, position, null, color, 0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
+                        }
+
+                        if ((Keyboard.GetState().IsKeyDown(Keys.LeftControl) || Keyboard.GetState().IsKeyDown(Keys.RightControl)) && Keyboard.GetState().IsKeyDown(Keys.OemPlus))
+                        {
+                            _spriteBatch.Draw(QuickStartGUI, new Rectangle(0, 0, 2560, 1440), Color.White);
                         }
                     }
                     else
@@ -11183,7 +12170,7 @@ namespace Lightrealm
                         }
 
                         line = 0;
-                        int intrigueCount = GameWorld.GamePlayerParty.Intrigue.Count();
+                        int intrigueCount = GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Count();
 
                         if (intrigueCount == 0)
                         {
@@ -11193,7 +12180,7 @@ namespace Lightrealm
                         {
                             // Calculate the starting index to only draw the last 10 lines
                             int startIndex = intrigueCount > 10 ? intrigueCount - 10 : 0;
-                            var intriguesToDraw = GameWorld.GamePlayerParty.Intrigue.Skip(startIndex);
+                            var intriguesToDraw = GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Skip(startIndex);
 
                             foreach (var intrigue in intriguesToDraw)
                             {
@@ -11359,7 +12346,7 @@ namespace Lightrealm
                             int startingPosition = 500;
                             int spacing = 30;
 
-                            void DrawPathLevels(Party GamePlayerParty, SpriteBatch spriteBatch, SpriteFont babyShibaFont)
+                            void DrawPathLevels(SpriteBatch spriteBatch, SpriteFont babyShibaFont)
                             {
                                 int position = startingPosition;
 
@@ -11421,9 +12408,7 @@ namespace Lightrealm
                                 */
                             }
 
-                            DrawPathLevels(GameWorld.GamePlayerParty, _spriteBatch, BabyShibafont);
-
-
+                            DrawPathLevels(_spriteBatch, BabyShibafont);
                         }
 
 
@@ -12582,14 +13567,14 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MostRecentPartyTurnArchitect = GameWorld.GamePlayerParty.Architects[0];
-                    foreach(Architect a in GameWorld.GamePlayerParty.Architects)
+                    MostRecentPartyTurnArchitect = GameWorld.GamePlayerAssociation.ActiveParty.Architects[0];
+                    foreach(Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                     {
                         a.ReferredToNames.Remove("myself");
                         a.ReferredToNames.Remove("me");
                     }
-                    MostRecentPartyTurnArchitect.ReferredToNames.Add("myself");
-                    MostRecentPartyTurnArchitect.ReferredToNames.Add("me");
+                    MostRecentPartyTurnArchitect.AddReferredToName("myself");
+                    MostRecentPartyTurnArchitect.AddReferredToName("me");
                 }
             }
             else if (GameState == "dead")
@@ -12618,27 +13603,27 @@ namespace Lightrealm
 
                 if (Keyboard.GetState().IsKeyDown(Keys.Tab))
                 {
-                    _spriteBatch.DrawString(BabyShibafont, "X: " + GameWorld.GamePlayerParty.MapCursorX.ToString(), new Vector2(DrawX + 500, 60), Color.White);
-                    _spriteBatch.DrawString(BabyShibafont, "Z: " + GameWorld.GamePlayerParty.MapCursorZ.ToString(), new Vector2(DrawX + 560, 60), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "X: " + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX.ToString(), new Vector2(DrawX + 500, 60), Color.White);
+                    _spriteBatch.DrawString(BabyShibafont, "Z: " + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ.ToString(), new Vector2(DrawX + 560, 60), Color.White);
 
                     DrawWorld();
                 }
                 else
                 {
-                    DrawWorldSegment(GameWorld.GamePlayerParty.MapCursorX, GameWorld.GamePlayerParty.MapCursorZ, 20, 20, 8.0f, 8);
+                    DrawWorldSegment(GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, 20, 20, 8.0f, 8);
                 }
 
                 for (int x = 0; x < GameWorld.Width; x++)
                 {
                     for (int z = 0; z < GameWorld.Length; z++)
                     {
-                        if (x == GameWorld.GamePlayerParty.MapCursorX && z == GameWorld.GamePlayerParty.MapCursorZ)
+                        if (x == GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX && z == GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ)
                         {
-                            if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation == null || GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Explored == false)
+                            if (GameWorld.WorldMap[x + z * GameWorld.Width].Location == null || GameWorld.WorldMap[x + z * GameWorld.Width].Location.Explored == false)
                             {
                                 _spriteBatch.DrawString(BabyShibafont, "No Notable Location, " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome, new Vector2(DrawX + 500, DrawY - 30), Color.White);
 
-                                if (!GameWorld.WorldMap[x + z * GameWorld.Width].RegionallyExplored)
+                                if (!GameWorld.WorldMap[x + z * GameWorld.Width].DeepExplored)
                                 {
                                     _spriteBatch.DrawString(BabyShibafont, "Press A to search for unknown locations.", new Vector2(DrawX + 500, DrawY), Color.Pink);
                                 }
@@ -12649,21 +13634,21 @@ namespace Lightrealm
                             }
                             else
                             {
-                                if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation != null && GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Explored == true && ReqExploreLocations.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type))
+                                if (GameWorld.WorldMap[x + z * GameWorld.Width].Location != null && GameWorld.WorldMap[x + z * GameWorld.Width].Location.Explored == true && ReqExploreLocations.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type))
                                 {
-                                    _spriteBatch.DrawString(BabyShibafont, "You discovered an ominous " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX + 500, DrawY - 60), Color.Lime);
+                                    _spriteBatch.DrawString(BabyShibafont, "You discovered an ominous " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type + ".", new Vector2(DrawX + 500, DrawY - 60), Color.Lime);
                                 }
 
-                                if (MenacingStructures.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type))
+                                if (MenacingStructures.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace.Name + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type))
                                 {
                                     _spriteBatch.DrawString(BabyShibafont, "This location emnates an ominous aura.", new Vector2(DrawX + 500, DrawY), Color.OrangeRed);
                                 }
 
-                                _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type + ".", new Vector2(DrawX + 500, DrawY - 30), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, GameWorld.WorldMap[x + z * GameWorld.Width].Location.Name + ", " + GameWorld.WorldMap[x + z * GameWorld.Width].Biome + " " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type + ".", new Vector2(DrawX + 500, DrawY - 30), Color.White);
                                 _spriteBatch.DrawString(BabyShibafont,
-     "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.TruePopulation() +
-     (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace != null && GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name != "" ?
-     " (Primarily " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.PrimaryRace.Name + ")" : ""),
+     "Population: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.TruePopulation() +
+     (GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace != null && GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace.Name != "" ?
+     " (Primarily " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.PrimaryRace.Name + ")" : ""),
      new Vector2(DrawX + 500, DrawY + 30),
      Color.White);
 
@@ -12680,13 +13665,13 @@ namespace Lightrealm
 
                                 DistrictLine += 2;
 
-                                foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts)
+                                foreach (District d in GameWorld.WorldMap[x + z * GameWorld.Width].Location.Districts)
                                 {
                                     // Check if MyLocation.Type is in SettlementTypes
-                                    bool isSettlementType = GameWorld.SettlementTypes.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Type);
+                                    bool isSettlementType = GameWorld.SettlementTypes.Contains(GameWorld.WorldMap[x + z * GameWorld.Width].Location.Type);
 
                                     // REDRAW THE DISTRICT NAMES AND IF THEY'RE DONE DO THE SHIBA CARAT
-                                    if (DistrictLine == GameWorld.GamePlayerParty.MapCursorDistrict + 3)
+                                    if (DistrictLine == GameWorld.GamePlayerAssociation.ActiveParty.MapCursorDistrict + 3)
                                     {
                                         if (isSettlementType)
                                         {
@@ -12720,7 +13705,7 @@ namespace Lightrealm
 
                                     foreach (Group g in GameWorld.Groups)
                                     {
-                                        if (g.Leader.Location == GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation)
+                                        if (g.Leader.Location == GameWorld.WorldMap[x + z * GameWorld.Width].Location)
                                         {
                                             groups++;
                                         }
@@ -12744,17 +13729,17 @@ namespace Lightrealm
 
                                 _spriteBatch.DrawString(BabyShibafont, "Total Architects: " + ArchitectPopulation, new Vector2(DrawX + 500, DrawY + 60), Color.White);
 
-                                if (GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government == null)
+                                if (GameWorld.WorldMap[x + z * GameWorld.Width].Location.Government == null)
                                 {
                                     _spriteBatch.DrawString(BabyShibafont, "No Notable Government", new Vector2(DrawX + 500, DrawY + 90), Color.White);
                                 }
                                 else
                                 {
-                                    _spriteBatch.DrawString(BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Government.Name, new Vector2(DrawX + 500, DrawY + 90), Color.White);
+                                    _spriteBatch.DrawString(BabyShibafont, "Government: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Government.Name, new Vector2(DrawX + 500, DrawY + 90), Color.White);
                                 }
 
                                 _spriteBatch.DrawString(BabyShibafont, "Structures: " + structures, new Vector2(DrawX + 500, DrawY + 120), Color.White);
-                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].MyLocation.Districts.Count(), new Vector2(DrawX + 500, DrawY + 150), Color.White);
+                                _spriteBatch.DrawString(BabyShibafont, "Districts: " + GameWorld.WorldMap[x + z * GameWorld.Width].Location.Districts.Count(), new Vector2(DrawX + 500, DrawY + 150), Color.White);
 
 
                                 _spriteBatch.DrawString(BabyShibafont, "Press ENTER to travel to the selected district.", new Vector2(DrawX + 500, DrawY + 210), Color.White);
@@ -12778,7 +13763,7 @@ namespace Lightrealm
             }
             else if (GameState == "gathering")
             {
-                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "forest" || GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "lightforest" || GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "taiga")
+                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "forest" || GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "lightforest" || GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "taiga")
                 {
                     _spriteBatch.DrawString(Shibafont, "[1] Harvest Wood", new Vector2(100, 100), Color.LimeGreen);
                 }
@@ -12787,7 +13772,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "[1] Harvest Wood (invalid biome)", new Vector2(100, 100), Color.Red);
                 }
 
-                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "mountain" || GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "snowpeak")
+                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "mountain" || GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "snowpeak")
                 {
                     _spriteBatch.DrawString(Shibafont, "[2] Harvest Stone", new Vector2(100, 150), Color.LimeGreen);
                 }
@@ -12796,7 +13781,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "[2] Harvest Stone (invalid biome)", new Vector2(100, 150), Color.Red);
                 }
 
-                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "snowpeak")
+                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "snowpeak")
                 {
                     _spriteBatch.DrawString(Shibafont, "[3] Harvest Metal", new Vector2(100, 200), Color.LimeGreen);
                 }
@@ -12805,7 +13790,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "[3] Harvest Metal (invalid biome)", new Vector2(100, 200), Color.Red);
                 }
 
-                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "desert")
+                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "desert")
                 {
                     _spriteBatch.DrawString(Shibafont, "[4] Harvest Sand", new Vector2(100, 250), Color.LimeGreen);
                 }
@@ -12814,7 +13799,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "[4] Harvest Sand (invalid biome)", new Vector2(100, 250), Color.Red);
                 }
 
-                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "plains")
+                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "plains")
                 {
                     _spriteBatch.DrawString(Shibafont, "[5] Harvest Fiber", new Vector2(100, 300), Color.LimeGreen);
                 }
@@ -12823,7 +13808,7 @@ namespace Lightrealm
                     _spriteBatch.DrawString(Shibafont, "[5] Harvest Fiber (invalid biome)", new Vector2(100, 300), Color.Red);
                 }
 
-                if (GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "tundra" || GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "taiga" || GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "mountain" || GameWorld.WorldMap[GameWorld.GamePlayerParty.MapCursorX + GameWorld.GamePlayerParty.MapCursorZ * GameWorld.Length].Biome == "snowpeak")
+                if (GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "tundra" || GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "taiga" || GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "mountain" || GameWorld.WorldMap[GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX + GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ * GameWorld.Length].Biome == "snowpeak")
                 {
                     _spriteBatch.DrawString(Shibafont, "[6] Harvest Ice", new Vector2(100, 350), Color.LimeGreen);
                 }
@@ -13000,16 +13985,22 @@ namespace Lightrealm
             {
                 _spriteBatch.Draw(QuitGuiT, new Rectangle(0, 0, 877, 130), Color.White);
 
-                if (GameState != "partyturn")
+
+                if (GameState == "partyturn")
+                {
+                    _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Travel outside the district and press CTRL+S to save.", new Vector2(10, 70), Color.White);
+                }
+                else if (GameState == "travelmenu")
                 {
                     _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 40), Color.White);
                     _spriteBatch.DrawString(Shibafont, "Press/Hold CTRL-S to save your game.", new Vector2(10, 70), Color.White);
                 }
                 else
                 {
-                    _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 10), Color.White);
-                    _spriteBatch.DrawString(Shibafont, "Travel outside the district and press CTRL+S to save.", new Vector2(10, 70), Color.White);
+                    _spriteBatch.DrawString(Shibafont, "Quitting... (" + Math.Round((decimal)((100 - EscapeTicks) / 10)) + ")", new Vector2(10, 40), Color.White);
                 }
+                
             }
 
             if(FrameCounter != null)
@@ -13153,7 +14144,18 @@ namespace Lightrealm
                     }
                     if (IsShowingSpells)
                     {
-                        DrawTextInMenu(spellPosition, MostRecentPartyTurnArchitect.SpellsKnown, "Spells");
+                        EntityList<Entity> Spells = MostRecentPartyTurnArchitect.SpellsKnown;
+
+                        if(MostRecentPartyTurnArchitect.MainHeldObject != null && MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge != null && GameWorld.AllLegendarySpells.Contains(MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge))
+                        {
+                            Spells.Add(MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge);
+                        }
+                        if (MostRecentPartyTurnArchitect.OffHeldObject != null && MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge != null && GameWorld.AllLegendarySpells.Contains(MostRecentPartyTurnArchitect.OffHeldObject.SpecialKnowledge))
+                        {
+                            Spells.Add(MostRecentPartyTurnArchitect.MainHeldObject.SpecialKnowledge);
+                        }
+
+                        DrawTextInMenu(spellPosition, Spells, "Spells");
                     }
                     if (IsShowingBodyParts)
                     {

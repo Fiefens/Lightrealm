@@ -5,11 +5,15 @@
 		<RollForward>Major</RollForward>
 		<PublishReadyToRun>false</PublishReadyToRun>
 		<TieredCompilation>false</TieredCompilation>
+		<Platforms>AnyCPU;x86</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<ApplicationIcon>Icon.ico</ApplicationIcon>
 		<ApplicationManifest>app1.manifest</ApplicationManifest>
 	</PropertyGroup>
+	<ItemGroup>
+	  <Content Include="Icon.ico" />
+	</ItemGroup>
 	<ItemGroup>
 		<None Update="Content\data\recipes.txt">
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -32,8 +36,14 @@
 		<None Update="Content\vosk-model-en-us-0.22\graph\disambig_tid.int">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+		<None Update="Content\vosk-model-en-us-0.22\graph\Gr.fst">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="Content\vosk-model-en-us-0.22\graph\HCLG.fst">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="Content\vosk-model-en-us-0.22\graph\HCLr.fst">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="Content\vosk-model-en-us-0.22\graph\num_pdfs">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -107,6 +117,9 @@
 		<None Update="Content\vosk-model-en-us-0.22\ivector\splice.conf">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+		<None Update="Content\vosk-model-en-us-0.22\README">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="Content\vosk-model-en-us-0.22\rescore\G.carpa">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
@@ -146,12 +159,21 @@
 		<None Update="Content\data\words.txt">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+		<None Update="libportaudio.so">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="libvosk.so">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.1.303" />
 		<PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.1.303" />
-		<PackageReference Include="NAudio" Version="2.2.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="nFMOD" Version="0.6.0" />
+		<PackageReference Include="OpenTK.OpenAL" Version="5.0.0-pre.8" />
+		<PackageReference Include="PortAudioSharp" Version="0.3.0" />
+		<PackageReference Include="PortAudioSharp2" Version="1.0.3" />
 		<PackageReference Include="SimplexNoise" Version="2.0.0" />
 		<PackageReference Include="System.Drawing.Common" Version="8.0.5" />
 		<PackageReference Include="Vosk" Version="0.3.38" />

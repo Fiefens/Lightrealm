@@ -45,12 +45,17 @@ namespace Lightrealm
         public Blight(World w)
         {
             FoundingYear = Game1.r.Next(1, 245);
-            Name = w.Name; //placeholder that is guaranteed to exist in the world so the loop will run
+            Name = "kesuvumovostuseve"; //placeholder that is guaranteed to exist in the world so the loop will run
 
-            while (w.SubjectCatalogue.ContainsKey(Name))
+            while (w.SubjectCatalogue.ContainsKey(Name) || Name == "kesuvumovostuseve")
             {
                 Name = "The " + adjectives[Game1.r.Next(adjectives.Count())] + " " + nouns[Game1.r.Next(nouns.Count())];
             }
+
+            this.ReferredToNames.Clear();
+
+            AddReferredToName(this.Name);
+
             w.SubjectCatalogue.Add(Name, this);
         }
 

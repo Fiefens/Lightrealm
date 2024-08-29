@@ -1,11 +1,12 @@
 ﻿using Microsoft.Xna.Framework;
-using NAudio.Midi;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace Lightrealm
 {
@@ -29,10 +30,173 @@ namespace Lightrealm
 
 
         public int ID;
+        public int Significance = 0;
         private List<string> _referredToNames = new List<string>();
 
         public string Metadata;
         public string EntityType { get; set; }
+
+        public EntityList<Entity> Enemies { get; set; } = new EntityList<Entity>();
+
+        public void PissOffEntityOrPlace(Entity Victim, bool StealthAttempt)
+        {
+            List<string> victimFriends = new List<string>();
+            List<Entity> entitiesToPissOff = new List<Entity>();
+
+            // Early return if the Victim has already declared you an enemy
+            if (Victim.Enemies.Contains(this))
+            {
+                return;
+            }
+
+            // Gather entities to piss off based on the Victim type
+            if (Victim is Location location)
+            {
+                if (location.Government != null)
+                {
+                    entitiesToPissOff.Add(location.Government);
+                }
+                foreach (var district in location.Districts)
+                {
+                    entitiesToPissOff.AddRange(district.Architects.Where(a => new Random().Next(0, 100) < 5)); // 5 percent chance
+                }
+            }
+            else if (Victim is Architect architect)
+            {
+                entitiesToPissOff.Add(architect);
+                if (architect.Group != null)
+                {
+                    entitiesToPissOff.Add(architect.Group);
+                    entitiesToPissOff.AddRange(architect.Group.Architects);
+                }
+            }
+            else if (Victim is Group group)
+            {
+                entitiesToPissOff.Add(group);
+                entitiesToPissOff.AddRange(group.Architects);
+                if (group.HomeFaction != null)
+                {
+                    entitiesToPissOff.Add(group.HomeFaction);
+                }
+            }
+            else if (Victim is Faction faction)
+            {
+                entitiesToPissOff.Add(faction);
+                foreach (var satelliteGroup in faction.SatelliteGroups)
+                {
+                    entitiesToPissOff.Add(satelliteGroup);
+                    entitiesToPissOff.AddRange(satelliteGroup.Architects);
+                }
+            }
+
+            // Add enemies and gather names of successfully added enemies
+            foreach (var entity in entitiesToPissOff)
+            {
+                if (AddEnemy(entity))
+                {
+                    victimFriends.Add(entity.Name);
+                }
+            }
+
+            // Announce if any new enemies were made
+            if (victimFriends.Count > 0)
+            {
+                MakeAnnouncement(Victim, StealthAttempt, victimFriends, (Victim is Architect a ? a.Location.Region : (Victim is Group g ? g.Leader.Location.Region : (Victim is Location l ? l.Region : ((Faction)Victim).Base.Region))), new EntityList<Entity>() { Victim }.Union(entitiesToPissOff));
+            }
+
+            // Specific logic for player association
+            if (Game1.GameWorld != null && Game1.GameWorld.GamePlayerAssociation != null && Game1.GameWorld.GamePlayerAssociation.Parties.Contains(this))
+            {
+                Victim.Enemies.Add(Game1.GameWorld.GamePlayerAssociation);
+            }
+        }
+
+        private bool AddEnemy(Entity entity)
+        {
+            // Early return if the entity has already declared you an enemy
+            if (entity.Enemies.Contains(this))
+            {
+                return false;
+            }
+
+            entity.Enemies.Add(this);
+            return true;
+        }
+
+        private void MakeAnnouncement(Entity Victim, bool StealthAttempt, List<string> victimFriends, Region r, EntityList<Entity> Entities)
+        {
+            int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
+            int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
+            string formattedEnemies = Game1.FormatList(victimFriends);
+            string message;
+
+            if (StealthAttempt)
+            {
+                message = $"({Month}/{Year}) {Victim.Name} discovered the actions of {this.Name} and declared them an enemy. {formattedEnemies} followed suit.";
+            }
+            else
+            {
+                message = $"({Month}/{Year}) {Victim.Name} declared {this.Name} as an enemy. {formattedEnemies} followed suit.";
+            }
+
+            Game1.GameWorld.HistoricalEvents.Add(new Event(message, r, Entities));
+        }
+
+
+
+
+
+        public EntityHashSet<Location> PreferredTargetLocations()
+        {
+            EntityHashSet<Location> BadPlaces = new EntityHashSet<Location>();
+
+            foreach(Entity e in Enemies)
+            {
+                if(e is Group g && g.Base != null)
+                {
+                    BadPlaces.Add(g.Base);
+
+                    if(g.HomeFaction != null)
+                    {
+                        foreach(Location l in g.HomeFaction.Outposts)
+                        {
+                            BadPlaces.Add(l);
+                        }
+                    }
+                }
+                else if (e is Architect a)
+                {
+                    if(a.HomeLocation != null)
+                        BadPlaces.Add(a.HomeLocation);
+                    if(a.Location != null)
+                        BadPlaces.Add(a.Location);
+                }
+                else if (e is Faction f)
+                {
+                    foreach (Location l in f.Outposts)
+                    {
+                        BadPlaces.Add(l);
+                    }
+                }
+            }
+
+
+            var toRemove = new List<Location>();
+            foreach (var l in BadPlaces)
+            {
+                if (l.TruePopulation() == 0)
+                {
+                    toRemove.Add(l);
+                }
+            }
+            foreach (var l in toRemove)
+            {
+                BadPlaces.Remove(l);
+            }
+
+
+            return BadPlaces;
+        }
 
         public static T EntityGet<T>(int entityId) where T : Entity
         {
@@ -139,6 +303,7 @@ namespace Lightrealm
 
         public Entity(string metadata)
         {
+            EntityType = GetType().Name;
             Metadata = metadata;
             Name = metadata;
             AddReferredToName(Name);
@@ -160,5 +325,6 @@ namespace Lightrealm
 
             AddReferredToName(ID.ToString());
         }
+
     }
 }

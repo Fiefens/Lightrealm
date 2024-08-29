@@ -97,9 +97,9 @@ namespace Lightrealm
 
             foreach (Region r in Game1.GameWorld.WorldMap)
             {
-                if (r.MyLocation != null)
+                if (r.Location != null)
                 {
-                    foreach (District district in r.MyLocation.Districts)
+                    foreach (District district in r.Location.Districts)
                     {
                         foreach (Block block in district.DistrictMap)
                         {
@@ -109,7 +109,7 @@ namespace Lightrealm
                                 if (distance < minDistance)
                                 {
                                     minDistance = distance;
-                                    DeterminedLocation = (r, r.MyLocation, district, block, null, "well");
+                                    DeterminedLocation = (r, r.Location, district, block, null, "well");
                                 }
                             }
                             else if (thing == "structure")
@@ -123,12 +123,12 @@ namespace Lightrealm
                                         {
                                             minDistance = distance;
                                             Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                            DeterminedLocation = (r, r.MyLocation, district, block, randomRoom, s.Name);
+                                            DeterminedLocation = (r, r.Location, district, block, randomRoom, s.Name);
                                         }
                                         else
                                         {
                                             minDistance = distance;
-                                            DeterminedLocation = (r, r.MyLocation, district, block, null, s.Name);
+                                            DeterminedLocation = (r, r.Location, district, block, null, s.Name);
                                         }
                                     }
                                 }
@@ -146,12 +146,12 @@ namespace Lightrealm
                                             {
                                                 minDistance = distance;
                                                 Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                                DeterminedLocation = (r, r.MyLocation, district, block, randomRoom, s.Name);
+                                                DeterminedLocation = (r, r.Location, district, block, randomRoom, s.Name);
                                             }
                                             else
                                             {
                                                 minDistance = distance;
-                                                DeterminedLocation = (r, r.MyLocation, district, block, null, s.Name);
+                                                DeterminedLocation = (r, r.Location, district, block, null, s.Name);
                                             }
                                         }
                                     }

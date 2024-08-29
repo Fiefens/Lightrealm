@@ -27,7 +27,29 @@ namespace Lightrealm
         {
             Type = type;
             Subject = ChosenEntity;
-            Name = GenerateName(type, Subject.ReferredToNames[0]);
+
+            if(Subject is Architect a)
+            {
+                a.UpdateNames();
+            }
+            else if (Subject is Object o)
+            {
+                o.UpdateNames();
+            }
+
+            if(Subject.Name != null)
+            {
+                Name = GenerateName(type, Subject.Name);
+            }
+            else if (Subject.ReferredToNames.Count > 0)
+            {
+                Name = GenerateName(type, Subject.ReferredToNames[0]);
+            }
+            else
+            {
+                Name = GenerateName(type, "Something");
+            }
+
             Sections = GenerateSectionsFromSubject(type, Author, Subject);
         }
 
@@ -43,7 +65,10 @@ namespace Lightrealm
                 "poem" => "Stanza",
                 _ => "Section"
             };
-            return $"The work is a {qualityDescription} {Type}, primarily on {Subject.ReferredToNames[0]}, with {Sections.Count()} {sectionType.ToLower()}s. " +
+
+            string FormattedName = Subject.Name != null ? Subject.Name : Subject.ReferredToNames[0];
+
+            return $"The work is a {qualityDescription} {Type}, primarily on {FormattedName}, with {Sections.Count()} {sectionType.ToLower()}s. " +
                    string.Join(" ", descriptions);
         }
 
@@ -226,20 +251,20 @@ namespace Lightrealm
 
         private List<string> GetEventsForSubject(Entity subject)
         {
-            string subjectName = subject.ReferredToNames[0];
+            string subjectName = subject.Name != null ? subject.Name : subject.ReferredToNames[0];
 
             IEnumerable<string> events = Game1.GameWorld.HistoricalEvents
-                .Where(e => e.Contains(subjectName))
+                .Where(e => e.EventData.Contains(subjectName))
                 .Select(e =>
                 {
                     // Extract the year and day from the event string
-                    int yearStart = e.IndexOf("(") + 1;
-                    int yearEnd = e.IndexOf(")", yearStart);
-                    string yearAndDay = e.Substring(yearStart, yearEnd - yearStart);
+                    int yearStart = e.EventData.IndexOf("(") + 1;
+                    int yearEnd = e.EventData.IndexOf(")", yearStart);
+                    string yearAndDay = e.EventData.Substring(yearStart, yearEnd - yearStart);
 
                     // Extract the event description after the year and day part
-                    int descriptionStart = e.IndexOf(") ") + 2;
-                    string processedEvent = e.Substring(descriptionStart);
+                    int descriptionStart = e.EventData.IndexOf(") ") + 2;
+                    string processedEvent = e.EventData.Substring(descriptionStart);
 
                     return $"In {yearAndDay}, {processedEvent}";
                 });
