@@ -31,12 +31,26 @@ namespace Lightrealm
             }
 
             // Override significance if specified, otherwise determine based on entity significance
-            if (overrideSignificance || entities.Any(e => e.Significance >= 8))
+            if (overrideSignificance)
             {
                 Significant = true;
+            }
+            else if (entities.Any(e => e.Significance >= 8))
+            {
+                Significant = true;
+            }
+            else
+            {
+                Significant = false;
+            }
+
+            // Add to significant events list if the event is significant
+            if (Significant && Region != null && Region.Realm != null)
+            {
                 Region.Realm.SignificantEvents.Add(this);
                 Game1.GameWorld.SignificantEvents.Add(this);
             }
         }
+
     }
 }

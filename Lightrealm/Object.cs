@@ -27,7 +27,7 @@ namespace Lightrealm
 
         public EntityList<Object> ContainedObjects { get; set; } = new EntityList<Object>();
 
-        public bool IfTrueUseInIfFalseUseOn { get; set; }
+        public bool IfTrueUseInIfFalseUseOn { get; set; } = false;
         public double LatestUpdateCycle { get; set; } = 0;
         public List<string> Tags { get; set; } = new List<string>();
         public string DyedColor { get; set; } = "none";
@@ -39,13 +39,19 @@ namespace Lightrealm
         public bool RealityAugmented { get; set; } = false;
 
         public Structure TemporaryStructureStorage { get; set; } = null;
-        
 
+        public EntityList<Architect> AwareArchitects = new EntityList<Architect>();
+
+        public EntityList<Entity> CarvedSymbols = new EntityList<Entity>();
 
         public Structure Structure
         {
             get => Room?.Structure;
         }
+
+        public bool Polished = false;
+        public bool Cleaned = false;
+
 
         private int _blockId;
         
@@ -65,8 +71,6 @@ namespace Lightrealm
 
         public int HeatInCelsius { get; set; } = 20;
         public bool IsConsumable { get; set; } = false;
-        public string VariableToChange { get; set; } = "";
-        public int VariableChange { get; set; }
 
         public EntityList<Imbuement> Imbuements { get; set; } = new EntityList<Imbuement>();
 
@@ -170,7 +174,7 @@ namespace Lightrealm
             set => _ownerId = value?.ID ?? 0;
         }
 
-        public int Value()
+        public virtual int Value()
         {
             if (Materials.Count() == 0)
             {
@@ -186,10 +190,19 @@ namespace Lightrealm
             double averageMaterialRarity = (double)totalRarity / Materials.Count();
             int value = (int)Math.Round(((averageMaterialRarity * Weight) + (5 * (averageMaterialRarity + 1))));
 
+            if(Polished)
+            {
+                value = (int)Math.Round(value * 1.2);
+            }
+            if (Cleaned)
+            {
+                value = (int)Math.Round(value * 1.1);
+            }
+
             return value;
         }
 
-        public int FindObjectGenericStrength()
+        public virtual int FindObjectGenericStrength()
         {
             List<string> MaterialStrings = new List<string>();
             foreach (Material m in Materials)
@@ -316,7 +329,7 @@ namespace Lightrealm
             }
         }
 
-        public EntityList<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
+        public virtual EntityList<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
             EntityList<TextStorage> Announcements = new EntityList<TextStorage>();
 
@@ -631,19 +644,20 @@ namespace Lightrealm
             LatestUpdateCycle = Game1.GameWorld.Cycle;
             ClearReferredToNames();
 
-            if (this is Door door && door.SourceRoom != null /*this is mainly to hodl of specific door updates before we finish the constructor*/)
-            {
-                AddReferredToName(door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
-                AddReferredToName("door " + door.Number);
+            string Symbols = Game1.FormatAndList(CarvedSymbols.Select(s => s.Name).ToList());
+            string engravedPrefix = string.IsNullOrEmpty(Symbols) ? "" : Symbols + "-engraved ";
+            string statuePrefix = string.IsNullOrEmpty(Symbols) ? "" : Symbols + " statue of ";
 
-                // Check if this door is the quickest exit door
+            if (this is Door door && door.SourceRoom != null)
+            {
+                AddReferredToName(engravedPrefix + door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
+                AddReferredToName("door " + door.Number);
 
                 Room currentRoom = door.SourceRoom;
                 Door quickestExitDoor = currentRoom.FindQuickestExitDoor();
 
                 if (quickestExitDoor == door)
                 {
-                    // Add * to the first ReferredToName and insert it at the front
                     string quickestName = ReferredToNames[0] + " [<]";
                     ReferredToNames.Insert(0, quickestName);
                 }
@@ -663,13 +677,28 @@ namespace Lightrealm
 
             if (!string.IsNullOrEmpty(Name))
             {
-                AddReferredToName(Name + ", " + Game1.FormatMaterialList(Materials) + " " + Type);
-                AddReferredToName(Name);
+                if (Type == "statue")
+                {
+                    AddReferredToName(statuePrefix + Name);
+                }
+                else
+                {
+                    AddReferredToName(engravedPrefix + Name + ", " + Game1.FormatMaterialList(Materials) + " " + Type);
+                    AddReferredToName(engravedPrefix + Name);
+                }
             }
             else
             {
-                AddReferredToName(Game1.FormatMaterialList(Materials) + " " + Type);
-                AddReferredToName("the " + Game1.FormatMaterialList(Materials) + " " + Type);
+                if (Type == "statue")
+                {
+                    AddReferredToName(statuePrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                    AddReferredToName("the " + statuePrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                }
+                else
+                {
+                    AddReferredToName(engravedPrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                    AddReferredToName("the " + engravedPrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                }
             }
 
             if (Game1.MostRecentPartyTurnArchitect != null &&
@@ -736,6 +765,8 @@ namespace Lightrealm
 
             AddReferredToName(ID.ToString());
         }
+
+
 
 
         public void UpdateSelfActionsAndSuch()
@@ -806,6 +837,50 @@ namespace Lightrealm
                 Integrity -= FireCycles;
                 FireCycles--;
             }
+
+            //rope traps
+
+            Architect triggeringArchitect = null;
+
+            if (this.Room != null || this.Block != null)
+            {
+                EntityList<Architect> ArchRelevant = this.Room != null ? Room.Architects : Block.Architects;
+
+                if (this.Type == "rope trap" && ArchRelevant.Any(a => !AwareArchitects.Contains(a)))
+                {
+                    //activate
+
+                    if (Room != null)
+                    {
+                        Room.ObjectsToRemove.Add(this);
+                        Room.Objects.Add(new Object(null, "fiber", this.Materials, null));
+                    }
+                    else
+                    {
+                        Block.ObjectsToRemove.Add(this);
+                        Block.Objects.Add(new Object(null, "fiber", this.Materials, null));
+                    }
+
+                    foreach (Architect a in ArchRelevant)
+                    {
+                        if (!this.AwareArchitects.Contains(a))
+                        {
+                            if (triggeringArchitect == null)
+                            {
+                                triggeringArchitect = a;
+                                triggeringArchitect.AnnounceToParty(triggeringArchitect.ReferredToNames[0] + " triggers a rope trap!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
+                            }
+
+                            triggeringArchitect.AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
+                            a.DestabilizedCycles += 200;
+                            a.Energy -= 20;
+                        }
+                    }
+                }
+            }
+
+
+
         }
 
         public Object(string name, string type, EntityList<Material> materials, bool InOrOn, bool isContainer, Composition content, Entity creator, double weight, bool isGeneralGood, Block b, Structure s, Room r, bool IsWearable)
@@ -1373,6 +1448,10 @@ namespace Lightrealm
                     DamageType = "scourging";
                     Description = "A lengthy chain attached to a rod, capable causing extensive bleeding and pain.";
                     break;
+                case "rope trap":
+                    Weight = 1000000;
+                    Description = "A trap made of rope.";
+                    break;
                 case "energy bolt":
                     Weight = 10;
                     IsWeapon = true;
@@ -1531,6 +1610,12 @@ namespace Lightrealm
                     Weight = 30000;
                     IsContainer = true;
                     Description = "A large, structured passage for directing magma flow.";
+                    break;
+
+                case "statue":
+                    Weight = 5000;
+                    IsContainer = true;
+                    Description = "A base structure for displaying significant objects or statues.";
                     break;
 
                 case "pedestal":
@@ -1712,7 +1797,7 @@ namespace Lightrealm
             {
                Mater.Add(m.Name);
             }
-            string MaterialList = Game1.FormatList(Mater);
+            string MaterialList = Game1.FormatAndList(Mater);
 
             Description = Description.Replace("/m", MaterialList);
 

@@ -24,6 +24,8 @@ namespace Lightrealm
     { "harvest", 110 }, // Harvesting energy is difficult but within reach.
     { "razebuilding", 70 }, // Destroying a building requires effort but is doable by a few people.
     { "rupture", 160 }, // A catastrophic rupture remains very difficult, nearly impossible for one person.
+    { "raid", 110 }, // A catastrophic rupture remains very difficult, nearly impossible for one person.
+
 
     // Actions Using Higher of Stealth or Direct
     { "takeover", 180 }, // Taking over a government is extremely challenging, requiring vast resources.
@@ -34,6 +36,8 @@ namespace Lightrealm
     { "incite", 140 }, // Inciting a war or revolution is very difficult.
     { "hunterfight", 90 }, // Fighting a dangerous creature is challenging but within reach.
     { "adventure", 60 }, // Adventuring requires effort but is achievable by individuals.
+    { "genericattack", 100 },    
+    { "free", 100 },
 
     // Simple Actions
     { "negotiate", 0 }, // Negotiating is straightforward and easy.
@@ -44,37 +48,39 @@ namespace Lightrealm
 };
 
         public static Dictionary<string, string> ActionSkillType = new Dictionary<string, string>
-{
-    // Stealth Actions
-    { "spreaddisease", "stealth" },
-    { "diplomance", "stealth" },
-    { "corrupt", "stealth" },
-    { "artifacttheft", "stealth" },
-    { "theft", "stealth" },
-    { "embezzlement", "stealth" },
+        {
+            // Stealth Actions
+            { "spreaddisease", "stealth" },
+            { "diplomance", "stealth" },
+            { "corrupt", "stealth" },
+            { "artifacttheft", "stealth" },
+            { "theft", "stealth" },
+            { "embezzlement", "stealth" },
 
-    // Direct Actions
-    { "harvest", "direct" },
-    { "razebuilding", "direct" },
-    { "rupture", "direct" },
+            // Direct Actions
+            { "harvest", "direct" },
+            { "razebuilding", "direct" },
+            { "rupture", "direct" },
 
-    // Actions Using Higher of Stealth or Direct
-    { "takeover", "choose" },
-    { "killassorted", "choose" },
-    { "kidnapassorted", "choose" },
-    { "kidnaptarget", "choose" },
-    { "killtarget", "choose" },
-    { "incite", "choose" },
-    { "hunterfight", "choose" },
-    { "adventure", "choose" },
+            // Actions Using Higher of Stealth or Direct
+            { "takeover", "choose" },
+            { "killassorted", "choose" },
+            { "kidnapassorted", "choose" },
+            { "kidnaptarget", "choose" },
+            { "killtarget", "choose" },
+            { "incite", "choose" },
+            { "hunterfight", "choose" },
+            { "adventure", "choose" },
+            { "genericattack", "choose" },
+            { "free", "choose" },
 
-    // Simple Actions
-    { "negotiate", "simple" },
-    { "visitation", "simple" },
-    { "craftsmanship", "simple" },
-    { "marriage", "simple" },
-    { "childbirth", "simple" }
-};
+            // Simple Actions
+            { "negotiate", "simple" },
+            { "visitation", "simple" },
+            { "craftsmanship", "simple" },
+            { "marriage", "simple" },
+            { "childbirth", "simple" }
+        };
 
 
 
@@ -187,7 +193,7 @@ namespace Lightrealm
                     // Log different messages based on the result of the action
                     if (Result == "MaV")
                     {
-                        LogEvent(Initiator.Name + " easily spread the " + ((Architect)Initiator).BlightManipulated.Name + " to " + location.Name + ".", location.Region, new EntityList<Entity>(){Initiator, ((Architect)Initiator).BlightManipulated, location});
+                        LogEvent(Initiator.Name + " easily spread the " + ((Architect)Initiator).BlightManipulated.Name + " to " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, ((Architect)Initiator).BlightManipulated, location });
                     }
                     else if (Result == "MiV")
                     {
@@ -216,17 +222,21 @@ namespace Lightrealm
                     {
                         successChance = 60; // Lower chance for minor defeat
                         Initiator.PissOffEntityOrPlace(location, false);
+                        Initiator.Reputation -= 1;
                     }
                     else // Result == "MaD"
                     {
                         successChance = 100; // Very low chance for major defeat
                         Initiator.PissOffEntityOrPlace(location, false);
+                        Initiator.Reputation -= 1;
+
                     }
 
                     if (Game1.r.Next(successChance) == 1)
                     {
                         location.Region.Blight = ((Architect)Initiator).BlightManipulated;
                         LogEvent(Initiator.Name + " fully established a terrible presence of " + ((Architect)Initiator).BlightManipulated.Name + " in " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, ((Architect)Initiator).BlightManipulated, location });
+                        Initiator.Reputation -= 25;
                     }
                 }
 
@@ -241,8 +251,116 @@ namespace Lightrealm
                     }
                 }
             }
+            else if (Action == "free")
+            {
+                Architect targetArchitect = (Architect)RelatedEntities[2];
 
+                // Check if the target is bound and in the same location as the initiator
+                if (targetArchitect != null && targetArchitect.Bound)
+                {
+                    // Determine the result of the freeing attempt based on the effectiveness
+                    if (Result == "MaV" || Result == "MiV")
+                    {
+                        // Successful freeing
+                        targetArchitect.Bound = false;  // Free the architect
+                        targetArchitect.NextMigrationLocation = (Initiator is Architect architect) ? architect.HomeLocation : (Initiator is Group group) ? group.Leader.HomeLocation : null;
 
+                        if (Result == "MaV")
+                        {
+                            LogEvent($"{Initiator.Name} heroically freed {targetArchitect.Name} in {targetArchitect.Location.Name}.", targetArchitect.Location.Region, new EntityList<Entity>() { Initiator, targetArchitect, targetArchitect.Location });
+                        }
+                        else if (Result == "MiV")
+                        {
+                            LogEvent($"{Initiator.Name} managed to free {targetArchitect.Name} in {targetArchitect.Location.Name} after a struggle.", targetArchitect.Location.Region, new EntityList<Entity>() { Initiator, targetArchitect, targetArchitect.Location });
+                        }
+
+                        // Apply any additional consequences or updates after freeing
+                        Initiator.PissOffEntityOrPlace(targetArchitect.Location, false);
+                    }
+                    else if (Result == "MiD")
+                    {
+                        // Failed attempt but without severe consequences
+                        LogEvent($"{Initiator.Name} attempted to free {targetArchitect.Name} in {targetArchitect.Location.Name} but did not succeed and had to retreat.", targetArchitect.Location.Region, new EntityList<Entity>() { Initiator, targetArchitect, targetArchitect.Location });
+                        Initiator.PissOffEntityOrPlace(targetArchitect.Location, false);
+                    }
+                    else if (Result == "MaD")
+                    {
+                        // Major failure
+                        LogEvent($"{Initiator.Name} completely failed in an attempt to free {targetArchitect.Name} in {targetArchitect.Location.Name}.", targetArchitect.Location.Region, new EntityList<Entity>() { Initiator, targetArchitect, targetArchitect.Location });
+                        Initiator.PissOffEntityOrPlace(targetArchitect.Location, false);
+                    }
+                }
+            }
+
+            else if (Action == "genericattack")
+            {
+                Location location = (Location)RelatedEntities[0];
+                District district = (District)RelatedEntities[1];
+
+                // Define possible sub-actions
+                List<string> subActions = new List<string> { "razebuilding", "killassorted", "kidnapassorted", "theft" };
+                List<string> executedActions = new List<string>();
+
+                // Randomly decide how many actions to perform (1 to 3)
+                int actionsToPerform = Game1.r.Next(1, 4);
+
+                // Prepare the text for the hiring civilization if applicable
+                string hiredByText = Initiator.HahaCivHiredMe != null ? $", backed by {Initiator.HahaCivHiredMe.Name}" : "";
+
+                // Log the initial attack event
+                LogEvent($"{Initiator.Name}{hiredByText} began an assault on a declared enemy base, {location.Name}.", location.Region, new EntityList<Entity>() { Initiator, location });
+
+                for (int i = 0; i < actionsToPerform; i++)
+                {
+                    string selectedAction = subActions[Game1.r.Next(subActions.Count)];
+                    executedActions.Add(selectedAction);
+
+                    // Call the corresponding action logic
+                    switch (selectedAction)
+                    {
+                        case "razebuilding":
+                            // Call the razebuilding logic here
+                            // For simplicity, assume the first structure in the district is targeted
+                            if (location.AllStructures.Count > 0)
+                            {
+                                EntityList<Entity> TemporaryEntities = new EntityList<Entity>(RelatedEntities);
+
+                                TemporaryEntities.RemoveAt(1);
+
+                                TemporaryEntities.Add(location.AllStructures[Game1.r.Next(location.AllStructures.Count)]);
+                                InitiateAction(GameWorld, "razebuilding", Initiator, TemporaryEntities);
+                            }
+                            break;
+
+                        case "killassorted":
+                            // Call the killassorted logic here
+                            InitiateAction(GameWorld, "killassorted", Initiator, RelatedEntities);
+                            break;
+
+                        case "kidnapassorted":
+                            // Call the kidnapassorted logic here
+                            InitiateAction(GameWorld, "kidnapassorted", Initiator, RelatedEntities);
+                            break;
+
+                        case "theft":
+                            // Call the theft logic here
+                            InitiateAction(GameWorld, "theft", Initiator, RelatedEntities);
+                            break;
+                    }
+                }
+
+                // Determine the result of the attack based on how many actions were executed
+                string actionResult = executedActions.Count == actionsToPerform ? "all" : executedActions.Count > 0 ? "some" : "none";
+
+                if (Initiator.HahaCivHiredMe != null)
+                {
+                    LogEvent($"{Initiator.Name} and {Initiator.HahaCivHiredMe.Name}'s attack managed to initiate {actionResult} of its planned goals.", location.Region, new EntityList<Entity>() { Initiator, location, Initiator.HahaCivHiredMe });
+                }
+                else
+                {
+                    LogEvent($"{Initiator.Name}'s attack managed to initiate {actionResult} of its planned goals.", location.Region, new EntityList<Entity>() { Initiator, location });
+                }
+            }
             else if (Action == "takeover")
             {
                 Location location = (Location)RelatedEntities[0];
@@ -250,7 +368,7 @@ namespace Lightrealm
 
                 if (location.Government == null)
                 {
-                    LogEvent(Initiator.Name + " has peacefully taken control of " + location.Name + ", as there was no governing body to oppose.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " has peacefully taken control of " + location.Name + ", as there was no governing body to oppose.", location.Region, new EntityList<Entity>() { Initiator, location });
 
                     (Initiator is Architect ? (Architect)Initiator : ((Group)Initiator).Leader).TakenLocations.Add(location);
                     location.Government = Initiator;
@@ -269,11 +387,11 @@ namespace Lightrealm
                     // If there is a minor or major victory, takeover succeeds
                     if (Result == "MaV")
                     {
-                        LogEvent(Initiator.Name + " effortlessly took control of " + location.Name + " after overpowering " + location.Government.Name + ".", location.Region, new EntityList<Entity>(){Initiator, location, location.Government});
+                        LogEvent(Initiator.Name + " effortlessly took control of " + location.Name + " after overpowering " + location.Government.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location, location.Government });
                     }
                     else if (Result == "MiV")
                     {
-                        LogEvent(Initiator.Name + " successfully took control of " + location.Name + " after a struggle with " + location.Government.Name + ".", location.Region, new EntityList<Entity>(){Initiator, location, location.Government});
+                        LogEvent(Initiator.Name + " successfully took control of " + location.Name + " after a struggle with " + location.Government.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location, location.Government });
                     }
 
                     if (location.Government is Architect)
@@ -287,9 +405,9 @@ namespace Lightrealm
                         foreach (Architect a in ((Group)(location.Government)).Architects)
                         {
                             a.District.Architects.Remove(a);
-                            LogEvent(Initiator.Name + " killed " + a.Name + " as they were part of " + location.Government.Name + ".", location.Region, new EntityList<Entity>(){Initiator, a, location.Government});
+                            LogEvent(Initiator.Name + " killed " + a.Name + " as they were part of " + location.Government.Name + ".", location.Region, new EntityList<Entity>() { Initiator, a, location.Government });
 
-                            (Initiator is Architect ?(Architect)Initiator : ((Group)Initiator).Leader).KilledPeopleWhoActuallyMatter.Add(a);
+                            (Initiator is Architect ? (Architect)Initiator : ((Group)Initiator).Leader).KilledPeopleWhoActuallyMatter.Add(a);
                         }
                     }
 
@@ -308,13 +426,13 @@ namespace Lightrealm
                 else if (Result == "MiD")
                 {
                     // If there is a minor defeat, the takeover fails but with some effort shown
-                    LogEvent(Initiator.Name + " attempted to take control of " + location.Name + " but faced strong resistance from " + location.Government.Name + " and ultimately failed.", location.Region, new EntityList<Entity>(){Initiator, location, location.Government});
+                    LogEvent(Initiator.Name + " attempted to take control of " + location.Name + " but faced strong resistance from " + location.Government.Name + " and ultimately failed.", location.Region, new EntityList<Entity>() { Initiator, location, location.Government });
                     Initiator.PissOffEntityOrPlace(location, false);
                 }
                 else // Result == "MaD"
                 {
                     // If there is a major defeat, the takeover fails miserably
-                    LogEvent(Initiator.Name + " suffered a humiliating defeat while trying to take control of " + location.Name + " from " + location.Government.Name + ".", location.Region, new EntityList<Entity>(){Initiator, location, location.Government});
+                    LogEvent(Initiator.Name + " suffered a humiliating defeat while trying to take control of " + location.Name + " from " + location.Government.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location, location.Government });
                     Initiator.PissOffEntityOrPlace(location, false);
                 }
             }
@@ -330,14 +448,14 @@ namespace Lightrealm
                 {
                     peopleKilled = Game1.r.Next(5, 11); // Major Victory: Kill 5 to 10 people
                     architectsAssassinated = Game1.r.Next(2, 4); // Major Victory: Assassinate 2 to 3 architects
-                    LogEvent(Initiator.Name + " orchestrated a highly effective massacre in " + location.Name + ", leaving a trail of devastation.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " orchestrated a highly effective massacre in " + location.Name + ", leaving a trail of devastation.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MiV")
                 {
                     peopleKilled = Game1.r.Next(2, 5); // Minor Victory: Kill 2 to 4 people
                     architectsAssassinated = Game1.r.Next(1, 2); // Minor Victory: Assassinate 1 architect
-                    LogEvent(Initiator.Name + " managed to kill several people in " + location.Name + ", but the impact was less significant.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " managed to kill several people in " + location.Name + ", but the impact was less significant.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MiD")
@@ -365,15 +483,15 @@ namespace Lightrealm
                     int DecideAge = Game1.r.Next(1, 6);
                     if (DecideAge == 1)
                     {
-                        ((Architect)Initiator).KilledChildren += (InitialPop - district.UnplacedPopulation);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledChildren += (InitialPop - district.UnplacedPopulation);
                     }
                     else if (DecideAge < 4)
                     {
-                        ((Architect)Initiator).KilledMen -= (InitialPop - district.UnplacedPopulation);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledMen -= (InitialPop - district.UnplacedPopulation);
                     }
                     else
                     {
-                        ((Architect)Initiator).KilledWomen -= (InitialPop - district.UnplacedPopulation);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledWomen -= (InitialPop - district.UnplacedPopulation);
                     }
                 }
 
@@ -392,7 +510,7 @@ namespace Lightrealm
                         }
 
                         district.ArchitectsToRemove.Add(affectedArchitect);
-                        LogEvent(Initiator.Name + " assassinated " + affectedArchitect.Name + " in " + location.Name + ".", location.Region, new EntityList<Entity>(){Initiator, affectedArchitect, location});
+                        LogEvent(Initiator.Name + " assassinated " + affectedArchitect.Name + " in " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, affectedArchitect, location });
 
                         foreach (Architect a in district.Architects)
                         {
@@ -403,7 +521,7 @@ namespace Lightrealm
                             }
                         }
 
-                        ((Architect)Initiator).KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
                     }
                 }
             }
@@ -420,28 +538,28 @@ namespace Lightrealm
                 {
                     peopleKidnapped = Game1.r.Next(3, 6); // Major Victory: Kidnap 3 to 5 people
                     architectsKidnapped = Game1.r.Next(2, 4); // Major Victory: Kidnap 2 to 3 architects
-                    LogEvent(Initiator.Name + " executed a highly effective kidnapping operation in " + location.Name + ", causing significant unrest.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " executed a highly effective kidnapping operation in " + location.Name + ", causing significant unrest.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MiV")
                 {
                     peopleKidnapped = Game1.r.Next(1, 3); // Minor Victory: Kidnap 1 to 2 people
                     architectsKidnapped = Game1.r.Next(1, 2); // Minor Victory: Kidnap 1 architect
-                    LogEvent(Initiator.Name + " successfully kidnapped some people in " + location.Name + ", though the impact was moderate.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " successfully kidnapped some people in " + location.Name + ", though the impact was moderate.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MiD")
                 {
                     peopleKidnapped = Game1.r.Next(0, 2); // Minor Defeat: Kidnap 0 to 1 person
                     architectsKidnapped = 0; // Minor Defeat: No architects kidnapped
-                    LogEvent(Initiator.Name + " attempted a kidnapping in " + location.Name + ", but the operation was mostly foiled.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " attempted a kidnapping in " + location.Name + ", but the operation was mostly foiled.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, false);
                 }
                 else if (Result == "MaD")
                 {
                     peopleKidnapped = 0; // Major Defeat: No one kidnapped
                     architectsKidnapped = 0; // Major Defeat: No architects kidnapped
-                    LogEvent(Initiator.Name + " faced significant resistance while attempting to kidnap in " + location.Name + ", failing entirely.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " faced significant resistance while attempting to kidnap in " + location.Name + ", failing entirely.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, false);
                 }
 
@@ -450,20 +568,20 @@ namespace Lightrealm
                 {
                     int InitialPop = district.UnplacedPopulation;
                     district.UnplacedPopulation = Math.Max(0, district.UnplacedPopulation - peopleKidnapped);
-                    LogEvent(Initiator.Name + " kidnapped " + (InitialPop - district.UnplacedPopulation).ToString() + " person(s) in " + location.Name + ".", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " kidnapped " + (InitialPop - district.UnplacedPopulation).ToString() + " person(s) in " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location });
 
                     int DecideAge = Game1.r.Next(1, 6);
                     if (DecideAge == 1)
                     {
-                        ((Architect)Initiator).KidnappedChildren += (InitialPop - district.UnplacedPopulation);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KidnappedChildren += (InitialPop - district.UnplacedPopulation);
                     }
                     else if (DecideAge < 4)
                     {
-                        ((Architect)Initiator).KidnappedMen += (InitialPop - district.UnplacedPopulation);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KidnappedMen += (InitialPop - district.UnplacedPopulation);
                     }
                     else
                     {
-                        ((Architect)Initiator).KidnappedWomen += (InitialPop - district.UnplacedPopulation);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KidnappedWomen += (InitialPop - district.UnplacedPopulation);
                     }
                 }
 
@@ -475,16 +593,20 @@ namespace Lightrealm
                     for (int i = 0; i < architectsKidnapped; i++)
                     {
                         Architect affectedArchitect = architectsList.First();
-
                         district.ArchitectsToRemove.Add(affectedArchitect);
-                        LogEvent(Initiator.Name + " kidnapped " + affectedArchitect.Name + " in " + location.Name + ".", location.Region, new EntityList<Entity>(){Initiator, affectedArchitect, location});
 
-                        ((Architect)Initiator).KidnappedPeopleWhoActuallyMatter.Add(affectedArchitect);
+                        // Update Architect's properties to reflect kidnapping
+                        affectedArchitect.NextMigrationLocation = (Initiator is Architect architect) ? architect.HomeLocation : (Initiator is Group group) ? group.Leader.HomeLocation : null;
+                        affectedArchitect.Bound = true;
+
+                        LogEvent(Initiator.Name + " captured " + affectedArchitect.Name + " in " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, affectedArchitect, location });
+
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KidnappedPeopleWhoActuallyMatter.Add(affectedArchitect);
                         foreach (Architect a in district.Architects)
                         {
                             if (Game1.r.Next(4) == 1 && a != affectedArchitect)
                             {
-                                a.Grievances.Add((Initiator.ID, " kidnapped " + affectedArchitect.Name + ", a valued member of " + a.PossessivePronoun + " community"));
+                                a.Grievances.Add((Initiator.ID, " captured " + affectedArchitect.Name + ", a valued member of " + a.PossessivePronoun + " community"));
                                 Initiator.PissOffEntityOrPlace(affectedArchitect, false);
                                 Initiator.PissOffEntityOrPlace(a, true);
                                 location.Region.TragedyPoints.Add((Game1.r.Next(-10, 11), Game1.r.Next(-10, 11)));
@@ -493,6 +615,7 @@ namespace Lightrealm
                     }
                 }
             }
+
 
             else if (Action == "kidnaptarget")
             {
@@ -504,30 +627,33 @@ namespace Lightrealm
                 {
                     if (Result == "MaV")
                     {
-                        LogEvent(Initiator.Name + " flawlessly executed the kidnapping of " + targetArchitect.Name + " in " + location.Name + ", leaving no trace behind.", location.Region, new EntityList<Entity>(){Initiator, targetArchitect,location});
+                        LogEvent(Initiator.Name + " flawlessly executed the capturing of " + targetArchitect.Name + " in " + location.Name + ", leaving no trace behind.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                     }
                     else if (Result == "MiV")
                     {
-                        LogEvent(Initiator.Name + " successfully kidnapped " + targetArchitect.Name + " in " + location.Name + ", though there were some complications.", location.Region, new EntityList<Entity>(){ Initiator, targetArchitect, location });
+                        LogEvent(Initiator.Name + " successfully captured " + targetArchitect.Name + " in " + location.Name + ", though there were some complications.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                     }
                     else if (Result == "MiD")
                     {
-                        LogEvent(Initiator.Name + " attempted to kidnap " + targetArchitect.Name + " in " + location.Name + ", but faced resistance and barely managed to succeed.", location.Region, new EntityList<Entity>(){ Initiator, targetArchitect, location });
+                        LogEvent(Initiator.Name + " attempted to capture " + targetArchitect.Name + " in " + location.Name + ", but faced resistance and barely managed to succeed.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                     }
                     else if (Result == "MaD")
                     {
-                        LogEvent(Initiator.Name + " failed miserably in the attempt to kidnap " + targetArchitect.Name + " in " + location.Name + ". The operation was a disaster.", location.Region, new EntityList<Entity>(){ Initiator, targetArchitect, location });
+                        LogEvent(Initiator.Name + " failed miserably in the attempt to capture " + targetArchitect.Name + " in " + location.Name + ". The operation was a disaster.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                         return; // Exit early if the operation was a major defeat, and no kidnapping occurred.
                     }
 
+                    // Kidnap and bind the target architect
                     district.Architects.Remove(targetArchitect);
-                    ((Architect)Initiator).KidnappedPeopleWhoActuallyMatter.Add(targetArchitect);
+                    ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KidnappedPeopleWhoActuallyMatter.Add(targetArchitect);
+                    targetArchitect.NextMigrationLocation = (Initiator is Architect architect) ? architect.HomeLocation : (Initiator is Group group) ? group.Leader.HomeLocation : null;
+                    targetArchitect.Bound = true;
 
                     foreach (Architect a in district.Architects)
                     {
                         if (Game1.r.Next(4) == 1 && a != targetArchitect)
                         {
-                            a.Grievances.Add((Initiator.ID, " kidnapped " + targetArchitect.Name + ", a valued member of " + a.PossessivePronoun + " community"));
+                            a.Grievances.Add((Initiator.ID, " captured " + targetArchitect.Name + ", an acquaintance of " + a.PossessivePronoun + "."));
                             Initiator.PissOffEntityOrPlace(targetArchitect, false);
                             Initiator.PissOffEntityOrPlace(a, true);
                             location.Region.TragedyPoints.Add((Game1.r.Next(-10, 11), Game1.r.Next(-10, 11)));
@@ -535,6 +661,7 @@ namespace Lightrealm
                     }
                 }
             }
+
             else if (Action == "diplomance")
             {
                 Location location = (Location)RelatedEntities[0];
@@ -548,7 +675,7 @@ namespace Lightrealm
                     if (Result == "MaV")
                     {
                         moralChange = Game1.r.Next(30, 50); // Major Victory: Significant influence
-                        LogEvent(Initiator.Name + " expertly corrupted " + targetArchitect.Name + "'s values in " + location.Name + ", deeply influencing them towards evil.", location.Region, new EntityList<Entity>(){Initiator, targetArchitect, location});
+                        LogEvent(Initiator.Name + " expertly corrupted " + targetArchitect.Name + "'s values in " + location.Name + ", deeply influencing them towards evil.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                     }
                     else if (Result == "MiV")
                     {
@@ -572,7 +699,7 @@ namespace Lightrealm
                     {
                         if (Game1.r.Next(4) == 1 && a != targetArchitect)
                         {
-                            a.Grievances.Add((Initiator.ID, " was noticed by " + a.Name + ", who began to see a major change in " + targetArchitect.Name + " towards evil")); 
+                            a.Grievances.Add((Initiator.ID, " was noticed by " + a.Name + ", who began to see a major change in " + targetArchitect.Name + " towards evil"));
                             Initiator.PissOffEntityOrPlace(a, true);
                             location.Region.TragedyPoints.Add((Game1.r.Next(-10, 11), Game1.r.Next(-10, 11)));
                         }
@@ -596,7 +723,7 @@ namespace Lightrealm
                     {
                         moralChange = Game1.r.Next(20, 40); // Major Victory: Significant corruption
                         stabilityChange = Game1.r.Next(20, 40);
-                        LogEvent(Initiator.Name + " deeply corrupted " + targetArchitect.Name + "'s moral and stability values in " + location.Name + ", leaving a lasting impact.", location.Region, new EntityList<Entity>(){Initiator, targetArchitect, location});
+                        LogEvent(Initiator.Name + " deeply corrupted " + targetArchitect.Name + "'s moral and stability values in " + location.Name + ", leaving a lasting impact.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                     }
                     else if (Result == "MiV")
                     {
@@ -672,7 +799,7 @@ namespace Lightrealm
                         outcome = "In the end, the assassin completed their mission successfully.";
                         targetArchitect.IsAlive = false;
                         district.Architects.Remove(targetArchitect);
-                        LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} {Initiator.Name} assassinated {targetArchitect.Name} in {location.Name}.", location.Region, new EntityList<Entity>(){Initiator, targetArchitect, location});
+                        LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} {Initiator.Name} assassinated {targetArchitect.Name} in {location.Name}.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
 
                         foreach (Architect a in district.Architects)
                         {
@@ -684,12 +811,12 @@ namespace Lightrealm
                             }
                         }
 
-                        ((Architect)Initiator).KilledPeopleWhoActuallyMatter.Add(targetArchitect);
+                        ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledPeopleWhoActuallyMatter.Add(targetArchitect);
                     }
                     else if (Result == "MiD")
                     {
                         outcome = "The assassin failed, but managed to escape alive.";
-                        LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} The attempt failed, but the assassin escaped.", location.Region, new EntityList<Entity>(){ Initiator, targetArchitect, location });
+                        LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} The attempt failed, but the assassin escaped.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                     }
                     else if (Result == "MaD")
                     {
@@ -697,12 +824,12 @@ namespace Lightrealm
                         {
                             outcome = "Tragically, the assassin was killed.";
                             a.IsAlive = false;
-                            LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} Tragically, {a.Name} was killed in the attempt.", location.Region, new EntityList<Entity>(){ Initiator, targetArchitect, location });
+                            LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} Tragically, {a.Name} was killed in the attempt.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                         }
                         else
                         {
                             outcome = "The assassin failed miserably and was forced to retreat.";
-                            LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} The assassin managed to escape, but the mission failed.", location.Region, new EntityList<Entity>(){ Initiator, targetArchitect, location });
+                            LogEvent($"{Initiator.Name} located {targetArchitect.Name}. {Initiator.Name} {approach}. {fightDetail}. {outcome} The assassin managed to escape, but the mission failed.", location.Region, new EntityList<Entity>() { Initiator, targetArchitect, location });
                         }
                     }
 
@@ -714,30 +841,28 @@ namespace Lightrealm
                 Location location = (Location)RelatedEntities[0];
                 District district = (District)RelatedEntities[1];
 
-                LogEvent(Initiator.Name + " spread propaganda, attempting to influence " + location.HomeCivilization.Name + " into a conflict.", location.Region, new EntityList<Entity>(){Initiator, location});
-
                 // Adjust WUACVP based on the result
                 if (Result == "MaV")
                 {
                     location.HomeCivilization.WakeUpAndChooseViolencePoints += Game1.r.Next(15, 21); // Major Victory, significant increase
-                    LogEvent(Initiator.Name + " successfully incited " + location.HomeCivilization.Name + " into a state of unrest, significantly increasing their aggression.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " successfully incited " + location.Name + " into a state of unrest, significantly increasing their aggression.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MiV")
                 {
                     location.HomeCivilization.WakeUpAndChooseViolencePoints += Game1.r.Next(5, 15); // Minor Victory, moderate increase
-                    LogEvent(Initiator.Name + " managed to stir some unrest in " + location.HomeCivilization.Name + ", leading to a moderate increase in aggression.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " managed to stir some unrest in " + location.Name + ", leading to a moderate increase in aggression.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MiD")
                 {
                     location.HomeCivilization.WakeUpAndChooseViolencePoints += Game1.r.Next(0, 5); // Minor Defeat, slight increase
-                    LogEvent(Initiator.Name + " attempted to incite unrest in " + location.HomeCivilization.Name + ", but had only a minimal effect.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " attempted to incite unrest in " + location.Name + ", but had only a minimal effect.", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
                 else if (Result == "MaD")
                 {
-                    LogEvent(Initiator.Name + " failed to incite unrest in " + location.HomeCivilization.Name + ".", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " failed to incite unrest in " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location });
                     Initiator.PissOffEntityOrPlace(location, true);
                 }
 
@@ -789,21 +914,21 @@ namespace Lightrealm
                         int InitialPop = district.UnplacedPopulation;
                         district.UnplacedPopulation = Math.Max(0, district.UnplacedPopulation - numberOfVictims);
 
-                        LogEvent(Initiator.Name + " killed " + (InitialPop - district.UnplacedPopulation).ToString() + " people in " + location.Name + ", and harvested their energy.", location.Region, new EntityList<Entity>(){Initiator, location});
+                        LogEvent(Initiator.Name + " killed " + (InitialPop - district.UnplacedPopulation).ToString() + " people in " + location.Name + ", and harvested their energy.", location.Region, new EntityList<Entity>() { Initiator, location });
                         Initiator.PissOffEntityOrPlace(location, true);
 
                         int DecideAge = Game1.r.Next(1, 6);
                         if (DecideAge == 1)
                         {
-                            ((Architect)Initiator).KilledChildren += (InitialPop - district.UnplacedPopulation);
+                            ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledChildren += (InitialPop - district.UnplacedPopulation);
                         }
                         else if (DecideAge < 4)
                         {
-                            ((Architect)Initiator).KilledMen += (InitialPop - district.UnplacedPopulation);
+                            ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledMen += (InitialPop - district.UnplacedPopulation);
                         }
                         else
                         {
-                            ((Architect)Initiator).KilledWomen += (InitialPop - district.UnplacedPopulation);
+                            ((Initiator is Architect architectInitiator) ? architectInitiator : ((Group)Initiator).Leader).KilledWomen += (InitialPop - district.UnplacedPopulation);
                         }
                         foreach (Architect a in district.Architects)
                         {
@@ -833,7 +958,7 @@ namespace Lightrealm
 
                             district.ArchitectsToRemove.Add(affectedArchitect);
 
-                            LogEvent(Initiator.Name + " assassinated " + affectedArchitect.Name + " in " + location.Name + ", and harvested their energy.", location.Region, new EntityList<Entity>(){Initiator, affectedArchitect, location});
+                            LogEvent(Initiator.Name + " assassinated " + affectedArchitect.Name + " in " + location.Name + ", and harvested their energy.", location.Region, new EntityList<Entity>() { Initiator, affectedArchitect, location });
 
                             ((Architect)Initiator).KilledPeopleWhoActuallyMatter.Add(affectedArchitect);
                             foreach (Architect a in district.Architects)
@@ -849,11 +974,11 @@ namespace Lightrealm
                 }
                 else if (Result == "MiD")
                 {
-                    LogEvent(Initiator.Name + " attempted to harvest energy in " + location.Name + ", but only managed to cause a small disturbance.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " attempted to harvest energy in " + location.Name + ", but only managed to cause a small disturbance.", location.Region, new EntityList<Entity>() { Initiator, location });
                 }
                 else if (Result == "MaD")
                 {
-                    LogEvent(Initiator.Name + " failed miserably in the attempt to harvest energy in " + location.Name + ", and was unable to claim any victims.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " failed miserably in the attempt to harvest energy in " + location.Name + ", and was unable to claim any victims.", location.Region, new EntityList<Entity>() { Initiator, location });
                 }
 
                 // Check if they have gained enough power to learn new spells
@@ -861,7 +986,7 @@ namespace Lightrealm
                 {
                     ((Architect)Initiator).SpellsKnown = new EntityList<Entity>(GameWorld.AllSpells.Union(GameWorld.AllLegendarySpells));
                     ((Architect)Initiator).Focus = 15;
-                    LogEvent("After harvesting enough energy and renouncing the deities of the land, " + Initiator.Name + " became infused with unfathomable power from an unknown origin, but continued on to tempt the universe further.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent("After harvesting enough energy and renouncing the deities of the land, " + Initiator.Name + " became infused with unfathomable power from an unknown origin, but continued on to tempt the universe further.", location.Region, new EntityList<Entity>() { Initiator, location });
                 }
             }
 
@@ -919,20 +1044,20 @@ namespace Lightrealm
                             }
                         }
 
-                        LogEvent(Initiator.Name + " successfully caused a catastrophic rupture, obliterating the area around " + location.Name + ".", location.Region, new EntityList<Entity>(){Initiator, location});
+                        LogEvent(Initiator.Name + " successfully caused a catastrophic rupture, obliterating the area around " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location });
                     }
                 }
                 else if (Result == "MiV")
                 {
-                    LogEvent(Initiator.Name + " attempted to cause a rupture near " + location.Name + ", but the ritual was contained before it could cause significant damage.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent(Initiator.Name + " attempted to cause a rupture near " + location.Name + ", but the ritual was contained before it could cause significant damage.", location.Region, new EntityList<Entity>() { Initiator, location });
                 }
                 else if (Result == "MiD")
                 {
-                    LogEvent(Initiator.Name + " failed to cause a rupture near " + location.Name + ". The attempt caused a minor disturbance, but nothing catastrophic.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " failed to cause a rupture near " + location.Name + ". The attempt caused a minor disturbance, but nothing catastrophic.", location.Region, new EntityList<Entity>() { Initiator, location });
                 }
                 else if (Result == "MaD")
                 {
-                    LogEvent(Initiator.Name + " completely failed in an attempt to cause a rupture near " + location.Name + ".", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent(Initiator.Name + " completely failed in an attempt to cause a rupture near " + location.Name + ".", location.Region, new EntityList<Entity>() { Initiator, location });
                 }
             }
 
@@ -1020,7 +1145,7 @@ namespace Lightrealm
                             initiatorGroup.Leader.Inventory.Add(targetObject);
                         }
                         targetStructure.HistoricalObjects.Remove(targetObject);
-                        LogEvent($"{initiatorName} found the treasure {targetObject.ReferredToNames[0]} at {location.Name}. {initiatorName} {approach}. {theftDetail}. {outcome}. The theft succeeded.", location.Region, new EntityList<Entity>() {Initiator, targetObject, location});
+                        LogEvent($"{initiatorName} found the treasure {targetObject.ReferredToNames[0]} at {location.Name}. {initiatorName} {approach}. {theftDetail}. {outcome}. The theft succeeded.", location.Region, new EntityList<Entity>() { Initiator, targetObject, location });
                     }
                     else if (Result == "MiV")
                     {
@@ -1143,19 +1268,19 @@ namespace Lightrealm
                     // Major Victory: Successful kill
                     outcome = victories[Game1.r.Next(victories.Length)];
                     targetArchitect.IsAlive = false;
-                    LogEvent($"{initiatorArchitect.Name} located {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. {initiatorArchitect.Name} assassinated {targetArchitect.Name} in {targetArchitect.Location.Name}.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>(){initiatorArchitect, targetArchitect});
+                    LogEvent($"{initiatorArchitect.Name} located {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. {initiatorArchitect.Name} assassinated {targetArchitect.Name} in {targetArchitect.Location.Name}.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>() { initiatorArchitect, targetArchitect });
                 }
                 else if (Result == "MiV")
                 {
                     // Minor Victory: Target escapes, but initiator survives
                     outcome = failures[Game1.r.Next(failures.Length)];
-                    LogEvent($"{initiatorArchitect.Name} engaged in combat with {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. The target managed to escape, but the hunter survived.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>(){ initiatorArchitect, targetArchitect });
+                    LogEvent($"{initiatorArchitect.Name} engaged in combat with {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. The target managed to escape, but the hunter survived.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>() { initiatorArchitect, targetArchitect });
                 }
                 else if (Result == "MiD")
                 {
                     // Minor Defeat: Initiator fails but escapes alive
                     outcome = failures[Game1.r.Next(failures.Length)];
-                    LogEvent($"{initiatorArchitect.Name} attempted to take down {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. The hunter failed but managed to escape with their life.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>(){ initiatorArchitect, targetArchitect });
+                    LogEvent($"{initiatorArchitect.Name} attempted to take down {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. The hunter failed but managed to escape with their life.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>() { initiatorArchitect, targetArchitect });
                 }
                 else if (Result == "MaD")
                 {
@@ -1164,12 +1289,12 @@ namespace Lightrealm
                     {
                         outcome = deaths[Game1.r.Next(deaths.Length)];
                         initiatorArchitect.IsAlive = false;
-                        LogEvent($"{initiatorArchitect.Name} hunted {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. Tragically, {initiatorArchitect.Name} was killed in the attempt.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>(){ initiatorArchitect, targetArchitect });
+                        LogEvent($"{initiatorArchitect.Name} hunted {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. Tragically, {initiatorArchitect.Name} was killed in the attempt.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>() { initiatorArchitect, targetArchitect });
                     }
                     else
                     {
                         outcome = failures[Game1.r.Next(failures.Length)];
-                        LogEvent($"{initiatorArchitect.Name} attempted to kill {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. The hunter barely escaped with their life.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>(){ initiatorArchitect, targetArchitect });
+                        LogEvent($"{initiatorArchitect.Name} attempted to kill {targetArchitect.Name}. {initiatorArchitect.Name} {approach}. {fightDetail}. {outcome}. The hunter barely escaped with their life.", targetArchitect.Location != null ? targetArchitect.Location.Region : Game1.GameWorld.WorldMap[Game1.r.Next(Game1.GameWorld.WorldMap.Count)], new EntityList<Entity>() { initiatorArchitect, targetArchitect });
                     }
                 }
             }
@@ -1277,7 +1402,7 @@ namespace Lightrealm
                         if (selectedDistrict.Architects.Count() > 0)
                         {
                             Architect selectedArch = Game1.GetRandomItem<Architect>(selectedDistrict.Architects);
-                            LogEvent($"{initiatorArchitect.Name} had a lovely chat about {shobeSubjects[Game1.r.Next(shobeSubjects.Length)]} in {initiatorArchitect.Location.Name} with {selectedArch.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>(){ initiatorArchitect, initiatorArchitect.Location, selectedArch});
+                            LogEvent($"{initiatorArchitect.Name} had a lovely chat about {shobeSubjects[Game1.r.Next(shobeSubjects.Length)]} in {initiatorArchitect.Location.Name} with {selectedArch.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>() { initiatorArchitect, initiatorArchitect.Location, selectedArch });
                         }
                     }
                     else if (decider < 7)
@@ -1285,7 +1410,7 @@ namespace Lightrealm
                         EntityList<Object> o = GameWorld.LootTableMachine("general");
                         initiatorArchitect.Location.Wealth += Game1.r.Next(20, 50);
                         initiatorArchitect.Inventory.AddRange(o);
-                        LogEvent($"{initiatorArchitect.Name} purchased some general items from {initiatorArchitect.Location.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>(){ initiatorArchitect, initiatorArchitect.Location });
+                        LogEvent($"{initiatorArchitect.Name} purchased some general items from {initiatorArchitect.Location.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>() { initiatorArchitect, initiatorArchitect.Location });
                     }
                     else if (decider < 20)
                     {
@@ -1338,7 +1463,7 @@ namespace Lightrealm
 
                             if (selectedStructure != null && selectedArtifact != null)
                             {
-                                LogEvent($"{initiatorArchitect.Name} took {selectedArtifact} from {selectedStructure.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>(){ initiatorArchitect, initiatorArchitect.Location });
+                                LogEvent($"{initiatorArchitect.Name} took {selectedArtifact} from {selectedStructure.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>() { initiatorArchitect, initiatorArchitect.Location });
                                 initiatorArchitect.Inventory.Add(selectedArtifact);
                                 selectedStructure.HistoricalObjects.Remove(selectedArtifact);
                             }
@@ -1348,7 +1473,7 @@ namespace Lightrealm
                             EntityList<Object> o = GameWorld.LootTableMachine("general");
                             initiatorArchitect.Location.Wealth -= Game1.r.Next(50, 100);
                             initiatorArchitect.Inventory.AddRange(o);
-                            LogEvent($"{initiatorArchitect.Name} stole some general items from {initiatorArchitect.Location.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>(){initiatorArchitect, initiatorArchitect.Location});
+                            LogEvent($"{initiatorArchitect.Name} stole some general items from {initiatorArchitect.Location.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>() { initiatorArchitect, initiatorArchitect.Location });
                             diminishingReturnCounter++;
                             pillagingStill = false;
                         }
@@ -1383,7 +1508,7 @@ namespace Lightrealm
                             if (selectedDistrict.Architects.Count() > 0)
                             {
                                 Architect selectedArch = Game1.GetRandomItem<Architect>(selectedDistrict.Architects);
-                                LogEvent($"{initiatorArchitect.Name} had a lovely chat about {shobeSubjects[Game1.r.Next(shobeSubjects.Length)]} in {initiatorArchitect.Location.Name} with {selectedArch.Name}.", selectedArch.Location.Region, new EntityList<Entity>(){ Initiator, initiatorArchitect.Location, selectedArch});
+                                LogEvent($"{initiatorArchitect.Name} had a lovely chat about {shobeSubjects[Game1.r.Next(shobeSubjects.Length)]} in {initiatorArchitect.Location.Name} with {selectedArch.Name}.", selectedArch.Location.Region, new EntityList<Entity>() { Initiator, initiatorArchitect.Location, selectedArch });
                             }
                         }
                         else if (decider < 7)
@@ -1391,7 +1516,7 @@ namespace Lightrealm
                             EntityList<Object> o = GameWorld.LootTableMachine("general");
                             initiatorArchitect.Location.Wealth += Game1.r.Next(20, 50);
                             initiatorArchitect.Inventory.AddRange(o);
-                            LogEvent($"{initiatorArchitect.Name} purchased some general items from {initiatorArchitect.Location.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>(){ Initiator, initiatorArchitect.Location });
+                            LogEvent($"{initiatorArchitect.Name} purchased some general items from {initiatorArchitect.Location.Name}.", initiatorArchitect.Location.Region, new EntityList<Entity>() { Initiator, initiatorArchitect.Location });
                         }
                         else if (decider < 20)
                         {
@@ -1419,7 +1544,7 @@ namespace Lightrealm
                     int stolenWealth = Game1.r.Next(100, 300);
                     location.Wealth -= stolenWealth;
 
-                    LogEvent($"{Initiator.Name} successfully stole {industry} from {location.Name}. This has significantly impacted the area's wealth.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent($"{Initiator.Name} successfully stole {industry} from {location.Name}. This has significantly impacted the area's wealth.", location.Region, new EntityList<Entity>() { Initiator, location });
                     reputationChange = -5;  // Higher penalty for successful thefts
 
                     foreach (District d in location.Districts)
@@ -1435,7 +1560,7 @@ namespace Lightrealm
                 }
                 else if (Result == "MiD")
                 {
-                    LogEvent($"{Initiator.Name} attempted to steal {industry} from {location.Name} but was caught in the act. However, they managed to escape.", location.Region, new EntityList<Entity>(){ Initiator, location });
+                    LogEvent($"{Initiator.Name} attempted to steal {industry} from {location.Name} but was caught in the act. However, they managed to escape.", location.Region, new EntityList<Entity>() { Initiator, location });
                     reputationChange = -3;
 
                     // Minor impact on wealth due to the failure
@@ -1443,7 +1568,7 @@ namespace Lightrealm
                 }
                 else if (Result == "MaD")
                 {
-                    LogEvent($"{Initiator.Name} attempted to steal {industry} from {location.Name} but failed miserably and was caught.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent($"{Initiator.Name} attempted to steal {industry} from {location.Name} but failed miserably and was caught.", location.Region, new EntityList<Entity>() { Initiator, location });
                     reputationChange = -10;  // Higher penalty for being caught in a major failure
 
                     // Very minor or no impact on wealth due to the failure
@@ -1470,7 +1595,7 @@ namespace Lightrealm
 
                 if (Result == "MaV" || Result == "MiV")
                 {
-                    LogEvent($"{Initiator.Name} successfully set up means to embezzle extra funding from {location.Name}'s governmental structure.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent($"{Initiator.Name} successfully set up means to embezzle extra funding from {location.Name}'s governmental structure.", location.Region, new EntityList<Entity>() { Initiator, location });
                     reputationChange = -2;  // Slightly higher penalty for a successful embezzlement
 
                     location.Embezzlements.Add(Initiator);
@@ -1489,12 +1614,12 @@ namespace Lightrealm
                 }
                 else if (Result == "MiD")
                 {
-                    LogEvent($"{Initiator.Name} attempted to embezzle funds from {location.Name}, but the plan was discovered before it could succeed.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent($"{Initiator.Name} attempted to embezzle funds from {location.Name}, but the plan was discovered before it could succeed.", location.Region, new EntityList<Entity>() { Initiator, location });
                     reputationChange = -3;
                 }
                 else if (Result == "MaD")
                 {
-                    LogEvent($"{Initiator.Name} made a disastrous attempt to embezzle funds from {location.Name}, resulting in a complete failure and loss of reputation.", location.Region, new EntityList<Entity>(){Initiator, location});
+                    LogEvent($"{Initiator.Name} made a disastrous attempt to embezzle funds from {location.Name}, resulting in a complete failure and loss of reputation.", location.Region, new EntityList<Entity>() { Initiator, location });
                     reputationChange = -5;
                 }
 
@@ -1540,13 +1665,13 @@ namespace Lightrealm
                 if (decision == 1)
                 {
                     location.Prism.HistoricalObjects.Add(craftedObject);
-                    LogEvent($"{initiatorName} created the legendary {craftedObject.Type} {craftedObject.Name} in {location.Name}. It was stored in the prism of {location.Name} for safekeeping.", location.Region, new EntityList<Entity>(){Initiator, craftedObject, location});
+                    LogEvent($"{initiatorName} created the legendary {craftedObject.Type} {craftedObject.Name} in {location.Name}. It was stored in the prism of {location.Name} for safekeeping.", location.Region, new EntityList<Entity>() { Initiator, craftedObject, location });
                     reputationChange = 5;
                 }
                 else if (decision == 2 || location.Districts[0].Architects.Count == 0)
                 {
                     creator.Inventory.Add(craftedObject);
-                    LogEvent($"{initiatorName} created the legendary {craftedObject.Type} {craftedObject.Name} in {location.Name}. They held onto it for safekeeping.", location.Region, new EntityList<Entity>(){ Initiator, craftedObject, location });
+                    LogEvent($"{initiatorName} created the legendary {craftedObject.Type} {craftedObject.Name} in {location.Name}. They held onto it for safekeeping.", location.Region, new EntityList<Entity>() { Initiator, craftedObject, location });
                     reputationChange = 5;
                 }
                 else
@@ -1557,7 +1682,7 @@ namespace Lightrealm
                     buyer.Wealth -= price;
 
                     creator.Wealth += price;
-                    LogEvent($"{initiatorName} created the legendary {craftedObject.Type} {craftedObject.Name} in {location.Name}. They sold it to {buyer.Name} for {price}.", location.Region, new EntityList<Entity>(){ Initiator, craftedObject, location, buyer });
+                    LogEvent($"{initiatorName} created the legendary {craftedObject.Type} {craftedObject.Name} in {location.Name}. They sold it to {buyer.Name} for {price}.", location.Region, new EntityList<Entity>() { Initiator, craftedObject, location, buyer });
                     reputationChange = 5;
                 }
 
@@ -1600,11 +1725,11 @@ namespace Lightrealm
 
                         if (shrine != null)
                         {
-                            LogEvent($"{initiatorArchitect.Name} and {a.Name} got married at {shrine.Name} in {location.Name}.", location.Region, new EntityList<Entity>(){initiatorArchitect, a, shrine, location});
+                            LogEvent($"{initiatorArchitect.Name} and {a.Name} got married at {shrine.Name} in {location.Name}.", location.Region, new EntityList<Entity>() { initiatorArchitect, a, shrine, location });
                         }
                         else
                         {
-                            LogEvent($"{initiatorArchitect.Name} and {a.Name} got married in {location.Name}.", location.Region, new EntityList<Entity>(){initiatorArchitect, a, location});
+                            LogEvent($"{initiatorArchitect.Name} and {a.Name} got married in {location.Name}.", location.Region, new EntityList<Entity>() { initiatorArchitect, a, location });
                         }
                         break;
                     }
@@ -1628,26 +1753,27 @@ namespace Lightrealm
 
                             if (obj.Name != null)
                             {
-                                LogEvent($"{obj.Name} was destroyed in the razing of {targetStructure.Name}.", targetStructure.Block.District.Location.Region, new EntityList<Entity>(){obj, targetStructure});
+                                LogEvent($"{obj.Name} was destroyed in the razing of {targetStructure.Name}.", targetStructure.Block.District.Location.Region, new EntityList<Entity>() { obj, targetStructure });
                             }
                         }
                     }
 
-                    LogEvent($"{Initiator.Name} successfully razed the building {targetStructure.Name}.", targetStructure.Block.District.Location.Region, new EntityList<Entity>(){Initiator, targetStructure});
+                    LogEvent($"{Initiator.Name} successfully razed the building {targetStructure.Name}.", targetStructure.Block.District.Location.Region, new EntityList<Entity>() { Initiator, targetStructure });
                 }
                 else if (Result == "MiD")
                 {
-                    LogEvent($"{Initiator.Name} attempted to raze the building {targetStructure.Name}, but the effort was only partially successful.", targetStructure.Block.District.Location.Region, new EntityList<Entity>(){Initiator, targetStructure});
+                    LogEvent($"{Initiator.Name} attempted to raze the building {targetStructure.Name}, but the effort was only partially successful.", targetStructure.Block.District.Location.Region, new EntityList<Entity>() { Initiator, targetStructure });
                 }
                 else if (Result == "MaD")
                 {
-                    LogEvent($"{Initiator.Name} failed miserably in the attempt to raze the building {targetStructure.Name}. The building remains entirely intact.", targetStructure.Block.District.Location.Region, new EntityList<Entity>(){Initiator, targetStructure});
+                    LogEvent($"{Initiator.Name} failed miserably in the attempt to raze the building {targetStructure.Name}. The building remains entirely intact.", targetStructure.Block.District.Location.Region, new EntityList<Entity>() { Initiator, targetStructure });
                 }
 
-                if(targetStructure.Owner != null)
+                if (targetStructure.Owner != null)
                 {
                     Initiator.PissOffEntityOrPlace(targetStructure.Owner, false);
                 }
+
                 Initiator.PissOffEntityOrPlace(targetStructure.Block.District.Location, false);
             }
 
@@ -1684,7 +1810,7 @@ namespace Lightrealm
 
                     if (ImportantChildren == 0)
                     {
-                        LogEvent(initiatorArchitect.Name + " and " + initiatorArchitect.Spouse.Name + " had " + Children + " children, but none of them actually matter.", initiatorArchitect.Location.Region, new EntityList<Entity>(){initiatorArchitect, initiatorArchitect.Spouse});
+                        LogEvent(initiatorArchitect.Name + " and " + initiatorArchitect.Spouse.Name + " had " + Children + " children, but none of them actually matter.", initiatorArchitect.Location.Region, new EntityList<Entity>() { initiatorArchitect, initiatorArchitect.Spouse });
                         location.Districts[Game1.r.Next(location.Districts.Count())].UnplacedPopulation += Children;
                     }
                     else
@@ -1704,7 +1830,7 @@ namespace Lightrealm
                         }
                         location.Districts[Game1.r.Next(location.Districts.Count())].UnplacedPopulation += (Children - ImportantChildren);
 
-                        LogEvent(initiatorArchitect.Name + " and " + initiatorArchitect.Spouse.Name + " had " + Children + " children. The ones that actually matter are " + Game1.FormatList(ImportantChildrenNames) + ".", initiatorArchitect.Location.Region, new EntityList<Entity>(){initiatorArchitect, initiatorArchitect.Spouse}.Union(ImportantChildrenArchitects));
+                        LogEvent(initiatorArchitect.Name + " and " + initiatorArchitect.Spouse.Name + " had " + Children + " children. The ones that actually matter are " + Game1.FormatAndList(ImportantChildrenNames) + ".", initiatorArchitect.Location.Region, new EntityList<Entity>() { initiatorArchitect, initiatorArchitect.Spouse }.Union(ImportantChildrenArchitects));
                     }
                 }
             }

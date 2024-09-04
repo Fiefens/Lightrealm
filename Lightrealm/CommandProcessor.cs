@@ -102,6 +102,9 @@ namespace Lightrealm
             else if (CommandID == "leave_structure")
             {
                 Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+
+                Executor.HideValue = 0;
+
                 if (Executor.Structure == null)
                 {
                     MakeObservation("You are not in a structure.", Color.Yellow, new EntityList<Entity>());
@@ -119,7 +122,7 @@ namespace Lightrealm
                         Executor.Room = null;
                         Executor.Block.Architects.Add(Executor);
 
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits the structure.", Color.Blue, new EntityList<Entity>(){}));
+                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits the structure.", Color.Blue, new EntityList<Entity>() { }));
                     }
                     else
                     {
@@ -130,8 +133,18 @@ namespace Lightrealm
             }
             else if (CommandID == "enter")
             {
+                Executor.HideValue = 0;
                 Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
-                if (LoadedArchitects[Game1.ArchitectIndex].Structure != null && Subjects[0] is Door && (Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
+
+                if (Executor.OnTopOfStructure != null)
+                {
+                    MakeObservation("You need to get down from " + Executor.OnTopOfStructure + ", first.", Color.Yellow, new EntityList<Entity>());
+                }
+                else if (Subjects[0].Reinforced)
+                {
+                    MakeObservation("The door won't budge. You might need to bash it down.", Color.Yellow, new EntityList<Entity>());
+                }
+                else if (LoadedArchitects[Game1.ArchitectIndex].Structure != null && Subjects[0] is Door && (Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
                 {
                     if (r.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
                     {
@@ -156,15 +169,15 @@ namespace Lightrealm
                         Executor.Structure.Rooms[0].Architects.Add(Executor);
                         Executor.CooldownCycles += (int)(Math.Round(25 / Executor.Speed()));
 
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " enters " + ((Structure)Subjects[0]).Name + ", a " + ((Structure)Subjects[0]).Type + ".", Color.Blue, new EntityList<Entity>(){}));
+                        Game1.Exposition.Add(new TextStorage(Executor.Name + " enters " + ((Structure)Subjects[0]).Name + ", a " + ((Structure)Subjects[0]).Type + ".", Color.Blue, new EntityList<Entity>() { }));
 
                         if (((Structure)Subjects[0]).PrimarySmells.Count() > 0)
                         {
-                            Game1.Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow, new EntityList<Entity>(){}));
+                            Game1.Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow, new EntityList<Entity>() { }));
                         }
                         if (((Structure)Subjects[0]).Type == "shrine" && ((Structure)Subjects[0]).Rooms.Any(room => room.Objects.Any(obj => obj.Type == "altar")))
                         {
-                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this shrine. Perhaps you could offer it something?", Color.Yellow, new EntityList<Entity>(){}));
+                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this shrine. Perhaps you could offer it something?", Color.Yellow, new EntityList<Entity>() { }));
                         }
 
                         Game1.GameState = "exposition";
@@ -185,7 +198,7 @@ namespace Lightrealm
                         Executor.Room = null;
                         Executor.Block.Architects.Add(Executor);
 
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits through the " + obj.Type + ".", Color.Blue, new EntityList<Entity>(){}));
+                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits through the " + obj.Type + ".", Color.Blue, new EntityList<Entity>() { }));
                         Game1.GameState = "exposition";
                     }
                     else
@@ -218,14 +231,73 @@ namespace Lightrealm
                     Game1.TriedFakeMove = true;
                 }
 
-                // Use the new Move function
-                Executor.Move(Subjects[0].Metadata);
+                if(Executor.YLevelInFeet > 0)
+                {
+                    MakeObservation("You need to be on the ground to move between blocks.", Color.Yellow, new EntityList<Entity>());
+                }
+                else
+                {
+                    Executor.Move(Subjects[0].Metadata);
+                }
+            }
+            
+            else if (CommandID == "attack_specific_body_part")
+            {
+                Object Weapon;
+
+                // Check the player's main hand based on their handedness
+                Object mainHand = LoadedArchitects[Game1.ArchitectIndex].MainHeldObject;
+                Object offHand = LoadedArchitects[Game1.ArchitectIndex].OffHeldObject;
+
+                if (mainHand != null && mainHand.IsWeapon)
+                {
+                    // If the main hand has a weapon, use it
+                    Weapon = mainHand;
+                }
+                else if (offHand != null && offHand.IsWeapon)
+                {
+                    // If the off hand has a weapon, use it
+                    Weapon = offHand;
+                }
+                else
+                {
+                    // If both hands are empty or don't have weapons, find a weapon on the body
+                    Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[r.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count())];
+                }
+
+                if (Subjects[0] is Architect a && (Executor.Room != null && Executor.Room.Architects.Contains(a) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
+                {
+                    Object targetBodyPart = a.FindBodyPart(Subjects[1].Metadata);
+
+                    if (targetBodyPart != null && Weapon.WeaponMaximumRange >= Executor.GetDistance(a) && Math.Abs(a.YLevelInFeet - Executor.YLevelInFeet) <= 5)
+                    {
+                        Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
+                        if (Executor.DoubleStrikeReady)
+                        {
+                            MakeObservation("You double strike!", Color.Pink, new EntityList<Entity>());
+                            Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
+                            Executor.DoubleStrikeReady = false;
+                        }
+                    }
+                    else if (targetBodyPart == null)
+                    {
+                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow, new EntityList<Entity>());
+                    }
+                    else
+                    {
+                        Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>() { }));
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can't target body parts of an object, at least not yet.", Color.Yellow, new EntityList<Entity>());
+                }
             }
             else if (CommandID == "basic_attack")
             {
                 // Find weapon and then calculate the attack
 
-                if(!Game1.GameWorld.GamePlayerAssociation.ActiveParty.HasAttacked)
+                if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.HasAttacked)
                 {
                     Game1.GameWorld.GamePlayerAssociation.ActiveParty.HasAttacked = true;
                     MakeObservation("Try attacking a specific part, with a specific weapon, or both.", Color.Green, new EntityList<Entity>());
@@ -269,7 +341,31 @@ namespace Lightrealm
                     return false;
                 }
 
-                if (Weapon.WeaponMaximumRange >= Executor.GetDistance((Architect)(Target.Owner)))
+                // Check if the target is reinforced
+                if (Target.Reinforced)
+                {
+                    Target.Integrity -= 20; // Drop integrity by 20
+
+                    if (Target.Integrity < 0)
+                    {
+                        // Reset integrity and unreinforce
+                        Target.Integrity = 50;
+                        Target.Reinforced = false;
+
+                        MakeObservation(Target.ReferredToNames[0] + " is no longer reinforced!", Color.Orange, new EntityList<Entity>());
+
+                        // Search for the paired door/object/structure and unreinforce it
+                        Object pairedObject = (Object)(Target.PairedObject());
+                        if (pairedObject != null && pairedObject.Reinforced)
+                        {
+                            pairedObject.Reinforced = false;
+                            pairedObject.Integrity = 50;
+                        }
+                    }
+                    return true;
+                }
+
+                if (Weapon.WeaponMaximumRange >= Executor.GetDistance((Architect)(Target.Owner)) && Math.Abs(((Architect)(Target.Owner)).YLevelInFeet - Executor.YLevelInFeet) <= 5)
                 {
                     Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                     if (Executor.DoubleStrikeReady)
@@ -281,60 +377,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>(){}));
-                }
-            }
-
-            else if (CommandID == "attack_specific_body_part")
-            {
-                Object Weapon;
-
-                // Check the player's main hand based on their handedness
-                Object mainHand = LoadedArchitects[Game1.ArchitectIndex].MainHeldObject;
-                Object offHand = LoadedArchitects[Game1.ArchitectIndex].OffHeldObject;
-
-                if (mainHand != null && mainHand.IsWeapon)
-                {
-                    // If the main hand has a weapon, use it
-                    Weapon = mainHand;
-                }
-                else if (offHand != null && offHand.IsWeapon)
-                {
-                    // If the off hand has a weapon, use it
-                    Weapon = offHand;
-                }
-                else
-                {
-                    // If both hands are empty or don't have weapons, find a weapon on the body
-                    Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[r.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count())];
-                }
-
-                if (Subjects[0] is Architect a && (Executor.Room != null && Executor.Room.Architects.Contains(a) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
-                {
-                    Object targetBodyPart = a.FindBodyPart(Subjects[1].Metadata);
-
-                    if (targetBodyPart != null && Weapon.WeaponMaximumRange >= Executor.GetDistance(a))
-                    {
-                        Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
-                        if (Executor.DoubleStrikeReady)
-                        {
-                            MakeObservation("You double strike!", Color.Pink, new EntityList<Entity>());
-                            Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
-                            Executor.DoubleStrikeReady = false;
-                        }
-                    }
-                    else if (targetBodyPart == null)
-                    {
-                        MakeObservation("The targeted creature doesn't have one of those, or you are not being specific enough (try left X, right X...?)", Color.Yellow, new EntityList<Entity>());
-                    }
-                    else
-                    {
-                        Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>(){}));
-                    }
-                }
-                else
-                {
-                    MakeObservation("You can't target body parts of an object, at least not yet.", Color.Yellow, new EntityList<Entity>());
+                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>() { }));
                 }
             }
             else if (CommandID == "attack_with_weapon")
@@ -359,8 +402,28 @@ namespace Lightrealm
                     MakeObservation("You can't attack that.", Color.Yellow, new EntityList<Entity>());
                     return false;
                 }
+                if (Target.Reinforced)
+                {
+                    Target.Integrity -= 20;
 
-                if (Weapon != null && Weapon.WeaponMaximumRange >= Executor.GetDistance((Architect)Target.Owner))
+                    if (Target.Integrity < 0)
+                    {
+                        Target.Integrity = 50;
+                        Target.Reinforced = false;
+
+                        MakeObservation(Target.ReferredToNames[0] + " is no longer reinforced!", Color.Orange, new EntityList<Entity>());
+
+                        Object pairedObject = (Object)(Target.PairedObject());
+                        if (pairedObject != null && pairedObject.Reinforced)
+                        {
+                            pairedObject.Reinforced = false;
+                            pairedObject.Integrity = 50;
+                        }
+                    }
+                    return true;
+                }
+
+                if (Weapon != null && Weapon.WeaponMaximumRange >= Executor.GetDistance((Architect)Target.Owner) && Math.Abs(((Architect)(Target.Owner)).YLevelInFeet - Executor.YLevelInFeet) <= 5)
                 {
                     Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                     if (Executor.DoubleStrikeReady)
@@ -376,9 +439,10 @@ namespace Lightrealm
                 }
                 else
                 {
-                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>(){}));
+                    Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough.", Color.Yellow, new EntityList<Entity>() { }));
                 }
             }
+
             else if (CommandID == "attack_body_part_with_item")
             {
                 if (Subjects[0] is Architect a)
@@ -401,7 +465,7 @@ namespace Lightrealm
                                 item = Executor.FindBodyPart(Subjects[2].Metadata);
                             }
 
-                            if (item != null)
+                            if (item != null && item.WeaponMaximumRange >= Executor.GetDistance(a) && Math.Abs(a.YLevelInFeet - Executor.YLevelInFeet) <= 5)
                             {
                                 Game1.CalculateAttack(Game1.DetermineAttackVerb(item.DamageType), Executor, a.FindBodyPart(Subjects[1].Metadata), "decideforme", item);
                                 if (Executor.DoubleStrikeReady)
@@ -438,19 +502,20 @@ namespace Lightrealm
 
 
 
+
             else if (CommandID == "fix_hair")
             {
                 MakeObservation("You change your flamestyle.", Color.MediumPurple, new EntityList<Entity>());
 
                 Executor.HairID += 1;
 
-                if(Executor.HairID == 4)
+                if (Executor.HairID == 4)
                 {
                     Executor.HairID = 0;
                 }
             }
 
-            else if (CommandID == "inventory_check")
+            else if (CommandID == "game_menu")
             {
                 Game1.InInventory = true;
             }
@@ -704,11 +769,11 @@ namespace Lightrealm
                                         StorageFound = true;
 
                                         // Add historical event for placing the item
-                                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, Subjects[0], Executor.Location}));
+                                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
                                     }
                                     else
                                     {
-                                        MakeObservation("The item is already in the shadow storage.", Color.Yellow, new EntityList<Entity>(){});
+                                        MakeObservation("The item is already in the shadow storage.", Color.Yellow, new EntityList<Entity>() { });
                                     }
                                     break; // Exit the loop once the shadow storage is processed
                                 }
@@ -747,11 +812,11 @@ namespace Lightrealm
                         // Add historical event for placing the item
                         if (Executor.Structure == null)
                         {
-                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, Subjects[0], Executor.Location}));
+                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
                         }
                         else
                         {
-                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, Subjects[0], Subjects[1], Executor.Structure }));
+                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Subjects[1], Executor.Structure }));
                         }
                     }
                     else
@@ -828,13 +893,13 @@ namespace Lightrealm
 
             else if (CommandID == "ascend")
             {
-                if(Executor.Structure != null && Game1.GameWorld.GamePlayerAssociation.Residences.Contains(Executor.Structure))
+                if (Executor.Structure != null && Game1.GameWorld.GamePlayerAssociation.Residences.Contains(Executor.Structure))
                 {
                     Game1.GameState = "ascendant";
 
                     foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                     {
-                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + a.Name + " sought greater control in " + a.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){a, a.Location}));
+                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + a.Name + " sought greater control in " + a.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { a, a.Location }));
                     }
 
                     Executor.Location.Government = Game1.GameWorld.GamePlayerAssociation.ActiveParty;
@@ -886,7 +951,7 @@ namespace Lightrealm
                                     StorageFound = true;
 
                                     // Add historical event for taking the item
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, Subjects[0], Executor.Location}));
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
                                 }
                                 else
                                 {
@@ -960,7 +1025,7 @@ namespace Lightrealm
 
                         // Add historical event for taking the item
 
-                        if(itemToTake.Name != null)
+                        if (itemToTake.Name != null)
                         {
                             if (Executor.Structure == null)
                             {
@@ -1050,11 +1115,11 @@ namespace Lightrealm
                             {
                                 if (Executor.Structure == null)
                                 {
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + item.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, item, Executor.Location}));
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + item.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, item, Executor.Location }));
                                 }
                                 else
                                 {
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + item.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>(){ Executor, item, Executor.Location, Executor.Structure }));
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + item.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, item, Executor.Location, Executor.Structure }));
 
                                     Executor.Structure.HistoricalObjects.Add(item);
                                 }
@@ -1198,7 +1263,7 @@ namespace Lightrealm
 
                             if (obj.Name != null)
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " acquired " + obj.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, obj, Executor.Location}));
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " acquired " + obj.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, obj, Executor.Location }));
                             }
 
                             if (obj.Imbuements.Count() > 0 || obj.IsWeapon || obj.Name != null)
@@ -1292,7 +1357,7 @@ namespace Lightrealm
 
                                 if (((Object)Subjects[0]).Name != null)
                                 {
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " acquired " + ((Object)Subjects[0]).Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, Subjects[0], Executor.Location}));
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " acquired " + ((Object)Subjects[0]).Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
                                 }
 
                                 if (((Object)Subjects[0]).Imbuements.Count() > 0 || ((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).Name != null)
@@ -1346,16 +1411,16 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("You couldn't find anything like that in the area.", Color.Yellow, new EntityList<Entity>(){});
+                        MakeObservation("You couldn't find anything like that in the area.", Color.Yellow, new EntityList<Entity>() { });
                     }
                 }
                 else if (Subjects[0] is Architect a && a.Race.Name == "shiba")
                 {
-                    MakeObservation("Perhaps you can wear the creature directly.", Color.Yellow, new EntityList<Entity>(){});
+                    MakeObservation("Perhaps you can wear the creature directly.", Color.Yellow, new EntityList<Entity>() { });
                 }
                 else
                 {
-                    MakeObservation("You cannot pick up that.", Color.Yellow, new EntityList<Entity>(){});
+                    MakeObservation("You cannot pick up that.", Color.Yellow, new EntityList<Entity>() { });
                 }
             }
 
@@ -1365,6 +1430,7 @@ namespace Lightrealm
                 Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
                 bool Found = true;
 
+                // Test if the subject is 'all' to drop all items
                 if (Subjects[0].Metadata == "all")
                 {
                     var itemsToDrop = Executor.Inventory.ToList(); // Create a list of items to drop
@@ -1399,11 +1465,11 @@ namespace Lightrealm
                         {
                             if (Executor.Structure == null)
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, itemToDrop, Executor.Location}));
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location }));
                             }
                             else
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>(){ Executor, itemToDrop, Executor.Location, Executor.Structure}));
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location, Executor.Structure }));
 
                                 Executor.Structure.HistoricalObjects.Add(itemToDrop);
                             }
@@ -1414,84 +1480,123 @@ namespace Lightrealm
                 }
                 else
                 {
-                    Object itemToDrop = ((Object)Subjects[0]);
-
-                    if (itemToDrop == Executor.MainHeldObject)
+                    // Test if the carried entity is the subject
+                    if (Executor.CarryingEntity == Subjects[0])
                     {
-                        Executor.MainHeldObject = null;
-                    }
-                    else if (itemToDrop == Executor.OffHeldObject)
-                    {
-                        Executor.OffHeldObject = null;
-                    }
-                    else if (Executor.Inventory.Contains(itemToDrop))
-                    {
-                        // Search for other objects with the same ReferredToNames[0]
-                        bool otherObjectsExist = Executor.Inventory.Any(obj => obj != itemToDrop && obj.ReferredToNames[0] == itemToDrop.ReferredToNames[0]);
-
-                        if (otherObjectsExist)
+                        // Drop the carried object or architect
+                        if (Executor.CarryingEntity is Object carriedObject)
                         {
-                            Executor.TryDropItemType = itemToDrop.Type;
-                            Executor.TryDropMaterials.Clear();
-
-                            foreach (var material in itemToDrop.Materials)
+                            if (Executor.Room != null)
                             {
-                                Executor.TryDropMaterials.Add(material);
-                            }
-                            // Do not proceed with dropping the item here
-                            return true;
-                        }
-                        else
-                        {
-                            Executor.Inventory.Remove(itemToDrop);
-                        }
-                    }
-                    else
-                    {
-                        Found = false;
-                    }
-
-                    if (Found)
-                    {
-                        EntityList<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
-
-                        if (Executor.Room != null)
-                        {
-                            Executor.Room.Objects.Add(itemToDrop);
-                            itemToDrop.Room = Executor.Room;
-                            itemToDrop.Block = Executor.Room.Structure.Block;
-                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
-                        }
-                        else
-                        {
-                            Executor.Block.Objects.Add(itemToDrop);
-                            itemToDrop.Block = Executor.Block;
-                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
-                        }
-
-                        if (Executor.Structure != null && Executor.Structure.Type == "market")
-                        {
-                            Executor.Structure.MarketDebt += itemToDrop.Value();
-                        }
-
-                        // Add historical event for dropping the item
-                        if (itemToDrop.Name != null)
-                        {
-                            if (Executor.Structure == null)
-                            {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>(){Executor, itemToDrop, Executor.Location}));
+                                Executor.Room.Objects.Add(carriedObject);
+                                carriedObject.Room = Executor.Room;
+                                carriedObject.Block = Executor.Room.Structure.Block;
+                                MakeObservation("You drop the " + carriedObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { carriedObject });
                             }
                             else
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>(){ Executor, itemToDrop, Executor.Location, Executor.Structure }));
-
-                                Executor.Structure.HistoricalObjects.Add(itemToDrop);
+                                Executor.Block.Objects.Add(carriedObject);
+                                carriedObject.Block = Executor.Block;
+                                MakeObservation("You drop the " + carriedObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { carriedObject });
                             }
                         }
+                        else if (Executor.CarryingEntity is Architect carriedArchitect)
+                        {
+                            if (Executor.Room != null)
+                            {
+                                Executor.Room.Architects.Add(carriedArchitect);
+                                carriedArchitect.Room = Executor.Room;
+                            }
+                            else
+                            {
+                                Executor.Block.Architects.Add(carriedArchitect);
+                            }
+                            MakeObservation("You drop " + carriedArchitect.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { carriedArchitect });
+                        }
+
+                        Executor.CarryingEntity = null;
                     }
                     else
                     {
-                        MakeObservation("You don't have that.", Color.Yellow, new EntityList<Entity>());
+                        Object itemToDrop = ((Object)Subjects[0]);
+
+                        if (itemToDrop == Executor.MainHeldObject)
+                        {
+                            Executor.MainHeldObject = null;
+                        }
+                        else if (itemToDrop == Executor.OffHeldObject)
+                        {
+                            Executor.OffHeldObject = null;
+                        }
+                        else if (Executor.Inventory.Contains(itemToDrop))
+                        {
+                            // Search for other objects with the same ReferredToNames[0]
+                            bool otherObjectsExist = Executor.Inventory.Any(obj => obj != itemToDrop && obj.ReferredToNames[0] == itemToDrop.ReferredToNames[0]);
+
+                            if (otherObjectsExist)
+                            {
+                                Executor.TryDropItemType = itemToDrop.Type;
+                                Executor.TryDropMaterials.Clear();
+
+                                foreach (var material in itemToDrop.Materials)
+                                {
+                                    Executor.TryDropMaterials.Add(material);
+                                }
+                                // Do not proceed with dropping the item here
+                                return true;
+                            }
+                            else
+                            {
+                                Executor.Inventory.Remove(itemToDrop);
+                            }
+                        }
+                        else
+                        {
+                            Found = false;
+                        }
+
+                        if (Found)
+                        {
+                            EntityList<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+
+                            if (Executor.Room != null)
+                            {
+                                Executor.Room.Objects.Add(itemToDrop);
+                                itemToDrop.Room = Executor.Room;
+                                itemToDrop.Block = Executor.Room.Structure.Block;
+                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                            }
+                            else
+                            {
+                                Executor.Block.Objects.Add(itemToDrop);
+                                itemToDrop.Block = Executor.Block;
+                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                            }
+
+                            if (Executor.Structure != null && Executor.Structure.Type == "market")
+                            {
+                                Executor.Structure.MarketDebt += itemToDrop.Value();
+                            }
+
+                            // Add historical event for dropping the item
+                            if (itemToDrop.Name != null)
+                            {
+                                if (Executor.Structure == null)
+                                {
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location }));
+                                }
+                                else
+                                {
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location, Executor.Structure }));
+
+                                    Executor.Structure.HistoricalObjects.Add(itemToDrop);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("You don't have that.", Color.Yellow, new EntityList<Entity>());
+                        }
                     }
                 }
             }
@@ -1988,13 +2093,13 @@ namespace Lightrealm
                 {
                     if (Executor.OffHeldObject == null && Executor.MainHeldObject == null)
                     {
-                        Game1.Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>(){}));
-                        Game1.Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>(){}));
+                        Game1.Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>() { }));
+                        Game1.Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>() { }));
                     }
                     else
                     {
-                        Game1.Observations.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>(){}));
-                        Game1.Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>(){}));
+                        Game1.Observations.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>() { }));
+                        Game1.Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>() { }));
                     }
                 }
                 else
@@ -2163,8 +2268,8 @@ namespace Lightrealm
                     }
                     else
                     {
-                        Game1.Observations.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>(){}));
-                        Game1.Announcements.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>(){}));
+                        Game1.Observations.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>() { }));
+                        Game1.Announcements.Add(new TextStorage("You couldn't find a sufficient target. Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>() { }));
                     }
                 }
                 else
@@ -2510,7 +2615,7 @@ namespace Lightrealm
                     var architects = Executor.Room == null ? Executor.Block.Architects : Executor.Room.Architects;
 
                     // Randomly select a subset of architects to react, between 1 and 6
-                    int numReactions = Math.Min(Game1.r.Next(1, 7), architects.Count()); 
+                    int numReactions = Math.Min(Game1.r.Next(1, 7), architects.Count());
                     EntityList<Architect> reactingArchitects = architects.ShuffleNew().Take(numReactions);
 
 
@@ -2595,7 +2700,7 @@ namespace Lightrealm
                         writableObject.Name = newComposition.Name; // Assign the generated book name to the object
 
                         // Log historical event
-                        Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} authored a book titled '{newComposition.Name}' in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>(){Executor, newComposition, Executor.Location}));
+                        Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} authored a book titled '{newComposition.Name}' in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>() { Executor, newComposition, Executor.Location }));
 
                         // Provide detailed feedback to the user
                         MakeObservation($"You write a book titled '{newComposition.Name}' on yourself, because nothing else comes to mind apparently. {newComposition.GetCompleteWorkDescription()} It is now stored in your {writableObject.Name}.", Color.Blue, new EntityList<Entity>() { newComposition, writableObject });
@@ -2608,7 +2713,7 @@ namespace Lightrealm
                     Executor.CultureBank.Add(newComposition); // Assuming Executor has a CultureBank list to store compositions
 
                     // Log historical event
-                    Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} composed a {type} titled '{newComposition.Name}' in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>(){Executor, newComposition}));
+                    Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} composed a {type} titled '{newComposition.Name}' in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>() { Executor, newComposition }));
 
                     // Provide detailed feedback to the user
                     MakeObservation($"You compose a {type} titled '{newComposition.Name}. {newComposition.GetCompleteWorkDescription()}. It is now stored in your memory.", Color.Blue, new EntityList<Entity>() { newComposition });
@@ -2643,7 +2748,7 @@ namespace Lightrealm
                         writableObject.Name = newComposition.Name; // Assign the generated book name to the object
 
                         // Log historical event
-                        Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} authored a book titled '{newComposition.Name}' about {Subjects[1].ReferredToNames[0]} in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>(){Executor, newComposition, Subjects[1], Executor.Location }));
+                        Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} authored a book titled '{newComposition.Name}' about {Subjects[1].ReferredToNames[0]} in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>() { Executor, newComposition, Subjects[1], Executor.Location }));
 
                         // Provide detailed feedback to the user
                         MakeObservation($"You write a book titled '{newComposition.Name}' about {Subjects[1].ReferredToNames[0]}. {newComposition.GetCompleteWorkDescription()}. It is now stored in your {writableObject.Name}.", Color.Blue, new EntityList<Entity>() { newComposition, Subjects[1], writableObject });
@@ -2656,7 +2761,7 @@ namespace Lightrealm
                     Executor.CultureBank.Add(newComposition); // Assuming Executor has a CultureBank list to store compositions
 
                     // Log historical event
-                    Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} composed a {type} titled '{newComposition.Name}' about {Subjects[1].ReferredToNames[0]} in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>(){Executor, newComposition, Subjects[1], Executor.Location}));
+                    Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {Executor.Name} composed a {type} titled '{newComposition.Name}' about {Subjects[1].ReferredToNames[0]} in {Executor.Location.Name}.", Executor.Location.Region, new EntityList<Entity>() { Executor, newComposition, Subjects[1], Executor.Location }));
 
                     // Provide detailed feedback to the user
                     MakeObservation($"You compose a {type} titled '{newComposition.Name}' about {Subjects[1].ReferredToNames[0]}. {newComposition.GetCompleteWorkDescription()}. It is now stored in your memory.", Color.Blue, new EntityList<Entity>() { newComposition, Subjects[1] });
@@ -2666,13 +2771,983 @@ namespace Lightrealm
                     MakeObservation("You can only write poems, books, or songs.", Color.Blue, new EntityList<Entity>());
                 }
             }
-
-
-
             else if (CommandID.StartsWith("write ~ about "))
             {
-                MakeObservation("You can't write about that because either it or the art form doesn't exist, or no one cares about one or the other.", Color.Red, new EntityList<Entity>());
+                MakeObservation("You can't write about that because either it or the art form doesn't exist, or you don't care enough about one or the other.", Color.Red, new EntityList<Entity>());
             }
+            else if (CommandID == "sneak")
+            {
+                MakeObservation("You start moving slower and less noticeably.", Color.Orange, new EntityList<Entity>());
+                Executor.MovementMode = "sneaking";
+            }
+            else if (CommandID == "walk")
+            {
+                MakeObservation("You start moving regularly.", Color.Orange, new EntityList<Entity>());
+                Executor.MovementMode = "walking";
+            }
+            else if (CommandID == "sprint")
+            {
+                MakeObservation("You start moving quickly, consuming more energy.", Color.Orange, new EntityList<Entity>());
+                Executor.MovementMode = "sprinting";
+            }
+            else if (CommandID == "assemble_trap")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                if (Subjects[0] is Object o)
+                {
+                    if (o.Type == "fiber")
+                    {
+                        bool Found = false;
+
+                        if(Executor.MainHeldObject == o)
+                        {
+                            Executor.MainHeldObject = null;
+                            Found = true;
+                        }
+                        else if (Executor.OffHeldObject == o)
+                        {
+                            Executor.OffHeldObject = null;
+                            Found = true;
+                        }
+                        else if (Executor.Inventory.Contains(o))
+                        {
+                            Executor.Inventory.Remove(o);
+                            Found = true;
+                        }
+
+                        if(Found)
+                        {
+                            EntityList<Object> ObjList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                            EntityList<Architect> ArchList = Executor.Room != null ? Executor.Room.Architects : Executor.Block.Architects;
+
+                            Object Trap = new Object(null, "rope trap", new EntityList<Material>() { o.Materials[0] }, Executor);
+                            Trap.Block = Executor.Block;
+                            if (Executor.Room != null)
+                            {
+                                Trap.Room = Executor.Room;
+                            }
+
+                            Trap.AwareArchitects = new EntityList<Architect>(ArchList);
+
+                            ObjList.Add(Trap);
+                            MakeObservation("You rig up a trap. It will trigger when someone unaware of its existence enters the room.", Color.Orange, new EntityList<Entity>());
+
+                        }
+                        else
+                        {
+                            MakeObservation("You need to have fiber to set a trap.", Color.Orange, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You need to use fiber to set a trap.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You need fiber to set a trap.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "repair")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+
+                if (Subjects[0] is Object o && Subjects[1] is Object O && !o.IsBodyPart && !O.IsBodyPart)
+                {
+                    if (Executor.Inventory.Contains(o) && (Executor.MainHeldObject == O || Executor.OffHeldObject == O || Executor.Inventory.Contains(O)))
+                    {
+                        if (o.Integrity >= 100)
+                        {
+                            MakeObservation(o.ReferredToNames[0] + " is already fully repaired.", Color.Orange, new EntityList<Entity>());
+                        }
+                        else if (O.Materials[0] == o.Materials[0])
+                        {
+                            bool Found = false;
+
+                            if (Executor.MainHeldObject == O)
+                            {
+                                Executor.MainHeldObject = null;
+                                Found = true;
+                            }
+                            else if (Executor.OffHeldObject == O)
+                            {
+                                Executor.OffHeldObject = null;
+                                Found = true;
+                            }
+                            else if (Executor.Inventory.Contains(O))
+                            {
+                                Executor.Inventory.Remove(O);
+                                Found = true;
+                            }
+
+                            if (Found)
+                            {
+                                o.Integrity = 100;
+                                MakeObservation(o.ReferredToNames[0] + " has been repaired.", Color.Green, new EntityList<Entity>());
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("The objects must share core materials.", Color.Orange, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You must have both objects in your inventory or hands to repair.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can only repair non-body-part objects.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "hide")
+            {
+                Entity HidingEntity = Subjects[0];
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+
+                Executor.HideValue = 0;
+
+                if (HidingEntity is Structure s)
+                {
+                    Executor.HideValue += 40;
+                }
+                else if (HidingEntity is Object o)
+                {
+                    Executor.HideValue += (int)Math.Round((decimal)(o.Weight / 100));
+                }
+                else if (HidingEntity is Architect a)
+                {
+                    int sizeDifference = Game1.SizeDifference(a.Race.Size, Executor.Race.Size);
+
+                    if (sizeDifference > 0)
+                    {
+                        Executor.HideValue += 20 * sizeDifference;
+                        MakeObservation("You hide behind " + a.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
+                    }
+                    else
+                    {
+                        MakeObservation("You try to hide behind " + a.ReferredToNames[0] + ", but it doesn't have much of an effect.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+            }
+
+            else if (CommandID == "bury_something")
+            {
+                if (Executor.Room == null)
+                {
+                    if (Subjects[0] is Architect a && a.Block == Executor.Block)
+                    {
+                        if((a.IsAlive == false || a.UnconsciousCycles > 0) && a.Block == Executor.Block)
+                        {
+                            a.IsAlive = false;
+                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+
+                            MakeObservation("You bury " + a.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
+
+                            a.Block.Architects.Remove(a);
+                            a.Block.BuriedArchitects.Add(a);
+                        }
+                        else
+                        {
+                            MakeObservation("They would probably notice...", Color.Orange, new EntityList<Entity>());
+                        }
+                    }
+                    else if (Subjects[0] is Object o && o.Block == Executor.Block)
+                    {
+                        MakeObservation("You bury " + o.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
+                        Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                        o.Block.BuriedObjects.Add(o);
+                        o.Block.Objects.Remove(o);
+                    }
+                    else
+                    {
+                        MakeObservation("You can only bury an object or person on the ground near you.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You need to be outside.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "dig")
+            {
+                if (Executor.Room == null)
+                {
+                    if (Executor.Block.BuriedArchitects.Count > 0 || Executor.Block.BuriedObjects.Count > 0)
+                    {
+                        // Return all buried architects to the surface
+                        foreach (Architect buriedArchitect in Executor.Block.BuriedArchitects)
+                        {
+                            Executor.Block.Architects.Add(buriedArchitect);
+                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                            MakeObservation("You dig up " + buriedArchitect.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
+                        }
+                        Executor.Block.BuriedArchitects.Clear();
+
+                        // Return all buried objects to the surface
+                        foreach (Object buriedObject in Executor.Block.BuriedObjects)
+                        {
+                            Executor.Block.Objects.Add(buriedObject);
+                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                            MakeObservation("You dig up " + buriedObject.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
+                        }
+                        Executor.Block.BuriedObjects.Clear();
+                    }
+                    else
+                    {
+                        MakeObservation("There is nothing buried here to dig up.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You need to be outside to dig.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "climb")
+            {
+                if (Subjects[0] is Structure s)
+                {
+                    if (Executor.Room != null)
+                    {
+                        MakeObservation("You need to be outside.", Color.Orange, new EntityList<Entity>());
+                    }
+                    else if (s.Block == Executor.Block)
+                    {
+                        Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed()));
+
+                        MakeObservation("You climb atop " + s.Name + ".", Color.Green, new EntityList<Entity>());
+                        Executor.OnTopOfStructure = s;
+                        Executor.YLevelInFeet += 30;
+                    }
+                    else
+                    {
+                        MakeObservation("There is not a structure like that nearby.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can only climb structures.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "get_down")
+            {
+                if(Executor.OnTopOfStructure != null)
+                {
+                    Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed()));
+                    MakeObservation("You climb down from " + Executor.OnTopOfStructure.Name + ".", Color.Green, new EntityList<Entity>());
+                    Executor.OnTopOfStructure = null;
+                    Executor.YLevelInFeet = 0;
+                }
+                else
+                {
+                    MakeObservation("You are not on top of a structure.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "carve")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+
+                Entity Image = Subjects[0];
+
+                if (Subjects[1] is Object Obj)
+                {
+                    bool isInSameBlockOrRoomOrInventory =
+                        Obj.Block == Executor.Block ||
+                        Obj.Room == Executor.Room ||
+                        Executor.Inventory.Contains(Obj);
+
+                    if (isInSameBlockOrRoomOrInventory)
+                    {
+                        MakeObservation("You carve a symbol of " + Image.ReferredToNames[0] + " into " + Obj.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>());
+                        Obj.CarvedSymbols.Add(Image);
+                    }
+                    else
+                    {
+                        MakeObservation("The object must be in the same block, room, or your inventory to carve it.", Color.Red, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can only carve symbols into objects.", Color.Red, new EntityList<Entity>());
+                }
+            }
+
+            else if (CommandID == "sculpt")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+
+                Entity Image = Subjects[0];
+
+                if (Subjects[1] is Object Obj)
+                {
+                    bool isInSameBlockOrRoomOrInventory =
+                        Obj.Block == Executor.Block ||
+                        Obj.Room == Executor.Room ||
+                        Executor.Inventory.Contains(Obj);
+
+                    if (isInSameBlockOrRoomOrInventory)
+                    {
+                        MakeObservation("You carve " + Obj.ReferredToNames[0] + " into a statue of " + Image.Name + ".", Color.Green, new EntityList<Entity>());
+
+                        Obj.Type = "statue";
+                    }
+                    else
+                    {
+                        MakeObservation("The object must be in the same block, room, or your inventory to sculpt it.", Color.Red, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can only carve an object of sufficient weight into a statue.", Color.Red, new EntityList<Entity>());
+                }
+            }
+
+            else if (CommandID == "reinforce")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+
+                if (Subjects[0] is Entity entityToReinforce && Subjects[1] is Object reinforcementMaterial)
+                {
+                    if(reinforcementMaterial.Weight < 3000)
+                    {
+                        bool canReinforce = false;
+
+                        // Check if Executor is reinforcing a structure from the outside
+                        if (entityToReinforce is Structure structure)
+                        {
+                            // You can reinforce the structure either from the outside (Executor.Block must contain the structure) or from inside Structure.Rooms[0]
+                            if ((Executor.Structure == null && Executor.Block.Structures.Contains(structure)) ||
+                                (Executor.Structure == structure && Executor.Room == structure.Rooms[0]))
+                            {
+                                canReinforce = true;
+
+                                // Reinforce the exit door of the structure
+                                Object exitDoor = structure.Rooms[0].Objects.FirstOrDefault(obj => obj.Type == "exit door");
+                                if (exitDoor != null)
+                                {
+                                    exitDoor.Reinforced = true;
+                                }
+
+                                // Reinforce the structure itself
+                                structure.Reinforced = true;
+                            }
+                            else
+                            {
+                                MakeObservation("You can only reinforce the structure if you're nearby it or in the exit room.", Color.Orange, new EntityList<Entity>());
+                            }
+                        }
+                        // Check if Executor is reinforcing a door
+                        else if (entityToReinforce is Door door)
+                        {
+                            if (Executor.Room != null && Executor.Room.Objects.Contains(door))
+                            {
+                                canReinforce = true;
+
+                                // Reinforce the opposite door in the destination room
+                                Room destinationRoom = door.DestinationRoom;
+                                Door oppositeDoor = (Door)(destinationRoom.Objects.FirstOrDefault(d => d is Door D && D.DestinationRoom == Executor.Room));
+                                if (oppositeDoor != null)
+                                {
+                                    oppositeDoor.Reinforced = true;
+                                }
+
+                                // Reinforce the door itself
+                                door.Reinforced = true;
+                            }
+                            else
+                            {
+                                MakeObservation("You need to be in the same room as the door to reinforce it.", Color.Orange, new EntityList<Entity>());
+                            }
+                        }
+                        // Check if Executor is reinforcing an exit door
+                        else if (entityToReinforce is Object obj && obj.Type == "exit door")
+                        {
+                            if (Executor.Room != null && Executor.Room.Objects.Contains(obj))
+                            {
+                                canReinforce = true;
+
+                                // Reinforce the structure the Executor is in
+                                if (Executor.Structure != null)
+                                {
+                                    Executor.Structure.Reinforced = true;
+                                }
+
+                                // Reinforce the exit door itself
+                                obj.Reinforced = true;
+                            }
+                            else
+                            {
+                                MakeObservation("You need to be in the same room as the exit door to reinforce it.", Color.Orange, new EntityList<Entity>());
+                            }
+                        }
+
+                        if (canReinforce)
+                        {
+                            // Remove the reinforcement material from the Executor's inventory or hands
+                            bool materialFound = false;
+
+                            if (Executor.MainHeldObject == reinforcementMaterial)
+                            {
+                                Executor.MainHeldObject = null;
+                                materialFound = true;
+                            }
+                            else if (Executor.OffHeldObject == reinforcementMaterial)
+                            {
+                                Executor.OffHeldObject = null;
+                                materialFound = true;
+                            }
+                            else if (Executor.Inventory.Contains(reinforcementMaterial))
+                            {
+                                Executor.Inventory.Remove(reinforcementMaterial);
+                                materialFound = true;
+                            }
+
+                            if (materialFound)
+                            {
+                                // Add the reinforcement material to the room or block objects
+                                EntityList<Object> objList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                                objList.Add(reinforcementMaterial);
+
+                                // Set the entity as reinforced
+                                entityToReinforce.Reinforced = true;
+
+                                MakeObservation("You successfully reinforce " + entityToReinforce.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>());
+                            }
+                            else
+                            {
+                                MakeObservation("You don't have the required material to reinforce " + entityToReinforce.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
+                            }
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("That object is not heavy enough to reinforce anything.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can only reinforce doors and structure entrances.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "ignite")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+
+                if (Subjects[0] is Object o)
+                {
+                    bool isInSameBlockOrRoomOrInventory =
+                        o.Block == Executor.Block ||
+                        o.Room == Executor.Room ||
+                        Executor.Inventory.Contains(o);
+
+                    if (isInSameBlockOrRoomOrInventory)
+                    {
+                        MakeObservation("You manifest some energy to strike a small flame.", Color.Green, new EntityList<Entity>());
+                        o.FireCycles += 3;
+                    }
+                    else
+                    {
+                        MakeObservation("The object must be nearby to ignite it.", Color.Orange, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("It would be unfeasible to ignite that.", Color.Orange, new EntityList<Entity>());
+                }
+            }
+
+            else if (CommandID == "brew")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+
+                // Check if the first subject is either coffee or tea
+                if (Subjects[0].Metadata != "coffee" && Subjects[0].Metadata != "tea")
+                {
+                    MakeObservation("You can only brew coffee or tea.", Color.Yellow, new EntityList<Entity>());
+                }
+                else
+                {
+                    // Check if the second subject is an object the player has
+                    Object ingredient = null;
+                    if (Executor.MainHeldObject == Subjects[1])
+                    {
+                        ingredient = Executor.MainHeldObject;
+                    }
+                    else if (Executor.OffHeldObject == Subjects[1])
+                    {
+                        ingredient = Executor.OffHeldObject;
+                    }
+                    else if (Executor.Inventory.Contains(Subjects[1]))
+                    {
+                        ingredient = (Object)Subjects[1];
+                    }
+
+                    // Check if the ingredient is either coffee or tea based on Materials
+                    if (ingredient != null && ingredient.Materials[0].Name == Subjects[0].Metadata)
+                    {
+                        // Check if the third subject is a container
+                        if (Subjects[2] is Object container && container.IsContainer)
+                        {
+                            // Remove the ingredient from wherever it was held
+                            if (Executor.MainHeldObject == ingredient)
+                            {
+                                Executor.MainHeldObject = null;  // Remove from main hand
+                            }
+                            else if (Executor.OffHeldObject == ingredient)
+                            {
+                                Executor.OffHeldObject = null;  // Remove from off hand
+                            }
+                            else if (Executor.Inventory.Contains(ingredient))
+                            {
+                                Executor.Inventory.Remove(ingredient);  // Remove from inventory
+                            }
+
+                            // Create the brewed drink object inside the container
+                            Object brewedDrink = new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, Executor);
+                            if (Subjects[0].Metadata == "tea")
+                            {
+                                brewedDrink.Materials[0] = GameWorld.Tea;  // Change to tea if that's what we're brewing
+                            }
+
+                            container.ContainedObjects.Add(brewedDrink);
+
+                            MakeObservation($"You brew {Subjects[0].Metadata} and pour it into the {container.Type}.", Color.Green, new EntityList<Entity>() { brewedDrink, container });
+                        }
+                        else
+                        {
+                            MakeObservation("You need a container to brew into.", Color.Yellow, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You need the right ingredients to brew " + Subjects[0].Metadata + ".", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+            }
+            else if (CommandID == "hug")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(30 / Executor.Speed()));
+
+                if (Subjects[0] is Architect Interactee)
+                {
+                    // Check if they are in the same room or block
+                    if (Executor.Room == Interactee.Room || Executor.Block == Interactee.Block)
+                    {
+                        if (Interactee.GetOpinion(Executor) > 20)
+                        {
+                            Interactee.ChangeOpinion(Executor, 3);
+                            MakeObservation("You hug " + Interactee.Name + ". They seem to appreciate it.", Color.Green, new EntityList<Entity>() { Interactee });
+                        }
+                        else
+                        {
+                            Interactee.ChangeOpinion(Executor, -1);
+                            MakeObservation("You hug " + Interactee.Name + ". They look uncomfortable.", Color.Orange, new EntityList<Entity>() { Interactee });
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You are too far away to hug " + Interactee.Name + ".", Color.Yellow, new EntityList<Entity>() { Interactee });
+                    }
+                }
+                else
+                {
+                    MakeObservation("You hug the " + Subjects[0].ReferredToNames[0] + ". It does not hug back.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                }
+            }
+
+            else if (CommandID == "tickle")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+
+                if (Subjects[0] is Architect Interactee)
+                {
+                    // Check if they are in the same room or block
+                    if (Executor.Room == Interactee.Room || Executor.Block == Interactee.Block)
+                    {
+                        if (Executor.Sex != Interactee.Sex)
+                        {
+                            if (Interactee.GetOpinion(Executor) > 15)
+                            {
+                                Interactee.ChangeOpinion(Executor, 2);
+                                MakeObservation("You tickle " + Interactee.Name + ". They giggle and seem amused.", Color.Green, new EntityList<Entity>() { Interactee });
+                            }
+                            else
+                            {
+                                Interactee.ChangeOpinion(Executor, -3);
+                                MakeObservation("You tickle " + Interactee.Name + ". They seem uncomfortable and annoyed.", Color.Orange, new EntityList<Entity>() { Interactee });
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("You tickle " + Interactee.Name + ". They look at you questioningly.", Color.Yellow, new EntityList<Entity>() { Interactee });
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You are too far away to tickle " + Interactee.Name + ".", Color.Yellow, new EntityList<Entity>() { Interactee });
+                    }
+                }
+                else
+                {
+                    MakeObservation("You tickle the " + Subjects[0].ReferredToNames[0] + ". It does not react.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                }
+            }
+
+            else if (CommandID == "hold_hand")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+
+                if (Subjects[0] is Architect Interactee)
+                {
+                    // Check if they are in the same room or block
+                    if (Executor.Room == Interactee.Room || Executor.Block == Interactee.Block)
+                    {
+                        if (Executor.Sex != Interactee.Sex)
+                        {
+                            if (Interactee.GetOpinion(Executor) > 30)
+                            {
+                                Interactee.ChangeOpinion(Executor, 5);
+                                MakeObservation("You hold hands with " + Interactee.Name + ". They warmly reciprocate.", Color.Green, new EntityList<Entity>() { Interactee });
+                            }
+                            else
+                            {
+                                Interactee.ChangeOpinion(Executor, -5);
+                                MakeObservation("You hold hands with " + Interactee.Name + ". They pull away uncomfortably.", Color.Orange, new EntityList<Entity>() { Interactee });
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("You hold hands with " + Interactee.Name + ". They don't seem to notice.", Color.Yellow, new EntityList<Entity>() { Interactee });
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You are too far away to hold hands with " + Interactee.Name + ".", Color.Yellow, new EntityList<Entity>() { Interactee });
+                    }
+                }
+                else
+                {
+                    MakeObservation("You try to hold the hand of the " + Subjects[0].ReferredToNames[0] + "... oh wait... what hand...", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                }
+            }
+            else if (CommandID == "shove")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+
+                // Check if the target is an Architect
+                if (Subjects[0] is Architect Interactee)
+                {
+                    // Check if they are in the same room or block
+                    if (Executor.Room == Interactee.Room || Executor.Block == Interactee.Block)
+                    {
+                        // Shove the architect and apply the distance logic
+                        MakeObservation("You shove " + Interactee.Name + " forcefully.", Color.Orange, new EntityList<Entity>() { Interactee });
+
+                        // Run the distance modification
+                        Executor.ModifyDistance(Interactee, 2);  // This pushes the architect 2 units away (you can adjust this as needed)
+                    }
+                    else
+                    {
+                        MakeObservation("You are too far away to shove " + Interactee.Name + ".", Color.Yellow, new EntityList<Entity>() { Interactee });
+                    }
+                }
+                else
+                {
+                    MakeObservation("You can't shove the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                }
+            }
+            else if (CommandID == "carry")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+
+                // Check if the Executor has free hands
+                if (Executor.MainHeldObject != null || Executor.OffHeldObject != null)
+                {
+                    MakeObservation("Your hands are full. You need to free up some space to carry anything.", Color.Yellow, new EntityList<Entity>());
+                }
+                else
+                {
+                    // Check if the subject is close enough to the Executor
+                    Entity subject = Subjects[0];
+                    if (Executor.GetDistance(subject) > 2)
+                    {
+                        MakeObservation("You are too far away to carry " + subject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
+                    }
+                    else
+                    {
+                        // If the subject is an object, check weight capacity
+                        if (subject is Object obj)
+                        {
+                            double maxCarryWeight = 7000 + (Executor.Strength * 1000);
+                            if (obj.Weight > maxCarryWeight)
+                            {
+                                MakeObservation("The " + obj.ReferredToNames[0] + " is too heavy for you to carry.", Color.Orange, new EntityList<Entity>());
+                            }
+                            else
+                            {
+                                // Remove the object from its current location (room or block)
+                                if (Executor.Room != null)
+                                {
+                                    Executor.Room.ObjectsToRemove.Add(obj);
+                                }
+                                else
+                                {
+                                    Executor.Block.ObjectsToRemove.Add(obj);
+                                }
+
+                                // Carry the object
+                                Executor.MainHeldObject = obj;
+                                MakeObservation("You pick up and carry the " + obj.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { obj });
+                            }
+                        }
+                        // If the subject is an Architect, check size difference
+                        else if (subject is Architect targetArchitect)
+                        {
+                            int sizeDifference = Game1.SizeDifference(targetArchitect.Race.Size, Executor.Race.Size);
+                            if (sizeDifference > 1)
+                            {
+                                MakeObservation(targetArchitect.ReferredToNames[0] + " is too large for you to carry.", Color.Orange, new EntityList<Entity>());
+                            }
+                            else if (targetArchitect.IsAlive && targetArchitect.UnconsciousCycles == 0)
+                            {
+                                MakeObservation(targetArchitect.ReferredToNames[0] + " resists whatever the hell you're doingz.", Color.Orange, new EntityList<Entity>());
+                            }
+                            else
+                            {
+                                // Remove the architect from its current location
+                                if (targetArchitect.Room != null)
+                                {
+                                    targetArchitect.Room.ArchitectsToRemove.Add(targetArchitect);
+                                }
+                                else
+                                {
+                                    targetArchitect.Block.ArchitectsToRemove.Add(targetArchitect);
+                                }
+
+                                // Carry the architect
+                                Executor.CarryingEntity = targetArchitect;
+                                MakeObservation("You pick up and carry " + targetArchitect.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { targetArchitect });
+                            }
+                        }
+                    }
+                }
+            }
+            else if (CommandID == "disarm_traps")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed())); // Adjust the X to a reasonable value like 50
+
+                EntityList<Object> ObjList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+
+                Object trapToDisarm = ObjList.FirstOrDefault(o => o.Type == "rope trap");
+
+                if (trapToDisarm != null)
+                {
+                    ObjList.Remove(trapToDisarm);
+
+                    Object newRope = new Object(null, "rope", new EntityList<Material>() { trapToDisarm.Materials[0] }, Executor);
+
+                    if (Executor.Room != null)
+                    {
+                        Executor.Room.Objects.Add(newRope);
+                        newRope.Room = Executor.Room;
+                        newRope.Block = Executor.Room.Structure.Block;
+                    }
+                    else
+                    {
+                        Executor.Block.Objects.Add(newRope);
+                        newRope.Block = Executor.Block;
+                    }
+
+                    MakeObservation("You carefully disarm a trap and recover some rope.", Color.Green, new EntityList<Entity>() { newRope });
+                }
+                else
+                {
+                    MakeObservation("There are no traps to disarm here.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+
+            else if (CommandID == "knock")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+
+                EntityList<Architect> responseArchitects = new EntityList<Architect>();
+                bool validKnock = false;
+
+                // Determine if the player is knocking on a structure, door, or exit door
+                if (Subjects[0] is Structure structure && Executor.Block.Structures.Contains(structure) && Executor.Room == null)
+                {
+                    // Knocking on a structure
+                    responseArchitects = structure.Rooms[0].Architects;
+                    validKnock = true;
+                }
+                else if (Subjects[0] is Door door && Executor.Room != null && Executor.Room.Objects.Contains(door))
+                {
+                    // Knocking on a door (not an exit door)
+                    responseArchitects = door.DestinationRoom.Architects;
+                    validKnock = true;
+                }
+                else if (Subjects[0] is Object obj && obj.Type == "exit door" && Executor.Room != null && Executor.Room == Executor.Structure.Rooms[0])
+                {
+                    // Knocking on an exit door
+                    responseArchitects = Executor.Room.Structure.Block.Architects;
+                    validKnock = true;
+                }
+
+                // Ensure the knock is valid
+                if (!validKnock)
+                {
+                    MakeObservation("You knock. Expectedly, there is no reply.", Color.Yellow, new EntityList<Entity>());
+                }
+                else
+                {
+                    // Check if the structure type guarantees no response
+                    Structure targetStructure = (Subjects[0] is Structure) ? (Structure)Subjects[0] : Executor.Structure;
+
+                    if (targetStructure != null)
+                    {
+                        string structureType = targetStructure.Type.ToLower();
+
+                        if (structureType == "bastion" || structureType == "commune" || structureType == "core" ||
+                            structureType == "fort" || structureType == "fortress" || structureType == "heart" ||
+                            structureType == "keep" || structureType == "monastery" || structureType == "monument" ||
+                            structureType == "mound" || structureType == "outpost" || structureType == "sanctum" ||
+                            structureType == "scaffold" || structureType == "scum" || structureType == "spire" || structureType == "stringhold")
+                        {
+                            MakeObservation("Your knock echoes with no response.", Color.Gray, new EntityList<Entity>());
+                        }
+                    }
+                    else if(responseArchitects.Count() > 0)
+                    {
+                        int responseIndex = Game1.r.Next(4);
+
+                        switch (responseIndex)
+                        {
+                            case 0:
+                                MakeObservation("You hear a voice, \"Come in.\"", Color.Green, new EntityList<Entity>());
+                                break;
+                            case 1:
+                                MakeObservation("You hear a voice, \"No, we don't want to purchase shiba statues.\"", Color.Green, new EntityList<Entity>());
+                                break;
+                            case 2:
+                                MakeObservation("There is some rustling behind the door, but no one responds.", Color.Yellow, new EntityList<Entity>());
+                                break;
+                            case 3:
+                                MakeObservation("The door creaks open slightly, but no one emerges.", Color.Gray, new EntityList<Entity>());
+                                break;
+                            case 4:
+                                MakeObservation("A muffled voice responds, \"Who's there?\"", Color.Green, new EntityList<Entity>());
+                                break;
+                            case 5:
+                                MakeObservation("You hear an irritated voice say, \"Go away, we're busy!\"", Color.Orange, new EntityList<Entity>());
+                                break;
+                            case 6:
+                                MakeObservation("A voice from inside calls, \"Just a moment!\"", Color.Green, new EntityList<Entity>());
+                                break;
+                            case 7:
+                                MakeObservation("You hear footsteps approaching, then silence.", Color.Yellow, new EntityList<Entity>());
+                                break;
+                            case 8:
+                                MakeObservation("A voice yells, \"Not now! Come back later!\"", Color.OrangeRed, new EntityList<Entity>());
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("Your knock goes unanswered.", Color.Gray, new EntityList<Entity>());
+                    }
+                }
+            }
+            else if (CommandID == "stretch")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+                Executor.DestabilizedCycles = 0;
+
+                MakeObservation(Executor.Name + " stretches, stabilizing themselves.", Color.Green, new EntityList<Entity>());
+            }
+            else if (CommandID == "polish")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+
+                if (Subjects[0] is Object objToPolish)
+                {
+                    objToPolish.Polished = true;
+                    MakeObservation("You carefully polish the " + objToPolish.ReferredToNames[0] + ", making it shine.", Color.Green, new EntityList<Entity>() { objToPolish });
+                }
+                else
+                {
+                    MakeObservation("You can only polish objects.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+
+            else if (CommandID == "clean")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+
+                if (Subjects[0] is Object objToClean)
+                {
+                    objToClean.Cleaned = true;
+                    MakeObservation("You clean the " + objToClean.ReferredToNames[0] + ", making it spotless.", Color.Green, new EntityList<Entity>() { objToClean });
+                }
+                else
+                {
+                    MakeObservation("You can only clean objects.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "bind")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+
+                // Ensure the player has two objects to bind
+                Object firstObject = Executor.MainHeldObject ?? Executor.OffHeldObject ?? Executor.Inventory.FirstOrDefault();
+                Object secondObject = null;
+
+                // Find the second object, ensuring it's different from the first one
+                if (firstObject != Executor.MainHeldObject)
+                    secondObject = Executor.MainHeldObject;
+                else if (firstObject != Executor.OffHeldObject)
+                    secondObject = Executor.OffHeldObject;
+
+                // If not found in hands, look in the inventory
+                if (secondObject == null || secondObject == firstObject)
+                {
+                    secondObject = Executor.Inventory.FirstOrDefault(obj => obj != firstObject);
+                }
+
+                if (firstObject != null && secondObject != null)
+                {
+                    // Remove the objects from the player's main hand, offhand, or inventory
+                    if (Executor.MainHeldObject == firstObject)
+                        Executor.MainHeldObject = null;
+                    else if (Executor.OffHeldObject == firstObject)
+                        Executor.OffHeldObject = null;
+                    else
+                        Executor.Inventory.Remove(firstObject);
+
+                    if (Executor.MainHeldObject == secondObject)
+                        Executor.MainHeldObject = null;
+                    else if (Executor.OffHeldObject == secondObject)
+                        Executor.OffHeldObject = null;
+                    else
+                        Executor.Inventory.Remove(secondObject);
+
+                    // Create the MultiObject from the two objects
+                    EntityList<Object> boundObjects = new EntityList<Object> { firstObject, secondObject };
+                    MultiObject combinedObject = new MultiObject(Executor, boundObjects);
+
+                    // Add the new MultiObject to the player's inventory
+                    Executor.Inventory.Add(combinedObject);
+
+                    // Provide feedback to the player
+                    MakeObservation($"You bind {firstObject.ReferredToNames[0]} and {secondObject.ReferredToNames[0]} together into a new object.", Color.Green, new EntityList<Entity>() { combinedObject });
+                }
+                else
+                {
+                    // Inform the player that they need two objects to bind
+                    MakeObservation("You need two different objects to bind together.", Color.Red, new EntityList<Entity>());
+                }
+            }
+
             else if (CommandID == "tame_creature")
             {
                 Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
@@ -3636,8 +4711,6 @@ namespace Lightrealm
                                 Room = currentObject.Room,
                                 HeatInCelsius = currentObject.HeatInCelsius,
                                 IsConsumable = currentObject.IsConsumable,
-                                VariableToChange = currentObject.VariableToChange,
-                                VariableChange = currentObject.VariableChange,
                                 IsWearable = currentObject.IsWearable,
                                 Rarity = currentObject.Rarity,
                                 IsBodyPart = currentObject.IsBodyPart,
@@ -4496,7 +5569,7 @@ namespace Lightrealm
                 else if (MessageID == "ask_generic_directions")
                 {
                     string thing = Subjects[0].ReferredToNames[0];
-                    (Region nearestRegion, Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom, string nearestThing) = Sender.Block.FindNearestThing(thing);
+                    (Region nearestRegion, Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom) = Sender.Block.FindNearestThing(thing);
 
                     if (nearestBlock != null)
                     {
@@ -4675,7 +5748,7 @@ namespace Lightrealm
                 }
                 else if (MessageID == "ask_trade")
                 {
-                    (Region nearestRegion, Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom, string nearestThing) = Sender.Block.FindNearestThing("market");
+                    (Region nearestRegion, Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom) = Sender.Block.FindNearestThing("market");
 
                     if (nearestBlock != null && nearestLocation == Sender.Location)
                     {

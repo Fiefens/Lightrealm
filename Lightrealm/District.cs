@@ -41,6 +41,8 @@ namespace Lightrealm
 
         public EntityHashSet<Architect> ArchitectsToRemove { get; set; } = new EntityHashSet<Architect>();
 
+        public EntityHashSet<Structure> Taverns { get; set; } = new EntityHashSet<Structure>();
+
         public EntityHashSet<Architect> ArchitectsToAdd { get; set; } = new EntityHashSet<Architect>();
 
         public List<string> GeneralItemsWeHave { get; set; } = new List<string>();
@@ -580,7 +582,7 @@ namespace Lightrealm
                 {
                     architect.Task = "druidcrafting";
 
-                    architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room, "");
+                    architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room);
                     architect.CyclesLeftInTask = 500;
 
                     return;
@@ -637,10 +639,10 @@ namespace Lightrealm
                         break;
                     case "tower":
                     case "commune":
-                        possibleTasks.AddRange(new List<string> { "study", "discussion" });
+                        possibleTasks.AddRange(new List<string> { "study", "discussion", "waitforgame" });
                         break;
                     case "tavern":
-                        possibleTasks.AddRange(new List<string> { "sleeping", "eating", "drinking", "socializing", "performmusic", "performpoetry" });
+                        possibleTasks.AddRange(new List<string> { "waitforgame", "waitforgame", "waitforgame", "sleeping", "eating", "drinking", "socializing", "performmusic", "performpoetry" });
                         break;
                     default:
                         possibleTasks.AddRange(new List<string> { "industry", "contemplate" });
@@ -664,6 +666,7 @@ namespace Lightrealm
                     "study" => 3000, // takes five minutes at minimum
                     "socializing" => 300, // conversations don't last too long, but I want them going in and out often if it's the well
                     "performmusic" => 500,
+                    "waitforgame" =>  2000,
                     "performdance" => 500,
                     "performtheater" => 500,
                     "performpoetry" => 500,
@@ -672,10 +675,20 @@ namespace Lightrealm
                     _ => 1000
                 };
 
+                if(architect.Task == "contemplate")
+                {
+                    architect.CurrentContemplationTopic = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)].Name;
+                }
+
+                if(architect.Task == "study")
+                {
+                    architect.AssignStudyTopic();
+                }
+
                 // Randomly adjust CyclesLeftInTask with a variation of -50 to +50, ensuring a minimum of 50
                 architect.CyclesLeftInTask = Math.Max(architect.CyclesLeftInTask + Game1.r.Next(-50, 51), 50);
             }
-            architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room, "");
+            architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room);
         }
 
 
@@ -736,6 +749,32 @@ namespace Lightrealm
                 for (int z = 0; z < 7; z++)
                 {
                     allDistrictStructures.AddRange(DistrictMap[x + z * 7].Structures);
+
+                    int Decider = Game1.r.Next(1, 4);
+
+                    if (Decider == 1)
+                        DistrictMap[x + z * 7].SocializationTopic = this.Location.AllStructures[Game1.r.Next(this.Location.AllStructures.Count)];
+                    else if (Decider == 2 && this.Architects.Count > 0)
+                        DistrictMap[x + z * 7].SocializationTopic = this.Architects.GetRandomItem();
+                    else
+                        DistrictMap[x + z * 7].SocializationTopic = this.Location.GroupsAtThisLocation.Count > 0 ? (this.Location.GroupsAtThisLocation[Game1.r.Next(this.Location.GroupsAtThisLocation.Count)]) : (this.Location.Government != null ? this.Location.Government : this.Location);
+
+
+                    Decider = Game1.r.Next(1, 7);
+
+                    if (Decider == 1)
+                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllArchitects[Game1.r.Next(Game1.GameWorld.AllArchitects.Count)];
+                    else if (Decider == 2)
+                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllLocations[Game1.r.Next(Game1.GameWorld.AllLocations.Count)];
+                    else if (Decider == 3)
+                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllSpells[Game1.r.Next(Game1.GameWorld.AllSpells.Count)];
+                    else if (Decider == 4)
+                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllFactions[Game1.r.Next(Game1.GameWorld.AllFactions.Count)];
+                    else if (Decider == 5)
+                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.Groups[Game1.r.Next(Game1.GameWorld.Groups.Count)];
+                    else
+                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)];
+
                 }
             }
 
@@ -1096,7 +1135,7 @@ namespace Lightrealm
                 {
                     a.Task = "sentinel";
                     a.CyclesLeftInTask = 99999;
-                    a.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room, "");
+                    a.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room);
 
                     if (a.Room != null)
                     {

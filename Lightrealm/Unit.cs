@@ -8,17 +8,8 @@ using System.Text.Json.Serialization;
 namespace Lightrealm
 {
     [Serializable]
-    public class Unit : Entity
+    public class Unit : Group
     {
-        private int _leaderId;
-        public Architect Leader
-        {
-            get => EntityGet<Architect>(_leaderId);
-            set => _leaderId = value?.ID ?? 0;
-        }
-
-        public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
-
         public int OtherSoldiers { get; set; }
 
         private int _homeLocationId;
@@ -36,6 +27,11 @@ namespace Lightrealm
             Architects = architects;
             OtherSoldiers = otherSoldiers;
             HomeLocation = homeLocation;
+
+            foreach(Architect a in architects)
+            {
+                a.Unit = this;
+            }
 
             Name = Game1.GameWorld.GenerateUniqueName("1W1w", this);
         }
@@ -56,28 +52,27 @@ namespace Lightrealm
         {
             var results = new List<string>();
 
-            // Detail the two fighting units
-            results.Add($"{this.Name}: {this.Leader.Name}'s unit, Style: {this.Style}, Architects: {this.Architects.Count()}, Other Soldiers: {this.OtherSoldiers}");
-            results.Add($"{u.Name}: {u.Leader.Name}'s unit, Style: {u.Style}, Architects: {u.Architects.Count()}, Other Soldiers: {u.OtherSoldiers}");
+            // Detail the two fighting units in a single narrative sentence
+            results.Add($"{this.Name}, the {this.Style.ToLower()} squad led by {this.Leader.Name} with {this.Architects.Count() + this.OtherSoldiers} soldiers, fought {u.Name}, {u.Leader.Name}'s {u.Style.ToLower()} squad of {u.Architects.Count() + u.OtherSoldiers} soldiers.");
 
             // Define biome advantages and disadvantages
             var biomeAdvantages = new Dictionary<string, string>
-            {
-                { "aggressive", "plains" },
-                { "defensive", "mountain" },
-                { "balanced", "tundra" },
-                { "deceptive", "taiga" },
-                { "evasive", "forest" }
-            };
+    {
+        { "aggressive", "plains" },
+        { "defensive", "mountain" },
+        { "balanced", "tundra" },
+        { "deceptive", "taiga" },
+        { "evasive", "forest" }
+    };
 
             var biomeDisadvantages = new Dictionary<string, string>
-            {
-                { "aggressive", "forest" },
-                { "defensive", "desert" },
-                { "balanced", "ocean" },
-                { "deceptive", "lightforest" },
-                { "evasive", "snowpeak" }
-            };
+    {
+        { "aggressive", "forest" },
+        { "defensive", "desert" },
+        { "balanced", "ocean" },
+        { "deceptive", "lightforest" },
+        { "evasive", "snowpeak" }
+    };
 
             // Determine combat strengths
             int thisStrength = this.CombatStrength();
@@ -87,24 +82,20 @@ namespace Lightrealm
             if (biomeAdvantages[this.Style] == r.Biome)
             {
                 thisStrength += 10;
-                results.Add($"{this.Name}'s unit ({this.Style}) has an advantage in {r.Biome} biome due to favorable terrain for their tactics.");
             }
             else if (biomeDisadvantages[this.Style] == r.Biome)
             {
                 thisStrength -= 10;
-                results.Add($"{this.Name}'s unit ({this.Style}) has a disadvantage in {r.Biome} biome due to unfavorable terrain.");
             }
 
             // Modify strength based on biome for opponent unit
             if (biomeAdvantages[u.Style] == r.Biome)
             {
                 opponentStrength += 10;
-                results.Add($"{u.Name}'s unit ({u.Style}) has an advantage in {r.Biome} biome due to favorable terrain for their tactics.");
             }
             else if (biomeDisadvantages[u.Style] == r.Biome)
             {
                 opponentStrength -= 10;
-                results.Add($"{u.Name}'s unit ({u.Style}) has a disadvantage in {r.Biome} biome due to unfavorable terrain.");
             }
 
             // Adjust strength based on fighting style advantage
@@ -115,7 +106,6 @@ namespace Lightrealm
                 this.Style == "Evasive" && u.Style == "Aggressive")
             {
                 thisStrength += 5;
-                results.Add($"{this.Name}'s unit ({this.Style}) has a general fighting style advantage over {u.Name}'s unit ({u.Style}).");
             }
             else if (u.Style == "Aggressive" && this.Style == "Defensive" ||
                      u.Style == "Defensive" && this.Style == "Balanced" ||
@@ -124,26 +114,22 @@ namespace Lightrealm
                      u.Style == "Evasive" && this.Style == "Aggressive")
             {
                 opponentStrength += 5;
-                results.Add($"{u.Name}'s unit ({u.Style}) has a general fighting style advantage over {this.Name}'s unit ({this.Style}).");
             }
 
-            // Determine the outcome and losses
+            // Determine the outcome and losses in a single narrative sentence
             if (thisStrength > opponentStrength)
             {
-                results.Add($"{this.Name} wins the fight with {thisStrength - opponentStrength} strength advantage.");
-                DetermineVictoryType(thisStrength, opponentStrength, results, this.Name);
+                results.Add($"{this.Name} won the fight with a historically calculated advantage of {thisStrength - opponentStrength}. {this.Name} achieved a {DetermineVictoryType(thisStrength, opponentStrength)}, while {u.Name} suffered a {DetermineLossType(thisStrength, opponentStrength)}.");
                 CalculateLosses(opponentStrength, thisStrength, u, results);
             }
             else if (thisStrength < opponentStrength)
             {
-                results.Add($"{u.Name} wins the fight with {opponentStrength - thisStrength} strength advantage.");
-                DetermineVictoryType(opponentStrength, thisStrength, results, u.Name);
+                results.Add($"{u.Name} won the fight with a historically calculated advantage of {opponentStrength - thisStrength}. {u.Name} achieved a {DetermineVictoryType(opponentStrength, thisStrength)}, while {this.Name} suffered a {DetermineLossType(opponentStrength, thisStrength)}.");
                 CalculateLosses(thisStrength, opponentStrength, this, results);
             }
             else
             {
-                results.Add("The fight is a draw.");
-                results.Add("Both units took heavy losses, but neither could claim a clear victory.");
+                results.Add("The fight ended in a draw, with both sides incurring heavy losses but unable to secure a clear victory.");
                 CalculateLosses(thisStrength, opponentStrength, this, results);
                 CalculateLosses(opponentStrength, thisStrength, u, results);
             }
@@ -151,29 +137,55 @@ namespace Lightrealm
             return results;
         }
 
-        private void DetermineVictoryType(int winnerStrength, int loserStrength, List<string> results, string winnerName)
+        private string DetermineVictoryType(int winnerStrength, int loserStrength)
         {
             int strengthDifference = winnerStrength - loserStrength;
 
             if (strengthDifference > 20)
             {
-                results.Add($"{winnerName} achieved a major victory.");
+                return "major victory";
             }
             else if (strengthDifference > 10)
             {
-                results.Add($"{winnerName} achieved a minor victory.");
+                return "minor victory";
             }
             else if (strengthDifference > 5)
             {
-                results.Add($"{winnerName} achieved a relative draw, with a slight edge.");
+                return "relative draw with a slight edge";
             }
             else if (strengthDifference > 0)
             {
-                results.Add($"{winnerName} achieved a minor loss but fought valiantly.");
+                return "minor loss but fought valiantly";
             }
             else
             {
-                results.Add($"{winnerName} achieved a major loss and was heavily outmatched.");
+                return "major loss and was heavily outmatched";
+            }
+        }
+
+        private string DetermineLossType(int winnerStrength, int loserStrength)
+        {
+            int strengthDifference = loserStrength - winnerStrength;
+
+            if (strengthDifference > 20)
+            {
+                return "major loss and was heavily outmatched";
+            }
+            else if (strengthDifference > 10)
+            {
+                return "minor loss";
+            }
+            else if (strengthDifference > 5)
+            {
+                return "relative draw with a slight edge";
+            }
+            else if (strengthDifference > 0)
+            {
+                return "minor victory but struggled";
+            }
+            else
+            {
+                return "major victory";
             }
         }
 
@@ -185,23 +197,14 @@ namespace Lightrealm
 
             if (architectLosses > 0)
             {
-                List<string> architectNames = new List<string>();
-                for (int i = 0; i < architectLosses; i++)
-                {
-                    architectNames.Add(loser.Architects[i].Name);
-                }
-
-                string formattedArchitectNames = Game1.FormatList(architectNames);
-                results.Add($"{loser.Name} loses {architectLosses} Architects: {formattedArchitectNames}");
-
                 loser.Architects.RemoveRange(0, architectLosses);
             }
 
             if (soldierLosses > 0)
             {
-                results.Add($"{loser.Name} loses {soldierLosses} general soldiers.");
                 loser.OtherSoldiers -= soldierLosses;
             }
         }
+
     }
 }

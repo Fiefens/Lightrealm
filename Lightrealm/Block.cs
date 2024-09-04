@@ -16,6 +16,14 @@ namespace Lightrealm
         public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
         public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
         public EntityList<Object> Objects { get; set; } = new EntityList<Object>();
+        public EntityList<Object> ObjectsToRemove { get; set; } = new EntityList<Object>();
+
+
+        public EntityList<Architect> BuriedArchitects { get; set; } = new EntityList<Architect>();
+        public EntityList<Object> BuriedObjects { get; set; } = new EntityList<Object>();
+
+        public Entity SocializationTopic;
+        public Entity DiscussionTopic;
 
         public string Biome { get; set; } = "";
 
@@ -69,9 +77,9 @@ namespace Lightrealm
             return (false, "");
         }
 
-        public (Region, Location, District, Block, Room, string) FindNearestThing(string thing)
+        public (Region, Location, District, Block, Room) FindNearestThing(string thing)
         {
-            (Region, Location, District, Block, Room, string) DeterminedLocation = (null, null, null, null, null, "");
+            (Region, Location, District, Block, Room) DeterminedLocation = (null, null, null, null, null);
 
             int CalculateDistance(Block block1, Block block2)
             {
@@ -109,7 +117,7 @@ namespace Lightrealm
                                 if (distance < minDistance)
                                 {
                                     minDistance = distance;
-                                    DeterminedLocation = (r, r.Location, district, block, null, "well");
+                                    DeterminedLocation = (r, r.Location, district, block, null);
                                 }
                             }
                             else if (thing == "structure")
@@ -123,12 +131,12 @@ namespace Lightrealm
                                         {
                                             minDistance = distance;
                                             Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                            DeterminedLocation = (r, r.Location, district, block, randomRoom, s.Name);
+                                            DeterminedLocation = (r, r.Location, district, block, randomRoom);
                                         }
                                         else
                                         {
                                             minDistance = distance;
-                                            DeterminedLocation = (r, r.Location, district, block, null, s.Name);
+                                            DeterminedLocation = (r, r.Location, district, block, null);
                                         }
                                     }
                                 }
@@ -146,12 +154,12 @@ namespace Lightrealm
                                             {
                                                 minDistance = distance;
                                                 Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                                DeterminedLocation = (r, r.Location, district, block, randomRoom, s.Name);
+                                                DeterminedLocation = (r, r.Location, district, block, randomRoom);
                                             }
                                             else
                                             {
                                                 minDistance = distance;
-                                                DeterminedLocation = (r, r.Location, district, block, null, s.Name);
+                                                DeterminedLocation = (r, r.Location, district, block, null);
                                             }
                                         }
                                     }
@@ -182,11 +190,11 @@ namespace Lightrealm
             return DeterminedLocation;
         }
 
-        public (Region, Location, District, Block, Room, string) FindRandomThingInCurrentDistrict(string thing)
+        public (Region, Location, District, Block, Room) FindRandomThingInCurrentDistrict(string thing)
         {
-            (Region, Location, District, Block, Room, string) RandomLocation = (null, null, null, null, null, "");
+            (Region, Location, District, Block, Room) RandomLocation = (null, null, null, null, null);
 
-            List<(Region, Location, District, Block, Room, string)> potentialLocations = new List<(Region, Location, District, Block, Room, string)>();
+            List<(Region, Location, District, Block, Room)> potentialLocations = new List<(Region, Location, District, Block, Room)>();
 
             // Get the current district
             District currentDistrict = this.District;
@@ -195,7 +203,7 @@ namespace Lightrealm
             {
                 if (thing == "well" && block.HasWell())
                 {
-                    potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null, "well"));
+                    potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null));
                 }
                 else if (thing == "structure")
                 {
@@ -204,11 +212,11 @@ namespace Lightrealm
                         if (s.Block.District.IsLoaded)
                         {
                             Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                            potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom, s.Name));
+                            potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom));
                         }
                         else
                         {
-                            potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null, s.Name));
+                            potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null));
                         }
                     }
                 }
@@ -221,11 +229,11 @@ namespace Lightrealm
                             if (s.Block.District.IsLoaded)
                             {
                                 Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom, s.Name));
+                                potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom));
                             }
                             else
                             {
-                                potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null, s.Name));
+                                potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, null));
                             }
                         }
                     }

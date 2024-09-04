@@ -131,11 +131,11 @@ namespace Lightrealm
         {
             List<string> formats = new List<string>
             {
-                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
-                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
-                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
+                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatAndList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatAndList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatAndList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatAndList(Perspectives)} lens.",
+                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatAndList(Perspectives)} angle."
             };
 
             string format = formats[Game1.r.Next(formats.Count())];
@@ -146,11 +146,11 @@ namespace Lightrealm
         {
             List<string> formats = new List<string>
             {
-                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
-                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatList(Perspectives)} lens.",
-                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatList(Perspectives)} angle."
+                $"In {Type} {Number}, the {Tone} tone is evident as it explores {Game1.FormatList(Domains)} from a {Game1.FormatAndList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into {Game1.FormatList(Domains)} with a {Tone} tone, offering insights from a {Game1.FormatAndList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers {Game1.FormatList(Domains)} and reflects on it with a {Game1.FormatAndList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing {Game1.FormatList(Domains)} through a {Game1.FormatAndList(Perspectives)} lens.",
+                $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatAndList(Perspectives)} angle."
             };
 
             string format = formats[Game1.r.Next(formats.Count())];
@@ -161,11 +161,11 @@ namespace Lightrealm
         {
             List<string> formats = new List<string>
             {
-                $"In {Type} {Number}, the {Tone} tone is evident as it recounts when {eventDescription}, from a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} delves into when {eventDescription} with a {Tone} tone, offering insights from a {Game1.FormatList(Perspectives)} viewpoint.",
-                $"With a {Tone} tone, {Type} {Number} covers when {eventDescription} and reflects on it with a {Game1.FormatList(Perspectives)} perspective.",
-                $"{Type} {Number} sets a {Tone} mood while discussing when {eventDescription} through a {Game1.FormatList(Perspectives)} lens.",
-                $"The {Tone} tone of {Type} {Number} illuminates when {eventDescription}, viewed from a {Game1.FormatList(Perspectives)} angle."
+                $"In {Type} {Number}, the {Tone} tone is evident as it recounts when {eventDescription}, from a {Game1.FormatAndList(Perspectives)} perspective.",
+                $"{Type} {Number} delves into when {eventDescription} with a {Tone} tone, offering insights from a {Game1.FormatAndList(Perspectives)} viewpoint.",
+                $"With a {Tone} tone, {Type} {Number} covers when {eventDescription} and reflects on it with a {Game1.FormatAndList(Perspectives)} perspective.",
+                $"{Type} {Number} sets a {Tone} mood while discussing when {eventDescription} through a {Game1.FormatAndList(Perspectives)} lens.",
+                $"The {Tone} tone of {Type} {Number} illuminates when {eventDescription}, viewed from a {Game1.FormatAndList(Perspectives)} angle."
             };
 
             string format = formats[Game1.r.Next(formats.Count())];

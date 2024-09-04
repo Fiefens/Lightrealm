@@ -28,15 +28,57 @@ namespace Lightrealm
             }
         }
 
+        public Civilization HahaCivHiredMe;
 
         public int ID;
         public int Significance = 0;
+        public int Reputation = 0;
         private List<string> _referredToNames = new List<string>();
+
+        public bool Incapacitated;
+
+        public bool Reinforced = false;
 
         public string Metadata;
         public string EntityType { get; set; }
 
         public EntityList<Entity> Enemies { get; set; } = new EntityList<Entity>();
+
+        public Entity PairedObject()
+        {
+            // If this object is a door, find the paired door in the destination room
+            if (this is Door currentDoor)
+            {
+                // Find the opposite door in the destination room
+                Room destinationRoom = currentDoor.DestinationRoom;
+                if (destinationRoom != null)
+                {
+                    // Look for the door in the destination room that leads back to the current room
+                    Door pairedDoor = (Door)(destinationRoom.Objects.FirstOrDefault(obj => obj is Door door && door.DestinationRoom == currentDoor.Room));
+                    return pairedDoor;
+                }
+            }
+            // If this object is a structure, find the exit door for the structure
+            else if (this is Structure structure)
+            {
+                // Find the exit door within the first room of the structure
+                Object exitDoor = structure.Rooms[0].Objects.FirstOrDefault(obj => obj.Type == "exit door");
+                return exitDoor;
+            }
+            // If this object is an exit door, find the structure it belongs to and return the structure
+            else if (this is Object obj && obj.Type == "exit door")
+            {
+                if (obj.Structure != null && obj.Structure.Rooms[0].Objects.Contains(obj))
+                {
+                    // If the exit door belongs to a structure, return the structure
+                    return obj.Structure;
+                }
+            }
+
+            // Return null if no paired object is found
+            return null;
+        }
+
 
         public void PissOffEntityOrPlace(Entity Victim, bool StealthAttempt)
         {
@@ -58,7 +100,7 @@ namespace Lightrealm
                 }
                 foreach (var district in location.Districts)
                 {
-                    entitiesToPissOff.AddRange(district.Architects.Where(a => new Random().Next(0, 100) < 5)); // 5 percent chance
+                    entitiesToPissOff.AddRange(district.Architects.Where(a => Game1.r.Next(0, 100) < 1)); // 1 percent chance
                 }
             }
             else if (Victim is Architect architect)
@@ -127,7 +169,7 @@ namespace Lightrealm
         {
             int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
             int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
-            string formattedEnemies = Game1.FormatList(victimFriends);
+            string formattedEnemies = Game1.FormatAndList(victimFriends);
             string message;
 
             if (StealthAttempt)
@@ -144,6 +186,63 @@ namespace Lightrealm
 
 
 
+        public EntityHashSet<Location> GetMySpecialLocations()
+        {
+            EntityHashSet<Location> specialLocations = new EntityHashSet<Location>();
+
+            // Check if this entity is a Group and has a base
+            if (this is Group g)
+            {
+                if (g.Base != null)
+                {
+                    specialLocations.Add(g.Base);
+                }
+
+                if (g.HomeFaction != null)
+                {
+                    foreach (Location l in g.HomeFaction.Outposts)
+                    {
+                        specialLocations.Add(l);
+                    }
+                }
+            }
+            // Check if this entity is an Architect and has relevant locations
+            else if (this is Architect a)
+            {
+                if (a.HomeLocation != null)
+                {
+                    specialLocations.Add(a.HomeLocation);
+                }
+                if (a.Location != null)
+                {
+                    specialLocations.Add(a.Location);
+                }
+            }
+            // Check if this entity is a Faction and add its outposts
+            else if (this is Faction f)
+            {
+                foreach (Location l in f.Outposts)
+                {
+                    specialLocations.Add(l);
+                }
+            }
+
+            // Optionally, remove locations with no population
+            var toRemove = new List<Location>();
+            foreach (var l in specialLocations)
+            {
+                if (l.TruePopulation() == 0)
+                {
+                    toRemove.Add(l);
+                }
+            }
+            foreach (var l in toRemove)
+            {
+                specialLocations.Remove(l);
+            }
+
+            return specialLocations;
+        }
 
 
         public EntityHashSet<Location> PreferredTargetLocations()

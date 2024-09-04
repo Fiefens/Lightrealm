@@ -32,7 +32,6 @@ namespace Lightrealm
             {
                 if (index < 0 || index >= _entityIds.Count)
                 {
-                     
                      throw new IndexOutOfRangeException($"Index {index} is out of range for entity IDs list.");
                 }
 
@@ -355,6 +354,30 @@ namespace Lightrealm
                 reversedEntityList.Add(EntityGet<T>(_entityIds[i]));
             }
             return reversedEntityList;
+        }
+
+        public void RemoveWhere(Predicate<T> match)
+        {
+            if (match == null)
+            {
+                throw new ArgumentNullException(nameof(match), "Predicate cannot be null.");
+            }
+
+            var idsToRemove = new List<int>();
+
+            foreach (var id in _entityIds)
+            {
+                T entity = EntityGet<T>(id);
+                if (match(entity))
+                {
+                    idsToRemove.Add(id);
+                }
+            }
+
+            foreach (var id in idsToRemove)
+            {
+                _entityIds.Remove(id);
+            }
         }
 
 

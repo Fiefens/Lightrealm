@@ -1,4 +1,5 @@
-﻿using nFMOD;
+﻿using Microsoft.Xna.Framework;
+using nFMOD;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,6 +7,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Vector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace Lightrealm
 {
@@ -333,7 +335,7 @@ namespace Lightrealm
 
                 if(Game1.r.Next(15) == 1)
                 {
-                    EntityList<Architect> EligibleArchitects = Game1.GameWorld.AllArchitects.Where(a => !Game1.GameWorld.Calamity.Contains(a) && a.Profession != "warlock" && a.Profession != "sorcerer" && a.IsAlive);
+                    EntityList<Architect> EligibleArchitects = Game1.GameWorld.AllArchitects.Where(a => Game1.GameWorld.HumanoidRaces.Contains(a.Race) && !Game1.GameWorld.Calamity.Contains(a) && a.Profession != "warlock" && a.Profession != "sorcerer" && a.IsAlive && !f.SatelliteGroups.Any(g => g.Architects.Contains(a)));
 
                     if(EligibleArchitects.Count > 0)
                     {
@@ -513,6 +515,24 @@ namespace Lightrealm
 
                         Entity planInitiator = f.SatelliteGroups[Game1.r.Next(f.SatelliteGroups.Count)];
 
+
+                        // Generate the historical event for the created plan
+                        string planObjective = ObjectiveTypes.First() switch
+                        {
+                            "GI" => "gathering intelligence",
+                            "ESP" => "espionage",
+                            "CI" => "kidnapping",
+                            "SVT" => "stealing",
+                            "RB" => "razing",
+                            "GT" => "stealing",
+                            _ => "Unknown Objective"
+                        };
+
+                        List<string> entityNames = finalObjectiveEntities[0].Select(entity => entity.Name).ToList();
+
+
+
+
                         Plan newPlan = new Plan(
                             selectedTuple.Item1,
                             (double)Math.Round(cycleForPlanInitiation),
@@ -520,6 +540,22 @@ namespace Lightrealm
                             ObjectiveTypes,
                             finalObjectiveEntities
                         );
+
+                        string eventDetails = $"{f.Name} has devised a plan named '{newPlan.Name}' with a primary objective of {planObjective}, targetted at {Game1.FormatAndList(entityNames)}. The plan is set to be executed in {Math.Round(cycleForPlanInitiation / 290304000)}.";
+
+                        // Log the historical event
+                        EntityList<Entity> involvedEntities = new EntityList<Entity>
+                        {
+                            selectedTuple.Item1, // The location
+                            f,                   // The faction
+                            selectedTuple.Item2.First() // The primary target entity
+                        };
+
+                        // Add all entities involved in the objective
+                        involvedEntities.AddRange(finalObjectiveEntities[0]);
+
+                        // Log the historical event with the correct entities
+                        LogEvent(eventDetails, selectedTuple.Item1.Region, involvedEntities);
 
                         f.Plans.Add(newPlan);
                     }
@@ -547,7 +583,7 @@ namespace Lightrealm
                             if (possibleLocations.Count > 0)
                             {
                                 (int, int) coords = possibleLocations[Game1.r.Next(possibleLocations.Count)];
-                                LocationBuilderPacket l = new LocationBuilderPacket(g, coords.Item1, coords.Item2, type, Game1.GameWorld.GetRace(""), 0, 0, f.SatelliteGroups[0].Leader.HomeLocation.HomeCivilization, new EntityList<Object>(), f.SatelliteGroups[0].Leader.HomeLocation, "");
+                                LocationBuilderPacket l = new LocationBuilderPacket(g, coords.Item1, coords.Item2, type, Game1.GameWorld.GetRace(""), 0, 0, g.Leader.HomeLocation.HomeCivilization, new EntityList<Object>(), f.SatelliteGroups[0].Leader.HomeLocation, "");
                                 LBPs.Add(l);
                             }
                         }
@@ -579,12 +615,12 @@ namespace Lightrealm
                             if (p.PlanInitiator is Architect a)
                             {
                                 leader = a;
-                                LogEvent(a.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + ".", p.PlanLocation.Region, new EntityList<Entity>(){a, p.PlanLocation, p});
+                                LogEvent(a.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>(){a, p.PlanLocation, p});
                             }
                             else if (p.PlanInitiator is Group g)
                             {
                                 leader = g.Leader;
-                                LogEvent(g.Name + ", led by " + g.Leader.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + ".", p.PlanLocation.Region, new EntityList<Entity>(){g, g.Leader, p.PlanLocation, p});
+                                LogEvent(g.Name + ", led by " + g.Leader.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>(){g, g.Leader, p.PlanLocation, p});
                             }
 
                             switch (currentObjectiveType)

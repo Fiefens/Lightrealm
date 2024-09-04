@@ -16,6 +16,8 @@ namespace Lightrealm
         public Party ActiveParty { get; set; }
         public EntityList<Structure> Residences = new EntityList<Structure>();
 
+        public EntityList<Object> Resources = new EntityList<Object>();
+
         public int AscendantX = 0;
         public int AscendantZ = 0;
 
@@ -107,29 +109,32 @@ namespace Lightrealm
             {
                 foreach (Architect a in architects)
                 {
-                    a.HairID = Game1.r.Next(0, 2);
-
-                    int count = Game1.r.Next(50, 101);
-
-                    for (int i = 0; i < count; i++)
+                    if(Game1.GameWorld.HumanoidRaces.Contains(a.Race))
                     {
-                        a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
-                    }
+                        a.HairID = Game1.r.Next(0, 2);
 
-                    // Uncommented logic as per your original Party constructor
-                    int healingItem = Game1.r.Next(1, 4);
+                        int count = Game1.r.Next(50, 101);
 
-                    switch (healingItem)
-                    {
-                        case 1:
-                            a.Inventory.Add(new Object(null, "salve", new EntityList<Material> { a.Location.Region.HarvestableFiber }, null));
-                            break;
-                        case 2:
-                            a.Inventory.Add(new Object(null, "bandage", new EntityList<Material> { a.Location.HomeCivilization.CulturalCloth }, null));
-                            break;
-                        case 3:
-                            a.Inventory.Add(new Object(null, "vial", new EntityList<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
-                            break;
+                        for (int i = 0; i < count; i++)
+                        {
+                            a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
+                        }
+
+                        // Uncommented logic as per your original Party constructor
+                        int healingItem = Game1.r.Next(1, 4);
+
+                        switch (healingItem)
+                        {
+                            case 1:
+                                a.Inventory.Add(new Object(null, "salve", new EntityList<Material> { a.Location.Region.HarvestableFiber }, null));
+                                break;
+                            case 2:
+                                a.Inventory.Add(new Object(null, "bandage", new EntityList<Material> { a.Location.HomeCivilization.CulturalCloth }, null));
+                                break;
+                            case 3:
+                                a.Inventory.Add(new Object(null, "vial", new EntityList<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
+                                break;
+                        }
                     }
                 }
             }

@@ -40,7 +40,6 @@ namespace Lightrealm
         public double CycleLastMoved { get; set; } = 0;
 
         public int Stability { get; set; } = 50; // 100 is a very solid group. 0 is cause for disbandment.
-        public int Reputation { get; set; } = 0; // The better a group is, the more likely it will attack and destroy bad groups, the less likely it will be attacked regardless of its evil reputation, and the more stable it is.
 
         private double _daysOld; // Store age in days
 

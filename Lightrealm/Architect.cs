@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework.Media;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -25,6 +26,16 @@ namespace Lightrealm
         public string ObjectivePronoun { get; set; }
         public string FalsifiedName { get; set; } = "";
         public int PulseCharge { get; set; } = 0;
+
+        private int _carryingEntity;
+
+        public Entity CarryingEntity
+        {
+            get => EntityGet<Entity>(_carryingEntity);
+            set => _carryingEntity = value?.ID ?? 0;
+        }
+
+        public string MovementMode { get; set; } = "walk";
 
         public static void ShuffleGenList<T>(IList<T> list)
         {
@@ -62,6 +73,41 @@ namespace Lightrealm
         public EntityHashSet<Material> TryPickUpMaterials { get; set; } = new EntityHashSet<Material>();
         public EntityHashSet<Message> MessageDatabase = new EntityHashSet<Message>();
         public Dictionary<string, string> ResponseDatabase { get; set; } = new Dictionary<string, string>();
+
+        public string CurrentStudyTopic = null;
+        public string CurrentContemplationTopic = null;
+
+        public void AssignStudyTopic()
+        {
+            // Calculate the total study points
+            int totalPoints = this.CultureStudyPoints + this.ScienceStudyPoints + this.MagicStudyPoints;
+
+            // Calculate the probability for each category
+            double cultureProbability = (double)this.CultureStudyPoints / totalPoints;
+            double scienceProbability = (double)this.ScienceStudyPoints / totalPoints;
+            double magicProbability = (double)this.MagicStudyPoints / totalPoints;
+
+            // Generate a random number between 0 and 1
+            double randomValue = new Random().NextDouble();
+
+            // Determine which category is selected based on the random value
+            if (randomValue < cultureProbability)
+            {
+                // Select Culture field
+                CurrentStudyTopic = FavoriteCultureField;
+            }
+            else if (randomValue < cultureProbability + scienceProbability)
+            {
+                CurrentStudyTopic = FavoriteScienceField;
+            }
+            else
+            {
+                CurrentStudyTopic = FavoriteMagicField;
+            }
+        }
+
+
+        public Boardgame CurrentlyParticipatingGame = null;
 
         private int _realityBlipFocus;
         
@@ -104,6 +150,15 @@ namespace Lightrealm
         public int ReactionBoostCycles { get; set; } = 0;
         public int ExtraFocusTicks { get; set; } = 0;
         public int HalfFocusTicks { get; set; } = 0;
+
+
+        public string TruthfulMannerism = "";
+        public string LyingMannerism = "";
+        public string UnsureMannerism = "";
+        public string DerailingMannerism = "";
+        public string FlirtatiousMannerism = "";
+
+
 
         private (int, int, int, int, int) _savePoint = (0, 0, 0, 0, 0);
 
@@ -293,6 +348,7 @@ namespace Lightrealm
             if (index >= 0)
             {
                 return _distances[index];
+
             }
 
             // Automatically assign a random value between 2 and 5 if no distance exists
@@ -346,8 +402,6 @@ namespace Lightrealm
         }
 
         private int _legendaryTargetStructure;
-
-        
         public Structure LegendaryTargetStructure
         {
             get => EntityGet<Structure>(_legendaryTargetStructure);
@@ -370,7 +424,13 @@ namespace Lightrealm
 
         private int _undeadCreator;
 
-        
+        private int _OnStructure;
+        public Structure OnTopOfStructure
+        {
+            get => EntityGet<Structure>(_OnStructure);
+            set => _OnStructure = value?.ID ?? 0;
+        }
+
         public Architect UndeadCreator
         {
             get => EntityGet<Architect>(_undeadCreator);
@@ -493,6 +553,8 @@ namespace Lightrealm
             }
         }
 
+        public bool AlreadyMadeAGame = false;
+
         public EntityList<Architect> MeldedShibas { get; set; } = new EntityList<Architect>();
         public bool IsAlive { get; set; } = true;
         public int MoralCompass { get; set; } = 0;
@@ -601,7 +663,6 @@ namespace Lightrealm
         public int TerminalAge { get; set; } = 0;
         public bool DoIDieOfOldAge { get; set; } = true;
         public bool IsLoadedTrader { get; set; } = false;
-        public int Reputation { get; set; } = 0;
         public int PurifiedBurnedCities { get; set; } = 0;
 
         private int _blightManipulated;
@@ -634,6 +695,8 @@ namespace Lightrealm
         public int Endurance { get; set; }
         public int Creativity { get; set; }
         public int Charisma { get; set; }
+
+        public Unit Unit;
 
         private int _focus;
 
@@ -881,19 +944,18 @@ namespace Lightrealm
             set => _targetObject = value?.ID ?? 0;
         }
 
-        private (int, int, int, int, int, string) _target = (0, 0, 0, 0, 0, "");
+        private (int, int, int, int, int) _target;
 
-        
-        public (Region, Location, District, Block, Room, string) Target
+        public (Region, Location, District, Block, Room) Target
         {
             get => (_target.Item1 != 0 ? EntityGet<Region>(_target.Item1) : null,
                     _target.Item2 != 0 ? EntityGet<Location>(_target.Item2) : null,
                     _target.Item3 != 0 ? EntityGet<District>(_target.Item3) : null,
                     _target.Item4 != 0 ? EntityGet<Block>(_target.Item4) : null,
-                    _target.Item5 != 0 ? EntityGet<Room>(_target.Item5) : null,
-                    _target.Item6);
-            set => _target = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0, value.Item6);
+                    _target.Item5 != 0 ? EntityGet<Room>(_target.Item5) : null);
+            set => _target = (value.Item1?.ID ?? 0, value.Item2?.ID ?? 0, value.Item3?.ID ?? 0, value.Item4?.ID ?? 0, value.Item5?.ID ?? 0);
         }
+
 
         public string Task { get; set; } = "";
         public int CyclesLeftInTask { get; set; } = 0;
@@ -954,6 +1016,7 @@ namespace Lightrealm
         public int ExtraPiercingResistance { get; set; } = 0;
         public int ExtraScourgingResistance { get; set; } = 0;
         public int ExtraStealth { get; set; } = 0;
+        public int HideValue { get; set; } = 0;
         public int ExtraEnergyRegen { get; set; } = 0;
         public bool IsofractalThief { get; set; } = false;
         public int ArmorProficiency { get; set; } = 0;
@@ -1896,6 +1959,21 @@ namespace Lightrealm
             Name = name;
             Sex = sex;
 
+
+
+            // Define the mannerisms list
+            List<string> mannerisms = new List<string>(Game1.Mannerisms);
+
+            // Shuffle the mannerisms list
+            var shuffledMannerisms = mannerisms.OrderBy(m => Guid.NewGuid()).ToList();
+
+            // Assign unique values from the shuffled list to each mannerism property
+            TruthfulMannerism = shuffledMannerisms[0];
+            LyingMannerism = shuffledMannerisms[1];
+            UnsureMannerism = shuffledMannerisms[2];
+            DerailingMannerism = shuffledMannerisms[3];
+            FlirtatiousMannerism = shuffledMannerisms[4];
+
             if (Location != null)
             {
                 if (Location.Library != null)
@@ -2069,40 +2147,43 @@ namespace Lightrealm
 
             DestinyArrivalYear = Game1.r.Next(18, 45);
 
+            double NextGaussian(Random r, double mean = 0, double stdDev = 1)
+            {
+                double u1 = r.NextDouble(); // Uniform(0,1] random doubles
+                double u2 = r.NextDouble();
+                double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2); // Random normal(0,1)
+                double randNormal = mean + stdDev * randStdNormal; // Random normal(mean,stdDev)
+                return randNormal;
+            }
+
             if (Game1.GameWorld.HumanoidRaces.Contains(Race))
             {
                 if (Game1.r.Next(1, 5) == 1)
                 {
                     DoIDieOfOldAge = false;
-                    // Modified system for not dying of old age with logarithmic distribution
-                    double rand = Game1.r.NextDouble();
-                    TerminalAge = (int)(Age + 2 + Math.Pow(rand, 4) * (120 - Age - 2)); // Increased power to 4 for better skew towards higher ages
+                    // Generate a normally distributed value centered around current age + 20
+                    double rand = NextGaussian(Game1.r, Age + 20, 15); // Mean = Age + 20, StdDev = 15
 
-                    // Ensure the values are capped properly in case of any boundary issues
-                    if (TerminalAge > 120)
+                    TerminalAge = (int)rand;
+
+                    // Ensure it's at least 5 years more than current age
+                    if (TerminalAge < Age + 5)
                     {
-                        TerminalAge = 120;
-                    }
-                    else if (TerminalAge < Age + 2)
-                    {
-                        TerminalAge = Age + 2;
+                        TerminalAge = Age + 5;
                     }
                 }
                 else
                 {
                     DoIDieOfOldAge = true;
-                    // Generate terminal age with even higher probability for higher values
-                    double rand = Game1.r.NextDouble();
-                    TerminalAge = (int)(80 + Math.Pow(rand, 20) * (120 - 80)); // Increased power to 20 for more skew towards higher ages
+                    // Generate a normally distributed value centered around 100
+                    double rand = NextGaussian(Game1.r, 100, 20); // Mean = 100, StdDev = 20
 
-                    // Ensure the values are capped properly in case of any boundary issues
-                    if (TerminalAge > 120)
+                    TerminalAge = (int)rand;
+
+                    // Lightly nudge the value towards the most common natural death age if below 60
+                    if (TerminalAge < 60)
                     {
-                        TerminalAge = 120;
-                    }
-                    else if (TerminalAge < 80)
-                    {
-                        TerminalAge = 80;
+                        TerminalAge = (int)NextGaussian(Game1.r, 100, 25); // Re-roll for ages below 60, creating a second peak at 100
                     }
                 }
             }
@@ -2320,8 +2401,9 @@ namespace Lightrealm
             double weightPenaltyModifier = CalculateWeightPenaltyModifier(totalWeight, Endurance, WeightEffectModifier);
             double radiantPenalty = RadiantCycles > 0 ? 0.6 : 1.0;
             double bodyPathBonus = PathOfBodyLevel >= 8 ? 1.5 : 1.0;
+            double movementBonus = MovementMode == "sprinting" ? 1.3 : (MovementMode == "walking" ? 1.0 : 0.7); 
 
-            double rawSpeed = BaseSpeed * legSpeedModifier * agilityModifier * weightPenaltyModifier * radiantPenalty * bodyPathBonus;
+            double rawSpeed = BaseSpeed * legSpeedModifier * agilityModifier * weightPenaltyModifier * radiantPenalty * bodyPathBonus * movementBonus;
 
             if (OnGround)
             {
@@ -3434,6 +3516,12 @@ namespace Lightrealm
                 HalfFocusTicks--;
             }
 
+
+            if (MovementMode == "sprinting")
+            {
+                Energy -= 0.2m;
+            }
+
             //racial benefits
 
             if (Race == Game1.GameWorld.GetRace("nightfell"))
@@ -3451,6 +3539,14 @@ namespace Lightrealm
             {
                 ExtraStealth += 10;
             }
+
+            if (MovementMode == "sneaking")
+            {
+                ExtraStealth += 30;
+            }
+
+            ExtraStealth += HideValue;
+
             if (Invisible && IsAlive)
             {
                 //lose this one only if you are low level
@@ -3898,17 +3994,25 @@ namespace Lightrealm
                 CloakCycles--;
             }
 
-            if (YLevelInFeet > 0)
+            if ((YLevelInFeet > 0 && (this.OnTopOfStructure == null || YLevelInFeet > 30)))
             {
                 // Adjusting the velocity based on gravity
                 YVelocity += Math.Min(0, (YLevelInFeet - 0.2));
 
-                YLevelInFeet = Math.Min(0, YLevelInFeet - 0.2);
+                // Update YLevelInFeet
+                if (this.OnTopOfStructure != null && YLevelInFeet > 30)
+                {
+                    YLevelInFeet = Math.Max(30, YLevelInFeet - 0.2); // Fall until YLevelInFeet = 30 if on a structure
+                }
+                else
+                {
+                    YLevelInFeet = Math.Min(0, YLevelInFeet - 0.2); // Fall until YLevelInFeet = 0 if not on a structure
+                }
 
-                if (YLevelInFeet == 0)
+                if (YLevelInFeet == 0 || (this.OnTopOfStructure != null && YLevelInFeet == 30))
                 {
                     Game1.MakeObservation(ReferredToNames[0] + " hits the ground!", Color.Orange, new EntityList<Entity>() { this });
-                    //impact
+                    // Impact
                     int DamageInstances = (int)Math.Round(YVelocity / (0.8));
                     YVelocity = 0;
 
@@ -3921,6 +4025,7 @@ namespace Lightrealm
                     }
                 }
             }
+
 
 
             IEnumerable<Architect> architects = (Room == null) ? Block.Architects : Room.Architects;
@@ -4095,30 +4200,64 @@ namespace Lightrealm
                         Game1.MessageWorldEdit(m.Sender, this, m.MessageID, m.Subjects, m.IgnorantResponse, m.StoredRevealLocations);
                         continue;
                     }
-
                     int randomNumber = Game1.r.Next(1, 101);
                     string response;
                     Color ResponseColor = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(m.Sender) ? new Color(0, 255, 0) : new Color(0, 75, 0);
 
+                    string ResponseType = "";
+
                     if (randomNumber <= baseChanceToTruth)
                     {
                         response = m.PositiveResponse;
+                        ResponseType = "truth";
                     }
                     else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp)
                     {
                         response = m.DirectRefusalResponse;
+                        ResponseType = "lie";
                     }
                     else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance)
                     {
                         response = m.IgnorantResponse;
+                        ResponseType = "ignore";
                     }
                     else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance + baseChanceToDerail)
                     {
                         response = m.DerailingResponse;
+                        ResponseType = "derail";
                     }
                     else
                     {
                         response = m.FlatteringResponse;
+                        ResponseType = "flirt";
+                    }
+
+                    // 25% chance to announce the mannerism
+                    if (Game1.r.Next(1, 101) <= 33)
+                    {
+                        string mannerism = "";
+                        Color mannerismColor = (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(m.Sender)) ? Color.DarkGray : new Color(100, 100, 100);
+
+                        switch (ResponseType)
+                        {
+                            case "truth":
+                                mannerism = TruthfulMannerism;
+                                break;
+                            case "lie":
+                                mannerism = LyingMannerism;
+                                break;
+                            case "ignore":
+                                mannerism = UnsureMannerism;
+                                break;
+                            case "derail":
+                                mannerism = DerailingMannerism;
+                                break;
+                            case "flirt":
+                                mannerism = FlirtatiousMannerism;
+                                break;
+                        }
+
+                        AnnounceToParty(ReferredToNames[0] + " " + mannerism + ".", mannerismColor, new EntityList<Entity> { this });
                     }
 
                     AnnounceToParty(ReferredToNames[0] + ": " + response, ResponseColor, new EntityList<Entity> { this }.Union(m.Subjects));
@@ -4574,13 +4713,18 @@ namespace Lightrealm
                             {
                                 Task = "drinkingcaffeine";
                             }
-                            else if (TaskDecider < 25)
+                            else if (TaskDecider < 20)
                             {
                                 Task = "eating";
+                            }
+                            else if (TaskDecider < 25)
+                            {
+                                Task = "waitforgame";
                             }
                             else
                             {
                                 Task = "contemplate";
+                                CurrentContemplationTopic = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)].Name;
                             }
                         }
                         else
@@ -4607,6 +4751,7 @@ namespace Lightrealm
                             else
                             {
                                 Task = "contemplate";
+                                CurrentContemplationTopic = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)].Name;
                             }
                         }
 
@@ -4618,7 +4763,7 @@ namespace Lightrealm
                                 CyclesLeftInTask = 600; //spend a minute before deciding if you want to do something again
                                 break;
                             case "druidcrafting":
-                                Target = (Location.Region, Location, District, Block, Room, "");
+                                Target = (Location.Region, Location, District, Block, Room);
                                 CyclesLeftInTask = 300; //druidcraft for 30 seconds
                                 break;
                             case "drinking":
@@ -4630,12 +4775,26 @@ namespace Lightrealm
                                 CyclesLeftInTask = 500; // savor caffeine a bit, though. also its hote.
                                 break;
                             case "eating":
-                                Target = Game1.r.Next(0, 3) == 1 ? (Location.Region, Location, District, District.DistrictMap[Game1.r.Next(49)], null, "") : Block.FindRandomThingInCurrentDistrict("tavern");
+                                Target = Game1.r.Next(0, 3) == 1 ? (Location.Region, Location, District, District.DistrictMap[Game1.r.Next(49)], null) : Block.FindRandomThingInCurrentDistrict("tavern");
                                 CyclesLeftInTask = 500; // this takes longer for a similar reason, also its food.
                                 break;
                             case "sleeping":
                                 Target = Block.FindRandomThingInCurrentDistrict("house");
                                 CyclesLeftInTask = 350000;
+                                break;
+                            case "waitforgame":
+                                var newTarget = Block.FindRandomThingInCurrentDistrict("tavern");
+
+                                Target = newTarget;
+
+                                if (newTarget.Item5 != null && newTarget.Item5.Structure.Rooms.Count > 0)
+                                {
+                                    Target = (newTarget.Item1, newTarget.Item2, newTarget.Item3, newTarget.Item4, newTarget.Item5.Structure.Rooms[0]);
+                                }
+
+                                CyclesLeftInTask = 1000;
+                                break;
+
                                 break;
                             case "discussion":
                                 Target = Block.FindNearestThing("prism");
@@ -4644,6 +4803,7 @@ namespace Lightrealm
                             case "study":
                                 Target = Block.FindNearestThing("library");
                                 CyclesLeftInTask = 3000; //takes five minutes at minimum
+                                AssignStudyTopic();
                                 break;
                             case "socializing":
                                 Target = Game1.r.Next(0, 4) != 1 ? Block.FindRandomThingInCurrentDistrict("tavern") : Block.FindNearestThing("well");
@@ -4657,11 +4817,11 @@ namespace Lightrealm
                                 CyclesLeftInTask = 500;
                                 break;
                             case "industry":
-                                Target = Game1.r.Next(0, 3) == 1 ? (Location.Region, Location, District, District.DistrictMap[Game1.r.Next(49)], null, "") : Block.FindRandomThingInCurrentDistrict("house");
+                                Target = Game1.r.Next(0, 3) == 1 ? (Location.Region, Location, District, District.DistrictMap[Game1.r.Next(49)], null) : Block.FindRandomThingInCurrentDistrict("house");
                                 CyclesLeftInTask = 300; //one single instance might take half a minute
                                 break;
                             case "contemplate":
-                                Target = Game1.r.Next(0, 3) == 1 ? (Location.Region, Location, District, District.DistrictMap[Game1.r.Next(49)], null, "") : Block.FindNearestThing("well");
+                                Target = Game1.r.Next(0, 3) == 1 ? (Location.Region, Location, District, District.DistrictMap[Game1.r.Next(49)], null) : Block.FindNearestThing("well");
                                 CyclesLeftInTask = 300; //stare off into the sunset for about a minute.
                                 break;
                         }
@@ -4708,15 +4868,15 @@ namespace Lightrealm
                 if (Task == "killtarget" && TargetArchitect != null)
                 {
                     //update the targetting system so you go to where they are naturally
-                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Room, "");
+                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Room);
                 }
                 if (Task == "disabletarget" && TargetArchitect != null)
                 {
-                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Room, "");
+                    Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Room);
                 }
 
                 //have you finished task? then reap the benefits
-                if (CyclesLeftInTask <= 0 && (Location.Region, Location, District, Block, Room, "") == Target)
+                if (CyclesLeftInTask <= 0 && (Location.Region, Location, District, Block, Room) == Target)
                 {
                     //CONGRATULATIONS! you're done with your task, you can reap the benefits.
 
@@ -4784,7 +4944,7 @@ namespace Lightrealm
 
 
                 //otherwise, youre at the right place so either kill someone or finish your task
-                else if (Task != "" && (Location.Region, Location, District, Block, Room, "") == Target)
+                else if (Task != "" && (Location.Region, Location, District, Block, Room) == Target)
                 {
                     string DetermineAttackVerb(string weaponType)
                     {
@@ -4813,7 +4973,11 @@ namespace Lightrealm
 
                         // Now, you can use ArchitectsToUse to check for proximity, interactions, etc.
 
-                        if (TargetArchitect != null && ArchitectsToUse.Contains(TargetArchitect)) // Check if the target is in the same area
+                        if(TargetArchitect != null && TargetArchitect.IsAlive == false)
+                        {
+                            TargetArchitect = null;
+                        }
+                        else if (TargetArchitect != null && ArchitectsToUse.Contains(TargetArchitect)) // Check if the target is in the same area
                         {
                             List<string> OffensiveSpells = new List<string> { "expel", "water bolt", "chaos flare", "flash flame", "ice shock" };
 
@@ -5020,7 +5184,7 @@ namespace Lightrealm
                         }
                         else
                         {
-                            Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Room, "");
+                            Target = (TargetArchitect.Location.Region, TargetArchitect.Location, TargetArchitect.District, TargetArchitect.Block, TargetArchitect.Room);
                         }
                     }
                     else if (Task == "sentinel")
@@ -5085,7 +5249,7 @@ namespace Lightrealm
 
                                             A.Task = "killtarget";
                                             A.TargetArchitect = a;
-                                            A.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room, "");
+                                            A.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room);
                                             A.CyclesLeftInTask = 500;
 
                                             Game1.LoadedArchitects.Add(A);
@@ -5127,6 +5291,60 @@ namespace Lightrealm
                             }
                         }
                     }
+                    else if (Task == "waitforgame")
+                    {
+                        if (Game1.GameWorld.Games.Count != 0)
+                        {
+                            foreach (Architect a in architects)
+                            {
+                                if (a != this && a.Task == "waitforgame")
+                                {
+                                    Boardgame b = new Boardgame(Game1.GameWorld.Games[Game1.r.Next(Game1.GameWorld.Games.Count)], new EntityList<Architect>() { a, this }, Game1.r.Next(5, 15));
+
+                                    this.Task = "playgame";
+                                    this.CyclesLeftInTask = 90000;
+                                    this.CurrentlyParticipatingGame = b;
+
+                                    a.Task = "playgame";
+                                    a.CyclesLeftInTask = 90000;
+                                    a.CurrentlyParticipatingGame = b;
+
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            CyclesLeftInTask = 0;
+                        }
+                    }
+                    else if (Task == "playgame")
+                    {
+                        if (CyclesLeftInTask % 50 == 0)
+                        {
+                            StringBuilder ThrowawayGarbage = new StringBuilder();
+
+                            // Progress one round of the game
+                            string turnResult = CurrentlyParticipatingGame.SimulateTurn(ThrowawayGarbage);  // Capture the result of the turn
+
+                            // Announce the turn result to the party
+                            this.AnnounceToParty(turnResult, Color.Orange, new EntityList<Entity>() { this });
+
+                            // Check if the game has concluded
+                            if (CurrentlyParticipatingGame.CurrentTurn >= CurrentlyParticipatingGame.MaxTurns)
+                            {
+                                var winner = CurrentlyParticipatingGame.playerPoints.OrderByDescending(kvp => kvp.Value).First().Key;
+                                
+                                foreach(Architect a in CurrentlyParticipatingGame.Players)
+                                {
+                                    a.Task = "";
+                                    a.CyclesLeftInTask = 0;
+                                    a.CurrentlyParticipatingGame = null;
+                                }
+                            }
+                        }
+                    }
+
 
 
                     CyclesLeftInTask--;
@@ -5144,7 +5362,7 @@ namespace Lightrealm
                     {(-1, -1), "northwest"}
                 };
 
-                if (Task != "" && Target != (Location.Region, Location, District, Block, Room, "") && Target != (null, null, null, null, null, "") && BlindCycles == 0)
+                if (Task != "" && Target != (Location.Region, Location, District, Block, Room) && Target != (null, null, null, null, null) && BlindCycles == 0)
                 {   
                     if (Room != null && (Target.Item5 == null || Target.Item5.Structure != Structure))
                     {
@@ -5261,7 +5479,7 @@ namespace Lightrealm
                 {
                     Task = "bound";
                     CyclesLeftInTask = 9999999;
-                    Target = (this.Location.Region, Location, District, Block, Room, "");
+                    Target = (this.Location.Region, Location, District, Block, Room);
                 }
                 else if (ChangeInX != 0 || ChangeInZ != 0)
                 {
@@ -5561,7 +5779,7 @@ namespace Lightrealm
                     Names.Add(e.Name);
                 }
 
-                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + this.Name + " casted " + Spell + " at " + Game1.FormatList(Names), Location.Region, new EntityList<Entity>(){this}.Union(Targets)));
+                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + this.Name + " casted " + Spell + " at " + Game1.FormatAndList(Names), Location.Region, new EntityList<Entity>(){this}.Union(Targets)));
             }
 
             foreach (Entity CurrentTarget in Targets)
@@ -6453,8 +6671,6 @@ namespace Lightrealm
                         Clone.Room = Base.Room;
                         Clone.HeatInCelsius = Base.HeatInCelsius;
                         Clone.IsConsumable = Base.IsConsumable;
-                        Clone.VariableToChange = Base.VariableToChange;
-                        Clone.VariableChange = Base.VariableChange;
                         Clone.IsWearable = Base.IsWearable;
                         Clone.Rarity = Base.Rarity;
                         Clone.IsBodyPart = Base.IsBodyPart;
@@ -6652,6 +6868,8 @@ namespace Lightrealm
 
         public void Move(string direction)
         {
+            HideValue = 0;
+
             var directionOffsets = new Dictionary<string, (int dx, int dz)>
             {
                 {"north", (0, -1)},
@@ -6663,6 +6881,11 @@ namespace Lightrealm
                 {"west", (-1, 0)},
                 {"northwest", (-1, -1)}
             };
+
+            if(YLevelInFeet > 0)
+            {
+                return;
+            }
 
             if (directionOffsets.TryGetValue(direction, out var offset))
             {
