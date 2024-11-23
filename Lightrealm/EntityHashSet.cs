@@ -164,6 +164,23 @@ namespace Lightrealm
             throw new InvalidOperationException("Random index out of bounds.");
         }
 
+        public void AddRange(IEnumerable<T> items)
+        {
+            foreach (var item in items)
+            {
+                Add(item); // Reuse the existing Add method
+            }
+        }
+
+        public void RemoveAll(Func<T, bool> predicate)
+        {
+            var itemsToRemove = _entityIds.Where(id => predicate(EntityGet<T>(id))).ToList();
+            foreach (var id in itemsToRemove)
+            {
+                _entityIds.Remove(id);
+            }
+        }
+
         private TE EntityGet<TE>(int entityId) where TE : Entity
         {
             if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger != null && Game1.GameWorld.EntityLedger.ContainsKey(entityId))

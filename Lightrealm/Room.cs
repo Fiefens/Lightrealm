@@ -22,6 +22,7 @@ namespace Lightrealm
         public EntityList<Object> Objects { get; set; } = new EntityList<Object>();
 
         public EntityList<Object> ObjectsToRemove { get; set; } = new EntityList<Object>();
+        public EntityList<Object> ObjectsToAdd { get; set; } = new EntityList<Object>();
 
         public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
 

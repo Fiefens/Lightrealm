@@ -91,11 +91,11 @@ namespace Lightrealm
             set => _harvestableFiberId = value?.ID ?? 0;
         }
 
-        public EntityList<InteractableEvent> Events { get; set; } = new EntityList<InteractableEvent>();
+        public EntityList<Unit> Units { get; set; } = new EntityList<Unit>();
 
         private int _ownerId;
         
-        public Civilization Owner
+        public Entity Owner
         {
             get => EntityGet<Civilization>(_ownerId);
             set => _ownerId = value?.ID ?? 0;

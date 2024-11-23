@@ -54,7 +54,7 @@ namespace Lightrealm
 
         public string Dockside { get; set; } = "none";
 
-        public EntityList<Unit> Units { get; set; } = new EntityList<Unit>();
+        public EntityList<Division> Divisions { get; set; } = new EntityList<Division>();
 
         public bool Active { get; set; } = false;
         public bool IsSavingUpToSettle { get; set; } = false;
@@ -67,12 +67,8 @@ namespace Lightrealm
         public int PassiveStructuralIncome { get; set; } // value is measured in Shobes, an arbitrary unit
 
         private int _homeCivilizationId;
-        
-        public Civilization HomeCivilization
-        {
-            get => EntityGet<Civilization>(_homeCivilizationId);
-            set => _homeCivilizationId = value?.ID ?? 0;
-        }
+
+        public Civilization HomeCivilization;
 
         public int ColonizationDesire { get; set; }
         public int MaxColonizationDesire { get; set; }
@@ -117,24 +113,10 @@ namespace Lightrealm
 
         // THESE VALUES ARE USED IF THE LOCATION IS LOADED
 
-        public int TruePopulation()
-        {
-            int Population = 0;
+        public int TruePopulation() =>
+            Districts.Sum(d => d.UnplacedPopulation + d.Architects.Count(a => a.Group == null || a.Group.Type != "trade"));
 
-            foreach (District d in Districts)
-            {
-                Population = Population + d.UnplacedPopulation;
-                foreach (Architect a in d.Architects)
-                {
-                    if ((a.Group != null && a.Group.Type != "trade") || a.Group == null)
-                    {
-                        Population++;
-                    }
-                }
-            }
 
-            return Population;
-        }
 
         public Location(string type, Race primaryrace, int population, int wealth, int colonizationDesire, int x, int z, Civilization HomeCiv, Region r, string dockside)
         {

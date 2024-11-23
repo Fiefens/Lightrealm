@@ -28,6 +28,8 @@ namespace Lightrealm
             }
         }
 
+        public string EntityColor = "";
+
         public Civilization HahaCivHiredMe;
 
         public int ID;

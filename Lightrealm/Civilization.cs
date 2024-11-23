@@ -95,7 +95,7 @@ namespace Lightrealm
         }
 
         public int WakeUpAndChooseViolencePoints { get; set; } = 0;
-        public EntityList<Unit> UnitsAtCommand { get; set; } = new EntityList<Unit>();
+        public EntityList<Division> MillitaryDivisions { get; set; } = new EntityList<Division>();
 
         public string CulturalHeadwear { get; set; } = Game1.Headwear[Game1.r.Next(Game1.Headwear.Count())];
         public string CulturalNeckwear { get; set; } = Game1.Neckwear[Game1.r.Next(Game1.Neckwear.Count())];
@@ -113,11 +113,9 @@ namespace Lightrealm
             set => _capitolId = value?.ID ?? 0;
         }
 
-        public string Color { get; set; }
-
         public Civilization(Race race, string type, int Startx, int Startz, World world)
         {
-            Random r = new Random();
+            
             PrimaryInhabitantRace = race;
             Game1.GameWorld = world;
             Name = Game1.GameWorld.GenerateUniqueName("1s" + Game1.r.Next(2, 6) + "s", this);
@@ -138,11 +136,11 @@ namespace Lightrealm
             Type = type;
             WarType = (type == "luminarch" || type == "nightfell") ? "civilized" : type;
 
-            int Index = r.Next(Game1.GameWorld.UnusedCivColors.Count());
+            int Index = Game1.r.Next(Game1.GameWorld.UnusedCivColors.Count());
 
             if (race != world.GetRace(""))
             {
-                Color = Game1.GameWorld.UnusedCivColors[Index];
+                EntityColor = Game1.GameWorld.UnusedCivColors[Index];
                 Game1.GameWorld.UnusedCivColors.RemoveAt(Index);
             }
 

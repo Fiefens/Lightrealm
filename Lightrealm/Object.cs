@@ -25,6 +25,15 @@ namespace Lightrealm
         public string Description { get; set; } = "???";
         public bool IsContainer { get; set; }
 
+        public Letter LetterContent { get; set; } = null;
+
+        public List<string> GetMaterialNames()
+        {
+            if (Materials == null) return new List<string>(); // Return an empty list if Materials is null
+
+            return Materials.Select(material => material?.Name).Where(name => name != null).ToList();
+        }
+
         public EntityList<Object> ContainedObjects { get; set; } = new EntityList<Object>();
 
         public bool IfTrueUseInIfFalseUseOn { get; set; } = false;
@@ -61,13 +70,14 @@ namespace Lightrealm
             set => _blockId = value?.ID ?? 0;
         }
 
+
         private int _roomId;
-        
         public Room Room
         {
             get => EntityGet<Room>(_roomId);
             set => _roomId = value?.ID ?? 0;
         }
+
 
         public int HeatInCelsius { get; set; } = 20;
         public bool IsConsumable { get; set; } = false;
@@ -396,10 +406,25 @@ namespace Lightrealm
                     EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
                 }
 
+
+                string EnsureThePrefix(string phrase)
+                {
+                    if (string.IsNullOrWhiteSpace(phrase)) return phrase;
+
+                    // Trim and check if it starts with "the" (case-insensitive)
+                    string trimmedPhrase = phrase.Trim();
+                    if (trimmedPhrase.StartsWith("the ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return trimmedPhrase;
+                    }
+
+                    return "The " + trimmedPhrase;
+                }
+
                 // Determine if the attack gets blocked by coverage or armor
                 if (Game1.r.Next(100) < Coverage)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>(){}));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>() { }));
                     return Announcements;
                 }
 
@@ -407,7 +432,7 @@ namespace Lightrealm
                 {
                     if (Game1.r.Next(100) < a.BarrierStacks * 10)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>(){}));
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>() { }));
                         a.BarrierStacks--;
                         return Announcements;
                     }
@@ -415,26 +440,23 @@ namespace Lightrealm
                     int armorDamage = Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
                     if (Game1.r.Next(100) < a.NaturalArmor)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
                     }
                     else if (a.NaturalArmor > 0)
                     {
-                        Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
                         return Announcements;
                     }
                 }
 
-
-
                 // Apply damage to integrity
-
                 Integrity = Math.Max(0, o.Integrity - IntegrityDamage);
 
                 if (IntegrityDamage > 0)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " damages " + ReferredToNames[0] + "!", Color.Orange, new EntityList<Entity>() { this }));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " damages " + ReferredToNames[0] + "!", Color.Orange, new EntityList<Entity>() { this }));
                 }
                 else
                 {
@@ -443,16 +465,17 @@ namespace Lightrealm
 
                 if (Bleeding > 5)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>(){}));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>() { }));
                 }
                 else if (Bleeding > 3)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>(){}));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>() { }));
                 }
                 else if (Bleeding > 1)
                 {
-                    Announcements.Add(new TextStorage("The " + o.ReferredToNames[0] + " draws a small amount of blood!", Color.Green, new EntityList<Entity>(){}));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " draws a small amount of blood!", Color.Green, new EntityList<Entity>() { }));
                 }
+
 
                 if (Pain > 20)
                 {
@@ -634,9 +657,9 @@ namespace Lightrealm
             return Announcements;
         }
 
-        public void UpdateNames()
+        public void UpdateNames(bool IgnoreLUC)
         {
-            if (LatestUpdateCycle == Game1.GameWorld.Cycle)
+            if (LatestUpdateCycle == Game1.GameWorld.Cycle && IgnoreLUC == false)
             {
                 return;
             }
@@ -644,9 +667,9 @@ namespace Lightrealm
             LatestUpdateCycle = Game1.GameWorld.Cycle;
             ClearReferredToNames();
 
-            string Symbols = Game1.FormatAndList(CarvedSymbols.Select(s => s.Name).ToList());
+            string Symbols = Game1.FormatAndList(CarvedSymbols.Select(s => s.ReferredToNames[0]).ToList());
             string engravedPrefix = string.IsNullOrEmpty(Symbols) ? "" : Symbols + "-engraved ";
-            string statuePrefix = string.IsNullOrEmpty(Symbols) ? "" : Symbols + " statue of ";
+            string statueSuffix = string.IsNullOrEmpty(Symbols) ? "statue" : "statue of " + Symbols;
 
             if (this is Door door && door.SourceRoom != null)
             {
@@ -674,12 +697,19 @@ namespace Lightrealm
                 AddReferredToName(ID.ToString());
                 return;
             }
+            else if (LetterContent != null)
+            {
+                AddReferredToName(engravedPrefix + "Letter to " + LetterContent.Recipient.Name);
+                AddReferredToName(ID.ToString());
+                return;
+            }
 
             if (!string.IsNullOrEmpty(Name))
             {
                 if (Type == "statue")
                 {
-                    AddReferredToName(statuePrefix + Name);
+                    // Include Name, Material List, and Images
+                    AddReferredToName($"{Name}, {Game1.FormatMaterialList(Materials)} {statueSuffix}");
                 }
                 else
                 {
@@ -691,8 +721,9 @@ namespace Lightrealm
             {
                 if (Type == "statue")
                 {
-                    AddReferredToName(statuePrefix + Game1.FormatMaterialList(Materials) + " " + Type);
-                    AddReferredToName("the " + statuePrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                    // Exclude Name, include Material List and Images
+                    AddReferredToName($"{Game1.FormatMaterialList(Materials)} {statueSuffix}");
+                    AddReferredToName("the " + Game1.FormatMaterialList(Materials) + " " + statueSuffix);
                 }
                 else
                 {
@@ -711,7 +742,7 @@ namespace Lightrealm
 
                 foreach (string s in ReferredToNames)
                 {
-                    newItems.Add("my " + s);
+                    newItems.Add("my " + engravedPrefix + s);
                 }
 
                 foreach (string newItem in newItems)
@@ -741,14 +772,14 @@ namespace Lightrealm
 
             foreach (Object o in ContainedObjects)
             {
-                o.UpdateNames();
+                o.UpdateNames(true);
             }
 
             ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
 
             if (Game1.SplitMode)
             {
-                if (ReferredToNames.Count() > 0)
+                if (ReferredToNames.Count > 0)
                 {
                     string firstName = ReferredToNames[0];
                     ClearReferredToNames();
@@ -784,26 +815,35 @@ namespace Lightrealm
 
             //remove bad materials, if this is the first removal add void.
 
-            EntityList<Material> MaterialsToReplace = new EntityList<Material>();
-
-            foreach (Material m in Game1.GameWorld.DeletedMaterials)
+            if(Game1.GameWorld.DeletedMaterials.Count > 0)
             {
-                if (Materials.Contains(m) && !MaterialsToReplace.Contains(m))
+                EntityList<Material> MaterialsToReplace = new EntityList<Material>();
+
+                foreach (Material m in Game1.GameWorld.DeletedMaterials)
                 {
-                    MaterialsToReplace.Add(m);
+                    if (Materials.Contains(m) && !MaterialsToReplace.Contains(m))
+                    {
+                        MaterialsToReplace.Add(m);
+                    }
+                }
+
+                if(MaterialsToReplace.Count > 0)
+                {
+                    int originalCount = Materials.Count();
+                    Materials.RemoveAll(item => MaterialsToReplace.Contains(item));
+                    int newCount = Materials.Count();
+
+                    if (newCount < originalCount && !Materials.Contains(Game1.GameWorld.Void))
+                    {
+                        Materials.Add(Game1.GameWorld.Void);
+                    }
+
+                    Materials = Materials.Distinct();
                 }
             }
 
-            int originalCount = Materials.Count();
-            Materials.RemoveAll(item => MaterialsToReplace.Contains(item));
-            int newCount = Materials.Count();
 
-            if (newCount < originalCount && !Materials.Contains(Game1.GameWorld.Void))
-            {
-                Materials.Add(Game1.GameWorld.Void);
-            }
 
-            Materials = Materials.Distinct();
 
             //gravity
 
@@ -842,45 +882,45 @@ namespace Lightrealm
 
             Architect triggeringArchitect = null;
 
-            if (this.Room != null || this.Block != null)
+            if(this.Type == "rope trap")
             {
-                EntityList<Architect> ArchRelevant = this.Room != null ? Room.Architects : Block.Architects;
-
-                if (this.Type == "rope trap" && ArchRelevant.Any(a => !AwareArchitects.Contains(a)))
+                if (this.Room != null || this.Block != null)
                 {
-                    //activate
+                    EntityList<Architect> ArchRelevant = this.Room != null ? Room.Architects : Block.Architects;
 
-                    if (Room != null)
+                    if (ArchRelevant.Any(a => !AwareArchitects.Contains(a)))
                     {
-                        Room.ObjectsToRemove.Add(this);
-                        Room.Objects.Add(new Object(null, "fiber", this.Materials, null));
-                    }
-                    else
-                    {
-                        Block.ObjectsToRemove.Add(this);
-                        Block.Objects.Add(new Object(null, "fiber", this.Materials, null));
-                    }
+                        //activate
 
-                    foreach (Architect a in ArchRelevant)
-                    {
-                        if (!this.AwareArchitects.Contains(a))
+                        if (Room != null)
                         {
-                            if (triggeringArchitect == null)
-                            {
-                                triggeringArchitect = a;
-                                triggeringArchitect.AnnounceToParty(triggeringArchitect.ReferredToNames[0] + " triggers a rope trap!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
-                            }
+                            Room.ObjectsToRemove.Add(this);
+                            Room.ObjectsToAdd.Add(new Object(null, "bunch", this.Materials, null));
+                        }
+                        else
+                        {
+                            Block.ObjectsToRemove.Add(this);
+                            Block.ObjectsToAdd.Add(new Object(null, "bunch", this.Materials, null));
+                        }
 
-                            triggeringArchitect.AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
-                            a.DestabilizedCycles += 200;
-                            a.Energy -= 20;
+                        foreach (Architect a in ArchRelevant)
+                        {
+                            if (!this.AwareArchitects.Contains(a))
+                            {
+                                if (triggeringArchitect == null)
+                                {
+                                    triggeringArchitect = a;
+                                    triggeringArchitect.AnnounceToParty(triggeringArchitect.ReferredToNames[0] + " triggers a rope trap!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
+                                }
+
+                                triggeringArchitect.AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
+                                a.DestabilizedCycles += 200;
+                                a.Energy -= 20;
+                            }
                         }
                     }
                 }
             }
-
-
-
         }
 
         public Object(string name, string type, EntityList<Material> materials, bool InOrOn, bool isContainer, Composition content, Entity creator, double weight, bool isGeneralGood, Block b, Structure s, Room r, bool IsWearable)
@@ -904,7 +944,7 @@ namespace Lightrealm
             }
 
             ApplyImbuements(0);
-            UpdateNames();
+            UpdateNames(true);
         }
 
         public Object(string name, string type, EntityList<Material> materials, Entity creator)
@@ -1835,7 +1875,7 @@ namespace Lightrealm
 
 
             ApplyImbuements(0);
-            UpdateNames();
+            UpdateNames(false);
         }
 
         public void ApplyImbuements(int Extra)

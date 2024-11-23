@@ -223,7 +223,7 @@ namespace Lightrealm
             AddReferredToName(combinedName);
 
             // Additional logic to handle named multiobjects if necessary
-            base.UpdateNames();
+            base.UpdateNames(false);
         }
     }
 }

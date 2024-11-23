@@ -18,22 +18,17 @@ namespace Lightrealm
         public int MapCursorX;
         public int MapCursorZ;
 
-        public bool HasAttacked = false;
 
         private int _currentEventId;
-        public int RanCommands { get; set; } = 0;
-        public bool UsedThis { get; set; } = false;
 
-        public InteractableEvent CurrentEvent
+        public Unit CurrentEvent
         {
-            get => EntityGet<InteractableEvent>(_currentEventId);
+            get => EntityGet<Unit>(_currentEventId);
             set => _currentEventId = value?.ID ?? 0;
         }
 
         public EntityList<Architect> IntriguingArchitects { get; set; } = new EntityList<Architect>();
         public EntityList<Region> CurrentlyMarkedRegions { get; set; } = new EntityList<Region>();
-
-        public bool ReceivedPartyAdvice { get; set; } = false;
 
         public Party() : base()
         {

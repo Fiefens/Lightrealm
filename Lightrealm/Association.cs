@@ -18,6 +18,13 @@ namespace Lightrealm
 
         public EntityList<Object> Resources = new EntityList<Object>();
 
+
+        public bool HasAttacked = false;
+        public int RanCommands { get; set; } = 0;
+        public bool UsedThis { get; set; } = false;
+        public bool ReceivedPartyAdvice { get; set; } = false;
+
+
         public int AscendantX = 0;
         public int AscendantZ = 0;
 

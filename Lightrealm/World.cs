@@ -35,15 +35,36 @@ namespace Lightrealm
     {
         public List<string> ItemTypesInCirculation { get; set; } = new List<string>();
 
+        public int BirthProbabilityMod = 100; // higher is less likely, decrease the chance of procreation
+        public int HousingValue = 4;
+        public int ArchitectConstant = 75;
+
+        static string DistrictToTestName = "";
+
+        public Location StoredLocation;
+
+        public EntityList<Architect> RegularMessengers = new EntityList<Architect>();
+        public EntityList<Architect> UndergroundMessengers = new EntityList<Architect>();
+        public EntityList<Letter> RegularLetters = new EntityList<Letter>();
+        public EntityList<Letter> UndergroundLetters = new EntityList<Letter>();
+
+        [NonSerialized]
+        public Random r = new Random();
+
+        public EntityList<Entity> StructureTypes = new EntityList<Entity>();
+
         public int NextUniqueID { get; set; } = 0;
 
         public Dictionary<string, Material> Materials { get; set; } = new Dictionary<string, Material>();
         public List<string> DupeMats { get; set; } = new List<string>();
 
+        public EntityList<Group> LegacyGroups = new EntityList<Group>();
+
         public EntityList<Realm> Realms = new EntityList<Realm>();
         public int RealmsCount = Game1.r.Next(5,8);
 
         public Association GamePlayerAssociation;
+        public Structure GamePlayerTavern;
 
         public Dictionary<int, Entity> EntityLedger { get; set; } = new Dictionary<int, Entity>
         {
@@ -214,7 +235,7 @@ namespace Lightrealm
 
         public Dictionary<string, string> GenericHatredDictionary { get; set; } = new Dictionary<string, string>
         {
-            {"civilized", "archaix"},
+            {"civilized", ""},
             {"archaix", "shade"},
             {"shade", "druid"},
             {"druid", "scavenger"},
@@ -288,7 +309,7 @@ namespace Lightrealm
         public static List<EntityList<Region>> PotentialPorts { get; set; } = new List<EntityList<Region>>();
         public static bool AllPortsBuilt { get; set; } = false;
 
-        public EntityList<Location> AllLocations { get; set; } = new EntityList<Location>();
+        public List<Location> AllLocations { get; set; } = new List<Location>();
         public List<string> UnusedCivColors { get; set; } = new List<string>();
 
         public EntityList<Object> AllWrittenContent { get; set; } = new EntityList<Object>();
@@ -335,10 +356,13 @@ namespace Lightrealm
             set => _shadeheart = value?.ID ?? 0;
         }
 
-        public List<(Civilization, Civilization, int, int)> Wars { get; set; } = new List<(Civilization, Civilization, int, int)>();
+        public List<War> Wars { get; set; } = new List<War>();
 
-        public EntityList<Architect> AllArchitects { get; set; } = new EntityList<Architect>();
+        public EntityHashSet<Architect> AllHistoricalArchitects { get; set; } = new EntityHashSet<Architect>();
+        public EntityList<Unit> AllUnits { get; set; } = new EntityList<Unit>();
         public EntityList<Architect> Legends { get; set; } = new EntityList<Architect>();
+
+        public string GameMode = "unknown";
 
         private int _purity;
         
@@ -405,7 +429,8 @@ namespace Lightrealm
         public int Length { get; set; }
         public int Width { get; set; }
 
-        public EntityArray<Region> WorldMap;
+        public Region[] WorldMap;
+        public List<Region> BlightedRegions = new List<Region>();
 
         public float[] TreeNoiseValues { get; set; }
         public float[,] TrueTreeNoiseValues()
@@ -496,6 +521,7 @@ namespace Lightrealm
         public List<string> WriterTypes { get; set; } = new List<string> { "has no idea what they're talking about.", "can't pinpoint many specific instances.", "is well informed on the subject matter.", "really enjoys this subject.", "doesn't care that much about what they are writing about." };
 
         public int WorksOfCulture { get; set; }
+        public int TotalLetters { get; set; } = 0;
 
         public int MaxAge { get; set; } = 0;
         public double ProsperityMultiplier { get; set; } = 1.0;
@@ -905,8 +931,8 @@ namespace Lightrealm
             }
 
             // Select a random material from the filtered list
-            Random random = new Random();
-            int index = random.Next(filteredMaterials.Count());
+            
+            int index = Game1.r.Next(filteredMaterials.Count());
 
             return filteredMaterials[index];
         }
@@ -1019,6 +1045,15 @@ namespace Lightrealm
                         var location = WorldMap[x + z * Width].Location;
                         if (location != null)
                         {
+                            //if ascendant always reveal
+
+                            if(Game1.GameState == "ascendant" && Game1.r.Next(3) != 0)
+                            {
+                                location.Explored = true;
+                            }
+
+
+
                             // Category: Never revealed
                             if (Game1.ReqExploreLocations.Contains(location.Type))
                             {
@@ -1088,6 +1123,48 @@ namespace Lightrealm
 
             return $"{month}/{day}/{year} {hour:D2}:{minute:D2}:{second:D2}";
         }
+        public string GetFormattedTime()
+        {
+            long totalCycles = (long)Cycle;
+
+            // Skip the year, month, and day calculations
+            totalCycles %= 864000;
+
+            // Calculate the hour
+            int hour = (int)(totalCycles / 36000);
+            totalCycles %= 36000;
+
+            // Calculate the minute
+            int minute = (int)(totalCycles / 600);
+            totalCycles %= 600;
+
+            // Calculate the second
+            int second = (int)(totalCycles / 10);
+
+            // Return the formatted time
+            return $"{hour:D2}:{minute:D2}:{second:D2}";
+        }
+
+
+        public string GetFormattedDate()
+        {
+            long totalCycles = (long)Cycle;
+
+            // Calculate the year
+            int year = (int)(totalCycles / 290304000);
+            totalCycles %= 290304000;
+
+            // Calculate the month
+            int month = (int)(totalCycles / 24192000) + 1;
+            totalCycles %= 24192000;
+
+            // Calculate the day
+            int day = (int)(totalCycles / 864000) + 1;
+
+            // Return the formatted date
+            return $"{month}/{day}/{year}";
+        }
+
 
         public void ProgressToNextMorning()
         {
@@ -1112,7 +1189,7 @@ namespace Lightrealm
             Cycle += cyclesToNext8AM;
         }
 
-        public World(int width, int length, int civCount, int maxAge, string dedicatedThreat, double prosperityMultiplier)
+        public World(int width, int length, int civCount, int maxAge, string dedicatedThreat, double prosperityMultiplier, int SizeVariant)
         {
             Enchromalite = new Material("enchromalite", "cloth", 3, 4, "white");
             Materials["enchromalite"] = Enchromalite;
@@ -1177,7 +1254,7 @@ namespace Lightrealm
             Flame = new Material("flame", "metaphysic", 3, 4, "orange");
             Materials["flame"] = Flame;
 
-            Void = new Material("void", "metaphysic", 3, 4, "purple");
+            Void = new Material("void", "metaphysic", 0, 0, "purple");
             Materials["void"] = Void;
 
             Honey = new Material("honey", "plant", 3, 4, "orange");
@@ -1191,7 +1268,7 @@ namespace Lightrealm
                 UnusedCivColors.Add(c);
             }
 
-            string baseName = GenerateUniqueName("1S" + Game1.r.Next(5) + "s", this);
+            string baseName = GenerateUniqueName(String.Concat("1S", Game1.r.Next(5), "s"), this);
 
             Name = "The Continent of " + baseName;
             AddReferredToName(Name);
@@ -1212,6 +1289,10 @@ namespace Lightrealm
 
             //add materials, collapsed
             {
+
+                //ADD IN ORDER OF STRENGTH
+
+
                 Woods.Add(new Material("oak", "wood", 3, 0, "brown"));
                 Woods.Add(new Material("spruce", "wood", 3, 0, "brown"));
                 Woods.Add(new Material("birch", "wood", 3, 0, "white"));
@@ -1594,7 +1675,7 @@ namespace Lightrealm
             Length = length;
             Width = width;
 
-            WorldMap = new EntityArray<Region>(length * width);
+            WorldMap = new Region[(length * width)];
 
             float scale;
 
@@ -1635,9 +1716,12 @@ namespace Lightrealm
             {
                 for (int z = 0; z < Length; z++)
                 {
+                    RadialArray[x + z * Width] += 15 * SizeVariant;
+
                     RadialArray[x + z * Width] = (((1 - (RadialArray[x + z * Width] / GreatestArrayValue)) * 256));
                 }
             }
+
             for (int x = 0; x < Width; x++)
             {
                 for (int z = 0; z < Length; z++)
@@ -1743,9 +1827,9 @@ namespace Lightrealm
 
         }
 
-        public void ProgressDays(int Days, bool IncreaseCycle)
+        public void ProgressDays(decimal Days, bool IncreaseCycle)
         {
-            Random r = new Random();
+            
 
             int Month = ((int)Math.Round((decimal)(Cycle / 24192000)) % 12) + 1;
             int Year = (int)Math.Round((decimal)(Cycle / 290304000), MidpointRounding.ToZero);
@@ -1754,7 +1838,7 @@ namespace Lightrealm
 
             int CurrentlyCountingArchitects = 0;
 
-            void DetectIslandsAndPorts(EntityArray<Region> worldMap, int width, List<EntityList<Region>> islands, List<EntityList<Region>> portLocations)
+            void DetectIslandsAndPorts(Region[] worldMap, int width, List<EntityList<Region>> islands, List<EntityList<Region>> portLocations)
             {
                 int length = worldMap.Count() / width; // Assuming worldMap.Length is a multiple of width
                 bool[] visited = new bool[worldMap.Count()];
@@ -1777,7 +1861,7 @@ namespace Lightrealm
                 }
             }
 
-            void DFS(EntityArray<Region> worldMap, int x, int y, int width, bool[] visited, EntityList<Region> currentIsland)
+            void DFS(Region[] worldMap, int x, int y, int width, bool[] visited, EntityList<Region> currentIsland)
             {
                 int length = worldMap.Count() / width; // Calculate length based on total size and width
                 if (x < 0 || y < 0 || x >= width || y >= length || visited[x + y * width] || worldMap[x + y * width].Biome == "ocean" || worldMap[x + y * width].Biome == "void")
@@ -1793,7 +1877,7 @@ namespace Lightrealm
                 DFS(worldMap, x, y - 1, width, visited, currentIsland);
             }
 
-            EntityList<Region> FindPotentialPorts(EntityArray<Region> worldMap, int width, EntityList<Region> island)
+            EntityList<Region> FindPotentialPorts(Region[] worldMap, int width, EntityList<Region> island)
             {
                 EntityList<Region> ports = new EntityList<Region>();
                 int length = worldMap.Count() / width;
@@ -1821,17 +1905,17 @@ namespace Lightrealm
             // Handle the first month
             if (Cycle == 0)
             {
-                foreach(Material m in Game1.MaterialsToAddToWorld)
+                foreach (Material m in Game1.MaterialsToAddToWorld)
                 {
                     bool Added = Materials.TryAdd(m.Name, m);
 
-                    if(!Added)
+                    if (!Added)
                     {
                         DupeMats.Add(m.Name);
                     }
                 }
 
-                Unknown = new Architect("Someone lost to time", null, GetRace(""), 0, null, null, null, null, null, null, 0);
+                Unknown = new Architect("Someone lost to time", null, GetRace(""), 0, null, null, null, null, null, null, 0, true);
                 SubjectCatalogue.Add("Someone lost to time", Unknown);
 
                 UndiscoveredSpells.AddRange(Game1.GameWorld.AllSpells);
@@ -1839,16 +1923,16 @@ namespace Lightrealm
 
                 foreach (Civilization c in Civilizations)
                 {
-                    Location l = new Location("village", c.PrimaryInhabitantRace, Game1.r.Next(50, 100), 1000, Game1.r.Next(4, 8), c.StartX, c.StartZ, c, WorldMap[c.StartX + c.StartZ * Width], "none");
+                    Location l = new Location("village", c.PrimaryInhabitantRace, Game1.r.Next(50, 100), 1000, Game1.r.Next(5, 8+((int)Math.Round(ProsperityMultiplier))), c.StartX, c.StartZ, c, WorldMap[c.StartX + c.StartZ * Width], "none");
                     AllLocations.Add(l);
                     l.IsCapitol = true;
                     c.Capitol = l;
                     ClaimSwathOfTerritory(c, l.X, l.Z, 2);
 
-                    HistoricalEvents.Add(new Event($"{Date} {c.Name} sprung forth into the world as a united culture, manifesting in their capitol {l.Name}.", l.Region, new EntityList<Entity>(){c, l}));
+                    HistoricalEvents.Add(new Event($"{Date} {c.Name} sprung forth into the world as a united culture, manifesting in their capitol {l.Name}.", l.Region, new EntityList<Entity>() { c, l }));
 
                     Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                    Structure Prism = new Structure("prism", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count())] }, Game1.r.Next(0, 5), Game1.r.Next(0,4), (int)Math.Round(Cycle / 290304000));
+                    Structure Prism = new Structure("prism", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { c.CulturalStone }, new List<string>(), new List<string> { Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count())] }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
 
                     chosenBlock.Structures.Add(Prism);
                     l.Prism = Prism;
@@ -1878,18 +1962,19 @@ namespace Lightrealm
                 for (int i = 0; i < ColossalCount; i++)
                 {
 
-                    Architect a = new Architect("", Game1.Sexes[Game1.r.Next(Game1.Sexes.Count())], ColossalTypes[Game1.r.Next(ColossalTypes.Count())], 0, "end", new EntityList<Object>(), null, null, null, null, 7);
+                    Architect a = new Architect("", Game1.Sexes[Game1.r.Next(Game1.Sexes.Count())], ColossalTypes[Game1.r.Next(ColossalTypes.Count())], 0, "end", new EntityList<Object>(), null, null, null, null, 7, true);
 
                     string Name = "";
 
                     if (Game1.r.Next(1, 3) == 1)
                     {
-                        Name = GenerateUniqueName("1S" + Game1.r.Next(2, 10) + "s", a);
+                        Name = GenerateUniqueName(String.Concat("1S", Game1.r.Next(2, 10), "s"), a);
                     }
                     else
                     {
-                        Name = GenerateUniqueName("1S" + Game1.r.Next(2, 5) + "s 1S" + Game1.r.Next(2, 5) + "s", a);
+                        Name = GenerateUniqueName(String.Concat("1S", Game1.r.Next(2, 5), "s 1S", Game1.r.Next(2, 5), "s"), a);
                     }
+
 
                     a.Name = Name;
                     a.IsColossal = true;
@@ -1902,20 +1987,21 @@ namespace Lightrealm
 
                     Colossals.Add(a);
 
-                    InteractableEvent e = new InteractableEvent(WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width], 999999, "colossal", null, new EntityList<Architect>() { a });
-                    WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width].Events.Add(e);
+                    Unit e = new Unit(WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width], "colossal", new EntityList<Architect>() { a });
+                    WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width].Units.Add(e);
 
-                    HistoricalEvents.Add(new Event($"{Date} {a.Name}, a colossal {a.Race.Name}, began lying in wait in the {Game1.DeterminePointLocation(Width, Length, a.ColossalMinefieldX, a.ColossalMinefieldZ)}.", WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width], new EntityList<Entity>(){a}));
+                    AllUnits.Add(e);
+                    HistoricalEvents.Add(new Event($"{Date} {a.Name}, a colossal {a.Race.Name}, began lying in wait in the {Game1.DeterminePointLocation(Width, Length, a.ColossalMinefieldX, a.ColossalMinefieldZ)}.", WorldMap[a.ColossalMinefieldX + a.ColossalMinefieldZ * Width], new EntityList<Entity>() { a }));
 
                 }
 
                 //superlords or whatever
 
-                Hypernexus = new Architect("", "female", GetRace("hypernexus"), Game1.r.Next(5000, 20000), "sovereign", new EntityList<Object>(), null, null, null, null, 9);
+                Hypernexus = new Architect("", "female", GetRace("hypernexus"), Game1.r.Next(5000, 20000), "sovereign", new EntityList<Object>(), null, null, null, null, 9, true);
                 Hypernexus.Name = GenerateUniqueArchitectName(Hypernexus);
-                Icosidodecahedron = new Architect("", "female", GetRace("icosidodecahedron"), Game1.r.Next(5000, 20000), "sovereign", new EntityList<Object>(), null, null, null, null, 9);
+                Icosidodecahedron = new Architect("", "female", GetRace("icosidodecahedron"), Game1.r.Next(5000, 20000), "sovereign", new EntityList<Object>(), null, null, null, null, 9, true);
                 Icosidodecahedron.Name = GenerateUniqueArchitectName(Icosidodecahedron);
-                Shadeheart = new Architect("", "female", GetRace("shadeheart"), Game1.r.Next(5000, 20000), "heart", new EntityList<Object>(), null, null, null, null, 9);
+                Shadeheart = new Architect("", "female", GetRace("shadeheart"), Game1.r.Next(5000, 20000), "heart", new EntityList<Object>(), null, null, null, null, 9, true);
                 Shadeheart.Name = GenerateUniqueArchitectName(Shadeheart);
 
 
@@ -1950,7 +2036,7 @@ namespace Lightrealm
                     AbridgedHistoricalEvents.Add(HistoricalEvents[HistoricalEvents.Count() - Game1.r.Next(1, 5)].EventData);
                 }
 
-                int MonthToDayConstant = (28 / Days);
+                int MonthToDayConstant = (int)Math.Round(28 / Days);
 
                 //place civilizations that need to be placed.
 
@@ -1962,7 +2048,7 @@ namespace Lightrealm
                     int FoundZ = 0;
                     int Tries = 0;
 
-                    while (true)
+                    while (Tries <= 100)
                     {
                         int TryX = r.Next(Width);
                         int TryZ = r.Next(Length);
@@ -1994,120 +2080,124 @@ namespace Lightrealm
                         Tries++;
                     }
 
-                    Civilization c = new Civilization(race, race.Name, FoundX, FoundZ, this);
-                    Civilizations.Add(c);
-
-                    if (race.Name == "photonexus" || race.Name == "shade" || race.Name == "isofractal")
+                    if(FoundX != 0 && FoundZ != 0)
                     {
-                        Location l = new Location("core", race, Game1.r.Next(50, 100), 1000, Game1.r.Next(1, 5), c.StartX, c.StartZ, c, WorldMap[c.StartX + c.StartZ * Width], "none");
-                        l.IsCapitol = true;
-                        c.Capitol = l;
-                        AllLocations.Add(l);
-                        ClaimSwathOfTerritory(c, l.X, l.Z, 2);
 
-                        if (race.Name == "shade")
+                        Civilization c = new Civilization(race, race.Name, FoundX, FoundZ, this);
+                        Civilizations.Add(c);
+
+                        if (race.Name == "photonexus" || race.Name == "shade" || race.Name == "isofractal")
                         {
-                            Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                            Structure heart = new Structure("heart", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { ShadeSludge }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "veins" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                            chosenBlock.Structures.Add(heart);
-                            l.Prism = heart;
+                            Location l = new Location("core", race, Game1.r.Next(50, 100), 1000, Game1.r.Next(1, 5), c.StartX, c.StartZ, c, WorldMap[c.StartX + c.StartZ * Width], "none");
+                            l.IsCapitol = true;
+                            c.Capitol = l;
+                            AllLocations.Add(l);
+                            ClaimSwathOfTerritory(c, l.X, l.Z, 2);
 
-                            for (int i = 0; i < Game1.r.Next(10, 20); i++)
+                            if (race.Name == "shade")
                             {
-                                chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
-                                Structure scum = new Structure("scum", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { ShadeSludge }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "veins" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                                chosenBlock.Structures.Add(scum);
+                                Block chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
+                                Structure heart = new Structure("heart", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { ShadeSludge }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "veins" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                chosenBlock.Structures.Add(heart);
+                                l.Prism = heart;
+
+                                for (int i = 0; i < Game1.r.Next(10, 20); i++)
+                                {
+                                    chosenBlock = l.Districts[0].DistrictMap[Game1.r.Next(0, 49)];
+                                    Structure scum = new Structure("scum", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { ShadeSludge }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "veins" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                    chosenBlock.Structures.Add(scum);
+                                }
                             }
-                        }
-                        else if (race.Name == "isofractal" || race.Name == "photonexus")
-                        {
-                            // Place the core structure in the center
-                            Block centerBlock = l.Districts[0].DistrictMap[24]; // Center block (3,3 in a 7x7 grid)
-                            Structure core = new Structure("core", new EntityList<Object>(), new EntityList<Room>(), centerBlock, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                            centerBlock.Structures.Add(core);
-                            l.Prism = core;
-
-                            int scaffoldCount = Game1.r.Next(3, 5); // Reduce the total number of scaffolds
-                            HashSet<int> builtBlocks = new HashSet<int> { 24 }; // To avoid duplicate structures
-
-                            for (int i = 0; i < scaffoldCount; i++)
+                            else if (race.Name == "isofractal" || race.Name == "photonexus")
                             {
-                                int x = Game1.r.Next(0, 7);
-                                int z = Game1.r.Next(0, 7);
+                                // Place the core structure in the center
+                                Block centerBlock = l.Districts[0].DistrictMap[24]; // Center block (3,3 in a 7x7 grid)
+                                Structure core = new Structure("core", new EntityList<Object>(), new EntityList<Room>(), centerBlock, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                centerBlock.Structures.Add(core);
+                                l.Prism = core;
 
-                                if (x == 3 && z == 3) continue; // Skip the center block
+                                int scaffoldCount = Game1.r.Next(3, 5); // Reduce the total number of scaffolds
+                                HashSet<int> builtBlocks = new HashSet<int> { 24 }; // To avoid duplicate structures
 
-                                // Create and place the initial scaffold structure
-                                int index = x + z * 7;
-                                if (!builtBlocks.Contains(index))
+                                for (int i = 0; i < scaffoldCount; i++)
                                 {
-                                    Block chosenBlock = l.Districts[0].DistrictMap[index];
-                                    Structure scaffold = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                                    chosenBlock.Structures.Add(scaffold);
-                                    builtBlocks.Add(index);
-                                }
+                                    int x = Game1.r.Next(0, 7);
+                                    int z = Game1.r.Next(0, 7);
 
-                                // Reflect across the X-axis
-                                int reflectedX = 6 - x;
-                                index = reflectedX + z * 7;
-                                if (x != 3 && !builtBlocks.Contains(index))
-                                {
-                                    Block reflectedBlockX = l.Districts[0].DistrictMap[index];
-                                    Structure reflectedStructureX = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), reflectedBlockX, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                                    reflectedBlockX.Structures.Add(reflectedStructureX);
-                                    builtBlocks.Add(index);
-                                }
+                                    if (x == 3 && z == 3) continue; // Skip the center block
 
-                                // Reflect across the Z-axis
-                                int reflectedZ = 6 - z;
-                                index = x + reflectedZ * 7;
-                                if (z != 3 && !builtBlocks.Contains(index))
-                                {
-                                    Block reflectedBlockZ = l.Districts[0].DistrictMap[index];
-                                    Structure reflectedStructureZ = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), reflectedBlockZ, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                                    reflectedBlockZ.Structures.Add(reflectedStructureZ);
-                                    builtBlocks.Add(index);
-                                }
-
-                                // Reflect across both axes
-                                if (x != 3 && z != 3)
-                                {
-                                    index = reflectedX + reflectedZ * 7;
+                                    // Create and place the initial scaffold structure
+                                    int index = x + z * 7;
                                     if (!builtBlocks.Contains(index))
                                     {
-                                        Block reflectedBlockBoth = l.Districts[0].DistrictMap[index];
-                                        Structure reflectedStructureBoth = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), reflectedBlockBoth, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
-                                        reflectedBlockBoth.Structures.Add(reflectedStructureBoth);
+                                        Block chosenBlock = l.Districts[0].DistrictMap[index];
+                                        Structure scaffold = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), chosenBlock, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                        chosenBlock.Structures.Add(scaffold);
                                         builtBlocks.Add(index);
+                                    }
+
+                                    // Reflect across the X-axis
+                                    int reflectedX = 6 - x;
+                                    index = reflectedX + z * 7;
+                                    if (x != 3 && !builtBlocks.Contains(index))
+                                    {
+                                        Block reflectedBlockX = l.Districts[0].DistrictMap[index];
+                                        Structure reflectedStructureX = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), reflectedBlockX, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                        reflectedBlockX.Structures.Add(reflectedStructureX);
+                                        builtBlocks.Add(index);
+                                    }
+
+                                    // Reflect across the Z-axis
+                                    int reflectedZ = 6 - z;
+                                    index = x + reflectedZ * 7;
+                                    if (z != 3 && !builtBlocks.Contains(index))
+                                    {
+                                        Block reflectedBlockZ = l.Districts[0].DistrictMap[index];
+                                        Structure reflectedStructureZ = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), reflectedBlockZ, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                        reflectedBlockZ.Structures.Add(reflectedStructureZ);
+                                        builtBlocks.Add(index);
+                                    }
+
+                                    // Reflect across both axes
+                                    if (x != 3 && z != 3)
+                                    {
+                                        index = reflectedX + reflectedZ * 7;
+                                        if (!builtBlocks.Contains(index))
+                                        {
+                                            Block reflectedBlockBoth = l.Districts[0].DistrictMap[index];
+                                            Structure reflectedStructureBoth = new Structure("scaffold", new EntityList<Object>(), new EntityList<Room>(), reflectedBlockBoth, new EntityList<Material> { c.CulturalGemstone }, new List<string> { c.CulturalGemstone.Name }, new List<string> { "crystals" }, Game1.r.Next(0, 5), Game1.r.Next(0, 4), (int)Math.Round(Cycle / 290304000));
+                                            reflectedBlockBoth.Structures.Add(reflectedStructureBoth);
+                                            builtBlocks.Add(index);
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        l.Districts[0].DistrictMap[Game1.r.Next(2, 6) + Game1.r.Next(2, 5) * 7].Objects.Add(new Object(null, "well", new EntityList<Material> { l.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
+                            l.Districts[0].DistrictMap[Game1.r.Next(2, 6) + Game1.r.Next(2, 5) * 7].Objects.Add(new Object(null, "well", new EntityList<Material> { l.HomeCivilization.CulturalStone }, true, true, null, null, 255, false, null, null, null, false));
 
-                        WorldMap[c.StartX + c.StartZ * Width].Location = l;
+                            WorldMap[c.StartX + c.StartZ * Width].Location = l;
 
-                        if (race.Name == "photonexus")
-                        {
-                            l.HomeCivilization.Citizens.Add(Hypernexus);
-                            l.Government = Hypernexus;
-                            l.Districts[0].Architects.Add(Hypernexus);
-                            HistoricalEvents.Add(new Event($"{Date} The nexus of perfection, {l.Name}, fell to the land, controlled by the sovereign nexus {Hypernexus.Name}.", l.Region, new EntityList<Entity>(){l, Hypernexus}));
-                        }
-                        else if (race.Name == "isofractal")
-                        {
-                            l.HomeCivilization.Citizens.Add(Icosidodecahedron);
-                            l.Government = Icosidodecahedron;
-                            l.Districts[0].Architects.Add(Icosidodecahedron);
-                            HistoricalEvents.Add(new Event($"{Date} The prism of expression, {l.Name}, was forged as a beacon for a creative reality, manifesting under the control of {Icosidodecahedron.Name}.", l.Region, new EntityList<Entity>(){l, Icosidodecahedron}));
-                        }
-                        else if (race.Name == "shade")
-                        {
-                            l.HomeCivilization.Citizens.Add(Shadeheart);
-                            l.Government = Shadeheart;
-                            l.Districts[0].Architects.Add(Shadeheart);
-                            HistoricalEvents.Add(new Event($"{Date} The heart of corruption, {l.Name}, erupted from the depths of the world, establishing a cluster of ruinous veins in {Shadeheart.Name}.", l.Region, new EntityList<Entity>(){l, Shadeheart}));
+                            if (race.Name == "photonexus")
+                            {
+                                l.HomeCivilization.Citizens.Add(Hypernexus);
+                                l.Government = Hypernexus;
+                                l.Districts[0].Architects.Add(Hypernexus);
+                                HistoricalEvents.Add(new Event($"{Date} The nexus of perfection, {l.Name}, fell to the land, controlled by the sovereign nexus {Hypernexus.Name}.", l.Region, new EntityList<Entity>() { l, Hypernexus }));
+                            }
+                            else if (race.Name == "isofractal")
+                            {
+                                l.HomeCivilization.Citizens.Add(Icosidodecahedron);
+                                l.Government = Icosidodecahedron;
+                                l.Districts[0].Architects.Add(Icosidodecahedron);
+                                HistoricalEvents.Add(new Event($"{Date} The prism of expression, {l.Name}, was forged as a beacon for a creative reality, manifesting under the control of {Icosidodecahedron.Name}.", l.Region, new EntityList<Entity>() { l, Icosidodecahedron }));
+                            }
+                            else if (race.Name == "shade")
+                            {
+                                l.HomeCivilization.Citizens.Add(Shadeheart);
+                                l.Government = Shadeheart;
+                                l.Districts[0].Architects.Add(Shadeheart);
+                                HistoricalEvents.Add(new Event($"{Date} The heart of corruption, {l.Name}, erupted from the depths of the world, establishing a cluster of ruinous veins in {Shadeheart.Name}.", l.Region, new EntityList<Entity>() { l, Shadeheart }));
+                            }
                         }
                     }
                 }
@@ -2211,7 +2301,7 @@ namespace Lightrealm
 
                         // Find the perfect specimen
                         EntityList<Architect> PossibleArch = new EntityList<Architect>();
-                        foreach (Architect a in AllArchitects)
+                        foreach (Architect a in AllHistoricalArchitects)
                         {
                             if (a.Group == null && !Calamity.Contains(a) && a.IsAlive)
                             {
@@ -2221,7 +2311,7 @@ namespace Lightrealm
                         }
 
                         c.Alpha = PossibleArch[r.Next(PossibleArch.Count())];
-                        c.Color = "black";
+                        c.EntityColor = "black";
 
                         Dictionary<string, string> OutcastCivToStructure = new Dictionary<string, string>
         {
@@ -2239,7 +2329,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        HistoricalEvents.Add(new Event($"{Date} The world was too chaotic for even the {Type}s to stand.", null, new EntityList<Entity>(){}));
+                        HistoricalEvents.Add(new Event($"{Date} The world was too chaotic for even the {Type}s to stand.", null, new EntityList<Entity>() { }));
                     }
                 }
 
@@ -2441,7 +2531,15 @@ namespace Lightrealm
                         { "power", new List<string> { "aspired to attain ultimate power", "dreamed of transcending their current limitations", "sought to wield supreme unchallenged magical power" } }
                     };
 
-                    string name = FirstPartNames[r.Next(FirstPartNames.Count())] + SecondPartNames[r.Next(SecondPartNames.Count())] + " the " + Adjectives[r.Next(Adjectives.Count())] + " " + (codeNameThemes[CalamityIdeologicalObsession])[r.Next(codeNameThemes[CalamityIdeologicalObsession].Count())];
+                    string name = String.Concat(
+                        FirstPartNames[r.Next(FirstPartNames.Count())],
+                        SecondPartNames[r.Next(SecondPartNames.Count())],
+                        " the ",
+                        Adjectives[r.Next(Adjectives.Count())],
+                        " ",
+                        (codeNameThemes[CalamityIdeologicalObsession])[r.Next(codeNameThemes[CalamityIdeologicalObsession].Count())]
+                    );
+
                     var eligibleCivilizations = Civilizations.Where(c => HumanoidRaces.Contains(c.PrimaryInhabitantRace)).ToList();
                     if (eligibleCivilizations.Count > 0)
                     {
@@ -2457,7 +2555,7 @@ namespace Lightrealm
                             null,
                             null,
                             "",
-                            10
+                            10, true
                         ));
                     }
                     Calamity[0].HomeLocation = Calamity[0].Location;
@@ -2521,7 +2619,7 @@ namespace Lightrealm
                             {
                                 HistoricalEvents.Add(new Event($"{Date} {s}", WorldMap[X + Z * Width], new EntityList<Entity>() { Calamity[0] }));
                             }
-                            HistoricalEvents.Add(new Event($"{Date} Calamity has risen. {Calamity[0].Name} is upon you.", WorldMap[X + Z * Width], new EntityList<Entity>(){ Calamity[0] }));
+                            HistoricalEvents.Add(new Event($"{Date} Calamity has risen. {Calamity[0].Name} is upon you.", WorldMap[X + Z * Width], new EntityList<Entity>() { Calamity[0] }));
                         }
                     }
 
@@ -2541,13 +2639,20 @@ namespace Lightrealm
 
                             HistoricalEvents.Add(new Event($"{Date} {Calamity[0].Name} unleashed {Calamity[0].BlightManipulated} in {Calamity[0].Location}.", Calamity[0].Location.Region, new EntityList<Entity>() { Calamity[0], Calamity[0].BlightManipulated, Calamity[0].Location }));
                             Calamity[0].Location.Region.Blight = Calamity[0].BlightManipulated;
+                            BlightedRegions.Add(Calamity[0].Location.Region);
                         }
                         else
                         {
-                            HistoricalEvents.Add(new Event($"{Date} {Calamity[0].Name} began assisting the spread of {Calamity[0].BlightManipulated} in {Calamity[0].Location}.", Calamity[0].Location.Region, new EntityList<Entity>(){ Calamity[0], Calamity[0].BlightManipulated, Calamity[0].Location }));
+                            HistoricalEvents.Add(new Event($"{Date} {Calamity[0].Name} began assisting the spread of {Calamity[0].BlightManipulated} in {Calamity[0].Location}.", Calamity[0].Location.Region, new EntityList<Entity>() { Calamity[0], Calamity[0].BlightManipulated, Calamity[0].Location }));
                             Calamity[0].Location.Region.Blight = Calamity[0].BlightManipulated;
+                            BlightedRegions.Add(Calamity[0].Location.Region);
                         }
                     }
+
+
+                    //leave society
+
+                    Calamity[0].Contacts.Clear();
 
                 }
 
@@ -2671,7 +2776,7 @@ namespace Lightrealm
                                         R = ConstructRaces[r.Next(ConstructRaces.Count)];
                                     }
 
-                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], R ?? HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10, 80), ChosenType, new EntityList<Object>(), null, null, null, "", Calamitizer.Level - 2);
+                                    FoundGuy = new Architect("", Game1.Sexes[r.Next(Game1.Sexes.Count)], R ?? HumanoidRaces[r.Next(HumanoidRaces.Count)], r.Next(10, 80), ChosenType, new EntityList<Object>(), null, null, null, "", Calamitizer.Level - 2, true);
                                     FoundGuy.Name = GenerateUniqueArchitectName(FoundGuy);
                                 }
 
@@ -2705,6 +2810,13 @@ namespace Lightrealm
                                     FoundGuy.AssignSpells();
 
                                     FoundGuy.Master = Calamitizer;
+
+
+                                    //temporarily assign your location to your master's location
+                                    FoundGuy.Location = Calamitizer.Location;
+                                    FoundGuy.HomeLocation = Calamitizer.HomeLocation;
+
+
                                     List<string> Relations = new List<string>
             {
                 "vanguard",
@@ -2745,7 +2857,12 @@ namespace Lightrealm
 
                                     FoundGuy.IsCalamity = true;
 
-                                    HistoricalEvents.Add(new Event($"{Date} {Calamitizer.Name} recruited {FoundGuy.Name} as a {FoundGuy.MasterRelation} to serve {Calamitizer.ObjectivePronoun} and the almighty {Calamity[0].Name}.", FoundGuy.Location != null ? FoundGuy.Location.Region : Calamitizer.HomeLocation.Region, new EntityList<Entity>(){Calamitizer, FoundGuy, Calamity[0]}));
+                                    HistoricalEvents.Add(new Event($"{Date} {Calamitizer.Name} recruited {FoundGuy.Name} as a {FoundGuy.MasterRelation} to serve {Calamitizer.ObjectivePronoun} and the almighty {Calamity[0].Name}.", FoundGuy.Location != null ? FoundGuy.Location.Region : Calamitizer.HomeLocation.Region, new EntityList<Entity>() { Calamitizer, FoundGuy, Calamity[0] }));
+
+                                    FoundGuy.Contacts.Clear();
+                                    Calamitizer.Contacts.Add(FoundGuy);
+                                    FoundGuy.Contacts.Add(Calamitizer);
+
                                     CalamitiesToAdd.Add(FoundGuy);
                                 }
                             }
@@ -2771,7 +2888,7 @@ namespace Lightrealm
                                     {
                                         if (WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Biome != "ocean" && WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Biome != "void" && WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location != null && SettlementTypes.Contains(WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location.Type))
                                         {
-                                            HistoricalEvents.Add(new Event($"{Date} {Calamitizer.Name} shifted their focus to {WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location.Name}.", WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width], new EntityList<Entity>(){Calamitizer, WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location }));
+                                            HistoricalEvents.Add(new Event($"{Date} {Calamitizer.Name} shifted their focus to {WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location.Name}.", WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width], new EntityList<Entity>() { Calamitizer, WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location }));
                                             Calamitizer.InteractionLocation = WorldMap[(Calamitizer.InteractionLocation.X + XChange) + (Calamitizer.InteractionLocation.Z + ZChange) * Width].Location;
                                             break;
                                         }
@@ -2783,21 +2900,9 @@ namespace Lightrealm
                             {
                                 // inflict pain and suffering
 
-                                int GrievanceChance = 4;
+                                District ChosenDistrict = Calamitizer.InteractionLocation.Districts[r.Next(Calamitizer.InteractionLocation.Districts.Count())];
 
-                                void LogEvent(string data, Region r, EntityList<Entity> e)
-                                {
-                                    string eventText = $"{Date} {data}";
-                                    HistoricalEvents.Add(new Event(eventText, r, e));
-                                }
-
-
-                                District ChosenDistrict = Calamitizer.InteractionLocation.Districts
-                                    .Where(d => d.Architects.Count() > 0)
-                                    .OrderBy(_ => r.Next())
-                                    .FirstOrDefault();
-
-                                if (ChosenDistrict != null)
+                                if (ChosenDistrict.Population() > 0)
                                 {
                                     // Use InitiateAction for spreading disease
                                     if (CalamityIdeologicalObsession == "disease")
@@ -2870,7 +2975,7 @@ namespace Lightrealm
 
                     foreach (Architect a in CalamitiesToAdd)
                     {
-                        if(!a.OppositionTags.Contains("intruders"))
+                        if (!a.OppositionTags.Contains("intruders"))
                         {
                             a.OppositionTags.Add("intruders");
                         }
@@ -2881,20 +2986,150 @@ namespace Lightrealm
 
 
 
+
+                //lets do letters
+
+
+
+
+                if(Game1.r.Next(1,50*MonthToDayConstant) == 1)
+                {
+                    Architect msg = null;
+
+                    foreach(Architect a in AllHistoricalArchitects)
+                    {
+                        if(a.Group == null && !Calamity.Contains(a) && a.IsAlive)
+                        {
+                            msg = a;
+                        }
+                    }
+
+                    if(msg != null)
+                    {
+                        if(Game1.r.Next(2) == 1)
+                        {
+                            UndergroundMessengers.Add(msg);
+                            HistoricalEvents.Add(new Event($"{Date} {msg.Name} became an underground messenger and began traveling the world.", (msg.Location != null ? msg.Location : (msg.HomeLocation != null ? msg.HomeLocation : AllLocations[r.Next(AllLocations.Count)])).Region, new EntityList<Entity>() { msg }));
+                        }
+                        else
+                        {
+                            RegularMessengers.Add(msg);
+                            HistoricalEvents.Add(new Event($"{Date} {msg.Name} became a regular messenger and began traveling the world.", (msg.Location != null ? msg.Location : (msg.HomeLocation != null ? msg.HomeLocation : AllLocations[r.Next(AllLocations.Count)])).Region, new EntityList<Entity>() { msg }));
+                        }
+                    }
+                }
+
+                //start delivering letters
+
+
+                List<(EntityList<Letter> Letters, EntityList<Architect> Messengers, string MessengerType)> messengerGroups = new()
+{
+    (RegularLetters, RegularMessengers, "regular"),
+    (UndergroundLetters, UndergroundMessengers, "underground")
+};
+
+                foreach (var (Letters, Messengers, MessengerType) in messengerGroups)
+                {
+                    foreach (Architect Messenger in Messengers)
+                    {
+                        if (Game1.r.Next(1, 330 * MonthToDayConstant) == 1 && Letters.Count > 0)
+                        {
+                            // Determine how many letters to retrieve (randomized, but not exceeding the available letters)
+                            int letterCount = Game1.r.Next(1, Math.Min(5, Letters.Count) + 1); // Pick up to 5 letters if available
+                            List<Letter> selectedLetters = Letters.Take(letterCount).ToList();
+                            Letters.RemoveRange(0, letterCount);
+
+                            // Prepare lists for historical event details
+                            List<string> senders = new();
+                            List<string> recipients = new();
+
+                            foreach (Letter letter in selectedLetters)
+                            {
+                                // Add to historical event details
+                                senders.Add(letter.Author.Name);
+                                recipients.Add(letter.Recipient.Name);
+
+                                // Find the location or home location of the recipient
+                                Location targetLocation = letter.Recipient is Architect architectRecipient
+                                    ? architectRecipient.Location ?? architectRecipient.HomeLocation
+                                    : null;
+
+                                // Create the object for the letter
+                                Object o = new Object(
+                                    $"Letter to {letter.Recipient.Name}",
+                                    "scroll",
+                                    new EntityList<Material>() { Cloths[Game1.r.Next(Cloths.Count)] },
+                                    letter.Author
+                                );
+
+                                // Set the letter content to the object
+                                o.LetterContent = letter;
+
+                                // Determine where to store the object
+                                if (targetLocation != null && Game1.r.Next(1, 11) != 1 && targetLocation.AllStructures.Count > 0) // 10% check, if it fails we put it in the recipient's inventory anyway
+                                {
+                                    // Store in a random structure's historical objects at the location
+                                    var structure = targetLocation.AllStructures[Game1.r.Next(targetLocation.AllStructures.Count)];
+                                    structure.HistoricalObjects.Add(o);
+                                }
+                                else
+                                {
+                                    // Determine the inventory of the recipient
+                                    EntityList<Object> recipientInventory = null;
+
+                                    if (letter.Recipient is Architect recipientArchitect)
+                                    {
+                                        // Recipient is an Architect
+                                        recipientInventory = recipientArchitect.Inventory;
+                                    }
+                                    else if (letter.Recipient is Group recipientGroup)
+                                    {
+                                        // Recipient is a Group, use the Leader's inventory
+                                        recipientInventory = recipientGroup.Leader.Inventory;
+                                    }
+                                    else if (letter.Recipient is Faction recipientFaction)
+                                    {
+                                        // Recipient is a Faction, use a random Satellite Group's Leader's inventory
+                                        var randomSatelliteGroup = recipientFaction.SatelliteGroups[Game1.r.Next(recipientFaction.SatelliteGroups.Count)];
+                                        recipientInventory = randomSatelliteGroup.Leader.Inventory;
+                                    }
+
+                                    // Add the object to the determined inventory
+                                    recipientInventory?.Add(o);
+                                }
+                            }
+
+                            // Create historical event
+                            string sendersSample = string.Join(", ", senders.Take(3)) + (senders.Count > 3 ? ", and others" : "");
+                            string recipientsSample = string.Join(", ", recipients.Take(3)) + (recipients.Count > 3 ? ", and others" : "");
+                            HistoricalEvents.Add(new Event(
+                                $"{Date}: {Messenger.Name} ({MessengerType} messenger) delivered {letterCount} letters. " +
+                                $"Notable senders included {sendersSample}, while notable recipients were {recipientsSample}.",
+                                Messenger.Location?.Region ?? (Messenger.HomeLocation?.Region ?? AllLocations[r.Next(AllLocations.Count)].Region),
+                                new EntityList<Entity>() { Messenger }
+                            ));
+                        }
+                    }
+                }
+
+
+
+
+
                 foreach (Civilization c in Civilizations)
                 {
                     //abdicate if dead lul
 
-                    if(c.Alpha != null && c.Alpha.IsAlive == false)
+                    if (c.Alpha != null && c.Alpha.IsAlive == false)
                     {
-                        HistoricalEvents.Add(new Event($"{Date} {c.Alpha.Name}'s death led {c.Name} to put a new alpha into place.", c.Capitol.Region, new EntityList<Entity>(){c.Alpha, c}));
+                        HistoricalEvents.Add(new Event($"{Date} {c.Alpha.Name}'s death led {c.Name} to put a new alpha into place.", c.Capitol.Region, new EntityList<Entity>() { c.Alpha, c }));
 
                         c.Alpha = null;
                     }
 
                     if (HumanoidRaces.Contains(c.PrimaryInhabitantRace))
                     {
-                        c.CyclesTillElection -= 864000 * Days;
+                        c.CyclesTillElection -= (int)Math.Round(864000 * Days);
                         if ((c.Alpha == null || c.CyclesTillElection < 0) && c.Citizens.Count() > 0)
                         {
                             // Filter candidates whose home location matches the civilization's capital and who are alive
@@ -2920,13 +3155,23 @@ namespace Lightrealm
                                     {
                                         HistoricalEvents.Add(new Event($"{Date} {OldAlpha.Name} ended their service as the alpha of {c.Name}.", c.Capitol.Region, new EntityList<Entity>() { OldAlpha, c }));
                                     }
+                                    
+                                    
                                     HistoricalEvents.Add(new Event($"{Date} The civilization of {c.Name} elected a new alpha, {c.Alpha.Name}.", c.Capitol.Region, new EntityList<Entity>() { c, c.Alpha }));
+
+
+                                    
+
+
+
+
 
                                     c.Alpha.Profession = "alpha";
 
                                     if (c.Alpha.Location != c.Capitol)
                                     {
                                         c.Alpha.NextMigrationLocation = c.Capitol;
+                                        c.Alpha.MigrationReason = "I am the alpha of " + c.Name + ", and I am traveling to its capitol, " + c.Capitol.Name + ".";
                                     }
                                 }
 
@@ -2956,10 +3201,12 @@ namespace Lightrealm
                                         if (WorldMap[x + z * Width].Biome != "void" &&
                                             WorldMap[x + z * Width].Biome != "ocean" &&
                                             WorldMap[x + z * Width].Location != null &&
-                                            (WorldMap[x + z * Width].Location.Type == "spire" && WorldMap[x + z * Width].Location.Government != null))
+                                            WorldMap[x + z * Width].Location.Type == "spire" && 
+                                            WorldMap[x + z * Width].Location.Government != null)
                                         {
                                             b.Spawned = true;
                                             WorldMap[x + z * Width].Blight = b;
+                                            BlightedRegions.Add(WorldMap[x + z * Width]);
 
                                             var relevantEntities = new EntityList<Entity>() { WorldMap[x + z * Width].Location.Government, b, WorldMap[x + z * Width].Location };
 
@@ -2992,6 +3239,7 @@ namespace Lightrealm
                                 {
                                     b.Spawned = true;
                                     WorldMap[SpawnTryX + SpawnTryZ * Width].Blight = b;
+                                    BlightedRegions.Add(WorldMap[SpawnTryX + SpawnTryZ * Width]);
 
                                     // Keep history logic just in case it just so happens to start there.
                                     var relevantEntities = new EntityList<Entity>() { b };
@@ -3034,49 +3282,61 @@ namespace Lightrealm
 
 
                 //spread blight
-                foreach (Region R in WorldMap)
+
+
+                // Create a list to store regions to be added after the iteration
+                List<Region> regionsToAdd = new List<Region>();
+
+                foreach (Region R in BlightedRegions)
                 {
-                    if (R.Blight != Purity)
+                    if (r.Next(1, 400 * MonthToDayConstant) == 1)
                     {
-                        if (r.Next(1, 600 * MonthToDayConstant) == 1)
+                        if (R.Blight != Purity)
                         {
-                            //pick a random number between 1-4 and spread cardinally
+                            // pick a random number between 1-4 and spread cardinally
                             int Spread = r.Next(4);
                             if (Spread == 1)
                             {
-                                //spread north if available
-                                if (R.X > 0)
+                                // spread north if available
+                                if (R.Z > 0)
                                 {
                                     WorldMap[(R.X) + (R.Z - 1) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
+                                    regionsToAdd.Add(WorldMap[(R.X) + (R.Z - 1) * Width]);
                                 }
                             }
                             else if (Spread == 2)
                             {
-                                //spread east if available
+                                // spread east if available
                                 if (R.X < Width - 1)
                                 {
                                     WorldMap[(R.X + 1) + (R.Z) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
+                                    regionsToAdd.Add(WorldMap[(R.X + 1) + (R.Z) * Width]);
                                 }
                             }
                             else if (Spread == 3)
                             {
-                                //spread south if available
+                                // spread south if available
                                 if (R.Z < Length - 1)
                                 {
                                     WorldMap[(R.X) + (R.Z + 1) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
+                                    regionsToAdd.Add(WorldMap[(R.X) + (R.Z + 1) * Width]);
                                 }
                             }
                             else
                             {
-                                //spread west if available
+                                // spread west if available
                                 if (R.X > 0)
                                 {
                                     WorldMap[(R.X - 1) + (R.Z) * Width].Blight = WorldMap[R.X + R.Z * Width].Blight;
+                                    regionsToAdd.Add(WorldMap[(R.X - 1) + (R.Z) * Width]);
                                 }
                             }
                         }
                     }
                 }
+
+                // Add new regions to BlightedRegions after the loop
+                BlightedRegions.AddRange(regionsToAdd);
 
                 //try to merge a group together
 
@@ -3160,7 +3420,7 @@ namespace Lightrealm
 
                 foreach (Group g in Groups)
                 {
-                    g.DaysOld += Days;
+                    g.DaysOld += (double)Days;
 
                     if(g.WaitingForCooldownToTrade == true)
                     {
@@ -3171,7 +3431,7 @@ namespace Lightrealm
                     }
                 }
 
-                void SummonNewUnit(Location l)
+                void SummonNewDivision(Location l)
                 {
                     // Find fit men/maybe women
                     EntityList<Architect> allArchitects = new EntityList<Architect>();
@@ -3179,7 +3439,7 @@ namespace Lightrealm
                     // Iterate over all districts and add their architects to the new list
                     foreach (var district in l.Districts)
                     {
-                        allArchitects.AddRange(district.Architects.Where(a => a.Unit != null));
+                        allArchitects.AddRange(district.Architects.Where(a => a.Division != null));
                     }
 
                     // Sort the architects by Strength * Dexterity * Agility
@@ -3215,17 +3475,18 @@ namespace Lightrealm
 
                     if (selectedArchitects.Count() > 0)
                     {
-                        Unit u = new Unit(selectedArchitects[0], selectedArchitects, totalSoldiers - importantSoldiers, l);
+                        Division u = new Division(selectedArchitects[0], selectedArchitects, totalSoldiers - importantSoldiers, l.HomeCivilization);
 
-                        l.Units.Add(u);
+                        l.Divisions.Add(u);
 
-                        HistoricalEvents.Add(new Event(Date + " A new squad called " + u.Name + ", led by " + u.Leader.Name + ", was forged in " + l.Name + ".", l.Region, new EntityList<Entity>{ }));
+                        HistoricalEvents.Add(new Event(String.Concat(Date, " A new division called ", u.Name, ", led by ", u.Leader.Name, ", was forged in ", l.Name, "."), l.Region, new EntityList<Entity> { }));
 
                         foreach (Architect a in u.Architects)
                         {
-                            HistoricalEvents.Add(new Event(Date + " " + a.Name + " joined " + u.Name + ".", l.Region, new EntityList<Entity>{ }));
+                            HistoricalEvents.Add(new Event(String.Concat(Date, " ", a.Name, " joined ", u.Name, "."), l.Region, new EntityList<Entity> { }));
                         }
                     }
+
                 }
 
 
@@ -3237,19 +3498,19 @@ namespace Lightrealm
 
                 foreach (Location l in AllLocations)
                 {
-                    //develop squads slowly
+                    //develop millitary divisions
                     if(SettlementTypes.Contains(l.Type))
                     {
-                        if (r.Next(1, 10000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count() * 250)))
+                        if (r.Next(1, 1000 * MonthToDayConstant) < (l.TruePopulation() - (l.Divisions.Count() * 250)))
                         {
-                            SummonNewUnit(l);
+                            SummonNewDivision(l);
                         }
                     }
                 }
 
                 //declare WAR
 
-                Location GetCapitol(Civilization civilization, EntityList<Location> allLocations)
+                Location GetCapitol(Civilization civilization, List<Location> allLocations)
                 {
                     return allLocations.FirstOrDefault(l => l.IsCapitol && l.HomeCivilization.Type == civilization.Type);
                 }
@@ -3259,54 +3520,56 @@ namespace Lightrealm
                     string PrimaryHaterType = GenericHatredDictionary[c.WarType];
                     Location currentCapitol = GetCapitol(c, AllLocations);
 
+                    if (c.WarType == "civilized") continue;
+
                     if (currentCapitol == null) continue;
 
                     foreach (Civilization hatedCivilization in Civilizations)
                     {
+                        // Skip self and already at war civilizations
+                        if (hatedCivilization == c || Wars.Any(war => (war.Civilization1 == c && war.Civilization2 == hatedCivilization) || (war.Civilization1 == hatedCivilization && war.Civilization2 == c)))
+                            continue;
+
                         if (hatedCivilization.WarType == PrimaryHaterType)
                         {
                             Location hatedCapitol = GetCapitol(hatedCivilization, AllLocations);
 
                             if (hatedCapitol == null) continue;
 
+                            // Calculate the distance between the capitols
                             double distance = Vector2.Distance(
                                 new Vector2(currentCapitol.Region.X, currentCapitol.Region.Z),
                                 new Vector2(hatedCapitol.Region.X, hatedCapitol.Region.Z)
                             );
 
-                            if (distance < 20)
+                            // If distance is too far, skip this civilization (you can adjust this threshold)
+                            if (distance >= 25) continue;
+
+                            // Increment hatred points based on distance
+                            int hatredPoints = distance < 5 ? 5 : (distance < 10 ? 4 : (distance < 15 ? 3 : 2));
+                            int initialHatredPoints = c.HatredPoints.ContainsKey(hatedCivilization.Type) ? c.HatredPoints[hatedCivilization.Type] : 0;
+
+                            if (c.HatredPoints.ContainsKey(hatedCivilization.Type))
                             {
-                                // Increment hatred points based on distance
-                                int hatredPoints = distance < 5 ? 5 : (distance < 10 ? 4 : (distance < 15 ? 3 : 2));
-                                int initialHatredPoints = c.HatredPoints.ContainsKey(hatedCivilization.Type) ? c.HatredPoints[hatedCivilization.Type] : 0;
+                                c.HatredPoints[hatedCivilization.Type] += hatredPoints;
+                            }
+                            else
+                            {
+                                c.HatredPoints[hatedCivilization.Type] = hatredPoints;
+                            }
 
-                                if (c.HatredPoints.ContainsKey(hatedCivilization.Type))
-                                {
-                                    c.HatredPoints[hatedCivilization.Type] += hatredPoints;
-                                }
-                                else
-                                {
-                                    c.HatredPoints[hatedCivilization.Type] = hatredPoints;
-                                }
+                            // Check for historical events and war declarations based on accumulated hatred points
+                            int totalHatredPoints = c.HatredPoints[hatedCivilization.Type];
+                            if (initialHatredPoints < 1000 && totalHatredPoints >= 1000)
+                            {
+                                // Declare war if hatred points exceed threshold
+                                War newWar = new War(c, hatedCivilization);
+                                Wars.Add(newWar); // Add to the list of active wars
 
-                                // Check for historical events and war declarations
-                                int totalHatredPoints = c.HatredPoints[hatedCivilization.Type];
-                                if (initialHatredPoints < 250 && totalHatredPoints >= 250)
-                                {
-                                    HistoricalEvents.Add(new Event($"{Date} {c.Name}, a {c.Type} society, and {hatedCivilization.Name}, a {hatedCivilization.Type} society, slowly grew suspicious of each other.", c.Capitol.Region, new EntityList<Entity>(){c, hatedCivilization}));
-                                }
-                                else if (initialHatredPoints < 500 && totalHatredPoints >= 500)
-                                {
-                                    HistoricalEvents.Add(new Event($"{Date} Hostility between {c.Name}, a {c.Type} society, and {hatedCivilization.Name}, a {hatedCivilization.Type} society, started to increase.", c.Capitol.Region, new EntityList<Entity>(){ c, hatedCivilization }));
-                                }
-                                else if (initialHatredPoints < 750 && totalHatredPoints >= 750)
-                                {
-                                    HistoricalEvents.Add(new Event($"{Date} Tensions between {c.Name}, a {c.Type} society, and {hatedCivilization.Name}, a {hatedCivilization.Type} society, rose very highly.", c.Capitol.Region, new EntityList<Entity>(){ c, hatedCivilization }));
-                                }
-                                else if (initialHatredPoints < 1000 && totalHatredPoints >= 1000)
-                                {
-                                    HistoricalEvents.Add(new Event($"{Date} {c.Name}, a {c.Type} society, declared war on {hatedCivilization.Name}, a {hatedCivilization.Type} society.", c.Capitol.Region, new EntityList<Entity>(){ c, hatedCivilization }));
-                                }
+                                c.HatredPoints.Clear();
+
+                                // Log the war as a historical event
+                                HistoricalEvents.Add(new Event($"{Date} {c.Name}, a {c.Type} society, declared war on {hatedCivilization.Name}, a {hatedCivilization.Type} society.", currentCapitol.Region, new EntityList<Entity>() { c, hatedCivilization }));
                             }
                         }
                     }
@@ -3314,90 +3577,116 @@ namespace Lightrealm
 
 
 
-                //in war
-
-                foreach ((Civilization, Civilization, int, int) War in Wars)
+                foreach (War war in Wars)
                 {
-                    // procure new squads
+                    // Procure new squads
                     EntityList<Location> Civ1LocationsThatHaveMilitary = new EntityList<Location>();
                     EntityList<Location> Civ2LocationsThatHaveMilitary = new EntityList<Location>();
 
                     foreach (Location l in AllLocations)
                     {
-                        if (l.HomeCivilization == War.Item1 || l.HomeCivilization == War.Item2)
+                        if (l.HomeCivilization == war.Civilization1 || l.HomeCivilization == war.Civilization2)
                         {
-                            if (r.Next(1, 1000 * MonthToDayConstant) < (l.TruePopulation() - (l.Units.Count() * 250)))
+                            if (r.Next(1, 100 * MonthToDayConstant) < (l.TruePopulation() - (l.Divisions.Count() * 250)))
                             {
-                                SummonNewUnit(l);
+                                SummonNewDivision(l);
                             }
                         }
 
-                        if (l.HomeCivilization == War.Item1 && l.Units.Count() > 0)
+                        if (l.HomeCivilization == war.Civilization1 && l.Divisions.Count() > 0)
                         {
                             Civ1LocationsThatHaveMilitary.Add(l);
                         }
-                        else if (l.HomeCivilization == War.Item2 && l.Units.Count() > 0)
+                        else if (l.HomeCivilization == war.Civilization2 && l.Divisions.Count() > 0)
                         {
                             Civ2LocationsThatHaveMilitary.Add(l);
                         }
                     }
 
-                    // then FIGHT
+                    // Then FIGHT
                     foreach (Location L1 in Civ1LocationsThatHaveMilitary)
                     {
                         if (r.Next(1, 5) == 1)
                         {
-                            // we are using this one
+                            // Select the opposing location for battle
                             foreach (Location L2 in Civ2LocationsThatHaveMilitary)
                             {
-                                if (L1.Units.Count() == 0 || L2.Units.Count() == 0)
+                                if (L1.Divisions.Count() == 0 || L2.Divisions.Count() == 0)
                                 {
-                                    // this means they lost them in another fight and can no longer fight.
+                                    // No divisions left to fight
                                     break;
                                 }
 
                                 if (r.Next(1, 5) == 1)
                                 {
-                                    // ok so this is a fight
-                                    // first, decide units
-                                    Unit unit1 = L1.Units[r.Next(L1.Units.Count())];
-                                    Unit unit2 = L2.Units[r.Next(L2.Units.Count())];
+                                    // Simulate a battle between unit1 and unit2, but now using a frontline region for the battle location
 
-                                    // find a location
-                                    Vector2 BattleCenter = new Vector2(
-                                        (float)Math.Round((L1.Region.X + L2.Region.X) / 2.0) + 3,
-                                        (float)Math.Round((L1.Region.Z + L2.Region.Z) / 2.0) - 3
-                                    );
+                                    // Select a random region from the frontline, with bias towards the center
+                                    Region battleRegion = SelectFrontlineRegion(war.Frontline);
 
-                                    Region BattleRegion = WorldMap[(int)(BattleCenter.X + BattleCenter.Y * Width)];
+                                    // Select units to fight
+                                    Division unit1 = L1.Divisions[r.Next(L1.Divisions.Count())];
+                                    Division unit2 = L2.Divisions[r.Next(L2.Divisions.Count())];
 
-                                    List<string> Data = unit1.Fight(unit2, BattleRegion);
+                                    // Simulate the battle at the frontline region
+                                    List<string> Data = unit1.Fight(unit2, battleRegion);
 
                                     foreach (string s in Data)
                                     {
-                                        HistoricalEvents.Add(new Event($"{Date} {s}", BattleRegion, new EntityList<Entity>(){}));
+                                        HistoricalEvents.Add(new Event($"{Date} {s}", battleRegion, new EntityList<Entity>() { }));
                                     }
 
                                     // Check if any units should disband
                                     if (unit1.Architects.Count() == 0 && unit1.OtherSoldiers == 0)
                                     {
-                                        L1.Units.Remove(unit1);
+                                        L1.Divisions.Remove(unit1);
                                     }
 
                                     if (unit2.Architects.Count() == 0 && unit2.OtherSoldiers == 0)
                                     {
-                                        L2.Units.Remove(unit2);
+                                        L2.Divisions.Remove(unit2);
                                     }
                                 }
                             }
                         }
                     }
+
+                    // Function to select a frontline region with bias towards the center
+                    Region SelectFrontlineRegion(EntityList<Region> frontline)
+                    {
+                        // If no regions exist in the frontline, return null (this shouldn't happen in normal circumstances)
+                        if (frontline == null || frontline.Count == 0)
+                            return null;
+
+                        // Calculate bias weight for center
+                        int midIndex = frontline.Count / 2;
+
+                        // Biasing the selection toward the center of the frontline
+                        // Use a weighted random selection: regions closer to the center are more likely to be selected
+                        // The weighting here gives more probability to regions close to the midpoint
+
+                        List<Region> weightedFrontline = new List<Region>();
+                        for (int i = 0; i < frontline.Count; i++)
+                        {
+                            // The closer to the center, the higher the weight (we'll add more instances of the region)
+                            int weight = frontline.Count - Math.Abs(midIndex - i);
+                            for (int j = 0; j < weight; j++)
+                            {
+                                weightedFrontline.Add(frontline[i]);
+                            }
+                        }
+
+                        // Select a random region from the weighted list
+                        return weightedFrontline[r.Next(weightedFrontline.Count)];
+                    }
+
+
                 }
 
 
                 //age
 
-                foreach (Architect V in AllArchitects)
+                foreach (Architect V in AllHistoricalArchitects)
                 {
                     if (V.Age > V.TerminalAge && !V.IsImmortal && V.IsAlive)
                     {
@@ -3444,23 +3733,23 @@ namespace Lightrealm
 
                 foreach(Civilization c in Civilizations)
                 {
-                    if (Game1.r.Next(100 * MonthToDayConstant) == 1 && c.UnitsAtCommand.Count > 0)
+                    if (Game1.r.Next(100 * MonthToDayConstant) == 1 && c.MillitaryDivisions.Count > 0)
                     {
                         // Sort the units by CombatStrength in descending order (strongest first)
-                        c.UnitsAtCommand.Sort((x, y) => y.CombatStrength().CompareTo(x.CombatStrength()));
+                        c.MillitaryDivisions.Sort((x, y) => y.CombatStrength().CompareTo(x.CombatStrength()));
 
-                        Unit u;
+                        Division u;
 
-                        if (c.UnitsAtCommand.Count > 3)
+                        if (c.MillitaryDivisions.Count > 3)
                         {
                             // Take the top 3 strongest units and pick a random one
-                            var topThreeUnits = c.UnitsAtCommand.Take(3).ToList();
+                            var topThreeUnits = c.MillitaryDivisions.Take(3).ToList();
                             u = topThreeUnits[Game1.r.Next(topThreeUnits.Count)];
                         }
                         else
                         {
                             // If there are 3 or fewer units, take the strongest one
-                            u = c.UnitsAtCommand.First();
+                            u = c.MillitaryDivisions.First();
                         }
 
 
@@ -3530,160 +3819,6 @@ namespace Lightrealm
                 }
 
 
-                // Forget Dead Enemies
-
-                List<Entity> combinedEntities = new List<Entity>();
-                combinedEntities.AddRange(AllArchitects);
-                combinedEntities.AddRange(AllFactions);
-                combinedEntities.AddRange(AllLocations);
-                combinedEntities.AddRange(Groups);
-
-
-                foreach (Entity e in combinedEntities)
-                {
-                    // Skip already incapacitated entities
-                    if (e.Incapacitated)
-                        continue;
-
-                    bool isDead = false;
-
-                    if (e is Architect architect)
-                    {
-                        isDead = !architect.IsAlive || architect.Bound;
-                    }
-                    else if (e is Faction faction)
-                    {
-                        isDead = !faction.SatelliteGroups.Any(g => g.Architects.Count > 0);
-                    }
-                    else if (e is Location location)
-                    {
-                        isDead = location.TruePopulation() == 0;
-                    }
-                    else if (e is Group group)
-                    {
-                        isDead = group.Architects.Count == 0;
-                    }
-                    else if (e is Association association)
-                    {
-                        isDead = Game1.GameState != "ascendant";
-                    }
-
-                    if (isDead)
-                    {
-                        e.Incapacitated = true;  // Mark entity as incapacitated
-                    }
-                }
-
-                foreach (Entity e in combinedEntities)
-                {
-                    e.Enemies.RemoveWhere(enemy => enemy.Incapacitated);
-                    HyperThreats.RemoveWhere(enemy => enemy.Incapacitated);
-                }
-
-
-
-
-
-
-
-                // Add Civilizations to the list after removing dead groups
-                combinedEntities.AddRange(Civilizations);
-
-                //Hold a council
-
-                if (Game1.r.Next(100) == 1 && Year > 50)
-                {
-                    // Search for appropriate architects to attend the council
-                    var attendees = new EntityList<Architect>();
-
-                    foreach (var architect in AllArchitects)
-                    {
-                        if (Calamity.Contains(architect) || architect.Reputation <= -20) continue;
-
-                        bool shouldAttend = architect.Profession switch
-                        {
-                            "elder" => Game1.r.Next(100) < 10,
-                            "commander" => Game1.r.Next(100) < 5,
-                            "leader" => Game1.r.Next(100) < 10,
-                            "political figure" => Game1.r.Next(100) < 20,
-                            "archbard" => Game1.r.Next(100) < 20,
-                            "archluminary" => Game1.r.Next(100) < 20,
-                            "archartificer" => Game1.r.Next(100) < 20,
-                            "archdruid" => Game1.r.Next(100) < 20,
-                            "captain" => Game1.r.Next(100) < 20,
-                            "diplomat" => Game1.r.Next(100) < 60,
-                            _ when architect.Profession.StartsWith("arch") => Game1.r.Next(100) < 30,
-                            "alpha" => Game1.r.Next(100) < 100,
-                            _ => false,
-                        };
-
-                        if (shouldAttend)
-                        {
-                            attendees.Add(architect);
-                        }
-                    }
-
-                    // Ensure there are attendees before proceeding
-                    if (attendees.Count > 0)
-                    {
-                        // Pick a random Civilization to host the council
-                        Civilization selectedCivilization = Civilizations[Game1.r.Next(Civilizations.Count)];
-                        Location councilLocation = selectedCivilization.Capitol;
-
-                        // Sort attendees by reputation and pick 2-4 highest reputation architects
-                        var sortedAttendees = attendees.OrderByDescending(a => a.Reputation).Take(Game1.r.Next(2, 5)).ToList();
-
-                        // Format the list of organizers
-                        string organizers = FormatList(sortedAttendees.Select(a => a.Name).ToList());
-
-                        // Create the event for the council
-                        HistoricalEvents.Add(new Event(
-                            $"{Date} A council was held by the capital of {selectedCivilization.Name}, {councilLocation.Name}. The organizers were {organizers}.",
-                            councilLocation.Region,
-                            new EntityList<Entity>() { selectedCivilization, councilLocation }.Union(attendees),
-                            true
-                        ));
-
-                        // Find the most common enemies across all entities
-                        var enemyCounts = new Dictionary<Entity, int>();
-
-                        foreach (Entity entity in combinedEntities)
-                        {
-                            foreach (Entity enemy in entity.Enemies)
-                            {
-                                if (enemyCounts.ContainsKey(enemy))
-                                {
-                                    enemyCounts[enemy]++;
-                                }
-                                else
-                                {
-                                    enemyCounts[enemy] = 1;
-                                }
-                            }
-                        }
-
-                        // Get the 2-5 most common enemies
-                        var mostCommonEnemies = new EntityList<Entity>(enemyCounts.OrderByDescending(kvp => kvp.Value)
-                                                                                   .Take(Game1.r.Next(2, 6))
-                                                                                   .Select(kvp => kvp.Key));
-
-                        // Format the list of threats
-                        string threats = FormatList(mostCommonEnemies.Select(e => e.Name).ToList());
-
-                        // Create the event for the threats discussed
-                        HistoricalEvents.Add(new Event(
-                            $"{Date} The topic of the council was to handle the threats of {threats}. All were declared grave threats that much attention should be paid.",
-                            councilLocation.Region,
-                            mostCommonEnemies,
-                            true
-                        ));
-
-
-                        HyperThreats.AddRange(mostCommonEnemies);
-                        HyperThreats = HyperThreats.Distinct();
-                    }
-                }
-
                 // Helper method to format the list of names
                 string FormatList(List<string> names)
                 {
@@ -3705,7 +3840,6 @@ namespace Lightrealm
 
                 List<string> HireableGroups = new List<string>() { "military", "mercenary", "squad" };
                 List<string> HireableArchs = new List<string>() { "mercenary", "hunter", "soldier", "warrior" };
-
                 foreach (Civilization c in Civilizations)
                 {
                     if (Game1.r.Next(100) == 0 && HyperThreats.Count > 0)
@@ -3715,7 +3849,7 @@ namespace Lightrealm
                         bool Success = true;
 
                         Hireables.AddRange(Groups.Where(g => HireableGroups.Contains(g.Type) && g.Reputation >= 0 && g.Leader.Location.HomeCivilization == c));
-                        Hireables.AddRange(AllArchitects.Where(a => HireableArchs.Contains(a.Profession) && a.Reputation >= 0 && a.Location != null && a.Location.HomeCivilization != null && a.Location.HomeCivilization == c));
+                        Hireables.AddRange(AllHistoricalArchitects.Where(a => HireableArchs.Contains(a.Profession) && a.Reputation >= 0 && a.Location != null && a.Location.HomeCivilization != null && a.Location.HomeCivilization == c));
 
                         if (Hireables.Count > 0)
                         {
@@ -3828,13 +3962,12 @@ namespace Lightrealm
                             {
                                 Success = false;
                             }
-
-                            if(Success)
+                            if (Success)
                             {
                                 if (isLocationAssault)
                                 {
                                     // Log the initial event
-                                    HistoricalEvents.Add(new Event(Date + " " + c.Name + " hired " + e.Name + " to launch an assault on " + location.Name + reasonForAttack + ".", location.Region, new EntityList<Entity>() { c, e, location }));
+                                    HistoricalEvents.Add(new Event(String.Concat(Date, " ", c.Name, " hired ", e.Name, " to launch an assault on ", location.Name, reasonForAttack, "."), location.Region, new EntityList<Entity>() { c, e, location }));
 
                                     // Perform the Generic Attack
                                     WorldActionInitiator.InitiateAction(this, "genericattack", e, new EntityList<Entity> { location, district });
@@ -3842,22 +3975,29 @@ namespace Lightrealm
                                 else
                                 {
                                     // Log the initial event for Direct Harassment
-                                    HistoricalEvents.Add(new Event(Date + " " + c.Name + " hired " + e.Name + " to put an end to " + harassedArchitect.Name + reasonForAttack + ".", location.Region, new EntityList<Entity>() { c, e, harassedArchitect }));
+                                    HistoricalEvents.Add(new Event(String.Concat(Date, " ", c.Name, " hired ", e.Name, " to put an end to ", harassedArchitect.Name, reasonForAttack, "."), location.Region, new EntityList<Entity>() { c, e, harassedArchitect }));
 
                                     // Determine the type of harassment action: Kidnap or Kill
-                                    string harassmentAction = Game1.r.Next(2) == 0 ? "kidnaptarget" : "killtarget"; // 50% chance for either kidnapping or killing
+                                    string harassmentAction = Game1.r.Next(2) == 0 ? "kidnaptarget" : "killtarget";
+
+                                    if (Game1.r.Next(2) == 0)
+                                    {
+                                        harassmentAction = "kidnaptarget";
+                                    }
+                                    else
+                                    {
+                                        harassmentAction = "killtarget";
+                                    }
 
                                     // Set up the related entities for the harassment action
                                     EntityList<Entity> harassmentEntities = new EntityList<Entity>() { location, location.Districts[Game1.r.Next(location.Districts.Count)], harassedArchitect };
 
-                                    // Initiate the chosen harassment action
                                     WorldActionInitiator.InitiateAction(this, harassmentAction, e, harassmentEntities);
                                 }
                             }
                         }
                     }
                 }
-
                 // LEGENDS
 
                 WorldSubgroupManager.ManageLegends(this, Days);
@@ -3887,7 +4027,7 @@ namespace Lightrealm
                         isOrganized = new Random().Next(2) == 0;  // Otherwise, randomly choose 50/50
                     }
 
-                    var validArchitects = AllArchitects.Where(arch =>
+                    var validArchitects = AllHistoricalArchitects.Where(arch =>
                         arch.HomeLocation != null &&
                         SettlementTypes.Contains(arch.HomeLocation.Type) && 
                         !(
@@ -3903,7 +4043,9 @@ namespace Lightrealm
 
                     Faction f = new Faction(selectedArchitect, isOrganized);
 
-                    HistoricalEvents.Add(new Event((Date) + " An " + (isOrganized ? "organized" : "unorganized") + " " + f.CoreValue + " faction emerged, named " + f.Name + ".", selectedArchitect.Location.Region, new EntityList<Entity>{ }));
+                    HistoricalEvents.Add(new Event(String.Concat(Date, " An ", (isOrganized ? "organized" : "unorganized"), " ", f.CoreValue, " faction emerged, named ", f.Name, "."),
+                        selectedArchitect.Location != null ? selectedArchitect.Location.Region : selectedArchitect.HomeLocation.Region,
+                        new EntityList<Entity> { }));
 
                     AllFactions.Add(f);
                 }
@@ -3916,22 +4058,20 @@ namespace Lightrealm
 
 
 
-
-
-
                 // Loop through the world map and update locations
 
                 foreach (Location location in AllLocations)
                 {
+                    // Government-related conditions
                     if (location.Government is Architect z && z.IsAlive == false)
                     {
-                        HistoricalEvents.Add(new Event($"{Date} {location.Name} lost their government {location.Government.Name}.", location.Region, new EntityList<Entity>(){location, location.Government}));
+                        HistoricalEvents.Add(new Event($"{Date} {location.Name} lost their government {location.Government.Name}.", location.Region, new EntityList<Entity>() { location, location.Government }));
                         location.Government = null;
                     }
 
                     if (location.Government is Group G && G.Architects.Count == 0)
                     {
-                        HistoricalEvents.Add(new Event($"{Date} {location.Name} lost their leader {location.Government.Name}.", location.Region, new EntityList<Entity>(){location, location.Government}));
+                        HistoricalEvents.Add(new Event($"{Date} {location.Name} lost their leader {location.Government.Name}.", location.Region, new EntityList<Entity>() { location, location.Government }));
                         location.Government = null;
                     }
 
@@ -3939,15 +4079,18 @@ namespace Lightrealm
                     location.TradersAtThisLocation.AddRange(location.TradersAtThisLocationToAdd);
                     location.TradersAtThisLocationToAdd.Clear();
 
-                    int WealthIncrease = 50; // Assuming this is used later in your code
+                    // Set the base wealth increase for the location (use double for more precise calculations)
+                    double WealthIncrease = 50;
 
-                    // Only proceed if location is core or garrison, has enough wealth, and a rare condition is met
+                    // Adjust wealth gain based on the MonthToDayConstant
+                    WealthIncrease = WealthIncrease / MonthToDayConstant;
+
+                    // Only proceed if the location is core or garrison, has enough wealth, and a rare condition is met
                     if ((location.Type == "core" || location.Type == "garrison") && location.Wealth > 10000 && r.Next(1, 500) == 1)
                     {
-                        // Simplify direction decision using a more direct approach
-                        int direction = r.Next(4); // 0: Right, 1: Left, 2: Up, 3: Down
+                        int direction = r.Next(4); // Random direction for expansion
 
-                        // Calculate new position based on the direction
+                        // Calculate new position based on direction
                         int NewX = location.X + (direction == 0 ? 1 : direction == 1 ? -1 : 0);
                         int NewZ = location.Z + (direction == 2 ? 1 : direction == 3 ? -1 : 0);
 
@@ -3963,22 +4106,21 @@ namespace Lightrealm
                                 r.Next(5, 10), 0, location.HomeCivilization, new EntityList<Object>(), location, "none"
                             );
                             LocationBuilderPackets.Add(l);
-                            location.Wealth -= 10000; // Deduct wealth as the location is being expanded
+                            location.Wealth -= 10000; // Deduct wealth for the expansion
                         }
                     }
 
                     if (SettlementTypes.Contains(location.Type))
                     {
-                        //passive structural income :O
+                        // Increase passive structural income
+                        WealthIncrease += (double)location.PassiveStructuralIncome / MonthToDayConstant;
 
-                        WealthIncrease += location.PassiveStructuralIncome;
-                        
                         foreach (District d in location.Districts)
                         {
                             if (d.Industry == null && location.Type != "camp")
                             {
                                 d.Industry = Game1.Industries[r.Next(Game1.Industries.Count())];
-                                HistoricalEvents.Add(new Event($"{d.Name} in {location.Name} dedicated themselves to the industry of {d.Industry}.", location.Region, new EntityList<Entity>(){d, location}));
+                                HistoricalEvents.Add(new Event($"{d.Name} in {location.Name} dedicated themselves to the industry of {d.Industry}.", location.Region, new EntityList<Entity>() { d, location }));
                             }
                             if (d.Industry != null && r.Next(1, 20) == 1)
                             {
@@ -3987,97 +4129,123 @@ namespace Lightrealm
                         }
                     }
 
-                    location.Wealth = location.Wealth + (int)Math.Round(WealthIncrease * ProsperityMultiplier);
+                    // Calculate the total wealth increase based on the adjusted WealthIncrease and ProsperityMultiplier
+                    double finalWealthIncrease = WealthIncrease * ProsperityMultiplier;
 
+                    // Round the wealth increase (if the result rounds to 0, round it to 1)
+                    int wealthToAdd = Math.Max(1, (int)Math.Round(finalWealthIncrease));
 
-                    //create interactable events based on history
-
+                    // Update the location's wealth
+                    location.Wealth += wealthToAdd;
 
                     int IEDecider = r.Next(1, 500 * MonthToDayConstant);
 
-                    int LX = location.X + r.Next(-5, 6);
-                    int LZ = location.Z + r.Next(-5, 6);
-
-                    if (LX >= 0 && LX < Width && LZ >= 0 && LZ < Width && WorldMap[LX + LZ * Width].Location == null && WorldMap[LX + LZ * Width].Biome != "void" && WorldMap[LX + LZ * Width].Biome != "ocean" && new string[] { "town", "city", "camp", "village" }.Contains(location.Type))
+                    // Only proceed if IEDecider passes the threshold
+                    if (IEDecider < 10 && SettlementTypes.Contains(location.Type))
                     {
-                        string DecidedType = "";
+                        // Set up location boundaries
+                        int LX = location.X + r.Next(-5, 6);
+                        int LZ = location.Z + r.Next(-5, 6);
 
-                        EntityList<Architect> GuarranteedArch = new EntityList<Architect>();
-
-                        switch (IEDecider)
+                        // Check if the location is valid
+                        if (LX >= 0 && LX < Width && LZ >= 0 && LZ < Width
+                            )
                         {
-                            case int decider when decider < 2:
-                                DecidedType = "bandits";
-                                for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
+                            var targetRegion = WorldMap[LX + LZ * Width];
+
+                            if (targetRegion.Location == null &&
+                            targetRegion.Biome != "void" &&
+                            targetRegion.Biome != "ocean")
+                            {
+                                // New random decider for more granularity
+                                int SecondaryDecider = r.Next(1, 11);
+                                string DecidedType = "";
+                                EntityList<Architect> GuarranteedArch = new EntityList<Architect>();
+
+                                // Determine the event type based on the decider
+                                switch (SecondaryDecider)
                                 {
-                                    Architect AA = new Architect("", Game1.Sexes[r.Next(2)], location.HomeCivilization.PrimaryInhabitantRace, r.Next(13, 39), "bandit", new EntityList<Object>(), null, null, null, "", 3);
-                                    AA.KitOutArchitect("bandit");
-                                    AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
-                                    AA.OppositionTags.Add("intruders");
-                                    GuarranteedArch.Add(AA);
+                                    case 1:
+                                        DecidedType = "bandits";
+                                        for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
+                                        {
+                                            Architect AA = new Architect("", Game1.Sexes[r.Next(2)], location.HomeCivilization.PrimaryInhabitantRace, r.Next(13, 39), "bandit", new EntityList<Object>(), null, null, null, "", 3, false);
+                                            AA.KitOutArchitect("bandit");
+                                            AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
+                                            AA.OppositionTags.Add("intruders");
+                                            GuarranteedArch.Add(AA);
+                                        }
+                                        break;
+                                    case 2:
+                                        DecidedType = "shadebeast";
+                                        Architect SB = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shadebeast"), r.Next(Year), "shadebeast", new EntityList<Object>(), null, null, null, "", 3, false);
+                                        SB.Name = Game1.GameWorld.GenerateUniqueArchitectName(SB);
+                                        GuarranteedArch.Add(SB);
+                                        break;
+                                    case 3:
+                                        DecidedType = "construct";
+                                        Architect CN = new Architect("", Game1.Sexes[r.Next(2)], ConstructRaces[r.Next(ConstructRaces.Count())], r.Next(Year), "construct", new EntityList<Object>(), null, null, null, "", 3, false);
+                                        CN.Name = Game1.GameWorld.GenerateUniqueArchitectName(CN);
+                                        GuarranteedArch.Add(CN);
+                                        break;
+                                    case 4:
+                                        DecidedType = "wildcreatures";
+                                        Race DecidedRace = WildRaces[r.Next(WildRaces.Count())];
+                                        for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
+                                        {
+                                            Architect AA = new Architect("", Game1.Sexes[r.Next(2)], DecidedRace, r.Next(13, 39), "beast", new EntityList<Object>(), null, null, null, "", 2, false);
+                                            AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
+                                            GuarranteedArch.Add(AA);
+                                        }
+                                        break;
+                                    case 5 when TradingGroups.Count() > 0:
+                                        DecidedType = "traders";
+                                        Group TradingGroup = TradingGroups[r.Next(TradingGroups.Count())];
+                                        GuarranteedArch = TradingGroup.Architects; // updates if the group updates
+                                        break;
+                                    case 6:
+                                        DecidedType = "vagabond";
+                                        Architect VB = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 39), "vagabond", new EntityList<Object>(), null, null, null, "", 3, false);
+                                        VB.KitOutArchitect("vagabond");
+                                        VB.Name = Game1.GameWorld.GenerateUniqueArchitectName(VB);
+                                        GuarranteedArch.Add(VB);
+                                        break;
+                                    case 7:
+                                        DecidedType = "shiba";
+                                        Architect SI = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shiba"), r.Next(13, 39), "shiba", new EntityList<Object>(), null, null, null, "", 3, false);
+                                        SI.Name = Game1.GameWorld.GenerateUniqueArchitectName(SI);
+                                        GuarranteedArch.Add(SI);
+                                        break;
+                                    case 8:
+                                        DecidedType = "adventurer";
+                                        Architect AD = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 39), "adventurer", new EntityList<Object>(), null, null, null, "", 3, false);
+                                        AD.KitOutArchitect("adventurer");
+                                        AD.Name = Game1.GameWorld.GenerateUniqueArchitectName(AD);
+                                        GuarranteedArch.Add(AD);
+                                        break;
+                                    case 9:
+                                        DecidedType = "priest";
+                                        Architect PR = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 39), "priest", new EntityList<Object>(), null, null, null, "", 1, false);
+                                        PR.KitOutArchitect("priest");
+                                        PR.Name = Game1.GameWorld.GenerateUniqueArchitectName(PR);
+                                        GuarranteedArch.Add(PR);
+                                        break;
                                 }
-                                break;
-                            case int decider when decider < 3:
-                                DecidedType = "shadebeast";
-                                Architect SB = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shadebeast"), r.Next(Year), "shadebeast", new EntityList<Object>(), null, null, null, "", 3);
-                                SB.Name = Game1.GameWorld.GenerateUniqueArchitectName(SB);
-                                GuarranteedArch.Add(SB);
-                                break;
-                            case int decider when decider < 4:
-                                DecidedType = "construct";
-                                Architect CN = new Architect("", Game1.Sexes[r.Next(2)], ConstructRaces[r.Next(ConstructRaces.Count())], r.Next(Year), "construct", new EntityList<Object>(), null, null, null, "", 3);
-                                CN.Name = Game1.GameWorld.GenerateUniqueArchitectName(CN);
-                                GuarranteedArch.Add(CN);
-                                break;
-                            case int decider when decider < 5:
-                                DecidedType = "wildcreatures";
-                                Race DecidedRace = WildRaces[r.Next(WildRaces.Count())];
 
-                                for (int Arch = r.Next(4, 8); Arch != 0; Arch--)
+                                // If an event type was decided, create a unit and assign home location
+                                if (DecidedType != "")
                                 {
-                                    Architect AA = new Architect("", Game1.Sexes[r.Next(2)], DecidedRace, r.Next(13, 39), "beast", new EntityList<Object>(), null, null, null, "", 2);
-                                    AA.Name = Game1.GameWorld.GenerateUniqueArchitectName(AA);
-                                    GuarranteedArch.Add(AA);
+                                    Unit u = new Unit(WorldMap[LX + LZ * Width], DecidedType, GuarranteedArch);
+                                    AllUnits.Add(u);
+                                    WorldMap[LX + LZ * Width].Units.Add(u);
+
+                                    // Set the home location of each architect to the current location
+                                    foreach (Architect a in GuarranteedArch)
+                                    {
+                                        a.HomeLocation = location;
+                                    }
                                 }
-                                break;
-                            case int decider when decider < 6 && TradingGroups.Count() > 0:
-                                DecidedType = "traders";
-                                Group TradingGroup = TradingGroups[r.Next(TradingGroups.Count())];
-                                GuarranteedArch = TradingGroup.Architects; //updates if the group updates\
-                                break;
-                            case int decider when decider < 7:
-                                DecidedType = "vagabond";
-                                Architect VB = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 39), "vagabond", new EntityList<Object>(), null, null, null, "", 3);
-                                VB.KitOutArchitect("vagabond");
-                                VB.Name = Game1.GameWorld.GenerateUniqueArchitectName(VB);
-                                GuarranteedArch.Add(VB);
-                                break;
-                            case int decider when decider < 8:
-                                DecidedType = "shiba";
-                                Architect SI = new Architect("", Game1.Sexes[r.Next(2)], GetRace("shiba"), r.Next(13, 39), "shiba", new EntityList<Object>(), null, null, null, "", 3);
-                                SI.Name = Game1.GameWorld.GenerateUniqueArchitectName(SI);
-                                GuarranteedArch.Add(SI);
-                                break;
-                            case int decider when decider < 9:
-                                DecidedType = "adventurer";
-                                Architect AD = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 39), "adventurer", new EntityList<Object>(), null, null, null, "", 3);
-                                AD.KitOutArchitect("adventurer");
-                                AD.Name = Game1.GameWorld.GenerateUniqueArchitectName(AD);
-                                GuarranteedArch.Add(AD);
-                                break;
-                            case int decider when decider < 10:
-                                DecidedType = "priest";
-                                Architect PR = new Architect("", Game1.Sexes[r.Next(2)], HumanoidRaces[r.Next(HumanoidRaces.Count())], r.Next(13, 39), "priest", new EntityList<Object>(), null, null, null, "", 1);
-                                PR.KitOutArchitect("priest");
-                                PR.Name = Game1.GameWorld.GenerateUniqueArchitectName(PR);
-                                GuarranteedArch.Add(PR);
-                                break;
-                        }
-
-
-                        if (DecidedType != "")
-                        {
-                            WorldMap[LX + LZ * Width].Events.Add(new InteractableEvent(WorldMap[LX + LZ * Width], r.Next(28, 54), DecidedType, location.HomeCivilization, GuarranteedArch));
+                            }
                         }
                     }
 
@@ -4102,6 +4270,7 @@ namespace Lightrealm
                                     g.TradeRoute[travelIndex].TradersAtThisLocation.Add(g);
 
                                     g.Architects.ForEach(A => A.NextMigrationLocation = g.TradeRoute[travelIndex]);
+                                    g.Architects.ForEach(A => A.MigrationReason = "We are headed to " + g.TradeRoute[travelIndex] + " as part of our trade route.");
 
                                     g.CycleLastMoved = currentCycle;
                                 }
@@ -4150,7 +4319,7 @@ namespace Lightrealm
 
                                     g.CycleLastTraded = currentCycle;
 
-                                    double newCycle = Cycle + (Days * 864000);
+                                    double newCycle = Cycle + ((double)Days * 864000);
                                     double newYear = (int)Math.Round((decimal)(newCycle / 290304000));
 
                                     if ((newYear / 10) > (currentYear / 10))
@@ -4329,8 +4498,6 @@ namespace Lightrealm
                         }
                     }
 
-                    int AmbitionRank = 1; // Static multiplier
-
                     foreach (var entityTuple in EntityTuples)
                     {
                         var (entity, name, profession, moralCompass, stabilityCompass, propertyValue, familyValue, powerValue, moneyValue, knowledgeValue, spiritualityValue, prowessValue, patriotismValue, courageValue, creativityValue) = entityTuple;
@@ -4338,7 +4505,7 @@ namespace Lightrealm
                         Location targetLocation = location; // Default to the current location
 
                         // 80% chance to search for a preferred target location within 20 tiles
-                        if (Game1.r.Next(100) < 80)
+                        if (Game1.r.Next(100 * MonthToDayConstant) < 80)
                         {
                             List<Location> nearbyEnemyLocations = new List<Location>();
                             foreach (var preferredLocation in this.PreferredTargetLocations())
@@ -4369,27 +4536,27 @@ namespace Lightrealm
                         // Action initiation logic
                         if (ArchitectsAtLocation.Count() > 0)
                         {
-                            if (!dontAttackYourself && moneyValue >= 2 && stabilityCompass < 40 && Game1.r.Next(150) == 1) // Theft
+                            if (!dontAttackYourself && moneyValue >= 2 && stabilityCompass < 40 && Game1.r.Next(150 * MonthToDayConstant) == 1) // Theft
                             {
                                 WorldActionInitiator.InitiateAction(this, "theft", entity, new EntityList<Entity> { targetLocation });
                             }
-                            else if (!dontAttackYourself && moneyValue >= 2 && stabilityCompass < 40 && Game1.r.Next(160) == 1) // Embezzlement
+                            else if (!dontAttackYourself && moneyValue >= 2 && stabilityCompass < 40 && Game1.r.Next(160 * MonthToDayConstant) == 1) // Embezzlement
                             {
                                 WorldActionInitiator.InitiateAction(this, "embezzlement", entity, new EntityList<Entity> { targetLocation });
                             }
-                            else if (!dontAttackYourself && targetLocation.Prism != null && targetLocation.Prism.HistoricalObjects.Count > 0 && moneyValue >= 2 && knowledgeValue >= 1 && stabilityCompass < 50 && Game1.r.Next(500) == 1 && SettlementTypes.Contains(targetLocation.Type)) // Artifact Theft
+                            else if (!dontAttackYourself && targetLocation.Prism != null && targetLocation.Prism.HistoricalObjects.Count > 0 && moneyValue >= 2 && knowledgeValue >= 1 && stabilityCompass < 50 && Game1.r.Next(500 * MonthToDayConstant) == 1 && SettlementTypes.Contains(targetLocation.Type)) // Artifact Theft
                             {
                                 WorldActionInitiator.InitiateAction(this, "artifacttheft", entity, new EntityList<Entity> { targetLocation, targetLocation.Prism.Block.District, targetLocation.Prism, targetLocation.Prism.HistoricalObjects[Game1.r.Next(targetLocation.Prism.HistoricalObjects.Count())] });
                             }
-                            else if (!dontAttackYourself && powerValue >= 3 && Game1.r.Next(180) == 1) // Takeover
+                            else if (!dontAttackYourself && powerValue >= 3 && Game1.r.Next(180 * MonthToDayConstant) == 1) // Takeover
                             {
                                 District targetDistrict = targetLocation.Districts[Game1.r.Next(targetLocation.Districts.Count())];
                                 WorldActionInitiator.InitiateAction(this, "takeover", entity, new EntityList<Entity> { targetLocation, targetDistrict });
                             }
-                            else if (!dontAttackYourself && prowessValue >= 3 && Game1.r.Next(170) == 1 && targetLocation.AllStructures.Count > 0 && targetLocation.Government != entityTuple.Entity && !(targetLocation.Government is Group g && g.Architects.Contains(entityTuple.Entity))) // Raze Building
+                            else if (!dontAttackYourself && prowessValue >= 3 && Game1.r.Next(170 * MonthToDayConstant) == 1 && targetLocation.AllStructures.Count > 0 && targetLocation.Government != entityTuple.Entity && !(targetLocation.Government is Group g && g.Architects.Contains(entityTuple.Entity))) // Raze Building
                             {
                                 Structure targetStructure;
-                                if (Game1.r.Next(100) < 40)
+                                if (Game1.r.Next(100 * MonthToDayConstant) < 40)
                                 {
                                     targetStructure = targetLocation.AllStructures[0]; // 40% chance to target the first structure
                                 }
@@ -4399,17 +4566,17 @@ namespace Lightrealm
                                 }
                                 WorldActionInitiator.InitiateAction(this, "razebuilding", entity, new EntityList<Entity> { targetLocation, targetStructure });
                             }
-                            else if (!dontAttackYourself && patriotismValue >= 3 && Game1.r.Next(190) == 1 && targetLocation.HomeCivilization != null) // Incite
+                            else if (!dontAttackYourself && patriotismValue >= 3 && Game1.r.Next(190 * MonthToDayConstant) == 1 && targetLocation.HomeCivilization != null) // Incite
                             {
                                 District targetDistrict = targetLocation.Districts[Game1.r.Next(targetLocation.Districts.Count())];
                                 WorldActionInitiator.InitiateAction(this, "incite", entity, new EntityList<Entity> { targetLocation, targetDistrict });
                             }
                             // These just use default location because it wouldn't make sense to target an enemy with these
-                            else if (creativityValue >= 3 && Game1.r.Next(200) == 1 && SettlementTypes.Contains(location.Type)) // Craftsmanship
+                            else if (creativityValue >= 3 && Game1.r.Next(200 * MonthToDayConstant) == 1 && SettlementTypes.Contains(location.Type)) // Craftsmanship
                             {
                                 WorldActionInitiator.InitiateAction(this, "craftsmanship", entity, new EntityList<Entity> { location });
                             }
-                            else if (entity is Architect architect && familyValue >= 0 && Game1.r.Next(180) == 1 && architect.Spouse == null) // Marriage
+                            else if (entity is Architect architect && familyValue >= 0 && Game1.r.Next(180 * MonthToDayConstant) == 1 && architect.Spouse == null) // Marriage
                             {
                                 WorldActionInitiator.InitiateAction(this, "marriage", entity, new EntityList<Entity> { location });
                             }
@@ -4459,19 +4626,12 @@ namespace Lightrealm
 
                     foreach (District d in location.Districts)
                     {
-                        int DistrictMaxPopulation = 0;
-
-
-                        foreach(Structure s in location.AllStructures)
-                        {
-                            if(s.Block.District == d && s.Type.EndsWith("house"))
-                            {
-                                DistrictMaxPopulation += 4;
-                            }
-                        }
-
                         //Handle population increase in the district
 
+                        if(d.UnplacedPopulation < 0)
+                        {
+                            int shibe = 1;
+                        }
 
                         if (location.Region.Blight != Purity && SettlementTypes.Contains(location.Type))
                         {
@@ -4495,27 +4655,36 @@ namespace Lightrealm
                             }
                         }
 
-                        int BirthProbabilityMod = 100; // higher is less likely, decrease the chance of procreation
 
-                        if (d.Population() < DistrictMaxPopulation && location.TruePopulation() > 4)
+                        //was 100 
+
+                        if (d.Population() < d.MaxPopulation && location.TruePopulation() > 4)
                         {
-                            // Calculate birth probability dynamically based on the original function
-                            double baseProbability = 1.0; // Set a base probability
-                            double populationFactor = 1 + (d.Population() / 100.0); // Adjust based on population (modify the factor as needed)
-                            double monthToDayConstant = 28.0 / Days; // Adjust probability to account for days instead of a month
+                            // Set base probability for births'
 
-                            double birthProbability = (baseProbability / populationFactor) * monthToDayConstant;
+                            double baseProbability = 1.0;
+
+                            // Population factor to reduce birth likelihood as population grows
+                            double populationFactor = 1 + (d.Population() / 100.0);
+
+                            // Adjust the birth probability by MTDC
+                            double birthProbability = (baseProbability / populationFactor) * (1.0 / MonthToDayConstant);
+
+                            // Apply the BirthProbabilityMod to further adjust
+                            birthProbability /= BirthProbabilityMod;
 
                             int births = 0;
 
-                            // Calculate births using a random number and the probability
+                            // Calculate births based on the adjusted probability
                             for (int i = 0; i < d.Population(); i++)
                             {
-                                if (Game1.r.NextDouble() < birthProbability / BirthProbabilityMod)
+                                if (Game1.r.NextDouble() < birthProbability)
                                 {
                                     births++;
                                 }
                             }
+
+                            
 
                             // Update the unplaced population with the calculated births
                             d.UnplacedPopulation += births;
@@ -4526,7 +4695,7 @@ namespace Lightrealm
 
                         //Designate the Construction of a new District
 
-                        if (d.UnplacedPopulation + d.Architects.Count() > 150)
+                        if (d.UnplacedPopulation + d.Architects.Count() > 150 && d.UnplacedPopulation > 80)
                         {
                             int Movers = Game1.r.Next(65, 85);
 
@@ -4572,7 +4741,8 @@ namespace Lightrealm
 
                         //Handle elevation of a member of the population to Architect
 
-                        int decider = Game1.r.Next(1, 75 * MonthToDayConstant);
+
+                        int decider = Game1.r.Next(1, ArchitectConstant * MonthToDayConstant);
 
                         if (decider == 1 && d.UnplacedPopulation > 0)
                         {
@@ -4618,7 +4788,7 @@ namespace Lightrealm
                             string role = Game1.WeightedRandomArchitectProfessions[Game1.r.Next(Game1.WeightedRandomArchitectProfessions.Count())];
                             Role = role;
 
-                            Architect architect = new Architect("", gender, Race, Game1.r.Next(14, 60), Role, new EntityList<Object>(), location, d, null, Destiny, 1);
+                            Architect architect = new Architect("", gender, Race, Game1.r.Next(14, 60), Role, new EntityList<Object>(), location, d, null, Destiny, 1, true);
                             location.HomeCivilization.Citizens.Add(architect);
                             string Name = GenerateUniqueArchitectName(architect);
                             architect.Name = Name;
@@ -4782,7 +4952,9 @@ namespace Lightrealm
 
                                 Ruleset g = new Ruleset();
 
-                                HistoricalEvents.Add(new Event(Date + " " + a.Name + " designed a new game, called " + g.Name + ".", d.Location.Region, new EntityList<Entity>() { a, g }));
+                                HistoricalEvents.Add(new Event(String.Concat(Date, " ", a.Name, " designed a new game, called ", g.Name, "."),
+                                    d.Location.Region,
+                                    new EntityList<Entity>() { a, g }));
 
                                 Games.Add(g);
                             }
@@ -5015,7 +5187,7 @@ namespace Lightrealm
                             var random = new Random();
                             EntityList<Entity> subjects = new EntityList<Entity>();
 
-                            subjects.AddRange(AllArchitects);
+                            subjects.AddRange(AllHistoricalArchitects);
                             subjects.AddRange(AllLocations);
                             subjects.AddRange(AllLocations.SelectMany(loc => loc.AllStructures));
                             subjects.AddRange(AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
@@ -5051,6 +5223,7 @@ namespace Lightrealm
                                         if (Location.HomeCivilization == a.HomeLocation.HomeCivilization && Location.Library != null)
                                         {
                                             a.NextMigrationLocation = Location;
+                                            a.MigrationReason = "I am headed to the library in " + Location.Name + ", " + Location.Library.Name + ", to study.";
                                             a.IsStudying = true;
                                             a.StudyBuilding = Location.Library;
                                             string migrationEvent = $"{Date} {a.Name} heard of {Location.Library.Name}, a library in {Location.Name}, and migrated there to study.";
@@ -5191,6 +5364,8 @@ namespace Lightrealm
                                         {
                                             HistoricalEvents.Add(new Event($"{Date} {a.Name} requested to join {g.Name}, and was accepted.", location.Region, new EntityList<Entity>() { a, g }));
                                             g.Architects.Add(a);
+                                            g.Leader.Contacts.Add(a);
+                                            a.Contacts.Add(g.Leader);
                                             a.Group = g;
                                             a.GroupLoyalty = 3;
                                         }
@@ -5198,6 +5373,8 @@ namespace Lightrealm
                                         {
                                             HistoricalEvents.Add(new Event($"{Date} {g.Name} requested that {a.Name} join them, and {a.Name} accepted.", location.Region, new EntityList<Entity>() { a, g }));
                                             g.Architects.Add(a);
+                                            g.Leader.Contacts.Add(a);
+                                            a.Contacts.Add(g.Leader);
                                             a.Group = g;
                                             a.GroupLoyalty = 3;
                                         }
@@ -5440,7 +5617,7 @@ namespace Lightrealm
 
                         foreach (Group g in location.GroupsAtThisLocation)
                         {
-                            if (location.Government != g && location.Wealth > 10000 && location.IsSavingUpToSettle && location.TruePopulation() > 100 && location.ColonizationDesire > 0 && new List<string> { "town", "city", "camp", "village" }.Contains(location.Type))
+                            if (location.Government != g && location.Wealth > 5000 && location.IsSavingUpToSettle && location.TruePopulation() > 100 && location.ColonizationDesire > 0 && new List<string> { "town", "city", "camp", "village" }.Contains(location.Type))
                             {
                                 //start looking for a new location to find
 
@@ -5467,14 +5644,15 @@ namespace Lightrealm
                                                 // Code for wealth deduction, race count, and other settlement logic
                                                 int PopulationFollowing = Game1.r.Next(location.TruePopulation() / 10, location.TruePopulation() / 5);
 
-                                                if (g.Architects.Count() * 200 > 15000)
+                                                if (g.Architects.Count() * 50 > 5000)
                                                 {
-                                                    location.Wealth -= 14500;
+                                                    location.Wealth -= 5000;
                                                 }
                                                 else
                                                 {
-                                                    location.Wealth -= g.Architects.Count() * 200;
+                                                    location.Wealth -= g.Architects.Count() * 50;
                                                 }
+
 
                                                 // Dictionary to keep track of race counts
                                                 Dictionary<Race, int> raceCounts = new Dictionary<Race, int>();
@@ -5695,7 +5873,7 @@ namespace Lightrealm
                         //start saving up to settle
 
 
-                        if (Game1.r.Next(1, 50 * MonthToDayConstant) == 1 && location.TruePopulation() > 120 && location.ColonizationDesire > 0)
+                        if (Game1.r.Next(1, 500 * MonthToDayConstant) == 1 && location.TruePopulation() > 150 && location.ColonizationDesire > 0)
                         {
                             location.IsSavingUpToSettle = true;
                         }
@@ -5892,7 +6070,7 @@ namespace Lightrealm
                             else
                             {
                                 EntityList<Architect> PossibleArch = new EntityList<Architect>();
-                                foreach (Architect a in AllArchitects)
+                                foreach (Architect a in AllHistoricalArchitects)
                                 {
                                     if (a.Group == null && !Calamity.Contains(a) && a.IsAlive && a.Location != null && a.Location.HomeCivilization != null && a.Profession != "sorcerer" && a.Profession != "warlock")
                                     {
@@ -5904,6 +6082,7 @@ namespace Lightrealm
                                 {
                                     Architect Migrator = PossibleArch[r.Next(PossibleArch.Count())];
                                     Migrator.NextMigrationLocation = location;
+                                    Migrator.MigrationReason = "I feel called by the " + OutcastCivType + "s of " + location.Name + "."; 
 
                                     HistoricalEvents.Add(new Event($"{Date} {Migrator.Name} felt called by the {OutcastCivType}s of {location.Name} and decided to migrate there.", location.Region, new EntityList<Entity>(){Migrator, location}));
 
@@ -6121,8 +6300,13 @@ namespace Lightrealm
                     }
                     else if (CalamityStructures.Contains(l.Type))
                     {
-                        HistoricalEvents.Add(new Event($"{Date} {l.Government.Name} constructed {NewLocation.Name} to base his operations.", NewLocation.Region, new EntityList<Entity>(){l.Government, NewLocation}));
+                        HistoricalEvents.Add(new Event($"{Date} {l.Government.Name} constructed {NewLocation.Name} to base {((Architect)l.Government).PossessivePronoun} operations.", NewLocation.Region, new EntityList<Entity>(){l.Government, NewLocation}));
                         ((Architect)(l.Government)).InteractionLocation = NewLocation;
+                        ((Architect)(l.Government)).HomeLocation = NewLocation;
+                        ((Architect)(l.Government)).NextMigrationLocation = NewLocation;
+                        ((Architect)(l.Government)).MigrationReason = "I have nothing to say to you.";
+
+
 
                         ((Architect)(l.Government)).KitOutArchitect(((Architect)(l.Government)).Profession);
                     }
@@ -6213,7 +6397,7 @@ namespace Lightrealm
                     }
 
                     WorldMap[l.X + l.Z * Width].Location = NewLocation;
-                    WorldMap[l.X + l.Z * Width].Events = new EntityList<InteractableEvent>();
+                    WorldMap[l.X + l.Z * Width].Units = new EntityList<Unit>();
 
                     if (l.Government is Group)
                     {
@@ -6222,6 +6406,7 @@ namespace Lightrealm
                         foreach (Architect a in ((Group)l.Government).Architects)
                         {
                             a.NextMigrationLocation = NewLocation;
+                            a.MigrationReason = "I am now part of the government of " + NewLocation + ", and I am traveling there.";
                         }
 
                         ((Group)l.Government).Base = NewLocation;
@@ -6229,6 +6414,7 @@ namespace Lightrealm
                     else if (l.Government is Architect && ((Architect)l.Government).Profession != "sovereign" && ((Architect)l.Government).Profession != "heart")
                     {
                         ((Architect)l.Government).NextMigrationLocation = NewLocation;
+                        ((Architect)l.Government).MigrationReason = "I am now in charge of " + NewLocation + ", and I am traveling there.";
                     }
 
                     //special structures need special stuff
@@ -6481,124 +6667,375 @@ namespace Lightrealm
                 }
 
 
-
-                //do all migration
-                foreach (Architect a in AllArchitects)
+                // Process migrations for architects
+                foreach (Architect a in AllHistoricalArchitects)
                 {
-                    //no idea why this happens. But we are banning them from migration for now
+                    // Skip architects with specific professions
                     if (a.Profession == "sovereign" || a.Profession == "heart")
                     {
                         continue;
                     }
 
-                    if (a.NextMigrationLocation != null)
+                    // Check if the architect has a migration location and a unit
+                    if (a.NextMigrationLocation != null && a.Unit == null)
                     {
-                        if(a.District != null)
+                        // Immediate relocation if Days > 20
+                        if (Days > 20)
                         {
-                            a.District.ArchitectsToRemove.Add(a);
-                        }
-                        a.District = a.NextMigrationLocation.Districts[Game1.r.Next(a.NextMigrationLocation.Districts.Count())];
-                        a.District.ArchitectsToAdd.Add(a);
-                        a.Location = a.NextMigrationLocation;
-                        a.HomeLocation = a.Location;
-
-                        if (new List<string>() { "commune", "mound", "monastery", "outpost" }.Contains(a.NextMigrationLocation.Type) || CalamityStructures.Contains(a.NextMigrationLocation.Type))
-                        {
-                            if ((Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type)) && a.MigrationKitted == false)
+                            // Remove architect from the current district if applicable
+                            if (a.District != null)
                             {
-                                a.KitOutArchitect("warriorpower" + a.Level);
-                                a.MigrationKitted = true;
+                                a.District.ArchitectsToRemove.Add(a);
                             }
 
-                            if(!a.OppositionTags.Contains("intruders") && a.Bound == false)
+                            // Directly relocate the architect to their next migration location
+                            a.District = a.NextMigrationLocation.Districts[Game1.r.Next(a.NextMigrationLocation.Districts.Count())];
+                            a.District.ArchitectsToAdd.Add(a);
+
+
+                            //HistoricalEvents.Add(new Event(Date + " " + a.Name + " went to " + a.NextMigrationLocation.Name, null, new EntityList<Entity>()));
+                            a.Location = a.NextMigrationLocation;
+
+
+                            // Handle special migration logic
+                            if (new List<string> { "commune", "mound", "monastery", "outpost" }.Contains(a.NextMigrationLocation.Type) || CalamityStructures.Contains(a.NextMigrationLocation.Type))
                             {
-                                a.OppositionTags.Add("intruders");
+                                if ((Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type)) && !a.MigrationKitted)
+                                {
+                                    a.KitOutArchitect("warriorpower" + a.Level);
+                                    a.MigrationKitted = true;
+                                }
+
+                                if (!a.OppositionTags.Contains("intruders") && !a.Bound)
+                                {
+                                    a.OppositionTags.Add("intruders");
+                                }
                             }
+
+                            // Clear migration location after relocation
+                            a.NextMigrationLocation = null;
+                            a.MigrationReason = "";
+                            continue; // Skip unit creation and continue with the next architect
                         }
-                        
-                        a.NextMigrationLocation = null;
+                        // For Days <= 20, create a unit for the architect
+                        else
+                        {
+                            if (a.District != null)
+                            {
+                                a.District.ArchitectsToRemove.Add(a);
+                            }
+
+                            Location l = (a.Location == null) ? AllLocations[r.Next(AllLocations.Count)] : a.Location;
+                            Unit u = new Unit(l.Region, "traveler", new EntityList<Architect> { a }, a.NextMigrationLocation);
+                            a.NextMigrationLocation = null;
+                            a.MigrationReason = "";
+                            AllUnits.Add(u);
+                            l.Region.Units.Add(u);
+                        }
                     }
                 }
 
-                // Get rid of some dead people
+                // List to track units that have reached their destination
+                List<Unit> UnitsToRemove = new List<Unit>();
+                // Process units only if Days <= 20
+                if (Days <= 20)
+                {
+                    foreach (Unit u in AllUnits)
+                    {
+                        Region TargetRegion = u.TargetLocation?.Region ?? u.WanderRegion;
 
-                EntityList<Architect> ArchToRemove = new EntityList<Architect>();
-                EntityList<InteractableEvent> EventsToRemove = new EntityList<InteractableEvent>();
+                        if (TargetRegion == null)
+                        {
+                            // Set initial wander region if none exists
+                            u.WanderRegion = u.Region;
+                            List<(int, int)> PossibleLocations = new List<(int, int)>();
 
+                            // Search for possible wander locations
+                            for (int SearchingX = -10; SearchingX <= 10; SearchingX++)
+                            {
+                                for (int SearchingZ = -10; SearchingZ <= 10; SearchingZ++)
+                                {
+                                    int newX = u.Region.X + SearchingX;
+                                    int newZ = u.Region.Z + SearchingZ;
+
+                                    // Ensure location is within bounds
+                                    if (newX >= 0 && newX < Width && newZ >= 0 && newZ < Length)
+                                    {
+                                        var currentRegion = WorldMap[newX + newZ * Width];
+                                        if (currentRegion.Biome != "void")
+                                        {
+                                            PossibleLocations.Add((newX, newZ));
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (PossibleLocations.Count > 0)
+                            {
+                                var randomLocation = PossibleLocations[r.Next(PossibleLocations.Count)];
+                                u.WanderRegion = WorldMap[randomLocation.Item1 + randomLocation.Item2 * Width];
+                                TargetRegion = u.WanderRegion;
+                            }
+                        }
+
+                        if (TargetRegion != null)
+                        {
+                            u.TravelPoints += (int)Math.Round(Days * 864000);
+
+                            // Continue moving unit until target is reached or travel points exhausted
+                            (int DeltaX, int DeltaZ)[] EvenRowDirections = new (int, int)[]
+{
+    (-1, -1), // Northwest
+    (0, -1),  // Northeast
+    (-1, 0),  // West
+    (1, 0),   // East
+    (-1, 1),  // Southwest
+    (0, 1)    // Southeast
+};
+
+                            (int DeltaX, int DeltaZ)[] OddRowDirections = new (int, int)[]
+                            {
+    (0, -1),  // Northwest
+    (1, -1),  // Northeast
+    (-1, 0),  // West
+    (1, 0),   // East
+    (0, 1),   // Southwest
+    (1, 1)    // Southeast
+                            };
+
+                            // Continue moving unit until target is reached or travel points exhausted
+                            while (u.TravelPoints >= 48000)
+                            {
+                                u.Region.Units.Remove(u); // Remove from current region
+
+                                // Select the appropriate set of directions based on the current row
+                                var HexDirections = (u.Region.Z % 2 == 0) ? EvenRowDirections : OddRowDirections;
+
+                                // Calculate the best direction to move
+                                (int BestDeltaX, int BestDeltaZ) bestMove = (0, 0);
+                                int minDistance = int.MaxValue;
+
+                                foreach (var (DeltaX, DeltaZ) in HexDirections)
+                                {
+                                    // Calculate the next potential position
+                                    int nextX = u.Region.X + DeltaX;
+                                    int nextZ = u.Region.Z + DeltaZ;
+
+                                    // Ensure the move is within bounds
+                                    if (nextX >= 0 && nextX < Width && nextZ >= 0 && nextZ < Length)
+                                    {
+                                        // Calculate distance to the target
+                                        int distance = Math.Abs(TargetRegion.X - nextX) + Math.Abs(TargetRegion.Z - nextZ);
+
+                                        // Update the best move if this direction is closer
+                                        if (distance < minDistance)
+                                        {
+                                            minDistance = distance;
+                                            bestMove = (DeltaX, DeltaZ);
+                                        }
+                                    }
+                                }
+
+                                // Apply the best move
+                                int newX = u.Region.X + bestMove.BestDeltaX;
+                                int newZ = u.Region.Z + bestMove.BestDeltaZ;
+
+                                // Update the unit's region and deduct travel points
+                                u.Region = WorldMap[newX + newZ * Width];
+                                u.Region.Units.Add(u);
+                                u.TravelPoints -= 36000;
+
+                                // Check if the unit has reached the target
+                                if (u.Region.X == TargetRegion.X && u.Region.Z == TargetRegion.Z)
+                                {
+                                    // Handle arrival logic
+                                    foreach (Architect a in u.UnitArchitects)
+                                    {
+                                        if (a.NextMigrationLocation != null)
+                                        {
+                                            a.District = a.NextMigrationLocation.Districts[Game1.r.Next(a.NextMigrationLocation.Districts.Count())];
+                                            a.District.ArchitectsToAdd.Add(a);
+                                            a.Location = a.NextMigrationLocation;
+
+                                            if (new List<string> { "commune", "mound", "monastery", "outpost" }.Contains(a.NextMigrationLocation.Type) || CalamityStructures.Contains(a.NextMigrationLocation.Type))
+                                            {
+                                                if ((Game1.r.Next(3) == 1 || CalamityStructures.Contains(a.NextMigrationLocation.Type)) && !a.MigrationKitted)
+                                                {
+                                                    a.KitOutArchitect("warriorpower" + a.Level);
+                                                    a.MigrationKitted = true;
+                                                }
+
+                                                if (!a.OppositionTags.Contains("intruders") && !a.Bound)
+                                                {
+                                                    a.OppositionTags.Add("intruders");
+                                                }
+                                            }
+
+                                            a.NextMigrationLocation = null;
+                                            a.MigrationReason = "";
+                                            a.Unit = null;
+                                        }
+                                    }
+
+                                    if (u.TargetLocation != null)
+                                    {
+                                        u.Region.Units.Remove(u); // Remove unit upon arrival
+                                        UnitsToRemove.Add(u); // Mark for removal
+                                    }
+                                    u.TargetLocation = null;
+                                    u.WanderRegion = null;
+                                    u.TravelPoints = 0;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                // Remove units that have arrived at their target
+                foreach (Unit u in UnitsToRemove)
+                {
+                    AllUnits.Remove(u);
+                }
+
+
+                // Forget Dead Entities and Clean Up
+                List<Entity> combinedEntities = new List<Entity>();
+                combinedEntities.AddRange(AllHistoricalArchitects);
+                combinedEntities.AddRange(AllFactions);
+                combinedEntities.AddRange(AllLocations);
+                combinedEntities.AddRange(Groups);
+                combinedEntities.AddRange(Civilizations);
+
+                // Mark dead entities and remove incapacitated enemies
+                foreach (Entity e in combinedEntities)
+                {
+                    if (e.Incapacitated) continue;
+
+                    bool isDead = e switch
+                    {
+                        Architect architect => !architect.IsAlive || architect.Bound,
+                        Faction faction => !faction.SatelliteGroups.Any(g => g.Architects.Count > 0),
+                        Location location => location.TruePopulation() == 0,
+                        Group group => group.Architects.Count == 0,
+                        Association association => Game1.GameState != "ascendant",
+                        _ => false
+                    };
+
+                    if (isDead)
+                    {
+                        e.Incapacitated = true;
+                    }
+                }
+
+                // Clean up enemies across all entities
+                foreach (Entity e in combinedEntities)
+                {
+                    e.Enemies.RemoveWhere(enemy => enemy.Incapacitated);
+                }
+                HyperThreats.RemoveWhere(enemy => enemy.Incapacitated);
+
+                foreach(Location l in AllLocations)
+                {
+                    foreach (District d in l.Districts)
+                    {
+                        // Add and remove architects as needed
+                        d.Architects.AddRange(d.ArchitectsToAdd);
+                        d.Architects.RemoveAll(a => d.ArchitectsToRemove.Contains(a));
+                        d.ArchitectsToAdd.Clear();
+                        d.ArchitectsToRemove.Clear();
+
+                        // Ensure all architects are properly linked to their district and location
+                        foreach (Architect a in d.Architects)
+                        {
+                            a.District = d;
+                            a.Location = d.Location;
+                        }
+                    }
+                }
+
+                // Process units in world map cells
                 for (int x = 0; x < Game1.GameWorld.Width; x++)
                 {
                     for (int z = 0; z < Game1.GameWorld.Width; z++)
                     {
                         var cell = Game1.GameWorld.WorldMap[x + z * Game1.GameWorld.Width];
 
-                        // Filter events that will have no architects after removal of dead ones
-                        EntityList<InteractableEvent> filteredEvents = cell.Events.Where(e =>
+                        cell.Units = new EntityList<Unit>(cell.Units.Where(e =>
                         {
-                            e.GuaranteedArchitects.RemoveAll(a => !a.IsAlive);
-                            return e.GuaranteedArchitects.Count() > 0;
-                        });
-
-                        // Update cell events to only include those that still have architects
-                        cell.Events = filteredEvents;
+                            e.UnitArchitects.RemoveAll(a => !a.IsAlive);
+                            return e.UnitArchitects.Count > 0;
+                        }));
                     }
                 }
 
-
-
-                //clean up architect locations
-                for (int x = 0; x < Width; x++)
+                // Hold a council if conditions are met
+                if (Game1.r.Next(100) == 1 && Year > 50)
                 {
-                    for (int z = 0; z < Length; z++)
-                    {
-                        if (WorldMap[x + z * Width].Location != null)
+                    // Gather eligible architects for the council
+                    var attendees = new EntityList<Architect>(AllHistoricalArchitects.Where(architect =>
+                        !Calamity.Contains(architect) && architect.Reputation > -20 && architect.Profession switch
                         {
-                            foreach (District d in WorldMap[x + z * Width].Location.Districts)
-                            {
-                                foreach (Architect a in d.ArchitectsToAdd)
-                                {
-                                    d.Architects.Add(a);
-                                }
-                                foreach (Architect a in d.ArchitectsToRemove)
-                                {
-                                    d.Architects.Remove(a);
-                                }
-                                d.ArchitectsToAdd.Clear();
-                                d.ArchitectsToRemove.Clear();
-                            }
-                        }
-                    }
-                }
+                            "elder" => Game1.r.Next(100) < 10,
+                            "commander" => Game1.r.Next(100) < 5,
+                            "leader" => Game1.r.Next(100) < 10,
+                            "political figure" => Game1.r.Next(100) < 20,
+                            "archbard" or "archluminary" or "archartificer" or "archdruid" => Game1.r.Next(100) < 20,
+                            "captain" or "diplomat" => Game1.r.Next(100) < 60,
+                            "alpha" => Game1.r.Next(100) < 100,
+                            _ when architect.Profession.StartsWith("arch") => Game1.r.Next(100) < 30,
+                            _ => false
+                        }));
 
-                //polish off locations i hope
-
-                for (int x = 0; x < Width; x++)
-                {
-                    for (int z = 0; z < Length; z++)
+                    if (attendees.Count > 0)
                     {
-                        if (WorldMap[x + z * Width].Location != null)
-                        {
-                            foreach (District d in WorldMap[x + z * Width].Location.Districts)
-                            {
-                                foreach (Architect a in d.Architects)
-                                {
-                                    a.District = d;
-                                    a.Location = d.Location;
-                                }
-                            }
-                        }
+                        // Pick a random civilization and hold the council
+                        Civilization selectedCivilization = Civilizations[Game1.r.Next(Civilizations.Count)];
+                        Location councilLocation = selectedCivilization.Capitol;
+
+                        var sortedAttendees = attendees.OrderByDescending(a => a.Reputation).Take(Game1.r.Next(2, 5)).ToList();
+                        string organizers = FormatList(sortedAttendees.Select(a => a.Name).ToList());
+
+                        HistoricalEvents.Add(new Event(
+                            $"{Date} A council was held by the capital of {selectedCivilization.Name}, {councilLocation.Name}. The organizers were {organizers}.",
+                            councilLocation.Region,
+                            new EntityList<Entity> { selectedCivilization, councilLocation }.Union(attendees),
+                            "significant"
+                        ));
+
+                        // Find most common enemies across all entities
+                        var enemyCounts = combinedEntities
+                            .SelectMany(e => e.Enemies)
+                            .GroupBy(enemy => enemy)
+                            .ToDictionary(g => g.Key, g => g.Count());
+
+                        var mostCommonEnemies = new EntityList<Entity>(enemyCounts.OrderByDescending(kvp => kvp.Value)
+                            .Take(Game1.r.Next(2, 6))
+                            .Select(kvp => kvp.Key));
+
+                        string threats = FormatList(mostCommonEnemies.Select(e => e.Name).ToList());
+
+                        HistoricalEvents.Add(new Event(
+                            $"{Date} The topic of the council was to handle the threats of {threats}. All were declared grave threats that much attention should be paid.",
+                            councilLocation.Region,
+                            mostCommonEnemies,
+                            "significant"
+                        ));
+
+                        HyperThreats.AddRange(mostCommonEnemies);
+                        HyperThreats = HyperThreats.Distinct();
                     }
                 }
 
 
             }
 
-            if(IncreaseCycle)
+            if (IncreaseCycle)
             {
-                Cycle += Days * 864000;
+                Cycle += (double)Days * 864000;
             }
 
             LivingArchitects = CurrentlyCountingArchitects;
-            DeadArchitects = AllArchitects.Count() - LivingArchitects;
+            DeadArchitects = AllHistoricalArchitects.Count() - LivingArchitects;
         }
 
 
@@ -6980,7 +7417,7 @@ namespace Lightrealm
             // Identify regions with significant settlement concentrations and group them into clusters
             Dictionary<Region, int> settlementDensityMap = new Dictionary<Region, int>();
 
-            for (int i = 0; i < WorldMap.Count; i++)
+            for (int i = 0; i < WorldMap.Count(); i++)
             {
                 Region currentRegion = WorldMap[i];
                 if (currentRegion.Location != null && SettlementTypes.Contains(currentRegion.Location.Type))
@@ -7077,11 +7514,11 @@ namespace Lightrealm
             string GenerateName(int WordsToCombine, bool Caps)
             {
                 string word = string.Empty;
-                Random random = new Random();
+                
 
                 for (int i = 0; i < WordsToCombine; i++)
                 {
-                    word += Game1.Words[random.Next(Game1.Words.Count())];
+                    word += Game1.Words[Game1.r.Next(Game1.Words.Count())];
                 }
 
                 if (Caps)
@@ -7165,16 +7602,18 @@ namespace Lightrealm
 
             while (SubjectCatalogue.ContainsKey(generatedName))
             {
-                string firstName = Game1.FirstNames[Game1.r.Next(Game1.FirstNames.Count())] + Game1.NameSuffixes[Game1.r.Next(Game1.NameSuffixes.Count())];
-                string lastName = ((Game1.LastNames[Game1.r.Next(Game1.LastNames.Count())]).Substring(0, 1)).ToUpper() + (Game1.LastNames[Game1.r.Next(Game1.LastNames.Count())]).Substring(1).ToLower();
-                //OK so this system litterally takes a last name from the list, and then takes a random letter from a random last name and replaces the first letter. Its not supposed to do that, BUT IT WORKS SO WELL WHAT
+                string firstName = String.Concat(Game1.FirstNames[Game1.r.Next(Game1.FirstNames.Count())], Game1.NameSuffixes[Game1.r.Next(Game1.NameSuffixes.Count())]);
+                string lastName = String.Concat((Game1.LastNames[Game1.r.Next(Game1.LastNames.Count())]).Substring(0, 1).ToUpper(),
+                                                 (Game1.LastNames[Game1.r.Next(Game1.LastNames.Count())]).Substring(1).ToLower());
+                //OK so this system literally takes a last name from the list, and then takes a random letter from a random last name and replaces the first letter. It's not supposed to do that, BUT IT WORKS SO WELL WHAT
 
-                generatedName = $"{firstName} {lastName}";
+                generatedName = String.Concat(firstName, " ", lastName);
             }
 
             SubjectCatalogue.Add(generatedName, e);
             return generatedName;
         }
+
 
         public static string GenerateItemRarity(int level)
         {

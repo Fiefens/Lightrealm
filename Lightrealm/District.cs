@@ -37,6 +37,8 @@ namespace Lightrealm
 
         public int UnplacedPopulation { get; set; }
 
+        public int MaxPopulation { get; set; }
+
         public EntityHashSet<Architect> Architects { get; set; } = new EntityHashSet<Architect>();
 
         public EntityHashSet<Architect> ArchitectsToRemove { get; set; } = new EntityHashSet<Architect>();
@@ -470,7 +472,7 @@ namespace Lightrealm
                     case "dye":
                         if (Game1.r.Next(0, 2) == 0)
                         {
-                            string DyeColor = Game1.GetFamilyColors(Location.HomeCivilization.Color)[Game1.r.Next(3)];
+                            string DyeColor = Game1.GetFamilyColors(Location.HomeCivilization.EntityColor)[Game1.r.Next(3)];
                             List<string> materials = new List<string> { Game1.GameWorld.Glass.Name };
                             string contained = $"dye,1,{Game1.GameWorld.MaterialsFromColors[DyeColor][Game1.r.Next(3)].Name}";
                             AddOrUpdateItem("bottle", materials, 1, contained);
@@ -744,37 +746,40 @@ namespace Lightrealm
 
             EntityList<Structure> allDistrictStructures = new EntityList<Structure>();
 
-            for (int x = 0; x < 7; x++)
+            if(this.Location.AllStructures.Count > 0)
             {
-                for (int z = 0; z < 7; z++)
+                for (int x = 0; x < 7; x++)
                 {
-                    allDistrictStructures.AddRange(DistrictMap[x + z * 7].Structures);
+                    for (int z = 0; z < 7; z++)
+                    {
+                        allDistrictStructures.AddRange(DistrictMap[x + z * 7].Structures);
 
-                    int Decider = Game1.r.Next(1, 4);
+                        int Decider = Game1.r.Next(1, 4);
 
-                    if (Decider == 1)
-                        DistrictMap[x + z * 7].SocializationTopic = this.Location.AllStructures[Game1.r.Next(this.Location.AllStructures.Count)];
-                    else if (Decider == 2 && this.Architects.Count > 0)
-                        DistrictMap[x + z * 7].SocializationTopic = this.Architects.GetRandomItem();
-                    else
-                        DistrictMap[x + z * 7].SocializationTopic = this.Location.GroupsAtThisLocation.Count > 0 ? (this.Location.GroupsAtThisLocation[Game1.r.Next(this.Location.GroupsAtThisLocation.Count)]) : (this.Location.Government != null ? this.Location.Government : this.Location);
+                        if (Decider == 1)
+                            DistrictMap[x + z * 7].SocializationTopic = this.Location.AllStructures[Game1.r.Next(this.Location.AllStructures.Count)];
+                        else if (Decider == 2 && this.Architects.Count > 0)
+                            DistrictMap[x + z * 7].SocializationTopic = this.Architects.GetRandomItem();
+                        else
+                            DistrictMap[x + z * 7].SocializationTopic = this.Location.GroupsAtThisLocation.Count > 0 ? (this.Location.GroupsAtThisLocation[Game1.r.Next(this.Location.GroupsAtThisLocation.Count)]) : (this.Location.Government != null ? this.Location.Government : this.Location);
 
 
-                    Decider = Game1.r.Next(1, 7);
+                        Decider = Game1.r.Next(1, 7);
 
-                    if (Decider == 1)
-                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllArchitects[Game1.r.Next(Game1.GameWorld.AllArchitects.Count)];
-                    else if (Decider == 2)
-                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllLocations[Game1.r.Next(Game1.GameWorld.AllLocations.Count)];
-                    else if (Decider == 3)
-                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllSpells[Game1.r.Next(Game1.GameWorld.AllSpells.Count)];
-                    else if (Decider == 4)
-                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllFactions[Game1.r.Next(Game1.GameWorld.AllFactions.Count)];
-                    else if (Decider == 5)
-                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.Groups[Game1.r.Next(Game1.GameWorld.Groups.Count)];
-                    else
-                        DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)];
+                        if (Decider == 1)
+                            DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllHistoricalArchitects.GetRandomItem();
+                        else if (Decider == 2 && Game1.GameWorld.AllLocations.Count > 0)
+                            DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllLocations[Game1.r.Next(Game1.GameWorld.AllLocations.Count)];
+                        else if (Decider == 3 && Game1.GameWorld.AllSpells.Count > 0)
+                            DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllSpells[Game1.r.Next(Game1.GameWorld.AllSpells.Count)];
+                        else if (Decider == 4 && Game1.GameWorld.AllFactions.Count > 0)
+                            DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.AllFactions[Game1.r.Next(Game1.GameWorld.AllFactions.Count)];
+                        else if (Decider == 5 && Game1.GameWorld.Groups.Count > 0)
+                            DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.Groups[Game1.r.Next(Game1.GameWorld.Groups.Count)];
+                        else
+                            DistrictMap[x + z * 7].DiscussionTopic = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count)];
 
+                    }
                 }
             }
 
@@ -851,7 +856,7 @@ namespace Lightrealm
                     int shibas = Game1.r.Next(4, 8);
                     for (int i = 0; i < shibas; i++)
                     {
-                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Game1.GameWorld.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new EntityList<Object>(), Location, this, Location.Market.Block, "", 4);
+                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], Game1.GameWorld.GetRace("debtshiba"), Game1.r.Next(9999999), "debtshiba", new EntityList<Object>(), Location, this, Location.Market.Block, "", 4, false);
                         a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                         a.HomeStructure = Location.Market;
                         a.Block = Location.Market.Block;
@@ -945,7 +950,7 @@ namespace Lightrealm
                     }
                 }
 
-                Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new EntityList<Object>(), Location, this, null, destiny, 1);
+                Architect a = new Architect("", sex, race, Game1.r.Next(14, 90), role, new EntityList<Object>(), Location, this, null, destiny, 1, false);
                 a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                 allArchitects.Add(a);
             }
@@ -1046,7 +1051,7 @@ namespace Lightrealm
                             ? Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count())]
                             : Location.GuardianType;
 
-                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], race, 10, "construct", new EntityList<Object>(), Location, this, b, "", 5);
+                        Architect a = new Architect("", Game1.Sexes[Game1.r.Next(2)], race, 10, "construct", new EntityList<Object>(), Location, this, b, "", 5, false);
                         a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(Game1.r.Next(3, 7)));
                         a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                         a.Room = structureInSameDistrict.Rooms[Game1.r.Next(structureInSameDistrict.Rooms.Count())];
@@ -1074,7 +1079,7 @@ namespace Lightrealm
                     : GetRandomRoom(allDistrictStructures);
 
                 targetRoom.Objects.Add(item);
-                item.UpdateNames();
+                item.UpdateNames(false);
             }
 
 
@@ -1131,7 +1136,7 @@ namespace Lightrealm
 
             foreach (Architect a in Game1.LoadedArchitects)
             {
-                if (a.Profession == "sovereign" || a.Profession == "heart")
+                if ((a.Profession == "sovereign" || a.Profession == "heart") && !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                 {
                     a.Task = "sentinel";
                     a.CyclesLeftInTask = 99999;
@@ -1341,7 +1346,7 @@ namespace Lightrealm
             {
                 if (AllArchitectsDeadOrInParty)
                 {
-                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.Region.Events.Remove(Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent);
+                    Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent.Region.Units.Remove(Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent);
                 }
                 Game1.GameWorld.GamePlayerAssociation.ActiveParty.CurrentEvent = null;
             }

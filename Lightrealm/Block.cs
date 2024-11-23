@@ -17,6 +17,7 @@ namespace Lightrealm
         public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
         public EntityList<Object> Objects { get; set; } = new EntityList<Object>();
         public EntityList<Object> ObjectsToRemove { get; set; } = new EntityList<Object>();
+        public EntityList<Object> ObjectsToAdd { get; set; } = new EntityList<Object>();
 
 
         public EntityList<Architect> BuriedArchitects { get; set; } = new EntityList<Architect>();
@@ -81,6 +82,7 @@ namespace Lightrealm
         {
             (Region, Location, District, Block, Room) DeterminedLocation = (null, null, null, null, null);
 
+            // Function to calculate the distance between blocks
             int CalculateDistance(Block block1, Block block2)
             {
                 int Distance = 0;
@@ -101,85 +103,65 @@ namespace Lightrealm
                 return Distance;
             }
 
+            // Minimum distance tracker
             int minDistance = int.MaxValue;
 
-            foreach (Region r in Game1.GameWorld.WorldMap)
+            // Helper function to search within a specific district
+            void SearchDistrict(District district)
             {
-                if (r.Location != null)
+                foreach (Block block in district.DistrictMap)
                 {
-                    foreach (District district in r.Location.Districts)
+                    // Match specific "thing"
+                    if (thing == "well" && block.HasWell())
                     {
-                        foreach (Block block in district.DistrictMap)
+                        int distance = CalculateDistance(this, block);
+                        if (distance < minDistance)
                         {
-                            if (thing == "well" && block.HasWell())
+                            minDistance = distance;
+                            DeterminedLocation = (district.Location.Region, district.Location, district, block, null);
+                        }
+                    }
+                    else if (thing == "structure")
+                    {
+                        foreach (Structure s in block.Structures)
+                        {
+                            int distance = CalculateDistance(this, block);
+                            if (distance < minDistance)
+                            {
+                                if (s.Block.District.IsLoaded)
+                                {
+                                    Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                                    minDistance = distance;
+                                    DeterminedLocation = (district.Location.Region, district.Location, district, block, randomRoom);
+                                }
+                                else
+                                {
+                                    minDistance = distance;
+                                    DeterminedLocation = (district.Location.Region, district.Location, district, block, null);
+                                }
+                            }
+                        }
+                    }
+                    else if (Game1.BaseStructureTypes.Contains(thing))
+                    {
+                        foreach (Structure s in block.Structures)
+                        {
+                            if (s.Type == thing)
                             {
                                 int distance = CalculateDistance(this, block);
                                 if (distance < minDistance)
                                 {
-                                    minDistance = distance;
-                                    DeterminedLocation = (r, r.Location, district, block, null);
-                                }
-                            }
-                            else if (thing == "structure")
-                            {
-                                foreach (Structure s in block.Structures)
-                                {
-                                    int distance = CalculateDistance(this, block);
-                                    if (distance < minDistance)
+                                    if (s.Block.District.IsLoaded)
                                     {
-                                        if (s.Block.District.IsLoaded)
-                                        {
-                                            minDistance = distance;
-                                            Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                            DeterminedLocation = (r, r.Location, district, block, randomRoom);
-                                        }
-                                        else
-                                        {
-                                            minDistance = distance;
-                                            DeterminedLocation = (r, r.Location, district, block, null);
-                                        }
+                                        Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                                        minDistance = distance;
+                                        DeterminedLocation = (district.Location.Region, district.Location, district, block, randomRoom);
                                     }
-                                }
-                            }
-                            else if (Game1.StructureTypes.Contains(thing))
-                            {
-                                foreach (Structure s in block.Structures)
-                                {
-                                    if (s.Type == thing)
+                                    else
                                     {
-                                        int distance = CalculateDistance(this, block);
-                                        if (distance < minDistance)
-                                        {
-                                            if (s.Block.District.IsLoaded)
-                                            {
-                                                minDistance = distance;
-                                                Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
-                                                DeterminedLocation = (r, r.Location, district, block, randomRoom);
-                                            }
-                                            else
-                                            {
-                                                minDistance = distance;
-                                                DeterminedLocation = (r, r.Location, district, block, null);
-                                            }
-                                        }
+                                        minDistance = distance;
+                                        DeterminedLocation = (district.Location.Region, district.Location, district, block, null);
                                     }
-                                }
-                            }
-                            else if (Game1.GameWorld.SubjectCatalogue.ContainsKey(thing))
-                            {
-                                // Handle finding Object, Architect, or Group from SubjectCatalogue if necessary
-                                var subject = Game1.GameWorld.SubjectCatalogue[thing];
-                                if (subject is Object obj)
-                                {
-                                    // Handle object-specific logic
-                                }
-                                else if (subject is Architect architect)
-                                {
-                                    // Handle architect-specific logic
-                                }
-                                else if (subject is Group group)
-                                {
-                                    // Handle group-specific logic
                                 }
                             }
                         }
@@ -187,8 +169,39 @@ namespace Lightrealm
                 }
             }
 
+            // Step 1: Search within the current district
+            if (this.District != null)
+            {
+                SearchDistrict(this.District);
+            }
+
+            // Step 2: Search other districts in the same location
+            if (this.District?.Location != null)
+            {
+                foreach (District otherDistrict in this.District.Location.Districts)
+                {
+                    if (otherDistrict != this.District)
+                    {
+                        SearchDistrict(otherDistrict);
+                    }
+                }
+            }
+
+            // Step 3: Search other locations across the world
+            foreach (Region region in Game1.GameWorld.WorldMap)
+            {
+                if (region.Location != null && region.Location != this.District?.Location)
+                {
+                    foreach (District district in region.Location.Districts)
+                    {
+                        SearchDistrict(district);
+                    }
+                }
+            }
+
             return DeterminedLocation;
         }
+
 
         public (Region, Location, District, Block, Room) FindRandomThingInCurrentDistrict(string thing)
         {
@@ -220,7 +233,7 @@ namespace Lightrealm
                         }
                     }
                 }
-                else if (Game1.StructureTypes.Contains(thing))
+                else if (Game1.BaseStructureTypes.Contains(thing))
                 {
                     foreach (Structure s in block.Structures)
                     {

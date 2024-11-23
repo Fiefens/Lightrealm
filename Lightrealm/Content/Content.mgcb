@@ -73,7 +73,7 @@
 /processorParam:TextureFormat=Color
 /build:character art/cape.png
 
-#begin character art/chestplate.png
+#begin character art/chestplate female.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -83,7 +83,31 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:character art/chestplate.png
+/build:character art/chestplate female.png
+
+#begin character art/chestplate male.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/chestplate male.png
+
+#begin character art/cnidriarch.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/cnidriarch.png
 
 #begin character art/diminished_black.png
 /importer:TextureImporter
@@ -156,6 +180,42 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:character art/hood.png
+
+#begin character art/hypernexus.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/hypernexus.png
+
+#begin character art/icosidodecahedron.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/icosidodecahedron.png
+
+#begin character art/isofractal.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/isofractal.png
 
 #begin character art/kilt.png
 /importer:TextureImporter
@@ -349,6 +409,30 @@
 /processorParam:TextureFormat=Color
 /build:character art/pants.png
 
+#begin character art/photonexus.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/photonexus.png
+
+#begin character art/quetzal.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/quetzal.png
+
 #begin character art/right boot.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -432,6 +516,54 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:character art/robe male.png
+
+#begin character art/serpent.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/serpent.png
+
+#begin character art/shade.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/shade.png
+
+#begin character art/shadeheart.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/shadeheart.png
+
+#begin character art/shobe.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/shobe.png
 
 #begin character art/shorts.png
 /importer:TextureImporter
@@ -672,6 +804,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:character art/wraps.png
+
+#begin character art/wyrm.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:character art/wyrm.png
 
 #begin distmap/architecthere.png
 /importer:TextureImporter
@@ -1153,6 +1297,18 @@
 /processorParam:TextureFormat=Color
 /build:gui/bodypartpullup.png
 
+#begin gui/button.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:gui/button.png
+
 #begin gui/cmdhelp.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -1165,6 +1321,18 @@
 /processorParam:TextureFormat=Color
 /build:gui/cmdhelp.png
 
+#begin gui/commandpullup.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:gui/commandpullup.png
+
 #begin gui/frame.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -1176,6 +1344,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:gui/frame.png
+
+#begin gui/gamestateswitcher.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:gui/gamestateswitcher.png
 
 #begin gui/gettingstarted.png
 /importer:TextureImporter
@@ -1201,7 +1381,7 @@
 /processorParam:TextureFormat=Color
 /build:gui/gui.png
 
-#begin gui/helpgui.png
+#begin gui/instructuregui.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -1211,7 +1391,7 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:gui/helpgui.png
+/build:gui/instructuregui.png
 
 #begin gui/inventory gui.png
 /importer:TextureImporter
@@ -1896,6 +2076,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:other/quitgui.png
+
+#begin other/title screen.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:other/title screen.png
 
 #begin other/title.png
 /importer:TextureImporter

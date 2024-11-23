@@ -380,13 +380,12 @@ namespace Lightrealm
             }
         }
 
-
         public EntityList<T> Where(Func<T, bool> predicate)
         {
             var filteredEntityList = new EntityList<T>();
             foreach (var id in _entityIds)
             {
-                var entity = EntityGet<T>(id);
+                T entity = EntityGet<T>(id);
                 if (predicate(entity))
                 {
                     filteredEntityList.Add(entity);

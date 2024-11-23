@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -106,7 +107,7 @@ namespace Lightrealm
                 return;
 
             // Select an architect from the World based on the criteria
-            var validArchitects = world.AllArchitects.Where(arch =>
+            var validArchitects = world.AllHistoricalArchitects.Where(arch =>
                 arch.HomeLocation != null &&  // The architect has a home location
                 world.SettlementTypes.Contains(arch.HomeLocation.Type) &&  // The home location is a settlement
                 arch.HomeLocation.Region?.Realm == this.Leader.Location.Region.Realm &&  // The architect is in the same Realm as the leader
@@ -162,6 +163,9 @@ namespace Lightrealm
 
         public Group(EntityList<Architect> architects, string type, Architect leader, Location Basee)
         {
+            if(Game1.GameWorld != null)
+                Game1.GameWorld.LegacyGroups.Add(this);
+
             Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(3, 6)) + "s", this);
             Architects = architects;
             Type = type;

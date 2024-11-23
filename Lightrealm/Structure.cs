@@ -37,6 +37,8 @@ namespace Lightrealm
         public int Windows { get; set; }
         public int ConstructionYear { get; set; } = 0;
 
+        public int DoorIntegrity { get; set; } = 100;
+
         public int Age
         {
             get
@@ -120,6 +122,11 @@ namespace Lightrealm
                 }
             }
 
+            if(!Game1.GameWorld.StructureTypes.Any(e => e.Name == Type))
+            {
+                Game1.GameWorld.StructureTypes.Add(new Entity(Type));
+            }
+
             Materials = materials;
             LightLevelOf5 = lightLevelOf5;
             LightingMethods = lightingMethods;
@@ -130,6 +137,7 @@ namespace Lightrealm
             if (Type == "house" || Type == "bighouse")
             {
                 int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "bighouse");
+                Block.District.MaxPopulation += Game1.GameWorld.HousingValue;
 
                 AddReferredToName("house " + (count + 1).ToString());
             }

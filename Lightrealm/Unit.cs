@@ -1,210 +1,197 @@
-﻿using System;
+﻿using Lightrealm;
+using Microsoft.Xna.Framework.Input;
+using nFMOD;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Lightrealm
 {
     [Serializable]
-    public class Unit : Group
+    public class Unit : Entity
     {
-        public int OtherSoldiers { get; set; }
+        private int _regionId;
 
-        private int _homeLocationId;
-        public Location HomeLocation
+        public Region Region
         {
-            get => EntityGet<Location>(_homeLocationId);
-            set => _homeLocationId = value?.ID ?? 0;
+            get => EntityGet<Region>(_regionId);
+            set => _regionId = value?.ID ?? 0;
         }
 
-        public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
+        public string Type { get; set; }
 
-        public Unit(Architect leader, EntityList<Architect> architects, int otherSoldiers, Location homeLocation)
+        public Location TargetLocation = null;
+        public Region WanderRegion = null;
+
+        public int TravelPoints = 0;
+
+        public string Info { get; set; }
+        public string Intrigue { get; set; }
+
+        public EntityList<Architect> UnitArchitects { get; set; } = new EntityList<Architect>();
+
+        public int Luminosity { get; set; } = 0;
+
+        public Unit(Region region, string type, EntityList<Architect> Architects, Location targetLocation = null)
         {
-            Leader = leader;
-            Architects = architects;
-            OtherSoldiers = otherSoldiers;
-            HomeLocation = homeLocation;
+            Region = region;
+            Name = Game1.GameWorld.GenerateUniqueName("1S9s", this);
+            Type = type;
 
-            foreach(Architect a in architects)
+            foreach(Architect a in Architects)
             {
                 a.Unit = this;
             }
 
-            Name = Game1.GameWorld.GenerateUniqueName("1W1w", this);
+            TargetLocation = targetLocation;
+
+            UnitArchitects = Architects;
+
+            Dictionary<string, List<string>> BiomeToIntrigue = new Dictionary<string, List<string>>
+                            {
+                                {"desert", new List<string>
+                                    {
+                                        "Shifting shadows catch your eye in the distance.",
+                                        "Faint noises carry on the desert wind.",
+                                        "An unseen presence appears across the dunes.",
+                                        "Someone is following you, or could be heading the same way?",
+                                        "You see something over a nearby hill."
+                                    }
+                                },
+                                {"forest", new List<string>
+                                    {
+                                        "Something is stirring among the trees.",
+                                        "Something is passing through the depths of the foliage.",
+                                        "A rustle in the leaves hints at an unknown presence.",
+                                        "You see something beyond the treeline.",
+                                        "Something moves beyond the forest."
+                                    }
+                                },
+                                {"lightforest", new List<string>
+                                    {
+                                        "Something is stirring among the trees.",
+                                        "Something is passing through the depths of the foliage.",
+                                        "A rustle in the leaves hints at an unknown presence.",
+                                        "You see something beyond the treeline.",
+                                        "Something moves beyond the forest."
+                                    }
+                                },
+                                {"mountain", new List<string>
+                                    {
+                                        "Echoes of distant footsteps reverberate through the peaks.",
+                                        "Silhouettes move along the mountainous horizon.",
+                                        "You hear echoes over a nearby hill.",
+                                        "You see the sun reflect off something nearby.",
+                                        "You spy something from the craggy heights."
+                                    }
+                                },
+                                {"plains", new List<string>
+                                    {
+                                        "The vast fields seem alive with hidden stirrings.",
+                                        "Whispers of something unseen ride on the gentle breeze.",
+                                        "A distant call echoes across the serene landscape.",
+                                        "Something can be seen from afar.",
+                                        "The horizon beckons, promising secrets yet unveiled."
+                                    }
+                                },
+                                {"snowpeak", new List<string>
+                                    {
+                                        "Shadows dance in the snow-capped peaks.",
+                                        "You see footprints. You might be able to follow them.",
+                                        "Unnatural noises echo through the frozen silence.",
+                                        "The icy heights conceal something from afar.",
+                                        "The wind whispers with noise of activity from afar."
+                                    }
+                                },
+                                {"taiga", new List<string>
+                                    {
+                                        "The piney air whispers of hidden creatures.",
+                                        "Tracks lead into the depths of the mysterious forest.",
+                                        "Distant calls hint at the unknown.",
+                                        "The taiga conceals potential friend or foe.",
+                                        "Something is behind you, breathing from the depths of the trees."
+                                    }
+                                },
+                                {"tundra", new List<string>
+                                    {
+                                        "The frozen winds carry tales of unseen travelers.",
+                                        "Footprints in the snow reveal a silent presence.",
+                                        "The icy plains seem to conceal elusive figures.",
+                                        "The silence of the tundra is broken by something distant.",
+                                        "Something ahead breaks the flatness of the frozen landscape."
+                                    }
+                                },
+                                {"ocean", new List<string>
+                                    {
+                                        "A dark ship looms on the horizon, its sails full despite the still air.",
+                                        "The sound of creaking wood and flapping sails suggests you're not alone on these waters.",
+                                        "A shadowy vessel cuts through the waves, heading in your direction.",
+                                        "Distant noises echo across the open sea, sending a chill down your spine.",
+                                        "A flag is spotted in the distance, drawing closer with each passing moment."
+                                    }
+                                },
+                                {"ethereal", new List<string>
+                                    {
+                                        "Something is hiding in this disaster of unparalleled proportions."
+                                    }
+                                }
+                            };
+
+            switch (Type)
+            {
+                case "bandits":
+                    Info = new List<string>() { "You happen upon a group of bandits.", "You spot a gang of bandits approaching the area.", "You hear some mumbling, and sight an outlaw gang traveling through the area." }[Game1.r.Next(0, 3)];
+                    break;
+                case "shadebeast":
+                    Info = new List<string>() { "A corrupted hulk of rotting matter stands shaking before you. It hasn't seen you yet.", "As the sun sets, you spy a foul beast in the night, unaware of your arrival.", "Ahead of you stands a dark corrupted beast, oblivious to your presence." }[Game1.r.Next(0, 3)];
+                    // Code for shadebeast
+                    break;
+                case "construct":
+                    Info = new List<string>() { "Some sort of powerful mechanical creature stands before you. It seems to be guarding something.", "Some magical, powerful, mysterious construct marches through the area. It seems to have some kind of task.", "Before you is a mysterious construct, silently watching over its domain. It looks incredibly powerful." }[Game1.r.Next(0, 3)];
+                    // Code for construct
+                    break;
+                case "wildcreatures":
+                    Info = new List<string>() { "You hear some creatures rustling in the bushes.", "You hear a distant noise, sounds like some of the local fauna.", "You hear some kind of wild noise from afar." }[Game1.r.Next(0, 3)];
+                    // Code for wildcreatures
+                    break;
+                case "traders":
+                    Info = new List<string>() { "You see some traders, traveling a lesser travelled road to somewhere unknown. Could have useful items to purchase, or otherwise...", "Some sort of merchant, or maybe multiple for all you know, is headed " + Door.OrthogonalDoorDirections[Game1.r.Next(4)] + ".", "A group of traders emerges from an unfamiliar route, their purpose unclear." }[Game1.r.Next(0, 3)];
+                    // Code for traders
+                    break;
+                case "vagabond":
+                    Info = new List<string>() { "A lonely traveler seems to be headed somewhere. Perhaps they can help you somehow.", "A vagabond walks alone, their intentions unknown to you.", "Before you is a solitary wanderer. They at least appears harmless..." }[Game1.r.Next(0, 3)];
+                    // Code for vagabond
+                    break;
+                case "adventurer":
+                    Info = new List<string>() { "You cross paths with someone who appears equipped for adventure.", "A well prepared traveler stands before you, flaunting their satchel. Could be useful.", "You see a traveler who appears to be well equipped for adventure." }[Game1.r.Next(0, 3)];
+                    // Code for adventurer
+                    break;
+                case "shiba":
+                    Info = new List<string>() { "A fluffy, four legged creature is wandering the area. Perhaps you can attach it to your face.", "A beautiful creature wanders this area, searching for someone's face to meld with.", "You see both a lovely creature and a lovely piece of headwear." }[Game1.r.Next(0, 3)];
+                    // Code for adventurer
+                    break;
+                case "priest":
+                    Info = new List<string>() { "A lone traveler in religious clothing appears. They appear to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.r.Next(0, 3)];
+                    break;
+                // Code for priest
+                case "colossal":
+                    Info = new List<string>() { "You had only heard of the legendary " + UnitArchitects[0].Race.Name + " " + UnitArchitects[0].Name + ", but it stands before you now...", "That, that is a big " + UnitArchitects[0].Race.Name + "... you've heard of " + UnitArchitects[0].Name + " before, but seeing it is different. It hasn't spotted you yet.", }[Game1.r.Next(0, 2)];
+                    break;
+                default:
+                    Info = "An unknown traveler stands before you. Their purpose is unclear.";
+                    break;
+            }
+
+            Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(BiomeToIntrigue[region.Biome].Count())];
         }
 
         public Unit()
         {
 
         }
-
-        public int CombatStrength()
-        {
-            int architectStrength = Architects.Sum(architect => architect.Strength);
-            int otherSoldierStrength = OtherSoldiers * 3;
-            return architectStrength + otherSoldierStrength;
-        }
-
-        public List<string> Fight(Unit u, Region r)
-        {
-            var results = new List<string>();
-
-            // Detail the two fighting units in a single narrative sentence
-            results.Add($"{this.Name}, the {this.Style.ToLower()} squad led by {this.Leader.Name} with {this.Architects.Count() + this.OtherSoldiers} soldiers, fought {u.Name}, {u.Leader.Name}'s {u.Style.ToLower()} squad of {u.Architects.Count() + u.OtherSoldiers} soldiers.");
-
-            // Define biome advantages and disadvantages
-            var biomeAdvantages = new Dictionary<string, string>
-    {
-        { "aggressive", "plains" },
-        { "defensive", "mountain" },
-        { "balanced", "tundra" },
-        { "deceptive", "taiga" },
-        { "evasive", "forest" }
-    };
-
-            var biomeDisadvantages = new Dictionary<string, string>
-    {
-        { "aggressive", "forest" },
-        { "defensive", "desert" },
-        { "balanced", "ocean" },
-        { "deceptive", "lightforest" },
-        { "evasive", "snowpeak" }
-    };
-
-            // Determine combat strengths
-            int thisStrength = this.CombatStrength();
-            int opponentStrength = u.CombatStrength();
-
-            // Modify strength based on biome for this unit
-            if (biomeAdvantages[this.Style] == r.Biome)
-            {
-                thisStrength += 10;
-            }
-            else if (biomeDisadvantages[this.Style] == r.Biome)
-            {
-                thisStrength -= 10;
-            }
-
-            // Modify strength based on biome for opponent unit
-            if (biomeAdvantages[u.Style] == r.Biome)
-            {
-                opponentStrength += 10;
-            }
-            else if (biomeDisadvantages[u.Style] == r.Biome)
-            {
-                opponentStrength -= 10;
-            }
-
-            // Adjust strength based on fighting style advantage
-            if (this.Style == "Aggressive" && u.Style == "Defensive" ||
-                this.Style == "Defensive" && u.Style == "Balanced" ||
-                this.Style == "Balanced" && u.Style == "Deceptive" ||
-                this.Style == "Deceptive" && u.Style == "Evasive" ||
-                this.Style == "Evasive" && u.Style == "Aggressive")
-            {
-                thisStrength += 5;
-            }
-            else if (u.Style == "Aggressive" && this.Style == "Defensive" ||
-                     u.Style == "Defensive" && this.Style == "Balanced" ||
-                     u.Style == "Balanced" && this.Style == "Deceptive" ||
-                     u.Style == "Deceptive" && this.Style == "Evasive" ||
-                     u.Style == "Evasive" && this.Style == "Aggressive")
-            {
-                opponentStrength += 5;
-            }
-
-            // Determine the outcome and losses in a single narrative sentence
-            if (thisStrength > opponentStrength)
-            {
-                results.Add($"{this.Name} won the fight with a historically calculated advantage of {thisStrength - opponentStrength}. {this.Name} achieved a {DetermineVictoryType(thisStrength, opponentStrength)}, while {u.Name} suffered a {DetermineLossType(thisStrength, opponentStrength)}.");
-                CalculateLosses(opponentStrength, thisStrength, u, results);
-            }
-            else if (thisStrength < opponentStrength)
-            {
-                results.Add($"{u.Name} won the fight with a historically calculated advantage of {opponentStrength - thisStrength}. {u.Name} achieved a {DetermineVictoryType(opponentStrength, thisStrength)}, while {this.Name} suffered a {DetermineLossType(opponentStrength, thisStrength)}.");
-                CalculateLosses(thisStrength, opponentStrength, this, results);
-            }
-            else
-            {
-                results.Add("The fight ended in a draw, with both sides incurring heavy losses but unable to secure a clear victory.");
-                CalculateLosses(thisStrength, opponentStrength, this, results);
-                CalculateLosses(opponentStrength, thisStrength, u, results);
-            }
-
-            return results;
-        }
-
-        private string DetermineVictoryType(int winnerStrength, int loserStrength)
-        {
-            int strengthDifference = winnerStrength - loserStrength;
-
-            if (strengthDifference > 20)
-            {
-                return "major victory";
-            }
-            else if (strengthDifference > 10)
-            {
-                return "minor victory";
-            }
-            else if (strengthDifference > 5)
-            {
-                return "relative draw with a slight edge";
-            }
-            else if (strengthDifference > 0)
-            {
-                return "minor loss but fought valiantly";
-            }
-            else
-            {
-                return "major loss and was heavily outmatched";
-            }
-        }
-
-        private string DetermineLossType(int winnerStrength, int loserStrength)
-        {
-            int strengthDifference = loserStrength - winnerStrength;
-
-            if (strengthDifference > 20)
-            {
-                return "major loss and was heavily outmatched";
-            }
-            else if (strengthDifference > 10)
-            {
-                return "minor loss";
-            }
-            else if (strengthDifference > 5)
-            {
-                return "relative draw with a slight edge";
-            }
-            else if (strengthDifference > 0)
-            {
-                return "minor victory but struggled";
-            }
-            else
-            {
-                return "major victory";
-            }
-        }
-
-        private void CalculateLosses(int loserStrength, int winnerStrength, Unit loser, List<string> results)
-        {
-            int strengthDifference = winnerStrength - loserStrength;
-            int architectLosses = Math.Min(strengthDifference / 10, loser.Architects.Count());
-            int soldierLosses = Math.Min((strengthDifference - (architectLosses * 10)) / 3, loser.OtherSoldiers);
-
-            if (architectLosses > 0)
-            {
-                loser.Architects.RemoveRange(0, architectLosses);
-            }
-
-            if (soldierLosses > 0)
-            {
-                loser.OtherSoldiers -= soldierLosses;
-            }
-        }
-
     }
 }

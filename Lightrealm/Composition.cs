@@ -34,7 +34,7 @@ namespace Lightrealm
             }
             else if (Subject is Object o)
             {
-                o.UpdateNames();
+                o.UpdateNames(false);
             }
 
             if(Subject.Name != null)
@@ -241,7 +241,7 @@ namespace Lightrealm
             var random = new Random();
             EntityList<Entity> subjects = new EntityList<Entity>();
 
-            subjects.AddRange(Game1.GameWorld.AllArchitects);
+            subjects.AddRange(Game1.GameWorld.AllHistoricalArchitects);
             subjects.AddRange(Game1.GameWorld.AllLocations);
             subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures));
             subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
@@ -251,26 +251,34 @@ namespace Lightrealm
 
         private List<string> GetEventsForSubject(Entity subject)
         {
-            string subjectName = subject.Name != null ? subject.Name : subject.ReferredToNames[0];
+            // Use a null-coalescing operator to handle null values for subject.Name
+            string subjectName = subject.Name ?? subject.ReferredToNames.FirstOrDefault();
 
-            IEnumerable<string> events = Game1.GameWorld.HistoricalEvents
-                .Where(e => e.EventData.Contains(subjectName))
+            // Use LINQ with minimal operations to extract relevant event details
+            var events = Game1.GameWorld.HistoricalEvents
+                .Where(e => e.EventData.Contains(subjectName)) // Filter by subjectName
                 .Select(e =>
                 {
-                    // Extract the year and day from the event string
+                    // Find and extract year and day
                     int yearStart = e.EventData.IndexOf("(") + 1;
                     int yearEnd = e.EventData.IndexOf(")", yearStart);
-                    string yearAndDay = e.EventData.Substring(yearStart, yearEnd - yearStart);
+                    string yearAndDay = yearStart > 0 && yearEnd > yearStart
+                        ? e.EventData.Substring(yearStart, yearEnd - yearStart)
+                        : "Unknown";
 
-                    // Extract the event description after the year and day part
+                    // Extract event description
                     int descriptionStart = e.EventData.IndexOf(") ") + 2;
-                    string processedEvent = e.EventData.Substring(descriptionStart);
+                    string processedEvent = descriptionStart > 1
+                        ? e.EventData.Substring(descriptionStart)
+                        : e.EventData;
 
                     return $"In {yearAndDay}, {processedEvent}";
-                });
+                })
+                .ToList(); // Materialize the list here
 
-            return events.ToList();
+            return events;
         }
+
 
 
         public Composition()

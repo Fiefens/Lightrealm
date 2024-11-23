@@ -112,8 +112,16 @@ namespace Lightrealm
         private string GenerateBodyPartsDescription()
         {
             var commonParts = new HashSet<string> { "leg", "wing", "arm", "eye", "antenna", "tentacle", "tail", "hump", "fin", "tusk", "spike", "tooth", "hand", "foot", "shoulder" };
-            var groupedParts = BodyPartNames.GroupBy(bp => commonParts.Contains(bp.Split(' ').Last()) ? bp.Split(' ').Last() : bp)
-                                            .ToDictionary(g => g.Key, g => g.Count());
+
+            // Group body parts based on the format "[word] X"
+            var groupedParts = BodyPartNames
+                .Select(bp =>
+                {
+                    var parts = bp.Split(' ');
+                    return parts.Length > 1 && int.TryParse(parts.Last(), out _) ? parts.Take(parts.Length - 1).Last() : bp;
+                })
+                .GroupBy(bp => bp)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             if (!groupedParts.Any())
             {
@@ -121,19 +129,23 @@ namespace Lightrealm
             }
 
             var irregularPlurals = new Dictionary<string, string>
-            {
-                { "tooth", "teeth" },
-                { "foot", "feet" }
-            };
+    {
+        { "tooth", "teeth" },
+        { "foot", "feet" }
+    };
 
+            // Build the parts description
             var partsDescription = groupedParts.Select(part =>
             {
                 string partName = part.Value > 1 ? irregularPlurals.GetValueOrDefault(part.Key, part.Key + "s") : part.Key;
                 return $"{part.Value} {partName}";
             });
 
-            return "It has " + string.Join(", ", partsDescription.Take(partsDescription.Count() - 1)) + (partsDescription.Count() > 1 ? ", and " : "") + partsDescription.Last() + ".";
+            // Combine into the final string
+            return "It has " + string.Join(", ", partsDescription.Take(partsDescription.Count() - 1)) +
+                   (partsDescription.Count() > 1 ? ", and " : "") + partsDescription.Last() + ".";
         }
+
 
         public static string GenerateUniqueAbbreviation(string raceName, EntityList<Race> existingRaces)
         {
