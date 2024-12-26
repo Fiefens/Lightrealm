@@ -34,7 +34,7 @@ namespace Lightrealm
             }
             else if (Subject is Object o)
             {
-                o.UpdateNames(false);
+                o.UpdateNames(false, null);
             }
 
             if(Subject.Name != null)
@@ -151,12 +151,12 @@ namespace Lightrealm
                 "saga"
             };
 
-            string adjective = Game1.Capitalize(adjectives[Game1.r.Next(adjectives.Count())]);
+            string adjective = Game1.Capitalize(adjectives[Game1.GameWorld.rnd.Next(adjectives.Count())]);
             string noun = Game1.Capitalize(type switch
             {
-                "song" => songNouns[Game1.r.Next(songNouns.Count())],
-                "poem" => poemNouns[Game1.r.Next(poemNouns.Count())],
-                "book" => bookNouns[Game1.r.Next(bookNouns.Count())],
+                "song" => songNouns[Game1.GameWorld.rnd.Next(songNouns.Count())],
+                "poem" => poemNouns[Game1.GameWorld.rnd.Next(poemNouns.Count())],
+                "book" => bookNouns[Game1.GameWorld.rnd.Next(bookNouns.Count())],
                 _ => throw new ArgumentException("Invalid type specified")
             });
 
@@ -176,7 +176,7 @@ namespace Lightrealm
                 $"{noun} from the {adjective} {domain}"
             };
 
-            string format = formats[Game1.r.Next(formats.Count())];
+            string format = formats[Game1.GameWorld.rnd.Next(formats.Count())];
             return format.Replace("{adjective}", adjective).Replace("{noun}", noun).Replace("{domain}", domain);
         }
 
@@ -185,7 +185,7 @@ namespace Lightrealm
             EntityList<Section> sections = new EntityList<Section>();
             var events = GetEventsForSubject(subject);
 
-            int numberSections = Math.Min(type == "book" ? Game1.r.Next(5, 20) : Game1.r.Next(3, 12), events.Count());
+            int numberSections = Math.Min(type == "book" ? Game1.GameWorld.rnd.Next(5, 20) : Game1.GameWorld.rnd.Next(3, 12), events.Count());
 
             // If no events are found, create a generic section
             if (events.Count() == 0)
@@ -207,12 +207,12 @@ namespace Lightrealm
                         {
                             sectionType = "Verse";
                         }
-                        else if (!hasChorus && Game1.r.NextDouble() < 0.5)
+                        else if (!hasChorus && Game1.GameWorld.rnd.NextDouble() < 0.5)
                         {
                             sectionType = "Chorus";
                             hasChorus = true;
                         }
-                        else if (hasChorus && !hasBridge && i > 1 && Game1.r.NextDouble() < 0.3)
+                        else if (hasChorus && !hasBridge && i > 1 && Game1.GameWorld.rnd.NextDouble() < 0.3)
                         {
                             sectionType = "Bridge";
                             hasBridge = true;
@@ -238,7 +238,6 @@ namespace Lightrealm
 
         private Entity GenerateRandomSubject()
         {
-            var random = new Random();
             EntityList<Entity> subjects = new EntityList<Entity>();
 
             subjects.AddRange(Game1.GameWorld.AllHistoricalArchitects);
@@ -246,7 +245,7 @@ namespace Lightrealm
             subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures));
             subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
 
-            return subjects[random.Next(subjects.Count())];
+            return subjects[Game1.GameWorld.rnd.Next(subjects.Count())];
         }
 
         private List<string> GetEventsForSubject(Entity subject)

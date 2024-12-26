@@ -15,19 +15,16 @@ namespace Lightrealm
         public EntityList<Party> Parties { get; set; } = new EntityList<Party>();
         public Party ActiveParty { get; set; }
         public EntityList<Structure> Residences = new EntityList<Structure>();
-
         public EntityList<Object> Resources = new EntityList<Object>();
-
 
         public bool HasAttacked = false;
         public int RanCommands { get; set; } = 0;
         public bool UsedThis { get; set; } = false;
         public bool ReceivedPartyAdvice { get; set; } = false;
-
+        public bool ReceivedAbilityAdvice = false;
 
         public int AscendantX = 0;
         public int AscendantZ = 0;
-
         public int LatestHistoricalAnalysisIndex = 0;
 
         public (Color, bool) TestForRelevance(Event Event)
@@ -109,26 +106,44 @@ namespace Lightrealm
             // Add it to the Parties list
             Parties.Add(ActiveParty);
 
-            Name = Game1.GameWorld.GenerateUniqueName("1S" + Game1.r.Next(1, 3) + "s1w", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S" + Game1.GameWorld.rnd.Next(1, 3) + "s1w", this, Game1.GameWorld.rnd);
 
             // Execute the original Party logic if FirstAssoc is true
             if (FirstAssoc)
             {
                 foreach (Architect a in architects)
                 {
-                    if(Game1.GameWorld.HumanoidRaces.Contains(a.Race))
+                    if(!a.PlayingTutorial && Game1.GameWorld.HumanoidRaces.Contains(a.Race) && !a.TutorialSickness)
                     {
-                        a.HairID = Game1.r.Next(0, 2);
+                        a.HairID = Game1.GameWorld.rnd.Next(0, 2);
 
-                        int count = Game1.r.Next(50, 101);
+                        int count = Game1.GameWorld.rnd.Next(50, 101);
 
                         for (int i = 0; i < count; i++)
                         {
                             a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
                         }
 
+
+                        a.Inventory.Add(new Object(null, "dagger", new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(0,4)] }, null));
+
+
+                        /*
+                        a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
+                        a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
+                        a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
+                        a.PathOfBodyLevel = 8;
+                        a.PathOfDeathLevel = 8;
+                        a.PathOfLifeLevel = 8;
+                        a.PathOfShadowLevel = 8;
+                        a.PathOfStarsLevel = 8;
+                        a.PathOfHeatLevel = 8;
+                        a.PathOfRealityLevel = 8;
+                        a.PathOfLightLevel = 8;
+                        */
+
                         // Uncommented logic as per your original Party constructor
-                        int healingItem = Game1.r.Next(1, 4);
+                        int healingItem = Game1.GameWorld.rnd.Next(1, 4);
 
                         switch (healingItem)
                         {

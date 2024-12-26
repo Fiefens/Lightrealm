@@ -75,7 +75,7 @@ namespace Lightrealm
 
             if(type != "core")
             {
-                FakeIsofractalColor = Game1.Colors[Game1.r.Next(Game1.Colors.Count())];
+                FakeIsofractalColor = Game1.Colors[Game1.GameWorld.rnd.Next(Game1.Colors.Count())];
             }
             else
             {
@@ -96,7 +96,7 @@ namespace Lightrealm
             }
             else
             {
-                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s 1S" + (Game1.r.Next(2, 4)) + "s", this);
+                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.GameWorld.rnd.Next(2, 4)) + "s 1S" + (Game1.GameWorld.rnd.Next(2, 4)) + "s", this, Game1.GameWorld.rnd);
             }
 
             if(type == "shrine")
@@ -111,7 +111,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    if(Game1.r.Next(1,3) == 1)
+                    if(Game1.GameWorld.rnd.Next(1,3) == 1)
                     {
                         PrayingDeity = Game1.GameWorld.LightDeity;
                     }
@@ -141,8 +141,6 @@ namespace Lightrealm
 
                 AddReferredToName("house " + (count + 1).ToString());
             }
-
-            //determine smells
         }
 
         public string GetRoomStructure()
@@ -252,8 +250,7 @@ namespace Lightrealm
     };
 
             // Select a random introduction
-            Random rnd = new Random();
-            string introduction = introductions[rnd.Next(introductions.Count())];
+            string introduction = introductions[Game1.GameWorld.rnd.Next(introductions.Count())];
 
             string description = introduction + " ";
 
@@ -310,27 +307,27 @@ namespace Lightrealm
 
             if (Age < 10)
             {
-                ageDescription = Game1.r.Next(2) == 0 ? "It appears very recently made" : "It looks recently constructed";
+                ageDescription = Game1.GameWorld.rnd.Next(2) == 0 ? "It appears very recently made" : "It looks recently constructed";
             }
             else if (Age < 50)
             {
-                ageDescription = Game1.r.Next(2) == 0 ? "The structure bears few signs of age" : "It shows minimal signs of wear";
+                ageDescription = Game1.GameWorld.rnd.Next(2) == 0 ? "The structure bears few signs of age" : "It shows minimal signs of wear";
             }
             else if (Age < 75)
             {
-                ageDescription = Game1.r.Next(2) == 0 ? "It looks like it was built long ago" : "It must have been built quite some time ago";
+                ageDescription = Game1.GameWorld.rnd.Next(2) == 0 ? "It looks like it was built long ago" : "It must have been built quite some time ago";
             }
             else if (Age < 100)
             {
-                ageDescription = Game1.r.Next(2) == 0 ? "It must have been built very far in the past" : "The structure shows wear from a distant past";
+                ageDescription = Game1.GameWorld.rnd.Next(2) == 0 ? "It must have been built very far in the past" : "The structure shows wear from a distant past";
             }
             else
             {
-                ageDescription = Game1.r.Next(2) == 0 ? "It is ancient, bearing the marks of ages" : "It is extremely worn, from passage of countless years";
+                ageDescription = Game1.GameWorld.rnd.Next(2) == 0 ? "It is ancient, bearing the marks of ages" : "It is extremely worn, from passage of countless years";
             }
 
             // Combine descriptions with a 50% chance to alter their order
-            bool isLightingFirst = rnd.Next(2) == 0; // 50% chance
+            bool isLightingFirst = Game1.GameWorld.rnd.Next(2) == 0; // 50% chance
             if (isLightingFirst)
             {
                 description += $"It is {lightingDescription} and it is {sizeDescription}. {ageDescription}.";

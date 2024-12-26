@@ -1,6 +1,9 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
+using OpenTK.Audio.OpenAL.Extensions.Creative.EFX;
 using System;
 using System.Collections.Generic;
 
@@ -52,7 +55,10 @@ namespace Lightrealm
             Rectangle rightSource = new Rectangle(Game1.ButtonT.Width - segmentWidth, 0, segmentWidth, buttonHeight);
 
             // Draw the left section
-            spriteBatch.Draw(Game1.ButtonT, new Rectangle(Hitbox.X, Hitbox.Y, segmentWidth, Hitbox.Height), leftSource, Color.White);
+
+            Color c = Hitbox.Contains(Game1.currentMouseState.Position.ToVector2()) ? new Color(255, 255, 255) : new Color(200, 200, 200);
+
+            spriteBatch.Draw(Game1.ButtonT, new Rectangle(Hitbox.X, Hitbox.Y, segmentWidth, Hitbox.Height), leftSource, c);
 
             // Draw the center section repeatedly to fill the middle width
             int centerX = Hitbox.X + segmentWidth;
@@ -63,11 +69,11 @@ namespace Lightrealm
                 // If the center width isn't a perfect multiple, handle the remaining width
                 int remainingWidth = Math.Min(segmentWidth, centerX + centerWidth - x);
                 spriteBatch.Draw(Game1.ButtonT, new Rectangle(x, Hitbox.Y, remainingWidth, Hitbox.Height),
-                    new Rectangle(centerSource.X, centerSource.Y, remainingWidth, buttonHeight), Color.White);
+                    new Rectangle(centerSource.X, centerSource.Y, remainingWidth, buttonHeight), c);
             }
 
             // Draw the right section
-            spriteBatch.Draw(Game1.ButtonT, new Rectangle(Hitbox.X + Hitbox.Width - segmentWidth, Hitbox.Y, segmentWidth, Hitbox.Height), rightSource, Color.White);
+            spriteBatch.Draw(Game1.ButtonT, new Rectangle(Hitbox.X + Hitbox.Width - segmentWidth, Hitbox.Y, segmentWidth, Hitbox.Height), rightSource, c);
 
             // Measure the size of the text using the font
             Vector2 textSize = Game1.Shibafont.MeasureString(Text);
@@ -97,6 +103,7 @@ namespace Lightrealm
                 Hitbox.Contains(adjustedMousePosition) &&
                 Visible)
             {
+                Game1.MenuSelect.Play(volume: 0.2f, pitch: 0.0f, pan: 0.0f);
                 return true;
             }
             else

@@ -26,7 +26,7 @@ namespace Lightrealm
             // ContainedObjects: Union with no duplicates
             ContainedObjects = new EntityList<Object>(objectsToCombine.SelectMany(o => o.ContainedObjects).Distinct().ToList());
 
-            // IfTrueUseInIfFalseUseOn: Prioritize “on”
+            // IfTrueUseInIfFalseUseOn: Prioritize \"on"
             IfTrueUseInIfFalseUseOn = objectsToCombine.All(o => o.IfTrueUseInIfFalseUseOn);
 
             // LatestUpdateCycle: Use the highest cycle value
@@ -108,7 +108,7 @@ namespace Lightrealm
             Creator = creator;
 
             // FireCycles, WetCycles, DestabilizedCycles: Combine values
-            FireCycles = objectsToCombine.Sum(o => o.FireCycles);
+            FireSeconds = objectsToCombine.Sum(o => o.FireSeconds);
             WetCycles = objectsToCombine.Sum(o => o.WetCycles);
             DestabilizedCycles = objectsToCombine.Sum(o => o.DestabilizedCycles);
 
@@ -118,7 +118,7 @@ namespace Lightrealm
             RematerializeLocation = (null, null, null, null, null, null);
 
             // IsCoveredInPlants: True if any are
-            IsCoveredInPlants = objectsToCombine.Any(o => o.IsCoveredInPlants);
+            PlantCycles = objectsToCombine.Sum(o => o.PlantCycles);
 
             // CoverageValues: Highest coverage values for each string
             CoverageValues = objectsToCombine
@@ -223,7 +223,7 @@ namespace Lightrealm
             AddReferredToName(combinedName);
 
             // Additional logic to handle named multiobjects if necessary
-            base.UpdateNames(false);
+            base.UpdateNames(false, null);
         }
     }
 }

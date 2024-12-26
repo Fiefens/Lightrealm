@@ -19,7 +19,7 @@ namespace Lightrealm
             set => _homeCivilizationID = value?.ID ?? 0;
         }
 
-        public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.r.Next(5)];
+        public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.GameWorld.rnd.Next(5)];
 
         public Division(Architect leader, EntityList<Architect> architects, int otherSoldiers, Civilization homeCiv)
         {
@@ -33,7 +33,7 @@ namespace Lightrealm
                 a.Division = this;
             }
 
-            Name = Game1.GameWorld.GenerateUniqueName("1W1w", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1W1w", this, Game1.GameWorld.rnd);
         }
 
         public Division()

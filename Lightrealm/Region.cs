@@ -109,12 +109,14 @@ namespace Lightrealm
             X = x;
             Z = z;
 
-            HarvestableWood = w.Woods[Game1.r.Next(w.Woods.Count())];
-            HarvestableFiber = w.Fibers[Game1.r.Next(w.Fibers.Count())];
-            HarvestableStone = w.Stones[Game1.r.Next(w.Stones.Count())];
-            HarvestableMetal = w.Metals[Game1.r.Next(w.Metals.Count())];
-            HarvestableSand = w.Sands[Game1.r.Next(w.Sands.Count())];
-            HarvestableIce = w.Ices[Game1.r.Next(w.Ices.Count())];
+            SerializableRandom rr = Game1.GameWorld != null ? Game1.GameWorld.rnd : Game1.TemporaryRand;
+
+            HarvestableWood = w.Woods[rr.Next(w.Woods.Count())];
+            HarvestableFiber = w.Fibers[rr.Next(w.Fibers.Count())];
+            HarvestableStone = w.Stones[rr.Next(w.Stones.Count())];
+            HarvestableMetal = w.Metals[rr.Next(w.Metals.Count())];
+            HarvestableSand = w.Sands[rr.Next(w.Sands.Count())];
+            HarvestableIce = w.Ices[rr.Next(w.Ices.Count())];
         }
 
         public Region()

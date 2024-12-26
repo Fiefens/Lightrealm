@@ -12,19 +12,28 @@ namespace Lightrealm
 
         [NonSerialized]
         private Type _entityType = typeof(T);
-
-        // Property to store the EntityType as a string for serialization
-        public string EntityTypeString
-        {
-            get => _entityType.AssemblyQualifiedName;
-            set => _entityType = Type.GetType(value);
-        }
+        private string _entityTypeString;
 
         public Type EntityType
         {
             get => _entityType;
-            set => _entityType = value;
+            set
+            {
+                _entityType = value;
+                _entityTypeString = value?.AssemblyQualifiedName; // Update the string representation
+            }
         }
+
+        public string EntityTypeString
+        {
+            get => _entityTypeString;
+            set
+            {
+                _entityTypeString = value;
+                _entityType = Type.GetType(value); // Rehydrate the Type from the string
+            }
+        }
+
 
         public T this[int index]
         {
@@ -96,7 +105,7 @@ namespace Lightrealm
             while (n > 1)
             {
                 n--;
-                int k = new Random().Next(n + 1);
+                int k = Game1.GameWorld.rnd.Next(n + 1);
                 int value = _entityIds[k];
                 _entityIds[k] = _entityIds[n];
                 _entityIds[n] = value;

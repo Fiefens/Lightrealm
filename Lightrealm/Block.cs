@@ -130,7 +130,7 @@ namespace Lightrealm
                             {
                                 if (s.Block.District.IsLoaded)
                                 {
-                                    Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                                    Room randomRoom = s.Rooms[Game1.GameWorld.rnd.Next(s.Rooms.Count())];
                                     minDistance = distance;
                                     DeterminedLocation = (district.Location.Region, district.Location, district, block, randomRoom);
                                 }
@@ -142,7 +142,7 @@ namespace Lightrealm
                             }
                         }
                     }
-                    else if (Game1.BaseStructureTypes.Contains(thing))
+                    else if (Game1.GameWorld.StructureTypes.Any(e => e.Metadata == thing))
                     {
                         foreach (Structure s in block.Structures)
                         {
@@ -153,7 +153,7 @@ namespace Lightrealm
                                 {
                                     if (s.Block.District.IsLoaded)
                                     {
-                                        Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                                        Room randomRoom = s.Rooms[Game1.GameWorld.rnd.Next(s.Rooms.Count())];
                                         minDistance = distance;
                                         DeterminedLocation = (district.Location.Region, district.Location, district, block, randomRoom);
                                     }
@@ -224,7 +224,7 @@ namespace Lightrealm
                     {
                         if (s.Block.District.IsLoaded)
                         {
-                            Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                            Room randomRoom = s.Rooms[Game1.GameWorld.rnd.Next(s.Rooms.Count())];
                             potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom));
                         }
                         else
@@ -233,7 +233,7 @@ namespace Lightrealm
                         }
                     }
                 }
-                else if (Game1.BaseStructureTypes.Contains(thing))
+                else if (Game1.GameWorld.StructureTypes.Any(e => e.Metadata == thing))
                 {
                     foreach (Structure s in block.Structures)
                     {
@@ -241,7 +241,7 @@ namespace Lightrealm
                         {
                             if (s.Block.District.IsLoaded)
                             {
-                                Room randomRoom = s.Rooms[Game1.r.Next(s.Rooms.Count())];
+                                Room randomRoom = s.Rooms[Game1.GameWorld.rnd.Next(s.Rooms.Count())];
                                 potentialLocations.Add((this.District.Location.Region, this.District.Location, currentDistrict, block, randomRoom));
                             }
                             else
@@ -272,7 +272,7 @@ namespace Lightrealm
 
             if (potentialLocations.Count > 0)
             {
-                RandomLocation = potentialLocations[Game1.r.Next(potentialLocations.Count)];
+                RandomLocation = potentialLocations[Game1.GameWorld.rnd.Next(potentialLocations.Count)];
             }
 
             return RandomLocation;

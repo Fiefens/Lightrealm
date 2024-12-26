@@ -12,7 +12,7 @@ namespace Lightrealm
     public class Blight : Entity
     {
         public bool Spawned { get; set; } = false;
-        public int SpreadChance { get; set; } = Game1.r.Next(500, 1000);
+        public int SpreadChance { get; set; } = Game1.TemporaryRand.Next(500, 1000);
         public int FoundingYear { get; set; }
 
         public static List<string> adjectives = new List<string>
@@ -44,12 +44,12 @@ namespace Lightrealm
 
         public Blight(World w)
         {
-            FoundingYear = Game1.r.Next(1, 245);
+            FoundingYear = Game1.TemporaryRand.Next(1, 245);
             Name = "kesuvumovostuseve"; //placeholder that is guaranteed to exist in the world so the loop will run
 
             while (w.SubjectCatalogue.ContainsKey(Name) || Name == "kesuvumovostuseve")
             {
-                Name = "The " + adjectives[Game1.r.Next(adjectives.Count())] + " " + nouns[Game1.r.Next(nouns.Count())];
+                Name = "The " + adjectives[Game1.TemporaryRand.Next(adjectives.Count())] + " " + nouns[Game1.TemporaryRand.Next(nouns.Count())];
             }
 
             this.ReferredToNames.Clear();

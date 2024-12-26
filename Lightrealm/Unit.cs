@@ -39,7 +39,7 @@ namespace Lightrealm
         public Unit(Region region, string type, EntityList<Architect> Architects, Location targetLocation = null)
         {
             Region = region;
-            Name = Game1.GameWorld.GenerateUniqueName("1S9s", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S9s", this, Game1.GameWorld.rnd);
             Type = type;
 
             foreach(Architect a in Architects)
@@ -144,49 +144,49 @@ namespace Lightrealm
             switch (Type)
             {
                 case "bandits":
-                    Info = new List<string>() { "You happen upon a group of bandits.", "You spot a gang of bandits approaching the area.", "You hear some mumbling, and sight an outlaw gang traveling through the area." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "You happen upon a group of bandits.", "You spot a gang of bandits approaching the area.", "You hear some mumbling, and sight an outlaw gang traveling through the area." }[Game1.GameWorld.rnd.Next(0, 3)];
                     break;
                 case "shadebeast":
-                    Info = new List<string>() { "A corrupted hulk of rotting matter stands shaking before you. It hasn't seen you yet.", "As the sun sets, you spy a foul beast in the night, unaware of your arrival.", "Ahead of you stands a dark corrupted beast, oblivious to your presence." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A corrupted hulk of rotting matter stands shaking before you. It hasn't seen you yet.", "As the sun sets, you spy a foul beast in the night, unaware of your arrival.", "Ahead of you stands a dark corrupted beast, oblivious to your presence." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for shadebeast
                     break;
                 case "construct":
-                    Info = new List<string>() { "Some sort of powerful mechanical creature stands before you. It seems to be guarding something.", "Some magical, powerful, mysterious construct marches through the area. It seems to have some kind of task.", "Before you is a mysterious construct, silently watching over its domain. It looks incredibly powerful." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "Some sort of powerful mechanical creature stands before you. It seems to be guarding something.", "Some magical, powerful, mysterious construct marches through the area. It seems to have some kind of task.", "Before you is a mysterious construct, silently watching over its domain. It looks incredibly powerful." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for construct
                     break;
                 case "wildcreatures":
-                    Info = new List<string>() { "You hear some creatures rustling in the bushes.", "You hear a distant noise, sounds like some of the local fauna.", "You hear some kind of wild noise from afar." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "You hear some creatures rustling in the bushes.", "You hear a distant noise, sounds like some of the local fauna.", "You hear some kind of wild noise from afar." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for wildcreatures
                     break;
                 case "traders":
-                    Info = new List<string>() { "You see some traders, traveling a lesser travelled road to somewhere unknown. Could have useful items to purchase, or otherwise...", "Some sort of merchant, or maybe multiple for all you know, is headed " + Door.OrthogonalDoorDirections[Game1.r.Next(4)] + ".", "A group of traders emerges from an unfamiliar route, their purpose unclear." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "You see some traders, traveling a lesser travelled road to somewhere unknown. Could have useful items to purchase, or otherwise...", "Some sort of merchant, or maybe multiple for all you know, is headed " + Door.OrthogonalDoorDirections[Game1.GameWorld.rnd.Next(4)] + ".", "A group of traders emerges from an unfamiliar route, their purpose unclear." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for traders
                     break;
                 case "vagabond":
-                    Info = new List<string>() { "A lonely traveler seems to be headed somewhere. Perhaps they can help you somehow.", "A vagabond walks alone, their intentions unknown to you.", "Before you is a solitary wanderer. They at least appears harmless..." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A lonely traveler seems to be headed somewhere. Perhaps they can help you somehow.", "A vagabond walks alone, their intentions unknown to you.", "Before you is a solitary wanderer. They at least appears harmless..." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for vagabond
                     break;
                 case "adventurer":
-                    Info = new List<string>() { "You cross paths with someone who appears equipped for adventure.", "A well prepared traveler stands before you, flaunting their satchel. Could be useful.", "You see a traveler who appears to be well equipped for adventure." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "You cross paths with someone who appears equipped for adventure.", "A well prepared traveler stands before you, flaunting their satchel. Could be useful.", "You see a traveler who appears to be well equipped for adventure." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for adventurer
                     break;
                 case "shiba":
-                    Info = new List<string>() { "A fluffy, four legged creature is wandering the area. Perhaps you can attach it to your face.", "A beautiful creature wanders this area, searching for someone's face to meld with.", "You see both a lovely creature and a lovely piece of headwear." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A fluffy, four legged creature is wandering the area. Perhaps you can attach it to your face.", "A beautiful creature wanders this area, searching for someone's face to meld with.", "You see both a lovely creature and a lovely piece of headwear." }[Game1.GameWorld.rnd.Next(0, 3)];
                     // Code for adventurer
                     break;
                 case "priest":
-                    Info = new List<string>() { "A lone traveler in religious clothing appears. They appear to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.r.Next(0, 3)];
+                    Info = new List<string>() { "A lone traveler in religious clothing appears. They appear to be carrying something... shiny.", "A priestly figure approaches, a glint of something shiny in their possession.", "In religious attire, a lone priest walks your way, a mysterious gleam catching your eye." }[Game1.GameWorld.rnd.Next(0, 3)];
                     break;
                 // Code for priest
                 case "colossal":
-                    Info = new List<string>() { "You had only heard of the legendary " + UnitArchitects[0].Race.Name + " " + UnitArchitects[0].Name + ", but it stands before you now...", "That, that is a big " + UnitArchitects[0].Race.Name + "... you've heard of " + UnitArchitects[0].Name + " before, but seeing it is different. It hasn't spotted you yet.", }[Game1.r.Next(0, 2)];
+                    Info = new List<string>() { "You had only heard of the legendary " + UnitArchitects[0].Race.Name + " " + UnitArchitects[0].Name + ", but it stands before you now...", "That, that is a big " + UnitArchitects[0].Race.Name + "... you've heard of " + UnitArchitects[0].Name + " before, but seeing it is different. It hasn't spotted you yet.", }[Game1.GameWorld.rnd.Next(0, 2)];
                     break;
                 default:
                     Info = "An unknown traveler stands before you. Their purpose is unclear.";
                     break;
             }
 
-            Intrigue = BiomeToIntrigue[region.Biome][Game1.r.Next(BiomeToIntrigue[region.Biome].Count())];
+            Intrigue = BiomeToIntrigue[region.Biome][Game1.GameWorld.rnd.Next(BiomeToIntrigue[region.Biome].Count())];
         }
 
         public Unit()

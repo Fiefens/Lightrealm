@@ -165,7 +165,7 @@ namespace Lightrealm
         public void PopulateRoom()
         {
             Civilization RoomCiv = Structure.Block.District.Location.HomeCivilization;
-            int VerticalDecider = Game1.r.Next(1, 5);
+            int VerticalDecider = Game1.GameWorld.rnd.Next(1, 5);
 
             // Helper function to create and add objects
             void AddObject(string type, Material material, bool isContainer = false)
@@ -185,19 +185,19 @@ namespace Lightrealm
                     AddObject("exit door", m);
 
                 // Add random number of bookcases
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("bookcase", m);
 
                 // Add random number of altars
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("altar", m);
 
                 // Add random number of tables
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("table", m);
 
                 // Add random number of chairs
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("chair", m);
 
                 // Add doors to connect with other rooms, if applicable
@@ -217,14 +217,14 @@ namespace Lightrealm
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
                 }
             }
             else if (Structure.Type == "tower")
             {
-                Material m = Game1.GameWorld.Stones[Game1.r.Next(Game1.GameWorld.Stones.Count())];
+                Material m = Game1.GameWorld.Stones[Game1.GameWorld.rnd.Next(Game1.GameWorld.Stones.Count())];
                 int Position = Structure.Rooms.IndexOf(this);
 
                 // Add exit door if it's the first room
@@ -232,15 +232,15 @@ namespace Lightrealm
                     AddObject("exit door", m);
 
                 // Add random number of bookcases
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("bookcase", m);
 
                 // Add random number of tables
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("table", m);
 
                 // Add random number of chairs
-                for (int i = Game1.r.Next(0, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 2); i > 0; i--)
                     AddObject("chair", m);
 
                 // Add doors to connect with other rooms, if applicable
@@ -255,7 +255,7 @@ namespace Lightrealm
                     Structure.Rooms[Position - 1].Objects.Add(upStaircase);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
                 }
@@ -266,7 +266,7 @@ namespace Lightrealm
                 int Position = Structure.Rooms.IndexOf(this);
 
                 // Generate loot if applicable
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
                 }
@@ -277,7 +277,7 @@ namespace Lightrealm
                     AddObject("exit door", Game1.GameWorld.Glass);  // Entrance door for the first room
 
                     // Door leading to the next room
-                    string ForwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count())];
+                    string ForwardDirection = Door.AllDoorDirections[Game1.GameWorld.rnd.Next(Door.AllDoorDirections.Count())];
                     Door forwardDoor = new Door(this, Structure.Rooms[Position + 1], ForwardDirection, null, "archway", new EntityList<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(forwardDoor);
                 }
@@ -285,7 +285,7 @@ namespace Lightrealm
                 {
                     // Last room specific setup
                     // Door leading back to the previous room
-                    string BackwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count())];
+                    string BackwardDirection = Door.AllDoorDirections[Game1.GameWorld.rnd.Next(Door.AllDoorDirections.Count())];
                     Door backwardDoor = new Door(this, Structure.Rooms[Position - 1], BackwardDirection, null, "archway", new EntityList<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(backwardDoor);
 
@@ -315,12 +315,12 @@ namespace Lightrealm
                 {
                     // Middle rooms setup
                     // Door leading back to the previous room
-                    string BackwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count())];
+                    string BackwardDirection = Door.AllDoorDirections[Game1.GameWorld.rnd.Next(Door.AllDoorDirections.Count())];
                     Door backwardDoor = new Door(this, Structure.Rooms[Position - 1], BackwardDirection, null, "archway", new EntityList<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(backwardDoor);
 
                     // Door leading to the next room
-                    string ForwardDirection = Door.AllDoorDirections[Game1.r.Next(Door.AllDoorDirections.Count())];
+                    string ForwardDirection = Door.AllDoorDirections[Game1.GameWorld.rnd.Next(Door.AllDoorDirections.Count())];
                     Door forwardDoor = new Door(this, Structure.Rooms[Position + 1], ForwardDirection, null, "archway", new EntityList<Material> { Game1.GameWorld.Archaeon }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(forwardDoor);
                 }
@@ -365,7 +365,7 @@ namespace Lightrealm
                 else if (Position == ThirdRooms - 1)
                 {
                     // Room F: Door in Direction A to the next room and down door to the previous
-                    string directionA = new List<string> { "north", "east", "south", "west" }[Game1.r.Next(4)];
+                    string directionA = new List<string> { "north", "east", "south", "west" }[Game1.GameWorld.rnd.Next(4)];
                     Door directionADoor = new Door(this, Structure.Rooms[Position + 1], directionA, null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, this.NumberOfDoors(), Structure.Block, Structure, this);
                     Objects.Add(directionADoor);
                     Door downStaircase = new Door(this, Structure.Rooms[Position - 1], "down", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, this.NumberOfDoors(), Structure.Block, Structure, this);
@@ -434,8 +434,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the existing rooms
-                    int randomExistingRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomExistingRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to the random existing room
                     Door newDoor = new Door(this, Structure.Rooms[randomExistingRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -498,10 +498,10 @@ namespace Lightrealm
                 {
                     // Determine the range of rooms to bias towards
                     int lowerBound = Math.Max(0, Position - 3);
-                    int randomIndex = Game1.r.Next(lowerBound, Position); // Ensure we only select rooms that have been processed
+                    int randomIndex = Game1.GameWorld.rnd.Next(lowerBound, Position); // Ensure we only select rooms that have been processed
 
                     // Pick a random direction to connect to the selected room
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create a door in the current room, connecting to the selected room
                     Door newDoor = new Door(this, Structure.Rooms[randomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, this.NumberOfDoors(), Structure.Block, Structure, this);
@@ -554,7 +554,7 @@ namespace Lightrealm
                 else if (Position == 1)
                 {
                     // For the second room, generate a random primary direction
-                    direction = horizontalDirections[Game1.r.Next(horizontalDirections.Length)];
+                    direction = horizontalDirections[Game1.GameWorld.rnd.Next(horizontalDirections.Length)];
                     oppositeDirection = GetOppositeDirection(direction);
 
                     // Create door to the previous room
@@ -598,8 +598,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -648,8 +648,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -699,8 +699,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -749,8 +749,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -800,8 +800,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -894,10 +894,10 @@ namespace Lightrealm
                         endIndex = TotalRooms;
                     }
 
-                    int connectIndex = Game1.r.Next(startIndex, Position); // Ensure we only select rooms that have been processed
+                    int connectIndex = Game1.GameWorld.rnd.Next(startIndex, Position); // Ensure we only select rooms that have been processed
 
                     // Pick a random direction to connect to the selected room
-                    string direction = new List<string> { "north", "east", "south", "west" }[Game1.r.Next(4)];
+                    string direction = new List<string> { "north", "east", "south", "west" }[Game1.GameWorld.rnd.Next(4)];
 
                     // Create a door in both rooms, connecting them
                     Door newDoor = new Door(this, Structure.Rooms[connectIndex], direction, null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -940,8 +940,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -990,8 +990,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -1040,8 +1040,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.r.Next(6)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west", "up", "down" }[Game1.GameWorld.rnd.Next(6)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, direction == "up" || direction == "down" ? "staircase" : "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -1096,7 +1096,7 @@ namespace Lightrealm
                 if (Position < TotalRooms - 1)
                 {
                     // Determine the direction randomly for the first room
-                    string direction = horizontalDirections[Game1.r.Next(horizontalDirections.Length)];
+                    string direction = horizontalDirections[Game1.GameWorld.rnd.Next(horizontalDirections.Length)];
 
                     // Create door to the next room
                     Door nextRoomDoor = new Door(this, Structure.Rooms[Position + 1], direction, null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -1128,7 +1128,7 @@ namespace Lightrealm
                 else
                 {
                     // Connect the last room back to the first room
-                    string direction = horizontalDirections[Game1.r.Next(horizontalDirections.Length)];
+                    string direction = horizontalDirections[Game1.GameWorld.rnd.Next(horizontalDirections.Length)];
 
                     // Create door to the first room
                     Door firstRoomDoor = new Door(this, Structure.Rooms[0], direction, null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -1200,7 +1200,7 @@ namespace Lightrealm
                         availablePositions.Add(i);
                     }
 
-                    int randomPreviousRoomIndex = availablePositions[Game1.r.Next(availablePositions.Count())];
+                    int randomPreviousRoomIndex = availablePositions[Game1.GameWorld.rnd.Next(availablePositions.Count())];
 
                     // Create an upward staircase to the current room
                     Door upDoor = new Door(Structure.Rooms[randomPreviousRoomIndex], this, "up", null, "staircase", new EntityList<Material> { m }, false, false, null, null, 255, false, Structure.Rooms[randomPreviousRoomIndex].NumberOfDoors(), Structure.Block, Structure, this);
@@ -1224,8 +1224,8 @@ namespace Lightrealm
                 else
                 {
                     // Randomly attach this room to any of the previous rooms orthogonally
-                    int randomPreviousRoomIndex = Game1.r.Next(Position);
-                    string direction = new List<string> { "north", "east", "south", "west" }[Game1.r.Next(4)];
+                    int randomPreviousRoomIndex = Game1.GameWorld.rnd.Next(Position);
+                    string direction = new List<string> { "north", "east", "south", "west" }[Game1.GameWorld.rnd.Next(4)];
 
                     // Create door from current room to previous room
                     Door newDoor = new Door(this, Structure.Rooms[randomPreviousRoomIndex], direction, null, "door", new EntityList<Material> { m }, false, false, null, null, 255, false, NumberOfDoors(), Structure.Block, Structure, this);
@@ -1270,29 +1270,29 @@ namespace Lightrealm
             if (Structure.Type == "house")
             {
                 // Adding beds
-                for (int i = Game1.r.Next(1, 2); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(1, 2); i > 0; i--)
                     AddObject("bed", RoomCiv.CulturalWood, true);
 
                 // Adding tables
-                for (int i = Game1.r.Next(0, 3); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 3); i > 0; i--)
                     AddObject("table", RoomCiv.CulturalWood, true);
 
                 // Adding chairs
-                for (int i = Game1.r.Next(0, 3); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 3); i > 0; i--)
                     AddObject("chair", RoomCiv.CulturalWood, true);
             }
             else if (Structure.Type == "shrine")
             {
                 // Adding altars, each shrine might have one or more altars
-                for (int i = Game1.r.Next(1, 4); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(1, 4); i > 0; i--)
                     AddObject("altar", RoomCiv.CulturalMetal);
 
                 // Shrines might also have tables for offerings or scriptures
-                for (int i = Game1.r.Next(0, 3); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 3); i > 0; i--)
                     AddObject("table", RoomCiv.CulturalWood);
 
                 // Adding chairs for devotees or visitors
-                for (int i = Game1.r.Next(4, 8); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 8); i > 0; i--)
                     AddObject("chair", RoomCiv.CulturalWood);
 
                 // Additional shrine-specific objects can be added here
@@ -1300,63 +1300,63 @@ namespace Lightrealm
             else if (Structure.Type == "library")
             {
                 // Adding bookcases filled with books
-                for (int i = Game1.r.Next(10, 20); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(10, 20); i > 0; i--)
                     AddObject("bookcase", RoomCiv.CulturalWood);
 
                 // Libraries also need tables for reading and study
-                for (int i = Game1.r.Next(4, 6); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 6); i > 0; i--)
                     AddObject("table", RoomCiv.CulturalWood);
 
                 // Chairs for seating in the library
-                for (int i = Game1.r.Next(4, 8); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 8); i > 0; i--)
                     AddObject("chair", RoomCiv.CulturalWood);
 
                 // Additional library-specific objects like lamps, globes, etc., can be added here
             }
             else if (Structure.Type == "tavern")
             {
-                for (int i = Game1.r.Next(3, 7); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(3, 7); i > 0; i--)
                     AddObject("keg", RoomCiv.CulturalWood, true);
 
-                for (int i = Game1.r.Next(4, 6); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 6); i > 0; i--)
                     AddObject("table", RoomCiv.CulturalWood, true);
 
-                for (int i = Game1.r.Next(4, 8); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 8); i > 0; i--)
                     AddObject("chair", RoomCiv.CulturalWood, true);
             }
             else if (Structure.Type == "forge")
             {
-                for (int i = Game1.r.Next(1, 3); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(1, 3); i > 0; i--)
                     AddObject("forge", RoomCiv.CulturalMetal, false);
 
-                for (int i = Game1.r.Next(4, 8); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 8); i > 0; i--)
                     AddObject("weapon rack", RoomCiv.CulturalWood, true);
 
                 // Continue with other objects specific to a forge, like tables, chairs, tool racks, etc.
             }
             else if (Structure.Type == "watchtower")
             {
-                for (int i = Game1.r.Next(1, 3); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(1, 3); i > 0; i--)
                     AddObject("weapon rack", RoomCiv.CulturalWood, true);
 
-                for (int i = Game1.r.Next(0, 3); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(0, 3); i > 0; i--)
                     AddObject("chest", RoomCiv.CulturalWood, true);
 
                 // Continue with other objects specific to a watchtower, like tables, etc.
             }
             else if (Structure.Type == "market")
             {
-                for (int i = Game1.r.Next(7, 12); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(7, 12); i > 0; i--)
                     AddObject("chest", RoomCiv.CulturalWood, true);
 
-                for (int i = Game1.r.Next(4, 6); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(4, 6); i > 0; i--)
                     AddObject("table", RoomCiv.CulturalWood, true);
 
                 // Continue with other objects specific to a market, like chairs, etc.
             }
             else if (Structure.Type == "bighouse")
             {
-                for (int i = Game1.r.Next(1, 5); i > 0; i--)
+                for (int i = Game1.GameWorld.rnd.Next(1, 5); i > 0; i--)
                     AddObject("bed", RoomCiv.CulturalWood, true);
 
                 // Continue with other objects specific to a big house, like tables, chairs, etc.
@@ -1369,7 +1369,7 @@ namespace Lightrealm
 
                 // Add a small chance for magical loot in some rooms
 
-                if (Game1.r.Next(1, 5) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 5) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
@@ -1390,26 +1390,26 @@ namespace Lightrealm
     "vault"
 };
 
-                string Type = Roomtypes[Game1.r.Next(Roomtypes.Count())];
+                string Type = Roomtypes[Game1.GameWorld.rnd.Next(Roomtypes.Count())];
                 switch (Type)
                 {
                     case "armory":
-                        for (int i = Game1.r.Next(4, 8); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(4, 8); i > 0; i--)
                             AddObject("armor stand", RoomCiv.CulturalWood, true);
                         break;
 
                     case "foodstorage":
-                        for (int i = Game1.r.Next(7, 12); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(7, 12); i > 0; i--)
                             AddObject("barrel", RoomCiv.CulturalWood, true);
                         break;
 
                     case "goodsstorage":
-                        for (int i = Game1.r.Next(7, 12); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(7, 12); i > 0; i--)
                             AddObject("bin", RoomCiv.CulturalWood, true);
                         break;
 
                     case "archery":
-                        for (int i = Game1.r.Next(1, 5); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(1, 5); i > 0; i--)
                             AddObject("target board", RoomCiv.CulturalWood, false);
                         break;
 
@@ -1419,7 +1419,7 @@ namespace Lightrealm
                         break;
 
                     case "diningroom":
-                        for (int i = Game1.r.Next(5, 6); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(5, 6); i > 0; i--)
                         {
                             AddObject("table", RoomCiv.CulturalWood, true);
                             AddObject("chair", RoomCiv.CulturalWood, true);
@@ -1427,12 +1427,12 @@ namespace Lightrealm
                         break;
 
                     case "brewery":
-                        for (int i = Game1.r.Next(5, 25); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(5, 25); i > 0; i--)
                             AddObject("keg", RoomCiv.CulturalWood, true);
                         break;
 
                     case "quarters":
-                        for (int i = Game1.r.Next(1, 2); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(1, 2); i > 0; i--)
                             AddObject("bed", RoomCiv.CulturalWood, true);
                         break;
 
@@ -1441,12 +1441,12 @@ namespace Lightrealm
                         break;
 
                     case "forge":
-                        for (int i = Game1.r.Next(1, 3); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(1, 3); i > 0; i--)
                             AddObject("forge", RoomCiv.CulturalMetal, false);
                         break;
 
                     case "garden":
-                        for (int i = Game1.r.Next(6, 10); i > 0; i--)
+                        for (int i = Game1.GameWorld.rnd.Next(6, 10); i > 0; i--)
                             AddObject("plant", RoomCiv.CulturalWood, false);
                         break;
 
@@ -1464,28 +1464,28 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 6) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 6) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add some specific useful items from the object constructor
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("bookcase", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("altar", m);
                 }
@@ -1499,28 +1499,28 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 6) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 6) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add some specific useful items from the object constructor
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("bookcase", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("altar", m);
                 }
@@ -1534,39 +1534,39 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 6) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 6) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add some specific useful items from the object constructor
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
                 // Add chests with contained items
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Object chest = new Object(null, "chest", new EntityList<Material> { m }, null);
 
                     // Add some contained items to the chest
-                    if (Game1.r.Next(1, 3) == 1)
+                    if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                     {
                         chest.ContainedObjects.Add(new Object(null, "book", new EntityList<Material> { m }, null));
                     }
 
-                    if (Game1.r.Next(1, 3) == 1)
+                    if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                     {
                         chest.ContainedObjects.Add(new Object(null, "bottle", new EntityList<Material> { m }, null));
                     }
 
-                    if (Game1.r.Next(1, 3) == 1)
+                    if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                     {
                         chest.ContainedObjects.Add(new Object(null, "scroll", new EntityList<Material> { m }, null));
                     }
@@ -1583,54 +1583,54 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add some specific useful items from the object constructor
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("weapon rack", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("armor stand", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("bed", m);
                 }
 
                 // Add chests with contained items
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Object chest = new Object(null, "chest", new EntityList<Material> { m }, null);
 
                     // Add some contained items to the chest
-                    if (Game1.r.Next(1, 3) == 1)
+                    if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                     {
                         chest.ContainedObjects.Add(new Object(null, "book", new EntityList<Material> { m }, null));
                     }
 
-                    if (Game1.r.Next(1, 3) == 1)
+                    if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                     {
                         chest.ContainedObjects.Add(new Object(null, "bottle", new EntityList<Material> { m }, null));
                     }
 
-                    if (Game1.r.Next(1, 3) == 1)
+                    if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                     {
                         chest.ContainedObjects.Add(new Object(null, "scroll", new EntityList<Material> { m }, null));
                     }
@@ -1650,7 +1650,7 @@ namespace Lightrealm
                 }
 
                 // Add a very rare chance for something good
-                if (Game1.r.Next(1, 20) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 20) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
@@ -1661,14 +1661,14 @@ namespace Lightrealm
                 int Position = Structure.Rooms.IndexOf(this);
 
                 // Add high-level magic items to each room
-                if(Game1.r.Next(1,4) == 1)
+                if(Game1.GameWorld.rnd.Next(1,4) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
                 }
 
                 if(Position == 0)
                 {
-                    int Count = Game1.r.Next(4, 9);
+                    int Count = Game1.GameWorld.rnd.Next(4, 9);
                     for(int I = 0; I < Count; I++)
                     {
                         Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
@@ -1681,14 +1681,14 @@ namespace Lightrealm
                 int Position = Structure.Rooms.IndexOf(this);
 
                 // Add high-level magic items to each room
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
                 }
 
                 if (Position == 0)
                 {
-                    int Count = Game1.r.Next(4, 9);
+                    int Count = Game1.GameWorld.rnd.Next(4, 9);
                     for (int I = 0; I < Count; I++)
                     {
                         Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure78"));
@@ -1710,28 +1710,28 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add specific useful items for a monument
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("pedestal", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("pillar", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("altar", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("urn", m);
                 }
@@ -1746,34 +1746,34 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add some specific useful items from the object constructor
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("bookcase", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("scroll", m);
                 }
 
                 // Add scientific instruments if available in the object constructor
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("jar", m); // Using "jar" as a proxy for scientific instruments
                 }
@@ -1787,38 +1787,38 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add specific useful items for a library
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("bookcase", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("scroll", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("book", m);
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("wax tablet", m);
                 }
@@ -1830,28 +1830,28 @@ namespace Lightrealm
                 int Position = Structure.Rooms.IndexOf(this);
 
                 // Add pottery items containing plant objects
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     Object smallPot = new Object(null, "small pot", new EntityList<Material> { m }, null);
                     smallPot.ContainedObjects.Add(new Object(null, "plant", new EntityList<Material> { plantMaterial }, null));
                     Objects.Add(smallPot);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     Object bigPot = new Object(null, "big pot", new EntityList<Material> { m }, null);
                     bigPot.ContainedObjects.Add(new Object(null, "plant", new EntityList<Material> { plantMaterial }, null));
                     Objects.Add(bigPot);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Object smallUrn = new Object(null, "small urn", new EntityList<Material> { m }, null);
                     smallUrn.ContainedObjects.Add(new Object(null, "plant", new EntityList<Material> { plantMaterial }, null));
                     Objects.Add(smallUrn);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Object bigUrn = new Object(null, "big urn", new EntityList<Material> { m }, null);
                     bigUrn.ContainedObjects.Add(new Object(null, "plant", new EntityList<Material> { plantMaterial }, null));
@@ -1867,27 +1867,27 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add specific useful items for a prison
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("bed", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("table", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chair", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("chain", m); // Assuming "chain" represents chains or shackles
                 }
 
-                if (Game1.r.Next(1, 4) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 4) == 1)
                 {
                     AddObject("barrel", m); // Assuming barrels are used for storage in a prison
                 }
@@ -1901,54 +1901,54 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add specific useful items for a tomb
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("altar", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("pedestal", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("urn", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("book", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("scroll", m);
                 }
 
                 // Add pottery items
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("small pot", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("big pot", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("small urn", m);
                 }
 
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     AddObject("big urn", m);
                 }
@@ -1962,33 +1962,33 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add pedestals for display
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("pedestal", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("pedestal", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("pedestal", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("pedestal", m);
                 }
 
-                if (Game1.r.Next(1, 2) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 2) == 1)
                 {
                     AddObject("pedestal", m);
                 }
@@ -2002,53 +2002,53 @@ namespace Lightrealm
                 Objects.AddRange(Game1.GameWorld.LootTableMachine("general"));
 
                 // Add a small chance for magical loot in some rooms
-                if (Game1.r.Next(1, 8) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 8) == 1)
                 {
                     Objects.AddRange(Game1.GameWorld.LootTableMachine("magictreasure34"));
                 }
 
                 // Add military equipment
-                if (Game1.r.Next(1, 5) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 5) == 1)
                 {
                     AddObject("shortsword", m);
                 }
 
-                if (Game1.r.Next(1, 5) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 5) == 1)
                 {
                     AddObject("shield", m);
                 }
 
-                if (Game1.r.Next(1, 5) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 5) == 1)
                 {
                     AddObject("helmet", m);
                 }
 
-                if (Game1.r.Next(1, 5) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 5) == 1)
                 {
                     AddObject("chestplate", m);
                 }
 
-                if (Game1.r.Next(1, 5) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 5) == 1)
                 {
                     AddObject("leggings", m);
                 }
 
                 // Store some equipment on armor stands
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Object armorStand = new Object(null, "armor stand", new EntityList<Material> { m }, null);
-                    if (Game1.r.Next(1, 2) == 1) armorStand.ContainedObjects.Add(new Object(null, "helmet", new EntityList<Material> { m }, null));
-                    if (Game1.r.Next(1, 2) == 1) armorStand.ContainedObjects.Add(new Object(null, "chestplate", new EntityList<Material> { m }, null));
-                    if (Game1.r.Next(1, 2) == 1) armorStand.ContainedObjects.Add(new Object(null, "leggings", new EntityList<Material> { m }, null));
+                    if (Game1.GameWorld.rnd.Next(1, 2) == 1) armorStand.ContainedObjects.Add(new Object(null, "helmet", new EntityList<Material> { m }, null));
+                    if (Game1.GameWorld.rnd.Next(1, 2) == 1) armorStand.ContainedObjects.Add(new Object(null, "chestplate", new EntityList<Material> { m }, null));
+                    if (Game1.GameWorld.rnd.Next(1, 2) == 1) armorStand.ContainedObjects.Add(new Object(null, "leggings", new EntityList<Material> { m }, null));
                     Objects.Add(armorStand);
                 }
 
                 // Store some equipment in weapon racks
-                if (Game1.r.Next(1, 3) == 1)
+                if (Game1.GameWorld.rnd.Next(1, 3) == 1)
                 {
                     Object weaponRack = new Object(null, "weapon rack", new EntityList<Material> { m }, null);
-                    if (Game1.r.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "shortsword", new EntityList<Material> { m }, null));
-                    if (Game1.r.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "shield", new EntityList<Material> { m }, null));
+                    if (Game1.GameWorld.rnd.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "shortsword", new EntityList<Material> { m }, null));
+                    if (Game1.GameWorld.rnd.Next(1, 2) == 1) weaponRack.ContainedObjects.Add(new Object(null, "shield", new EntityList<Material> { m }, null));
                     Objects.Add(weaponRack);
                 }
             }

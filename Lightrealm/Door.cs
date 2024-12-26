@@ -48,7 +48,7 @@ namespace Lightrealm
 
             ReferredToNames = new List<string>() { "Placeholder" };
 
-            UpdateNames(false);
+            UpdateNames(false, null);
         }
 
         public Door()

@@ -58,11 +58,11 @@ namespace Lightrealm
 
                 if (!LegendTypes.Contains(a.Profession))
                 {
-                    a.Profession = LegendTypes[Game1.r.Next(7)];
+                    a.Profession = LegendTypes[Game1.GameWorld.rnd.Next(7)];
                     LogEvent(a.Name + " started their journey as a " + a.Profession + ".", a.Location.Region, new EntityList<Entity>(){a});
                 }
 
-                if (Game1.r.Next(500 * MonthToDayConstant) == 1 && a.Profession != "enchanter" && a.Profession != "artisan" && a.Profession != "adventurer")
+                if (Game1.GameWorld.rnd.Next(500 * MonthToDayConstant) == 1 && a.Profession != "enchanter" && a.Profession != "artisan" && a.Profession != "adventurer")
                 {
                     int currentX = a.Location.Region.X;
                     int currentZ = a.Location.Region.Z;
@@ -71,7 +71,7 @@ namespace Lightrealm
 
                     if (nearbyLocations.Any())
                     {
-                        a.NextMigrationLocation = nearbyLocations[Game1.r.Next(nearbyLocations.Count())];
+                        a.NextMigrationLocation = nearbyLocations[Game1.GameWorld.rnd.Next(nearbyLocations.Count())];
                         LogEvent(a.Name + " migrated to " + a.NextMigrationLocation.Name + ".", a.NextMigrationLocation.Region, new EntityList<Entity>(){a, a.NextMigrationLocation});
                     }
                     else
@@ -80,7 +80,7 @@ namespace Lightrealm
                     }
                 }
 
-                bool usePreferredTargets = Game1.r.Next(2) == 0; // 50% chance
+                bool usePreferredTargets = Game1.GameWorld.rnd.Next(2) == 0; // 50% chance
 
                 // Handling "hunter" profession
                 if (a.Profession == "hunter")
@@ -100,7 +100,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        a.HuntingProgress += Game1.r.Next(5, 8) == 5 ? 5 : -3;
+                        a.HuntingProgress += Game1.GameWorld.rnd.Next(5, 8) == 5 ? 5 : -3;
 
                         if (a.HuntingProgress > 100)
                         {
@@ -113,7 +113,7 @@ namespace Lightrealm
                 // Handling "assassin" profession
                 else if (a.Profession == "assassin")
                 {
-                    if (a.LegendaryTarget == null && Game1.r.Next(1, 25 * MonthToDayConstant) == 1)
+                    if (a.LegendaryTarget == null && Game1.GameWorld.rnd.Next(1, 25 * MonthToDayConstant) == 1)
                     {
                         EntityList<Architect> shuffledArchitects = new EntityList<Architect>(World.AllHistoricalArchitects);
                         Game1.ShuffleNew(shuffledArchitects);
@@ -140,7 +140,7 @@ namespace Lightrealm
                     }
                     else if (a.LegendaryTarget != null)
                     {
-                        a.HuntingProgress += Game1.r.Next(5, 8) == 5 ? 5 : -3;
+                        a.HuntingProgress += Game1.GameWorld.rnd.Next(5, 8) == 5 ? 5 : -3;
 
                         if (a.HuntingProgress > 100)
                         {
@@ -164,12 +164,12 @@ namespace Lightrealm
                                 .Where(structure => structure.HistoricalObjects.Count() > 0));
 
                         var targetStructure = preferredStructuresWithObjects.Any() && usePreferredTargets
-                            ? preferredStructuresWithObjects.ElementAt(Game1.r.Next(preferredStructuresWithObjects.Count()))
-                            : allStructuresWithObjects.ElementAtOrDefault(Game1.r.Next(allStructuresWithObjects.Count()));
+                            ? preferredStructuresWithObjects.ElementAt(Game1.GameWorld.rnd.Next(preferredStructuresWithObjects.Count()))
+                            : allStructuresWithObjects.ElementAtOrDefault(Game1.GameWorld.rnd.Next(allStructuresWithObjects.Count()));
 
                         if (targetStructure != null)
                         {
-                            var targetObject = targetStructure.HistoricalObjects[Game1.r.Next(targetStructure.HistoricalObjects.Count())];
+                            var targetObject = targetStructure.HistoricalObjects[Game1.GameWorld.rnd.Next(targetStructure.HistoricalObjects.Count())];
                             a.LegendaryTarget = targetObject;
                             a.LegendaryTargetStructure = targetStructure;
                             LogEvent(a.Name + " started searching for information on the great treasure, " + targetObject.Name + ".", a.Location.Region, new EntityList<Entity>(){a, targetObject});
@@ -177,7 +177,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        a.HuntingProgress += Game1.r.Next(5, 8) == 5 ? 5 : -3;
+                        a.HuntingProgress += Game1.GameWorld.rnd.Next(5, 8) == 5 ? 5 : -3;
 
                         if (a.HuntingProgress > 100)
                         {
@@ -191,12 +191,12 @@ namespace Lightrealm
                 // Handling "artisan" profession
                 else if (a.Profession == "artisan")
                 {
-                    if (Game1.r.Next(1, 1000 * MonthToDayConstant) == 1 && a.Location.AllStructures.Count() > 0)
+                    if (Game1.GameWorld.rnd.Next(1, 1000 * MonthToDayConstant) == 1 && a.Location.AllStructures.Count() > 0)
                     {
                         Object o = World.MagicalSuperLoot(5);
-                        Structure Storage = a.Location.AllStructures[Game1.r.Next(a.Location.AllStructures.Count())];
+                        Structure Storage = a.Location.AllStructures[Game1.GameWorld.rnd.Next(a.Location.AllStructures.Count())];
                         Storage.HistoricalObjects.Add(o);
-                        o.Name = World.GenerateUniqueName("1S" + Game1.r.Next(6) + "s 1W2s", o);
+                        o.Name = World.GenerateUniqueName("1S" + Game1.GameWorld.rnd.Next(6) + "s 1W2s", o, Game1.GameWorld.rnd);
 
                         LogEvent(a.Name + " created a " + o.Type + " in " + a.Location.Name + ", named it " + o.Name + ", and stored it inside " + Storage.Name + ".", a.Location.Region, new EntityList<Entity>(){a, o, a.Location, Storage});
                     }
@@ -204,14 +204,14 @@ namespace Lightrealm
                 // Handling "enchanter" profession
                 else if (a.Profession == "enchanter")
                 {
-                    if (Game1.r.Next(1, 200 * MonthToDayConstant) == 1 && a.District.GeneralItemsWeHave.Count() > 0)
+                    if (Game1.GameWorld.rnd.Next(1, 200 * MonthToDayConstant) == 1 && a.District.GeneralItemsWeHave.Count() > 0)
                     {
                         List<string> availableItems = a.District.GeneralItemsWeHave
                             .Where(item => !item.Contains("&cont(")).ToList();
 
                         if (availableItems.Count() > 0)
                         {
-                            string selectedItemString = availableItems[Game1.r.Next(availableItems.Count())];
+                            string selectedItemString = availableItems[Game1.GameWorld.rnd.Next(availableItems.Count())];
 
                             string[] itemParts = selectedItemString.Split(new[] { ',' }, 3);
                             string itemType = itemParts[0];
@@ -232,10 +232,10 @@ namespace Lightrealm
                             EntityList<Object> objects = Game1.ConvertStringToObjects(selectedItemString);
                             Object o = objects.First();
 
-                            o.Name = World.GenerateUniqueName("1S" + Game1.r.Next(3, 9) + "s", o);
+                            o.Name = World.GenerateUniqueName("1S" + Game1.GameWorld.rnd.Next(3, 9) + "s", o, Game1.GameWorld.rnd);
                             o.Rarity = "legendary";
 
-                            Structure Storage = a.Location.AllStructures[Game1.r.Next(a.Location.AllStructures.Count())];
+                            Structure Storage = a.Location.AllStructures[Game1.GameWorld.rnd.Next(a.Location.AllStructures.Count())];
                             Storage.HistoricalObjects.Add(o);
 
                             LogEvent($"{a.Name} enchanted a {o.Type} in {a.Location.Name}, named it {o.Name}, and stored it inside {Storage.Name}.", a.Location.Region, new EntityList<Entity>(){a, o, Storage});
@@ -251,7 +251,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        if (Game1.r.Next(1, 100 * MonthToDayConstant) == 1)
+                        if (Game1.GameWorld.rnd.Next(1, 100 * MonthToDayConstant) == 1)
                         {
                             WorldActionInitiator.InitiateAction(World, "negotiate", a, new EntityList<Entity> { a.Location });
                             a.DiplomacyCooldown = 100;
@@ -280,14 +280,14 @@ namespace Lightrealm
 
                         if (potentialLocations.Any())
                         {
-                            var chosenLocation = potentialLocations[Game1.r.Next(potentialLocations.Count())];
+                            var chosenLocation = potentialLocations[Game1.GameWorld.rnd.Next(potentialLocations.Count())];
                             a.NextMigrationLocation = chosenLocation;
 
                             // Add the chosen location to the explored locations list
                             a.ExploredLocations.Add(chosenLocation);
 
                             LogEvent(a.Name + " travelled to " + a.NextMigrationLocation.Name + ".", a.NextMigrationLocation.Region, new EntityList<Entity>(){a, a.NextMigrationLocation});
-                            a.AdventureCooldown = Game1.r.Next(50, 100 + a.Age);
+                            a.AdventureCooldown = Game1.GameWorld.rnd.Next(50, 100 + a.Age);
                         }
                     }
                 }
@@ -312,16 +312,16 @@ namespace Lightrealm
             foreach (Faction f in World.AllFactions)
             {
                 // Branch Off
-                if (Game1.r.Next(100) == 1)
+                if (Game1.GameWorld.rnd.Next(100) == 1)
                 {
                     var eligibleGroups = f.SatelliteGroups.Where(g => g.Architects.Count > 5).ToList();
                     if (eligibleGroups.Any())
                     {
-                        Group selectedGroup = eligibleGroups[Game1.r.Next(eligibleGroups.Count)];
+                        Group selectedGroup = eligibleGroups[Game1.GameWorld.rnd.Next(eligibleGroups.Count)];
                         var nonLeaderMembers = selectedGroup.Architects.Where(a => a != selectedGroup.Leader).ToList();
                         if (nonLeaderMembers.Any())
                         {
-                            Architect selectedArchitect = nonLeaderMembers[Game1.r.Next(nonLeaderMembers.Count)];
+                            Architect selectedArchitect = nonLeaderMembers[Game1.GameWorld.rnd.Next(nonLeaderMembers.Count)];
                             selectedGroup.Architects.Remove(selectedArchitect);
                             Group newGroup = new Group(new EntityList<Architect> { selectedArchitect }, f.CoreValue, selectedArchitect, null);
                             f.SatelliteGroups.Add(newGroup);
@@ -332,7 +332,7 @@ namespace Lightrealm
 
                 // Recruitment
 
-                if (Game1.r.Next(100) == 1)
+                if (Game1.GameWorld.rnd.Next(75) == 1)
                 {
                     EntityList<Architect> EligibleArchitects = Game1.GameWorld.AllHistoricalArchitects
                         .ToEntityList()
@@ -345,8 +345,8 @@ namespace Lightrealm
 
                     if (EligibleArchitects.Count > 0)
                     {
-                        Architect a = EligibleArchitects[Game1.r.Next(EligibleArchitects.Count)];
-                        Group GroupToAddTo = f.SatelliteGroups[Game1.r.Next(f.SatelliteGroups.Count)];
+                        Architect a = EligibleArchitects[Game1.GameWorld.rnd.Next(EligibleArchitects.Count)];
+                        Group GroupToAddTo = f.SatelliteGroups[Game1.GameWorld.rnd.Next(f.SatelliteGroups.Count)];
 
                         GroupToAddTo.Architects.Add(a);
                         a.NextMigrationLocation = GroupToAddTo.Base != null ? GroupToAddTo.Base : GroupToAddTo.HomeFaction.Base;
@@ -363,9 +363,9 @@ namespace Lightrealm
                         if (potentialContacts.Count > 0)
                         {
                             // Add 1-5 random contacts to a.Contacts
-                            int contactCount = Game1.r.Next(1, Math.Min(5, potentialContacts.Count) + 1);
+                            int contactCount = Game1.GameWorld.rnd.Next(1, Math.Min(5, potentialContacts.Count) + 1);
                             List<Architect> selectedContacts = potentialContacts
-                                .OrderBy(_ => Game1.r.Next()) // Shuffle the list randomly
+                                .OrderBy(_ => Game1.GameWorld.rnd.Next()) // Shuffle the list randomly
                                 .Take(contactCount)
                                 .ToList();
 
@@ -376,7 +376,7 @@ namespace Lightrealm
                         }
 
                         var region = f.Base?.Region ?? GroupToAddTo.HomeFaction?.Base?.Region
-             ?? Game1.GameWorld.AllLocations[Game1.r.Next(Game1.GameWorld.AllLocations.Count)].Region;
+             ?? Game1.GameWorld.AllLocations[Game1.GameWorld.rnd.Next(Game1.GameWorld.AllLocations.Count)].Region;
 
                         LogEvent($"{a.Name} was recruited to {GroupToAddTo.Name} of {f.Name}.",
                                  region,
@@ -387,7 +387,7 @@ namespace Lightrealm
 
 
                 // Generate plans based on the faction's alignment and objectives
-                if (Game1.r.Next(30 + (f.Plans.Count * 10)) == 1)
+                if (Game1.GameWorld.rnd.Next(5 + (f.Plans.Count * 5)) == 1)
                 {
                     bool Positive = f.CoreValue == "order" || f.CoreValue == "resistance";
                     List<string> PossiblePlans = new List<string>();
@@ -421,8 +421,7 @@ namespace Lightrealm
 
                     List<string> ObjectiveTypes = new List<string>();
                     List<Tuple<Location, List<Entity>>> LocationEntityTuples = new List<Tuple<Location, List<Entity>>>();
-                    Random rand = new Random();
-                    int numObjectives = rand.Next(1, 4); // Pick 1 to 3 objectives
+                    int numObjectives = Game1.GameWorld.rnd.Next(1, 4); // Pick 1 to 3 objectives
                     double probability = 1.0; // 100% chance for the first iteration
 
                     // Initialize the master list with all possible locations
@@ -431,10 +430,10 @@ namespace Lightrealm
                     // Phase 1: Location Validation
                     for (int i = 0; i < numObjectives; i++)
                     {
-                        if (rand.NextDouble() < probability)
+                        if (Game1.GameWorld.rnd.NextDouble() < probability)
                         {
                             // Pick a random objective type from the possible plans
-                            string selectedObjective = PossiblePlans[rand.Next(PossiblePlans.Count)];
+                            string selectedObjective = PossiblePlans[Game1.GameWorld.rnd.Next(PossiblePlans.Count)];
                             ObjectiveTypes.Add(selectedObjective);
 
                             // Filter the master list based on the current objective
@@ -498,9 +497,9 @@ namespace Lightrealm
 
                                             if (validStructuresWithObjects.Count > 0)
                                             {
-                                                var selectedStructureWithObjects = validStructuresWithObjects[Game1.r.Next(validStructuresWithObjects.Count)];
+                                                var selectedStructureWithObjects = validStructuresWithObjects[Game1.GameWorld.rnd.Next(validStructuresWithObjects.Count)];
                                                 var targetStructure = selectedStructureWithObjects.Structure;
-                                                var targetObject = selectedStructureWithObjects.ValidObjects[Game1.r.Next(selectedStructureWithObjects.ValidObjects.Count)];
+                                                var targetObject = selectedStructureWithObjects.ValidObjects[Game1.GameWorld.rnd.Next(selectedStructureWithObjects.ValidObjects.Count)];
                                                 var targetDistrict = targetStructure.Block.District;
 
                                                 objectiveEntitiesForCurrentObjective.Add(l); // Location
@@ -513,7 +512,7 @@ namespace Lightrealm
                                         case "RB":
                                             if (l.AllStructures.Count > 0)
                                             {
-                                                var targetStructure = l.AllStructures[Game1.r.Next(l.AllStructures.Count)];
+                                                var targetStructure = l.AllStructures[Game1.GameWorld.rnd.Next(l.AllStructures.Count)];
                                                 objectiveEntitiesForCurrentObjective.Add(l); // Location
                                                 objectiveEntitiesForCurrentObjective.Add(targetStructure); // Building
                                             }
@@ -526,7 +525,7 @@ namespace Lightrealm
 
                                             if (validArchitects.Count > 0)
                                             {
-                                                var targetArchitect = validArchitects[Game1.r.Next(validArchitects.Count)];
+                                                var targetArchitect = validArchitects[Game1.GameWorld.rnd.Next(validArchitects.Count)];
                                                 objectiveEntitiesForCurrentObjective.Add(l); // Location
                                                 objectiveEntitiesForCurrentObjective.Add(targetArchitect); // Architect
                                             }
@@ -569,7 +568,7 @@ namespace Lightrealm
                     if (LocationEntityTuples.Count > 0 && ObjectiveTypes.Count == LocationEntityTuples.Count)
                     {
                         // 80% chance to prefer target locations
-                        if (rand.NextDouble() < 0.8)
+                        if (Game1.GameWorld.rnd.NextDouble() < 0.8)
                         {
                             EntityHashSet<Location> preferredLocations = f.PreferredTargetLocations();
                             var filteredTuples = LocationEntityTuples
@@ -584,7 +583,7 @@ namespace Lightrealm
                         }
 
                         // Pick a random location
-                        var selectedTuple = LocationEntityTuples[rand.Next(LocationEntityTuples.Count)];
+                        var selectedTuple = LocationEntityTuples[Game1.GameWorld.rnd.Next(LocationEntityTuples.Count)];
 
                         List<List<Entity>> finalObjectiveEntities = new List<List<Entity>>();
 
@@ -593,12 +592,12 @@ namespace Lightrealm
                             finalObjectiveEntities.Add(selectedTuple.Item2);
                         }
 
-                        double cycleForPlanInitiation = Game1.GameWorld.Cycle + rand.Next(
-                            24192000 * 3, // 3 months
+                        double cycleForPlanInitiation = Game1.GameWorld.Cycle + Game1.GameWorld.rnd.Next(
+                            24192000 * 36, // 3 months
                             290304000 * 3  // 3 years
                         );
 
-                        Group planInitiator = f.SatelliteGroups[Game1.r.Next(f.SatelliteGroups.Count)];
+                        Group planInitiator = f.SatelliteGroups[Game1.GameWorld.rnd.Next(f.SatelliteGroups.Count)];
 
 
                         // Generate the historical event for the created plan
@@ -639,17 +638,26 @@ namespace Lightrealm
                                 executionCycle %= 6048000;
                                 int days = (int)(executionCycle / 864000);
 
-                                string dateString = $"{months + 1}/{weeks + 1} week, Year {years}";
-                                string letterContent = $"All recipients of this letter, please meet at {selectedTuple.Item1.Name} on {dateString} for the execution of operation {newPlan.Name}. -" + (string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0])));
+                                string dateString = $"{months + 1}/{days + 1}/{years}";
+
+                                // Generate short letter variations
+                                string[] letterVariants = new string[]
+                                {
+                                    $"Meet at {selectedTuple.Item1.Name} on {dateString}. '{newPlan.Name}' is set then to take place. -{string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0]))}",
+                                    $"Plan '{newPlan.Name}' set. Assemble at {selectedTuple.Item1.Name}, {dateString}. Our targets include {Game1.FormatAndList(entityNames)}. -{string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0]))}",
+                                    $"Attend {selectedTuple.Item1.Name} on {dateString}. Plan '{newPlan.Name}' targets {Game1.FormatAndList(entityNames)}. -{string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0]))}"
+                                };
+
+                                // Randomly select one of the letter variants
+                                string letterContent = letterVariants[new Random().Next(letterVariants.Length)];
 
                                 // Send the letter
                                 Letter l = new Letter(planInitiator.Leader, participant, new TextStorage(letterContent, Color.LightBlue, new EntityList<Entity>() { selectedTuple.Item1, newPlan }), true);
+
                             }
                         }
 
-
-
-                        string eventDetails = $"{f.Name} has devised a plan named '{newPlan.Name}' with a primary objective of {planObjective}, targetted at {Game1.FormatAndList(entityNames)}. The plan is set to be executed in {Math.Round(cycleForPlanInitiation / 290304000)}.";
+                        string eventDetails = $"{f.Name} has devised a plan named '{newPlan.Name}' with a primary objective of {planObjective}, targeted at {Game1.FormatAndList(entityNames)}. The plan is set to be executed in {Math.Round(cycleForPlanInitiation / 290304000)}.";
 
                         // Log the historical event
                         EntityList<Entity> involvedEntities = new EntityList<Entity>
@@ -690,7 +698,7 @@ namespace Lightrealm
 
                             if (possibleLocations.Count > 0)
                             {
-                                (int, int) coords = possibleLocations[Game1.r.Next(possibleLocations.Count)];
+                                (int, int) coords = possibleLocations[Game1.GameWorld.rnd.Next(possibleLocations.Count)];
                                 LocationBuilderPacket l = new LocationBuilderPacket(g, coords.Item1, coords.Item2, type, Game1.GameWorld.GetRace(""), 0, 0, g.Leader.HomeLocation.HomeCivilization, new EntityList<Object>(), f.SatelliteGroups[0].Leader.HomeLocation, "");
                                 LBPs.Add(l);
                             }
@@ -707,6 +715,18 @@ namespace Lightrealm
                 {
                     if (p.CycleForPlanInitiation < Game1.GameWorld.Cycle)
                     {
+                        Architect leader = null;
+                        if (p.PlanInitiator is Architect a)
+                        {
+                            leader = a;
+                            LogEvent(a.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { a, p.PlanLocation, p });
+                        }
+                        else if (p.PlanInitiator is Group g)
+                        {
+                            leader = g.Leader;
+                            LogEvent(g.Name + ", led by " + g.Leader.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { g, g.Leader, p.PlanLocation, p });
+                        }
+
                         while (p.ObjectiveEntities.Count > 0)
                         {
                             string currentObjectiveType = p.ObjectiveTypes[0];
@@ -718,18 +738,7 @@ namespace Lightrealm
                             }
 
                             EntityList<Entity> planTargets = new EntityList<Entity>();
-                            Architect leader = null;
 
-                            if (p.PlanInitiator is Architect a)
-                            {
-                                leader = a;
-                                LogEvent(a.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { a, p.PlanLocation, p });
-                            }
-                            else if (p.PlanInitiator is Group g)
-                            {
-                                leader = g.Leader;
-                                LogEvent(g.Name + ", led by " + g.Leader.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { g, g.Leader, p.PlanLocation, p });
-                            }
 
                             // Perform the action and get success rate
                             int successRate = 0;
@@ -738,13 +747,13 @@ namespace Lightrealm
                                 case "GI":
                                     f.InsightedLocations.Add(p.PlanLocation);
                                     LogEvent(p.PlanInitiator.Name + ", and thus " + f.Name + ", gathered an increased insight unto " + p.PlanLocation.Name + ", to assist the execution of " + p.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { p.PlanInitiator, f, p.PlanLocation, p });
-                                    successRate = Game1.r.Next(0, 100);
+                                    successRate = Game1.GameWorld.rnd.Next(0, 100);
                                     break;
 
                                 case "ESP":
                                     f.InsightedLocations.Add(p.PlanLocation);
                                     LogEvent(p.PlanInitiator.Name + ", and thus " + f.Name + ", spied around " + p.PlanLocation.Name + ", gaining valuable sources.", p.PlanLocation.Region, new EntityList<Entity>() { p.PlanInitiator, f, p.PlanLocation });
-                                    successRate = Game1.r.Next(0, 100);
+                                    successRate = Game1.GameWorld.rnd.Next(0, 100);
                                     break;
 
                                 case "CI":
@@ -796,7 +805,7 @@ namespace Lightrealm
                                 var allArchitects = f.SatelliteGroups.SelectMany(g => g.Architects).ToList();
                                 if (allArchitects.Any())
                                 {
-                                    var recipient = allArchitects[Game1.r.Next(allArchitects.Count)];
+                                    var recipient = allArchitects[Game1.GameWorld.rnd.Next(allArchitects.Count)];
 
                                     string objectiveDescription = "";
                                     string actionDetails = "";
@@ -805,7 +814,7 @@ namespace Lightrealm
                                     switch (currentObjectiveType)
                                     {
                                         case "GI":
-                                            objectiveDescription = Game1.r.Next(3) switch
+                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
                                             {
                                                 0 => "gathering critical intelligence",
                                                 1 => "acquiring important information",
@@ -815,7 +824,7 @@ namespace Lightrealm
                                             break;
 
                                         case "ESP":
-                                            objectiveDescription = Game1.r.Next(3) switch
+                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
                                             {
                                                 0 => "conducting covert espionage",
                                                 1 => "spying on operations",
@@ -825,7 +834,7 @@ namespace Lightrealm
                                             break;
 
                                         case "CI":
-                                            objectiveDescription = Game1.r.Next(3) switch
+                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
                                             {
                                                 0 => "kidnapping a high-value target",
                                                 1 => "abducting a crucial individual",
@@ -835,7 +844,7 @@ namespace Lightrealm
                                             break;
 
                                         case "SVT":
-                                            objectiveDescription = Game1.r.Next(3) switch
+                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
                                             {
                                                 0 => "stealing a priceless artifact",
                                                 1 => "acquiring a rare treasure",
@@ -853,7 +862,7 @@ namespace Lightrealm
                                             break;
 
                                         case "RB":
-                                            objectiveDescription = Game1.r.Next(3) switch
+                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
                                             {
                                                 0 => "razing an important structure",
                                                 1 => "destroying a key building",
@@ -871,7 +880,7 @@ namespace Lightrealm
                                             break;
 
                                         case "GT":
-                                            objectiveDescription = Game1.r.Next(3) switch
+                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
                                             {
                                                 0 => "conducting general theft",
                                                 1 => "stealing vital resources",
@@ -887,12 +896,12 @@ namespace Lightrealm
                                     }
 
 
-                                    string successMessage = successRate >= 50 ? Game1.r.Next(3) switch
+                                    string successMessage = successRate >= 50 ? Game1.GameWorld.rnd.Next(3) switch
                                     {
                                         0 => "considered a success",
                                         1 => "executed successfully",
                                         2 => "a positive move overall"
-                                    } : Game1.r.Next(3) switch
+                                    } : Game1.GameWorld.rnd.Next(3) switch
                                     {
                                         0 => "deemed a failure",
                                         1 => "unsuccessful in its goals",
@@ -900,20 +909,20 @@ namespace Lightrealm
                                     };
 
                                     string opinion = successRate >= 75
-                                        ? Game1.r.Next(3) switch
+                                        ? Game1.GameWorld.rnd.Next(3) switch
                                         {
                                             0 => "The plan exceeded expectations, delivering outstanding results.",
                                             1 => "The operation was carried out flawlessly, achieving remarkable success.",
                                             2 => "The mission's execution was exemplary, setting a new standard for excellence."
                                         }
                                         : successRate >= 50
-                                        ? Game1.r.Next(3) switch
+                                        ? Game1.GameWorld.rnd.Next(3) switch
                                         {
                                             0 => "While the results were satisfactory, there remains room for improvement.",
                                             1 => "The operation achieved its goals but could benefit from refinement.",
                                             2 => "The mission met expectations, though future plans should aim higher."
                                         }
-                                        : Game1.r.Next(3) switch
+                                        : Game1.GameWorld.rnd.Next(3) switch
                                         {
                                             0 => "The plan encountered setbacks and requires thorough analysis.",
                                             1 => "The operation's shortcomings highlight areas needing significant improvement.",
@@ -921,7 +930,7 @@ namespace Lightrealm
                                         };
 
                                     string report = $"Dear {recipient.Name}, " +
-                                                    Game1.r.Next(3) switch
+                                                    Game1.GameWorld.rnd.Next(3) switch
                                                     {
                                                         0 => $"I write to inform you of the outcome of our recent operation, '{p.Name}'. ",
                                                         1 => $"Regarding our recent endeavor, '{p.Name}', I am writing to provide a detailed account. ",
@@ -930,7 +939,7 @@ namespace Lightrealm
                                                     $"The plan's primary objective was {objectiveDescription}. " +
                                                     $"{actionDetails} " +
                                                     $"The operation was {successMessage}. {opinion} " +
-                                                    Game1.r.Next(3) switch
+                                                    Game1.GameWorld.rnd.Next(3) switch
                                                     {
                                                         0 => $"I hope to see you soon, Yours in strategy, {leader.Name}",
                                                         1 => $"We shall meet again soon, with respect, {leader.Name}",
@@ -955,6 +964,8 @@ namespace Lightrealm
                             p.ObjectiveEntities.RemoveAt(0);
                             p.ObjectiveTypes.RemoveAt(0);
                         }
+
+                        f.PlansExecutedSuccessfully++;
 
                         f.Plans.Remove(p);
                     }

@@ -17,7 +17,7 @@ namespace Lightrealm
 
         public Ruleset()
         {
-            Name = Game1.GameWorld.GenerateUniqueName("1S" + Game1.r.Next(2, 6) + "s", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S" + Game1.GameWorld.rnd.Next(2, 6) + "s", this, Game1.GameWorld.rnd);
 
             selectedPieces = new List<string>();
 
@@ -30,24 +30,24 @@ namespace Lightrealm
 
             string CreateNewPiece()
             {
-                string newPiece = $"{Game1.Capitalize(Game1.Colors[Game1.r.Next(Game1.Colors.Count)])} {Game1.Capitalize(pieceTypes[Game1.r.Next(pieceTypes.Length)])}";
+                string newPiece = $"{Game1.Capitalize(Game1.Colors[Game1.GameWorld.rnd.Next(Game1.Colors.Count)])} {Game1.Capitalize(pieceTypes[Game1.GameWorld.rnd.Next(pieceTypes.Length)])}";
                 selectedPieces.Add(newPiece);
                 return newPiece;
             }
 
             string GetOrCreatePiece()
             {
-                if (selectedPieces.Count == 0 || Game1.r.NextDouble() < 0.5)
+                if (selectedPieces.Count == 0 || Game1.GameWorld.rnd.NextDouble() < 0.5)
                 {
                     return CreateNewPiece();
                 }
                 else
                 {
-                    return selectedPieces[Game1.r.Next(selectedPieces.Count)];
+                    return selectedPieces[Game1.GameWorld.rnd.Next(selectedPieces.Count)];
                 }
             }
 
-            string selectedObjective = objectives[Game1.r.Next(objectives.Length)];
+            string selectedObjective = objectives[Game1.GameWorld.rnd.Next(objectives.Length)];
             ObjectivePiece = CreateNewPiece();
 
             List<string> objectiveActions = new List<string>();
@@ -95,29 +95,29 @@ namespace Lightrealm
                     break;
             }
 
-            if (Game1.r.NextDouble() < 0.8)
+            if (Game1.GameWorld.rnd.NextDouble() < 0.8)
             {
                 objectiveActions.Add("roll a die");
             }
 
             List<string> selectedActions = objectiveActions
-                .Concat(masterActions.OrderBy(x => Game1.r.Next()).Take(Game1.r.Next(3, 7 - objectiveActions.Count)))
+                .Concat(masterActions.OrderBy(x => Game1.GameWorld.rnd.Next()).Take(Game1.GameWorld.rnd.Next(3, 7 - objectiveActions.Count)))
                 .ToList();
 
             // Ensure no duplicates in selectedActions
             selectedActions = selectedActions.Distinct().ToList();
 
             List<string> selectedSetup = new List<string>();
-            int setupSteps = Game1.r.Next(2, 5);
+            int setupSteps = Game1.GameWorld.rnd.Next(2, 5);
             for (int i = 0; i < setupSteps; i++)
             {
-                string setupStep = setupModes[Game1.r.Next(setupModes.Length)];
+                string setupStep = setupModes[Game1.GameWorld.rnd.Next(setupModes.Length)];
                 selectedSetup.Add(setupStep.Replace("pieces", Game1.Capitalize(GetOrCreatePiece() + "s")));
             }
 
-            string selectedTurnOrder = turnOrders[Game1.r.Next(turnOrders.Length)];
+            string selectedTurnOrder = turnOrders[Game1.GameWorld.rnd.Next(turnOrders.Length)];
 
-            int numReactions = Game1.r.Next(2, 5);
+            int numReactions = Game1.GameWorld.rnd.Next(2, 5);
             Dictionary<string, string> selectedReactions = new Dictionary<string, string>();
             int maxAttempts = 10; // To avoid infinite loops, limit the number of attempts to find a unique pair
 
@@ -126,7 +126,7 @@ namespace Lightrealm
                 string selectedReaction;
                 do
                 {
-                    selectedReaction = reactions[Game1.r.Next(reactions.Length)];
+                    selectedReaction = reactions[Game1.GameWorld.rnd.Next(reactions.Length)];
                 } while (selectedReaction.Contains("gain a bonus action") || selectedReaction.Contains("gain an extra turn"));
 
                 string triggerAction;
@@ -134,7 +134,7 @@ namespace Lightrealm
 
                 do
                 {
-                    triggerAction = selectedActions[Game1.r.Next(selectedActions.Count)];
+                    triggerAction = selectedActions[Game1.GameWorld.rnd.Next(selectedActions.Count)];
                     attempts++;
                 }
                 while (selectedReactions.ContainsKey(triggerAction) && attempts < maxAttempts);
@@ -176,8 +176,6 @@ namespace Lightrealm
 
         public EntityList<Architect> Players = new EntityList<Architect>();
 
-        private Random rng;
-
         public bool SetupComplete = false;
 
         public Boardgame(Ruleset rules, EntityList<Architect> players, int rounds)
@@ -188,7 +186,6 @@ namespace Lightrealm
             MaxTurns = players.Count() * rounds;
             playerPoints = playerNames.ToDictionary(name => name, name => 0);
             randomizedPlayerOrder = playerNames.OrderBy(x => Guid.NewGuid()).ToList();
-            rng = new Random();
 
             Name = rules.Name;
 
@@ -221,7 +218,7 @@ namespace Lightrealm
 
             StringBuilder turnNarrative = new StringBuilder();
 
-            var selectedAction = GameRules.Script["Actions"][rng.Next(GameRules.Script["Actions"].Count)];
+            var selectedAction = GameRules.Script["Actions"][Game1.GameWorld.rnd.Next(GameRules.Script["Actions"].Count)];
             turnNarrative.Append($"On {player}'s turn, {selectedAction}. ");
 
             // Handle Reactions

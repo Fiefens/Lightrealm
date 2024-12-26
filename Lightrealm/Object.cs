@@ -79,6 +79,39 @@ namespace Lightrealm
         }
 
 
+
+        public void PlaySound()
+        {
+            if (Materials[0].Type == "cloth")
+                Game1.SFX.Add(Game1.Cloth);
+            else if (Materials[0].Type == "fiber")
+                Game1.SFX.Add(Game1.Cloth);
+            else if (Materials[0].Type == "gemstone")
+                Game1.SFX.Add(Game1.LightMetalOrGlass);
+            else if (Materials[0].Type == "glass")
+                Game1.SFX.Add(Game1.LightMetalOrGlass);
+            else if (Materials[0].Type == "ice")
+                Game1.SFX.Add(Game1.Metal);
+            else if (Materials[0].Type == "organic")
+                Game1.SFX.Add(Game1.Leather);
+            else if (Materials[0].Type == "metal")
+                Game1.SFX.Add(Game1.Metal);
+            else if (Materials[0].Type == "metaphysic")
+                Game1.SFX.Add(Game1.Leather);
+            else if (Materials[0].Type == "sand")
+                Game1.SFX.Add(Game1.Leather);
+            else if (Materials[0].Type == "stone")
+                Game1.SFX.Add(Game1.OpenInv);
+            else if (Materials[0].Type == "wood")
+                Game1.SFX.Add(Game1.Leather);
+            else if (Materials[0].Name == "vitalium")
+                Game1.SFX.Add(Game1.Money);
+            else
+                Game1.SFX.Add(Game1.Cloth);
+        }
+
+
+
         public int HeatInCelsius { get; set; } = 20;
         public bool IsConsumable { get; set; } = false;
 
@@ -117,7 +150,7 @@ namespace Lightrealm
             set => _creatorId = value?.ID ?? 0;
         }
 
-        public int FireCycles { get; set; } = 0;
+        public int FireSeconds { get; set; } = 0;
         public int WetCycles { get; set; } = 0;
         public int DestabilizedCycles { get; set; } = 0;
         public int FractalCycles { get; set; } = 0;
@@ -144,7 +177,8 @@ namespace Lightrealm
             );
         }
 
-        public bool IsCoveredInPlants { get; set; } = false;
+        public int PlantCycles { get; set; } = 0;
+
         public List<(string, int)> CoverageValues { get; set; } = new List<(string, int)>();
         public int Coverage { get; set; } = 0;
         public string CoverageName { get; set; } = "";
@@ -339,7 +373,7 @@ namespace Lightrealm
             }
         }
 
-        public virtual EntityList<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
+        public virtual EntityList<TextStorage> TakeDamageFromObject(Object o, int Power,  /*only used for announcements*/   Architect MeleeAttacker, string DescriptiveVerb)
         {
             EntityList<TextStorage> Announcements = new EntityList<TextStorage>();
 
@@ -349,10 +383,10 @@ namespace Lightrealm
 
 
                 // Base damage values
-                double basePain = 10;
-                double baseIntegrityLoss = 10;
-                double baseBleeding = 1;
-                double baseEnergyLoss = 5;
+                double basePain = 20;
+                double baseIntegrityLoss = 20;
+                double baseBleeding = 2;
+                double baseEnergyLoss = 10;
 
                 // Modifiers based on weapon type
                 double painModifier = 1;
@@ -387,16 +421,16 @@ namespace Lightrealm
                 }
 
                 // Proficiency factor
-                double efficiencyFactor = 1 + (WielderProficiency * 0.05) + (o.FindObjectGenericStrength() * 0.05);
+                double PowerFactor = 1 + (Power * 0.05);
+                double weaponFactor = 1 + (o.FindObjectGenericStrength() * 0.05);
 
-                // Combat intensity factor (example dynamic adjustment)
-                double combatIntensityMultiplier = 2; // This value should be dynamically adjusted based on combat conditions
+                double targetFocusMod = (1 - (0.1) * (((Architect)Owner).Focus));
 
                 // Calculate damage outcomes
-                int Pain = (int)(basePain * painModifier * efficiencyFactor * combatIntensityMultiplier * (1 - (0.1) * (((Architect)Owner).Focus)));
-                int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * efficiencyFactor * combatIntensityMultiplier);
-                int Bleeding = (int)(baseBleeding * bleedingModifier * efficiencyFactor * combatIntensityMultiplier);
-                int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * efficiencyFactor * combatIntensityMultiplier);
+                int Pain = (int)(basePain * painModifier * PowerFactor * weaponFactor * targetFocusMod);
+                int IntegrityDamage = (int)(baseIntegrityLoss * integrityModifier * weaponFactor * PowerFactor);
+                int Bleeding = (int)(baseBleeding * bleedingModifier * PowerFactor * weaponFactor);
+                int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * PowerFactor * weaponFactor);
 
 
                 //heat damage
@@ -422,23 +456,23 @@ namespace Lightrealm
                 }
 
                 // Determine if the attack gets blocked by coverage or armor
-                if (Game1.r.Next(100) < Coverage)
+                if (Game1.GameWorld.rnd.Next(100) < Coverage && Game1.TutorialActive == false)
                 {
                     Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>() { }));
                     return Announcements;
                 }
 
-                if (Owner != null && Owner is Architect a && IsBodyPart)
+                if (Owner != null && Owner is Architect a && IsBodyPart && Game1.TutorialActive == false)
                 {
-                    if (Game1.r.Next(100) < a.BarrierStacks * 10)
+                    if (Game1.GameWorld.rnd.Next(100) < a.BarrierStacks * 10)
                     {
                         Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>() { }));
                         a.BarrierStacks--;
                         return Announcements;
                     }
 
-                    int armorDamage = Game1.r.Next(1, Math.Max(WielderProficiency, 1) + 4);
-                    if (Game1.r.Next(100) < a.NaturalArmor)
+                    int armorDamage = Game1.GameWorld.rnd.Next(1, Math.Max(Power, 1) + 4);
+                    if (Game1.GameWorld.rnd.Next(100) < a.NaturalArmor)
                     {
                         Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
                         a.NaturalArmor -= armorDamage;
@@ -657,7 +691,7 @@ namespace Lightrealm
             return Announcements;
         }
 
-        public void UpdateNames(bool IgnoreLUC)
+        public void UpdateNames(bool IgnoreLUC, Architect Possessor)
         {
             if (LatestUpdateCycle == Game1.GameWorld.Cycle && IgnoreLUC == false)
             {
@@ -721,13 +755,15 @@ namespace Lightrealm
             {
                 if (Type == "statue")
                 {
-                    // Exclude Name, include Material List and Images
                     AddReferredToName($"{Game1.FormatMaterialList(Materials)} {statueSuffix}");
+                    // Exclude Name, include Material List and Images
+                    AddReferredToName(statueSuffix);
                     AddReferredToName("the " + Game1.FormatMaterialList(Materials) + " " + statueSuffix);
                 }
                 else
                 {
                     AddReferredToName(engravedPrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                    AddReferredToName(Type);
                     AddReferredToName("the " + engravedPrefix + Game1.FormatMaterialList(Materials) + " " + Type);
                 }
             }
@@ -751,9 +787,9 @@ namespace Lightrealm
                 }
             }
 
-            if (Type == "shadow storage" && ReferredToNames.Contains("shadow storage"))
+            if (Type == "shadow fountain" && ReferredToNames.Contains("shadow fountain"))
             {
-                ReferredToNames.Remove("shadow storage");
+                ReferredToNames.Remove("shadow fountain");
             }
 
             if (AirborneTarget != null)
@@ -772,7 +808,7 @@ namespace Lightrealm
 
             foreach (Object o in ContainedObjects)
             {
-                o.UpdateNames(true);
+                o.UpdateNames(true, Possessor);
             }
 
             ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
@@ -793,6 +829,24 @@ namespace Lightrealm
                 string quickestName = ReferredToNames[0] + " [<]";
                 ReferredToNames.Insert(0, quickestName);
             }
+
+            if (Possessor != null)
+            {
+                // Create a copy of the collection to avoid modification issues during iteration
+                var referredToNamesCopy = new List<string>(ReferredToNames);
+
+                foreach (string s in referredToNamesCopy)
+                {
+                    if (s.StartsWith("the "))
+                        continue;
+
+                    if (Possessor.ReferredToNames[0].Last() == 's')
+                        AddReferredToName(Possessor.ReferredToNames[0] + "' " + s);
+                    else
+                        AddReferredToName(Possessor.ReferredToNames[0] + "'s " + s);
+                }
+            }
+
 
             AddReferredToName(ID.ToString());
         }
@@ -872,10 +926,17 @@ namespace Lightrealm
 
             //burn
 
-            if (FireCycles > 0 && Game1.GameWorld.Cycle % 10 == 0)
+            if (FireSeconds > 0 && Game1.GameWorld.Cycle % 10 == 0)
             {
-                Integrity -= FireCycles;
-                FireCycles--;
+                Integrity -= FireSeconds;
+                FireSeconds--;
+            }
+
+            //plants
+
+            if(PlantCycles > 0)
+            {
+                PlantCycles--;
             }
 
             //rope traps
@@ -944,7 +1005,7 @@ namespace Lightrealm
             }
 
             ApplyImbuements(0);
-            UpdateNames(true);
+            UpdateNames(true, null);
         }
 
         public Object(string name, string type, EntityList<Material> materials, Entity creator)
@@ -1319,11 +1380,6 @@ namespace Lightrealm
                     Description = "A large cup made of /m.";
                     IsContainer = true;
                     break;
-                case "tablet":
-                    Weight = 500;
-                    IsGeneralGood = true;
-                    Description = "A small tablet for writing.";
-                    break;
                 case "candle":
                     Weight = 500;
                     IsGeneralGood = true;
@@ -1502,7 +1558,7 @@ namespace Lightrealm
                     Weight = 10;
                     IsWeapon = true;
                     DamageType = "bashing";
-                    Description = "A wave of /m energy.";
+                    Description = "A flying wave of /m.";
                     break;
                 case "spark":
                     Weight = 10;
@@ -1510,213 +1566,6 @@ namespace Lightrealm
                     DamageType = "piercing";
                     Description = "A mysterious concentration of photonic energy.";
                     break;
-
-
-                //furniture
-
-                // Inside the switch statement of your object constructor
-
-                
-
-                case "urn":
-                    Weight = 1500; // Example weight for an urn
-                    IsContainer = true;
-                    Description = "An urn, often used for storing ashes or as a decorative piece.";
-                    break;
-
-                case "pot":
-                    Weight = 1000; // Example weight for a pot
-                    IsContainer = true;
-                    Description = "A pot, commonly used for cooking or storage.";
-                    break;
-
-                case "mug":
-                    Weight = 300; // Example weight for a mug
-                    IsContainer = true;
-                    Description = "A mug, suitable for drinking beverages.";
-                    break;
-
-                case "bowl":
-                    Weight = 400; // Example weight for a bowl
-                    IsContainer = true;
-                    Description = "A bowl, versatile for serving food.";
-                    break;
-
-                case "cup":
-                    Weight = 200; // Example weight for a cup
-                    IsContainer = true;
-                    Description = "A cup, used for drinking various liquids.";
-                    break;
-
-                case "small chalice":
-                    Weight = 200; // Example weight for a chalice
-                    IsContainer = true;
-                    Description = "A small chalice, often used for ceremonial purposes.";
-                    break;
-
-                case "big chalice":
-                    Weight = 500; // Example weight for a chalice
-                    IsContainer = true;
-                    Description = "A big chalice, typically used in rituals or as a decorative item.";
-                    break;
-
-
-                // Add any additional missing types here...
-                case "bookcase":
-                    Weight = 15000;
-                    IsContainer = true;
-                    Description = "A large furniture piece for storing books.";
-                    break;
-
-                case "altar":
-                    Weight = 20000;
-                    IsContainer = true;
-                    Description = "A sacred table used for religious or ceremonial purposes.";
-                    break;
-
-                case "table":
-                    Weight = 10000;
-                    IsContainer = true;
-                    Description = "A sturdy piece of furniture for dining or work.";
-                    break;
-
-                case "chair":
-                    Weight = 5000;
-                    IsContainer = false;
-                    Description = "A seating furniture for one person.";
-                    break;
-
-                case "door":
-                    Weight = 30000;
-                    IsContainer = false;
-                    Description = "A large, swinging barrier for entry or exit.";
-                    break;
-
-                case "exit door":
-                    Weight = 30000;
-                    IsContainer = false;
-                    Description = "A large, swinging barrier. You entered here to get in the structure.";
-                    break;
-
-                case "bed":
-                    Weight = 20000;
-                    IsContainer = true;
-                    Description = "A piece of furniture for sleeping or resting.";
-                    break;
-
-                case "keg":
-                    Weight = 10000;
-                    IsContainer = true;
-                    Description = "A barrel-like container for storing liquids, often alcoholic.";
-                    break;
-
-                case "chest":
-                    Weight = 8000;
-                    IsContainer = true;
-                    Description = "A storage box for valuables and other items.";
-                    break;
-
-                case "shadow storage":
-                    Weight = 8000;
-                    IsContainer = false;
-                    Description = "A pedestal upon which sits a glowing void. It hungers for isodust.";
-                    break;
-
-                case "forge":
-                    Weight = 100000;
-                    IsContainer = false;
-                    Description = "A heavy structure for smelting and metalworking.";
-                    break;
-
-                case "weapon rack":
-                    Weight = 10000;
-                    IsContainer = true;
-                    Description = "A rack for storing and displaying weapons.";
-                    break;
-
-                case "tool rack":
-                    Weight = 7000;
-                    IsContainer = true;
-                    Description = "A rack designed for organizing tools.";
-                    break;
-
-                case "armor stand":
-                    Weight = 7000;
-                    IsContainer = true;
-                    Description = "A stand for holding and displaying armor.";
-                    break;
-
-                case "magma channel":
-                    Weight = 30000;
-                    IsContainer = true;
-                    Description = "A large, structured passage for directing magma flow.";
-                    break;
-
-                case "statue":
-                    Weight = 5000;
-                    IsContainer = true;
-                    Description = "A base structure for displaying significant objects or statues.";
-                    break;
-
-                case "pedestal":
-                    Weight = 15000;
-                    IsContainer = true;
-                    Description = "A base structure for displaying significant objects or statues.";
-                    break;
-
-                case "pillar":
-                    Weight = 25000;
-                    IsContainer = false;
-                    Description = "A large column used for structural support or decoration.";
-                    break;
-
-                case "barrel":
-                    Weight = 12000;
-                    IsContainer = true;
-                    Description = "A cylindrical container for storing and transporting goods.";
-                    break;
-
-                case "bin":
-                    Weight = 6000;
-                    IsContainer = true;
-                    Description = "A container for storing various items.";
-                    break;
-
-                case "target board":
-                    Weight = 3000;
-                    IsContainer = false;
-                    Description = "A board used for target practice.";
-                    break;
-
-                case "rug":
-                    Weight = 2000;
-                    IsContainer = false;
-                    Description = "A decorative floor covering.";
-                    break;
-
-                case "plant":
-                    Weight = 1000;
-                    IsContainer = false;
-                    Description = "A large living organism, typically used for decoration or herbal purposes.";
-                    break;
-
-                case "orb":
-                    Weight = 0;
-                    IsContainer = false;
-                    Description = "A levitating, glistening orb. It feels weightless.";
-                    break;
-
-                case "tree":
-                    Weight = 9000000;
-                    IsContainer = true;
-                    Description = "A huge membranous organism that grows out of the ground.";
-                    break;
-                case "bush":
-                    Weight = 1000;
-                    IsContainer = true;
-                    Description = "A flowering, leafy, membranous organism that grows out of the ground.";
-                    break;
-
                 // other amror
 
                 // Inside the switch statement of your object constructor
@@ -1826,6 +1675,191 @@ namespace Lightrealm
                     Description = "A vial of vitality, a fast acting energy source.";
                     break;
 
+
+
+                case "urn":
+                    Weight = 1500; // Example weight for an urn
+                    IsContainer = true;
+                    Description = "An urn, often used for storing ashes or as a decorative piece.";
+                    break;
+
+                case "small chalice":
+                    Weight = 200; // Example weight for a chalice
+                    IsContainer = true;
+                    Description = "A small chalice, often used for ceremonial purposes.";
+                    break;
+
+                case "big chalice":
+                    Weight = 500; // Example weight for a chalice
+                    IsContainer = true;
+                    Description = "A big chalice, typically used in rituals or as a decorative item.";
+                    break;
+
+
+
+                //furniture
+
+                // Inside the switch statement of your object constructor
+
+
+                // Add any additional missing types here...
+                case "bookcase":
+                    Weight = 15000;
+                    IsContainer = true;
+                    Description = "A large furniture piece for storing books.";
+                    break;
+
+                case "altar":
+                    Weight = 20000;
+                    IsContainer = true;
+                    Description = "A sacred table used for religious or ceremonial purposes.";
+                    break;
+
+                case "table":
+                    Weight = 10000;
+                    IsContainer = true;
+                    Description = "A sturdy piece of furniture for dining or work.";
+                    break;
+
+                case "chair":
+                    Weight = 5000;
+                    IsContainer = false;
+                    Description = "A seating furniture for one person.";
+                    break;
+
+                case "door":
+                    Weight = 30000;
+                    IsContainer = false;
+                    Description = "A large, swinging barrier for entry or exit.";
+                    break;
+
+                case "exit door":
+                    Weight = 30000;
+                    IsContainer = false;
+                    Description = "A large, swinging barrier. You entered here to get in the structure.";
+                    break;
+
+                case "bed":
+                    Weight = 20000;
+                    IsContainer = true;
+                    Description = "A piece of furniture for sleeping or resting.";
+                    break;
+
+                case "keg":
+                    Weight = 10000;
+                    IsContainer = true;
+                    Description = "A barrel-like container for storing liquids.";
+                    break;
+
+                case "chest":
+                    Weight = 8000;
+                    IsContainer = true;
+                    Description = "A storage box for valuables and other items.";
+                    break;
+
+                case "shadow fountain":
+                    Weight = 8000;
+                    IsContainer = false;
+                    Description = "A fountain that flows from a realm of pure shadow, commonly found at the center of a civilization. Items sent inside can be recalled from any fountain at will.";
+                    break;
+
+                case "forge":
+                    Weight = 100000;
+                    IsContainer = false;
+                    Description = "A heavy structure for smelting and metalworking.";
+                    break;
+
+                case "weapon rack":
+                    Weight = 10000;
+                    IsContainer = true;
+                    Description = "A rack for storing and displaying weapons.";
+                    break;
+
+                case "tool rack":
+                    Weight = 7000;
+                    IsContainer = true;
+                    Description = "A rack designed for organizing tools.";
+                    break;
+
+                case "armor stand":
+                    Weight = 7000;
+                    IsContainer = true;
+                    Description = "A stand for holding and displaying armor.";
+                    break;
+
+                case "magma channel":
+                    Weight = 30000;
+                    IsContainer = true;
+                    Description = "A large, structured passage for directing magma flow.";
+                    break;
+
+                case "statue":
+                    Weight = 5000;
+                    IsContainer = true;
+                    Description = "A base structure for displaying significant objects or statues.";
+                    break;
+
+                case "pedestal":
+                    Weight = 15000;
+                    IsContainer = true;
+                    Description = "A base structure for displaying significant objects or statues.";
+                    break;
+
+                case "pillar":
+                    Weight = 25000;
+                    IsContainer = false;
+                    Description = "A large column used for structural support or decoration.";
+                    break;
+
+                case "barrel":
+                    Weight = 12000;
+                    IsContainer = true;
+                    Description = "A cylindrical container for storing and transporting goods.";
+                    break;
+
+                case "bin":
+                    Weight = 6000;
+                    IsContainer = true;
+                    Description = "A container for storing various items.";
+                    break;
+
+                case "target board":
+                    Weight = 3000;
+                    IsContainer = false;
+                    Description = "A board used for target practice.";
+                    break;
+
+                case "rug":
+                    Weight = 2000;
+                    IsContainer = false;
+                    Description = "A decorative floor covering.";
+                    break;
+
+                case "plant":
+                    Weight = 1000;
+                    IsContainer = false;
+                    Description = "A large living organism, typically used for decoration or herbal purposes.";
+                    break;
+
+                case "orb":
+                    Weight = 0;
+                    IsContainer = false;
+                    Description = "A levitating, glistening orb. It feels weightless.";
+                    break;
+
+                case "tree":
+                    Weight = 9000000;
+                    IsContainer = true;
+                    Description = "A huge membranous organism that grows out of the ground.";
+                    break;
+                case "bush":
+                    Weight = 1000;
+                    IsContainer = true;
+                    Description = "A flowering, leafy, membranous organism that grows out of the ground.";
+                    break;
+
+               
+
                 default:
                     
                     throw new Exception("Trying to create an unimplemented object!");
@@ -1853,7 +1887,7 @@ namespace Lightrealm
 
 
 
-                int rarityInt = Game1.r.Next(1, CoolioNumber);
+                int rarityInt = Game1.GameWorld.rnd.Next(1, CoolioNumber);
 
                 if (rarityInt == 1)
                 {
@@ -1875,7 +1909,7 @@ namespace Lightrealm
 
 
             ApplyImbuements(0);
-            UpdateNames(false);
+            UpdateNames(false, null);
         }
 
         public void ApplyImbuements(int Extra)
@@ -1946,7 +1980,7 @@ namespace Lightrealm
 
             for (int i = 0; i < Imbuements; i++)
             {
-                bool isTrigger = Game1.r.Next(2) == 0;
+                bool isTrigger = Game1.GameWorld.rnd.Next(2) == 0;
                 string conditionOrTrigger = "";
                 string buffOrEffect = "";
                 int firstPower = 0;
@@ -1954,9 +1988,9 @@ namespace Lightrealm
 
                 if (isTrigger)
                 {
-                    int triggerIndex = Game1.r.Next(TriggerConditions.Count());
+                    int triggerIndex = Game1.GameWorld.rnd.Next(TriggerConditions.Count());
                     conditionOrTrigger = TriggerConditions[triggerIndex];
-                    int effectIndex = Game1.r.Next(TriggerEffects.Count());
+                    int effectIndex = Game1.GameWorld.rnd.Next(TriggerEffects.Count());
                     buffOrEffect = TriggerEffects[effectIndex];
                     // No power values assigned for triggers in this example
                 }
@@ -1968,8 +2002,8 @@ namespace Lightrealm
                     // Ensure "maxenergy" is never paired with "+regen"
                     do
                     {
-                        passiveIndex = Game1.r.Next(PassiveConditions.Count());
-                        buffIndex = Game1.r.Next(PassiveEffects.Count());
+                        passiveIndex = Game1.GameWorld.rnd.Next(PassiveConditions.Count());
+                        buffIndex = Game1.GameWorld.rnd.Next(PassiveEffects.Count());
                         conditionOrTrigger = PassiveConditions[passiveIndex];
                         buffOrEffect = PassiveEffects[buffIndex];
                     } while (conditionOrTrigger == "maxenergy" && buffOrEffect == "+regen");
@@ -1977,18 +2011,18 @@ namespace Lightrealm
                     // Example power calculation for passive buffs
                     if (buffOrEffect.Equals("+regen"))
                     {
-                        secondPower = Game1.r.Next(1, 4);
+                        secondPower = Game1.GameWorld.rnd.Next(1, 4);
                     }
                     else if (buffOrEffect.StartsWith("+") && buffOrEffect != "+stealth")
                     {
                         // Assuming heal and regen buffs require specific power values
-                        secondPower = Game1.r.Next(2, 7); // Example range from 5 to 20
+                        secondPower = Game1.GameWorld.rnd.Next(2, 7); // Example range from 5 to 20
                     }
 
                     // For 'diminished' condition, set a specific range for the firstPower
                     if (conditionOrTrigger.Equals("diminished"))
                     {
-                        firstPower = Game1.r.Next(40, 61); // Randomly choose a value between 40 to 60
+                        firstPower = Game1.GameWorld.rnd.Next(40, 61); // Randomly choose a value between 40 to 60
                     }
                 }
 
@@ -1996,19 +2030,19 @@ namespace Lightrealm
             }
         }
 
-        public void Fractallize(int Cycles)
+        public void Fractallize(int Cycles, Architect Executor)
         {
             FractalCycles = Cycles;
-            RematerializeLocation = (this.Block.District.Location.Region, this.Block.District.Location, this.Block.District, this.Block, this.Structure, this.Room);
+            RematerializeLocation = (Executor.Block.District.Location.Region, Executor.Block.District.Location, Executor.Block.District, Executor.Block, Executor.Structure, Executor.Room);
             Game1.GameWorld.FractalObjects.Add(this);
 
-            if (Room != null)
+            if (Executor.Room != null)
             {
-                Room.Objects.Remove(this);
+                Executor.Room.Objects.Remove(this);
             }
-            else if (Block != null)
+            else if (Executor.Block != null)
             {
-                Block.Objects.Remove(this);
+                Executor.Block.Objects.Remove(this);
             }
         }
 

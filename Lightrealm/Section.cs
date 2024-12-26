@@ -35,7 +35,7 @@ namespace Lightrealm
         {
             this.Parent = parent;
             this.Number = number;
-            this.Quality = Game1.r.Next(0, 8) + QualityMod;
+            this.Quality = Game1.GameWorld.rnd.Next(0, 8) + QualityMod;
 
             List<string> tones = new List<string>
             {
@@ -49,24 +49,24 @@ namespace Lightrealm
                 "disdainful", "curious", "enthusiastic", "contemptuous"
             };
 
-            this.Tone = tones[Game1.r.Next(tones.Count())];
-            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count())] };
+            this.Tone = tones[Game1.GameWorld.rnd.Next(tones.Count())];
+            this.Perspectives = new List<string> { perspectives[Game1.GameWorld.rnd.Next(perspectives.Count())] };
             this.Domains = GenerateDomains();
 
             this.Type = sectionType;
 
             if (compositionType == "song" && sectionType == "none")
             {
-                this.Type = new List<string> { "verse", "chorus", "bridge" }[Game1.r.Next(3)];
+                this.Type = new List<string> { "verse", "chorus", "bridge" }[Game1.GameWorld.rnd.Next(3)];
             }
             else if (compositionType == "poem")
             {
-                this.Length = Game1.r.Next(4, 10);
+                this.Length = Game1.GameWorld.rnd.Next(4, 10);
                 this.Type = "Stanza";
             }
             else if (compositionType == "book")
             {
-                this.Length = Game1.r.Next(5, 50);
+                this.Length = Game1.GameWorld.rnd.Next(5, 50);
                 this.Type = "Chapter";
             }
 
@@ -82,7 +82,7 @@ namespace Lightrealm
         {
             this.Parent = parent;
             this.Number = number;
-            this.Quality = Game1.r.Next(0, 8) + QualityMod;
+            this.Quality = Game1.GameWorld.rnd.Next(0, 8) + QualityMod;
 
             List<string> tones = new List<string>
             {
@@ -96,24 +96,24 @@ namespace Lightrealm
                 "disdainful", "curious", "enthusiastic", "contemptuous"
             };
 
-            this.Tone = tones[Game1.r.Next(tones.Count())];
-            this.Perspectives = new List<string> { perspectives[Game1.r.Next(perspectives.Count())] };
+            this.Tone = tones[Game1.GameWorld.rnd.Next(tones.Count())];
+            this.Perspectives = new List<string> { perspectives[Game1.GameWorld.rnd.Next(perspectives.Count())] };
             this.Domains = new EntityList<Entity> { Parent.Subject };
 
             this.Type = sectionType;
 
             if (compositionType == "song" && sectionType == "none")
             {
-                this.Type = new List<string> { "verse", "chorus", "bridge" }[Game1.r.Next(3)];
+                this.Type = new List<string> { "verse", "chorus", "bridge" }[Game1.GameWorld.rnd.Next(3)];
             }
             else if (compositionType == "poem")
             {
-                this.Length = Game1.r.Next(4, 10);
+                this.Length = Game1.GameWorld.rnd.Next(4, 10);
                 this.Type = "Stanza";
             }
             else if (compositionType == "book")
             {
-                this.Length = Game1.r.Next(5, 50);
+                this.Length = Game1.GameWorld.rnd.Next(5, 50);
                 this.Type = "Chapter";
             }
 
@@ -138,7 +138,7 @@ namespace Lightrealm
                 $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatAndList(Perspectives)} angle."
             };
 
-            string format = formats[Game1.r.Next(formats.Count())];
+            string format = formats[Game1.GameWorld.rnd.Next(formats.Count())];
             Description = format;
         }
 
@@ -153,7 +153,7 @@ namespace Lightrealm
                 $"The {Tone} tone of {Number} {Type} illuminates {Game1.FormatList(Domains)}, viewed from a {Game1.FormatAndList(Perspectives)} angle."
             };
 
-            string format = formats[Game1.r.Next(formats.Count())];
+            string format = formats[Game1.GameWorld.rnd.Next(formats.Count())];
             Description = format;
         }
 
@@ -168,7 +168,7 @@ namespace Lightrealm
                 $"The {Tone} tone of {Type} {Number} illuminates when {eventDescription}, viewed from a {Game1.FormatAndList(Perspectives)} angle."
             };
 
-            string format = formats[Game1.r.Next(formats.Count())];
+            string format = formats[Game1.GameWorld.rnd.Next(formats.Count())];
             Description = format;
         }
 
@@ -176,15 +176,15 @@ namespace Lightrealm
         {
             EntityList<Entity> generatedDomains = new EntityList<Entity>();
 
-            if (Game1.r.NextDouble() < 0.8)
+            if (Game1.GameWorld.rnd.NextDouble() < 0.8)
             {
                 generatedDomains.Add(this.Parent.Subject);
             }
 
             double chanceToAddAdditionalDomain = 0.5;
-            while (Game1.r.NextDouble() < chanceToAddAdditionalDomain)
+            while (Game1.GameWorld.rnd.NextDouble() < chanceToAddAdditionalDomain)
             {
-                Entity potentialDomain = Game1.GameWorld.Domains[Game1.r.Next(Game1.GameWorld.Domains.Count())];
+                Entity potentialDomain = Game1.GameWorld.Domains[Game1.GameWorld.rnd.Next(Game1.GameWorld.Domains.Count())];
                 if (!generatedDomains.Contains(potentialDomain))
                 {
                     generatedDomains.Add(potentialDomain);

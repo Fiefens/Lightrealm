@@ -35,9 +35,9 @@ namespace Lightrealm
             ObjectiveTypes = objectiveTypes;
             ObjectiveEntities = objectiveEntities;
 
-            Name = PlanNames[Game1.r.Next(PlanNames.Count)] + " " + Game1.GameWorld.GenerateUniqueName("1W1w", this);
+            Name = PlanNames[Game1.GameWorld.rnd.Next(PlanNames.Count)] + " " + Game1.GameWorld.GenerateUniqueName("1W1w", this, Game1.GameWorld.rnd);
 
-            Effectiveness = Game1.r.Next(30, 60);
+            Effectiveness = Game1.GameWorld.rnd.Next(30, 60);
         }
     }
 }

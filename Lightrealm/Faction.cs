@@ -18,12 +18,14 @@ namespace Lightrealm
 
         public string Description = "";
 
+        public int PlansExecutedSuccessfully = 0;
+
         public EntityList<Location> InsightedLocations = new EntityList<Location>();
 
         public EntityList<Plan> Plans = new EntityList<Plan>();
 
         public bool Organized = false;
-        public string CoreValue = ValueList[Game1.r.Next(ValueList.Count)];
+        public string CoreValue = ValueList[Game1.GameWorld.rnd.Next(ValueList.Count)];
         public string ResourceValue = "";
 
         public EntityList<Group> SatelliteGroups = new EntityList<Group>();
@@ -40,14 +42,14 @@ namespace Lightrealm
         public Faction(Architect Leader, bool Organized)
         {
             this.Organized = Organized;
-            this.ResourceValue = ResourceList[Game1.r.Next(4)];
-            this.CoreValue = ValueList[Game1.r.Next(4)];
+            this.ResourceValue = ResourceList[Game1.GameWorld.rnd.Next(4)];
+            this.CoreValue = ValueList[Game1.GameWorld.rnd.Next(4)];
 
             Group g = new Group(new EntityList<Architect>() { Leader }, CoreValue, Leader, null);
             g.HomeFaction = this;
             SatelliteGroups.Add(g);
 
-            this.Name = Game1.GameWorld.GenerateUniqueName("1S" + Game1.r.Next(2, 5) + "s1w", this);
+            this.Name = Game1.GameWorld.GenerateUniqueName("1S" + Game1.GameWorld.rnd.Next(2, 5) + "s1w", this, Game1.GameWorld.rnd);
         }
     }
 }

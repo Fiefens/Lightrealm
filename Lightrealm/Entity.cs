@@ -102,7 +102,7 @@ namespace Lightrealm
                 }
                 foreach (var district in location.Districts)
                 {
-                    entitiesToPissOff.AddRange(district.Architects.Where(a => Game1.r.Next(0, 100) < 1)); // 1 percent chance
+                    entitiesToPissOff.AddRange(district.Architects.Where(a => Game1.GameWorld.rnd.Next(0, 100) < 1)); // 1 percent chance
                 }
             }
             else if (Victim is Architect architect)

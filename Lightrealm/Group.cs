@@ -73,7 +73,7 @@ namespace Lightrealm
 
         public EntityList<Location> TradeRoute { get; set; } = new EntityList<Location>();
 
-        public int MaxTradeRouteLength { get; set; } = Game1.r.Next(3, 10);
+        public int MaxTradeRouteLength { get; set; } = Game1.GameWorld.rnd.Next(3, 10);
         public bool WaitingForCooldownToTrade { get; set; } = false;
 
         public int MoralCompass { get; set; } = 0;
@@ -121,7 +121,7 @@ namespace Lightrealm
             if (validArchitects.Any())
             {
                 // Select a random architect from the valid architects
-                Architect selectedArchitect = validArchitects[new Random().Next(validArchitects.Count)];
+                Architect selectedArchitect = validArchitects[Game1.GameWorld.rnd.Next(validArchitects.Count)];
 
                 // Add the selected architect to the group
                 Architects.Add(selectedArchitect);
@@ -166,7 +166,7 @@ namespace Lightrealm
             if(Game1.GameWorld != null)
                 Game1.GameWorld.LegacyGroups.Add(this);
 
-            Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(3, 6)) + "s", this);
+            Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.GameWorld.rnd.Next(3, 6)) + "s", this, Game1.GameWorld.rnd);
             Architects = architects;
             Type = type;
             Leader = leader;

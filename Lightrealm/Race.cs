@@ -44,8 +44,8 @@ namespace Lightrealm
             if (Name.EndsWith("guardian"))
             {
                 List<string> PowerTypes = new List<string> { "energybolts", "cloaking", "magneticfield", "shockwave", "slowray", "pulsebash", "harvest" };
-                int numberOfPowers = Game1.r.Next(1, 4);
-                Powers = PowerTypes.OrderBy(x => Game1.r.Next()).Take(numberOfPowers).ToList();
+                int numberOfPowers = Game1.TemporaryRand.Next(1, 4);
+                Powers = PowerTypes.OrderBy(x => Game1.TemporaryRand.Next()).Take(numberOfPowers).ToList();
             }
 
             AddReferredToName(Name);
@@ -97,7 +97,7 @@ namespace Lightrealm
                 "debtshiba" => "A fluffy, four-legged creature with an unrivaled desire for capitalistic righteousness.",
                 "hypernexus" => "A very large photonexus bearing no imperfection.",
                 "shadeheart" => "A colossal beating heart. It beats inconsistently, spreading a foul poison throughout its many veins.",
-                "icosidodecahedron" => "An 80-sided rotating rainbow prism. A glorious expressive light accompanies its presence.",
+                "icosidodecahedron" => "An 30-sided rotating rainbow prism. A glorious expressive light accompanies its presence.",
                 _ => "A " + Size + "-sized creature of some sort."
             };
 

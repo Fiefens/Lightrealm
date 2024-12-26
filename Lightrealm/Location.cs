@@ -127,11 +127,11 @@ namespace Lightrealm
             if (Type == "spire")
             {
                 //if you want a different name scheme use this but whatever for now works
-                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
+                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.GameWorld.rnd.Next(2, 4)) + "s1w", this, Game1.GameWorld.rnd);
             }
             else
             {
-                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.r.Next(2, 4)) + "s1w", this);
+                Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.GameWorld.rnd.Next(2, 4)) + "s1w", this, Game1.GameWorld.rnd);
             }
 
             ReferredToNames.Clear();
@@ -140,8 +140,8 @@ namespace Lightrealm
 
             if(Game1.GameWorld.ProcgenStructures.Contains(this.Type))
             {
-                Color = new List<string>() { "white", "gray", "black", "brown", "maroon" }[Game1.r.Next(5)];
-                Layout = new List<string>() { "archway", "hallway", "toroid", "towers", "pyramid" }[Game1.r.Next(5)];
+                Color = new List<string>() { "white", "gray", "black", "brown", "maroon" }[Game1.GameWorld.rnd.Next(5)];
+                Layout = new List<string>() { "archway", "hallway", "toroid", "towers", "pyramid" }[Game1.GameWorld.rnd.Next(5)];
             }
 
             PrimaryRace = primaryrace;
@@ -155,38 +155,38 @@ namespace Lightrealm
 
             PrimaryLightingStyles = new List<string>
             {
-                Game1.LightingStyles[Game1.r.Next(Game1.LightingStyles.Count())]
+                Game1.LightingStyles[Game1.GameWorld.rnd.Next(Game1.LightingStyles.Count())]
             };
 
             switch (Type)
             {
                 case "archway":
-                    GuardiansInNetwork = Game1.r.Next(5, 10); // Half of 10-20 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 10); // Half of 10-20 rooms
                     break;
                 case "commune":
-                    GuardiansInNetwork = Game1.r.Next(5, 7); // Half of 10-13 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 7); // Half of 10-13 rooms
                     break;
                 case "stronghold":
-                    GuardiansInNetwork = Game1.r.Next(15, 20); // MOAR
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(15, 20); // MOAR
                     break;
                 case "monument":
-                    GuardiansInNetwork = Game1.r.Next(10, 15); // Half of 20-30 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(10, 15); // Half of 20-30 rooms
                     break;
                 case "monastery":
-                    GuardiansInNetwork = Game1.r.Next(0, 2); // Half of 0-4 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(0, 2); // Half of 0-4 rooms
                     break;
                 case "towers":
-                    GuardiansInNetwork = Game1.r.Next(5, 10); // Half of 10-20 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 10); // Half of 10-20 rooms
                     break;
                 case "sanctum":
-                    GuardiansInNetwork = Game1.r.Next(20, 40); // a lottteee
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(20, 40); // a lottteee
                     break;
                 default:
                     GuardiansInNetwork = 0;
                     break;
             }
 
-            GuardianType = Game1.GameWorld.ConstructRaces[Game1.r.Next(Game1.GameWorld.ConstructRaces.Count())];
+            GuardianType = Game1.GameWorld.ConstructRaces[Game1.GameWorld.rnd.Next(Game1.GameWorld.ConstructRaces.Count())];
         }
         public Location()
         {

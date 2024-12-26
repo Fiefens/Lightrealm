@@ -18,7 +18,6 @@ namespace Lightrealm
         public int MapCursorX;
         public int MapCursorZ;
 
-
         private int _currentEventId;
 
         public Unit CurrentEvent

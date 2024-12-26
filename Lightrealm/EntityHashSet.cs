@@ -30,8 +30,6 @@ namespace Lightrealm
 
         public bool IsReadOnly => false;
 
-        private static readonly Random _random = new Random();
-
         public EntityHashSet() { }
 
         public EntityHashSet(IEnumerable<T> items)
@@ -149,7 +147,7 @@ namespace Lightrealm
                 throw new InvalidOperationException("Cannot select a random item from an empty EntityHashSet.");
             }
 
-            int randomIndex = _random.Next(_entityIds.Count);
+            int randomIndex = Game1.GameWorld.rnd.Next(_entityIds.Count);
             int currentIndex = 0;
 
             foreach (int id in _entityIds)
