@@ -1,6 +1,5 @@
 ﻿using Lightrealm;
 using Microsoft.Xna.Framework.Input;
-using nFMOD;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,42 +15,11 @@ namespace Lightrealm
     {
         private int _regionId;
 
-        public Region Region
-        {
-            get => EntityGet<Region>(_regionId);
-            set => _regionId = value?.ID ?? 0;
-        }
+        public bool AllowsReplacement = false;
 
-        public string Type { get; set; }
+        public Region Region;
 
-        public Location TargetLocation = null;
-        public Region WanderRegion = null;
-
-        public int TravelPoints = 0;
-
-        public string Info { get; set; }
-        public string Intrigue { get; set; }
-
-        public EntityList<Architect> UnitArchitects { get; set; } = new EntityList<Architect>();
-
-        public int Luminosity { get; set; } = 0;
-
-        public Unit(Region region, string type, EntityList<Architect> Architects, Location targetLocation = null)
-        {
-            Region = region;
-            Name = Game1.GameWorld.GenerateUniqueName("1S9s", this, Game1.GameWorld.rnd);
-            Type = type;
-
-            foreach(Architect a in Architects)
-            {
-                a.Unit = this;
-            }
-
-            TargetLocation = targetLocation;
-
-            UnitArchitects = Architects;
-
-            Dictionary<string, List<string>> BiomeToIntrigue = new Dictionary<string, List<string>>
+        public static Dictionary<string, List<string>> BiomeToIntrigue = new Dictionary<string, List<string>>
                             {
                                 {"desert", new List<string>
                                     {
@@ -140,6 +108,39 @@ namespace Lightrealm
                                     }
                                 }
                             };
+
+        public string Type { get; set; }
+
+        public Location TargetLocation = null;
+        public Region WanderRegion = null;
+
+        public int TravelPoints = 0;
+
+        public string Info { get; set; }
+        public string Intrigue { get; set; }
+
+        public EntityList<Architect> UnitArchitects { get; set; } = new EntityList<Architect>();
+
+        public int Luminosity { get; set; } = 0;
+
+        public bool HasDestination = false;
+
+        public Unit(Region region, bool HasDestinat, string type, EntityList<Architect> Architects, Location targetLocation = null)
+        {
+            Region = region;
+            Name = Game1.GameWorld.GenerateUniqueName("1S9s", this, Game1.GameWorld.rnd);
+            Type = type;
+
+            HasDestination = HasDestinat;
+
+            foreach(Architect a in Architects)
+            {
+                a.Unit = this;
+            }
+
+            TargetLocation = targetLocation;
+
+            UnitArchitects = Architects;
 
             switch (Type)
             {

@@ -10,27 +10,13 @@ namespace Lightrealm
     [Serializable]
     public class Door : Object
     {
-        private int _sourceRoomId;
-
-        
-        public Room SourceRoom
-        {
-            get => EntityGet<Room>(_sourceRoomId);
-            set => _sourceRoomId = value?.ID ?? 0;
-        }
-
-        private int _destinationRoomId;
-
-        
-        public Room DestinationRoom
-        {
-            get => EntityGet<Room>(_destinationRoomId);
-            set => _destinationRoomId = value?.ID ?? 0;
-        }
-
         public string Direction { get; set; }
+        public Room SourceRoom;
+        public Room DestinationRoom;
 
         public int Number { get; set; }
+
+        public bool IsQuickestExit = false;
 
         public static List<string> OrthogonalDoorDirections { get; set; } = new List<string>() { "north", "south", "east", "west" };
         public static List<string> VerticalDoorDirections { get; set; } = new List<string>() { "up", "down" };
@@ -44,11 +30,13 @@ namespace Lightrealm
             Direction = direction;
             IsWearable = false;
 
+            Weight = 100000;
+
             Room = SourceRoom;
 
-            ReferredToNames = new List<string>() { "Placeholder" };
+            ReferredToNames = new List<string>() { Materials[0].Name + " " + direction + " door" };
 
-            UpdateNames(false, null);
+            UpdateNames(false, null, false);
         }
 
         public Door()

@@ -15,17 +15,15 @@ namespace Lightrealm
         public string Type { get; set; }
         public string GUID { get; set; }
 
-        private int _ownerId;
-        
-        public Entity Owner
-        {
-            get => EntityGet<Entity>(_ownerId);
-            set => _ownerId = value?.ID ?? 0;
-        }
+        public int HouseIndex = 0;
 
         public string FakeIsofractalColor { get; set; }
 
         public EntityList<Room> Rooms { get; set; } = new EntityList<Room>();
+
+        public int DrawIndex = -1;
+
+        public int Variant;
 
         public EntityList<Object> HistoricalObjects { get; set; } = new EntityList<Object>();
 
@@ -38,6 +36,9 @@ namespace Lightrealm
         public int ConstructionYear { get; set; } = 0;
 
         public int DoorIntegrity { get; set; } = 100;
+        public Entity Owner;
+        public Deity PrayingDeity;
+        public Block Block;
 
         public int Age
         {
@@ -48,23 +49,7 @@ namespace Lightrealm
             }
         }
 
-        public int MarketDebt { get; set; } = 0;
-
-        private int _prayingDeityId;
-        
-        public Deity PrayingDeity
-        {
-            get => EntityGet<Deity>(_prayingDeityId);
-            set => _prayingDeityId = value?.ID ?? 0;
-        }
-
-        private int _blockId;
-        
-        public Block Block
-        {
-            get => EntityGet<Block>(_blockId);
-            set => _blockId = value?.ID ?? 0;
-        }
+        public int MarketDebtToUs { get; set; } = 0;
 
         public int XInDistrict { get; set; }
         public int ZInDistrict { get; set; }
@@ -88,9 +73,22 @@ namespace Lightrealm
 
             ConstructionYear = constructionYear;
 
+            var takenIndices = Block.Structures.Select(s => s.DrawIndex).ToHashSet();
+
+
+
+            List<int> available = Enumerable.Range(1, 6).Where(i => !takenIndices.Contains(i)).ToList();
+
+            if (available.Any())
+            {
+                this.DrawIndex = available[Game1.GameWorld.rnd.Next(available.Count)];
+            }
+
             Block.District.Location.AllStructures.Add(this);
 
-            if(type == "sanctum" || type == "outpost" || type == "spire")
+
+
+            if (type == "sanctum" || type == "outpost" || type == "spire")
             {
                 Name = Block.District.Location.Name;
             }
@@ -99,7 +97,9 @@ namespace Lightrealm
                 Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.GameWorld.rnd.Next(2, 4)) + "s 1S" + (Game1.GameWorld.rnd.Next(2, 4)) + "s", this, Game1.GameWorld.rnd);
             }
 
-            if(type == "shrine")
+            Variant = Game1.GameWorld.rnd.Next(1,4);
+
+            if (type == "shrine")
             {
                 if (block.District.Location.PrimaryRace == Game1.GameWorld.GetRace("nightfell"))
                 {
@@ -134,13 +134,17 @@ namespace Lightrealm
 
             ReferredToNames = new List<string>() { Name, Name + ", " + type, ID.ToString() };
 
-            if (Type == "house" || Type == "bighouse")
+            if (Type == "house" || Type == "big house")
             {
-                int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "bighouse");
+                int count = Block.Structures.Count(s => s.Type == "house" || s.Type == "big house");
                 Block.District.MaxPopulation += Game1.GameWorld.HousingValue;
 
                 AddReferredToName("house " + (count + 1).ToString());
+
+                HouseIndex = count + 1;
             }
+
+            Game1.GameWorld.SubjectsToWriteAbout.Add(this);
         }
 
         public string GetRoomStructure()
@@ -243,10 +247,10 @@ namespace Lightrealm
             // Random introductory sentences
             List<string> introductions = new List<string>
     {
-        $"You see a {Type} called {Name}.",
-        $"The {Type} named {Name} stands before you.",
-        $"In front of you is a {Type} known as {Name}.",
-        $"You come across a {Type} known as {Name}."
+        $"You see a {Materials[0].Name} {Type} called {Name}.",
+        $"The {Materials[0].Name} {Type} named {Name} stands before you.",
+        $"In front of you is a {Materials[0].Name} {Type} known as {Name}.",
+        $"You come across a {Type} made of {Materials[0].Name} known as {Name}."
     };
 
             // Select a random introduction

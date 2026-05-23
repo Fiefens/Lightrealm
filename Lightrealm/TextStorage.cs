@@ -9,13 +9,18 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class TextStorage : Entity
+    public class TextStorage
     {
         public string Data { get; set; }
 
         private byte red;
         private byte green;
         private byte blue;
+
+
+        public bool Visible = false;
+
+        public Quest AttachedQuest = null;
 
         public EntityList<Entity> Entities { get; set; } = new EntityList<Entity>();
 

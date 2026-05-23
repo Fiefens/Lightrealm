@@ -1,8 +1,8 @@
 ﻿using Microsoft.Xna.Framework;
-using nFMOD;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -22,6 +22,17 @@ namespace Lightrealm
 
             return (T)Convert.ChangeType(Game1.GameWorld.EntityLedger[entityId], typeof(T));
         }
+
+        public static Dictionary<string, int> ConvertObjectiveToRequiredEntityCount = new Dictionary<string, int>()
+                    {
+                        { "GI", 1 },
+                        { "SVT", 4 },
+                        { "RB", 2 },
+                        { "CI", 2 },
+                        { "GT", 1 },
+                        { "ESP", 1 }
+                    };
+
 
         public static List<string> LegendTypes = new List<string>() { "hunter", "adventurer", "assassin", "rogue", "artisan", "diplomat", "enchanter" };
 
@@ -48,12 +59,24 @@ namespace Lightrealm
                 World.HistoricalEvents.Add(new Event(eventText, r, e));
             }
 
-            foreach (Architect a in World.Legends)
+            List<Architect> LegendsToRemove = new List<Architect>();
+            foreach(Architect a in World.Legends)
             {
                 if (!a.IsAlive)
                 {
-                    continue;
+                    LegendsToRemove.Add(a);
                 }
+            }
+            foreach(Architect a in LegendsToRemove)
+            {
+                World.Legends.Remove(a);
+            }
+
+
+
+            foreach (Architect a in World.Legends)
+            {
+               
 
 
                 if (!LegendTypes.Contains(a.Profession))
@@ -73,6 +96,7 @@ namespace Lightrealm
                     {
                         a.NextMigrationLocation = nearbyLocations[Game1.GameWorld.rnd.Next(nearbyLocations.Count())];
                         LogEvent(a.Name + " migrated to " + a.NextMigrationLocation.Name + ".", a.NextMigrationLocation.Region, new EntityList<Entity>(){a, a.NextMigrationLocation});
+                        a.MigrationReason = "I'm headed to " + a.NextMigrationLocation.Name + ", I don't stay in one place for long.";
                     }
                     else
                     {
@@ -87,7 +111,7 @@ namespace Lightrealm
                 {
                     if (a.LegendaryTarget == null)
                     {
-                        EntityList<Architect> shuffledArchitects = Game1.ShuffleNewEL(World.AllHistoricalArchitects.ToEntityList());
+                        List<Architect> shuffledArchitects = Game1.ShuffleNew(World.AllHistoricalArchitects.ToList());
 
                         Architect targetArchitect = shuffledArchitects.FirstOrDefault(a =>
                             (a.Profession == "beast" || a.Profession == "animal" || a.Profession == "end") && !World.Calamity.Contains(a));
@@ -104,7 +128,7 @@ namespace Lightrealm
 
                         if (a.HuntingProgress > 100)
                         {
-                            WorldActionInitiator.InitiateAction(World, "hunterfight", a, new EntityList<Entity> { a.Location, a.District, a.LegendaryTarget });
+                            WorldActionInitiator.InitiateAction(World, "hunterfight", a, new EntityList<Entity> { a.Location, a.District, a.LegendaryTarget }, false);
                             a.LegendaryTarget = null;
                             a.HuntingProgress = 0;
                         }
@@ -144,7 +168,7 @@ namespace Lightrealm
 
                         if (a.HuntingProgress > 100)
                         {
-                            WorldActionInitiator.InitiateAction(World, "hunterfight", a, new EntityList<Entity> { a.Location, a.District, a.LegendaryTarget });
+                            WorldActionInitiator.InitiateAction(World, "hunterfight", a, new EntityList<Entity> { a.Location, a.District, a.LegendaryTarget }, false);
                             a.LegendaryTarget = null;
                             a.HuntingProgress = 0;
                         }
@@ -181,7 +205,7 @@ namespace Lightrealm
 
                         if (a.HuntingProgress > 100)
                         {
-                            WorldActionInitiator.InitiateAction(World, "artifacttheft", a, new EntityList<Entity> { a.Location, a.District, a.LegendaryTargetStructure, a.LegendaryTarget });
+                            WorldActionInitiator.InitiateAction(World, "artifacttheft", a, new EntityList<Entity> { a.Location, a.District, a.LegendaryTargetStructure, a.LegendaryTarget }, false);
                             a.LegendaryTarget = null;
                             a.LegendaryTargetStructure = null;
                             a.HuntingProgress = 0;
@@ -253,7 +277,7 @@ namespace Lightrealm
                     {
                         if (Game1.GameWorld.rnd.Next(1, 100 * MonthToDayConstant) == 1)
                         {
-                            WorldActionInitiator.InitiateAction(World, "negotiate", a, new EntityList<Entity> { a.Location });
+                            WorldActionInitiator.InitiateAction(World, "negotiate", a, new EntityList<Entity> { a.Location }, false);
                             a.DiplomacyCooldown = 100;
                         }
                     }
@@ -268,7 +292,7 @@ namespace Lightrealm
                     else if (a.AdventureCooldown == 0)
                     {
                         // Initiate the adventure action
-                        WorldActionInitiator.InitiateAction(World, "adventure", a, new EntityList<Entity> { a.Location });
+                        WorldActionInitiator.InitiateAction(World, "adventure", a, new EntityList<Entity> { a.Location }, false);
 
                         int currentX = a.Location.Region.X;
                         int currentZ = a.Location.Region.Z;
@@ -282,6 +306,7 @@ namespace Lightrealm
                         {
                             var chosenLocation = potentialLocations[Game1.GameWorld.rnd.Next(potentialLocations.Count())];
                             a.NextMigrationLocation = chosenLocation;
+                            a.MigrationReason = "I am traveling to " + chosenLocation.Name + " in search of adventure.";
 
                             // Add the chosen location to the explored locations list
                             a.ExploredLocations.Add(chosenLocation);
@@ -311,6 +336,7 @@ namespace Lightrealm
 
             foreach (Faction f in World.AllFactions)
             {
+
                 // Branch Off
                 if (Game1.GameWorld.rnd.Next(100) == 1)
                 {
@@ -332,16 +358,15 @@ namespace Lightrealm
 
                 // Recruitment
 
-                if (Game1.GameWorld.rnd.Next(75) == 1)
+                if (Game1.GameWorld.rnd.Next(75*MonthToDayConstant) == 1)
                 {
-                    EntityList<Architect> EligibleArchitects = Game1.GameWorld.AllHistoricalArchitects
-                        .ToEntityList()
-                        .Where(a => Game1.GameWorld.HumanoidRaces.Contains(a.Race) &&
-                                    !Game1.GameWorld.Calamity.Contains(a) &&
+                    List<Architect> EligibleArchitects = Game1.GameWorld.AllHistoricalArchitects
+                        .Where(a => a.IsAlive &&
+                                    !a.IsCalamity &&
                                     a.Profession != "warlock" &&
                                     a.Profession != "sorcerer" &&
-                                    a.IsAlive &&
-                                    !f.SatelliteGroups.Any(g => g.Architects.Contains(a)));
+                                    Game1.GameWorld.HumanoidRaces.Contains(a.Race) &&
+                                    !f.SatelliteGroups.Any(g => g.Architects.Contains(a))).ToList();
 
                     if (EligibleArchitects.Count > 0)
                     {
@@ -349,7 +374,8 @@ namespace Lightrealm
                         Group GroupToAddTo = f.SatelliteGroups[Game1.GameWorld.rnd.Next(f.SatelliteGroups.Count)];
 
                         GroupToAddTo.Architects.Add(a);
-                        a.NextMigrationLocation = GroupToAddTo.Base != null ? GroupToAddTo.Base : GroupToAddTo.HomeFaction.Base;
+                        a.NextMigrationLocation = GroupToAddTo.Base != null ? GroupToAddTo.Base : (GroupToAddTo.HomeFaction.Base != null ? GroupToAddTo.HomeFaction.Base : Game1.GameWorld.AllLocations[Game1.GameWorld.rnd.Next(Game1.GameWorld.AllLocations.Count)]);
+                        a.MigrationReason = "I am headed to " + a.NextMigrationLocation.Name + " to join " + f.Name + ".";
 
                         // Rewrite a.Contacts
                         a.Contacts.Clear(); // Clear previous contacts
@@ -378,6 +404,11 @@ namespace Lightrealm
                         var region = f.Base?.Region ?? GroupToAddTo.HomeFaction?.Base?.Region
              ?? Game1.GameWorld.AllLocations[Game1.GameWorld.rnd.Next(Game1.GameWorld.AllLocations.Count)].Region;
 
+                        a.Level = 4;
+
+                        a.UpdateProficienciesToCurrentLevel();
+                        a.KitOutArchitect("generic4");
+
                         LogEvent($"{a.Name} was recruited to {GroupToAddTo.Name} of {f.Name}.",
                                  region,
                                  new EntityList<Entity>() { a, GroupToAddTo, f });
@@ -385,9 +416,8 @@ namespace Lightrealm
                     }
                 }
 
-
                 // Generate plans based on the faction's alignment and objectives
-                if (Game1.GameWorld.rnd.Next(5 + (f.Plans.Count * 5)) == 1)
+                if (Game1.GameWorld.rnd.Next(2 * MonthToDayConstant) == 1 && f.CurrentPlan == null) //for now only one plan per faction
                 {
                     bool Positive = f.CoreValue == "order" || f.CoreValue == "resistance";
                     List<string> PossiblePlans = new List<string>();
@@ -419,262 +449,293 @@ namespace Lightrealm
                             break;
                     }
 
-                    List<string> ObjectiveTypes = new List<string>();
-                    List<Tuple<Location, List<Entity>>> LocationEntityTuples = new List<Tuple<Location, List<Entity>>>();
-                    int numObjectives = Game1.GameWorld.rnd.Next(1, 4); // Pick 1 to 3 objectives
-                    double probability = 1.0; // 100% chance for the first iteration
+                    int numObjectives = Game1.GameWorld.rnd.Next(1, 3); // Pick 1 to 2 objectives
 
                     // Initialize the master list with all possible locations
                     EntityList<Location> MasterLocationList = new EntityList<Location>(Game1.GameWorld.AllLocations);
 
-                    // Phase 1: Location Validation
-                    for (int i = 0; i < numObjectives; i++)
+                    MasterLocationList.Shuffle();
+
+
+
+                    
+                    List<(Location, List<Entity>, string)> PossibleLocationEntityObjectiveTriplets = new List<(Location, List<Entity>, string)>();
+
+
+
+
+                    // Filter the master list based on the current objective
+                    foreach (Location l in MasterLocationList)
                     {
-                        if (Game1.GameWorld.rnd.NextDouble() < probability)
+                        bool isValidLocation = false;
+                        List<Entity> objectiveEntitiesForCurrentObjective = new List<Entity>();
+
+                        if (Positive)
                         {
-                            // Pick a random objective type from the possible plans
-                            string selectedObjective = PossiblePlans[Game1.GameWorld.rnd.Next(PossiblePlans.Count)];
-                            ObjectiveTypes.Add(selectedObjective);
-
-                            // Filter the master list based on the current objective
-                            foreach (Location l in MasterLocationList)
+                            if (new List<string> { "hoard", "keep", "fortress", "monastery", "monument", "outpost", "sanctum", "shadecore", "shadeoutpost", "spire", "cove", "tower", "bastion" }.Contains(l.Type))
                             {
-                                bool isValidLocation = false;
-                                List<Entity> objectiveEntitiesForCurrentObjective = new List<Entity>();
-
-                                if (Positive)
+                                if (l.Type == "fort" && l.Government != null)
                                 {
-                                    if (new List<string> { "hoard", "keep", "fortress", "monastery", "monument", "outpost", "sanctum", "shadecore", "shadeoutpost", "spire", "cove", "tower", "bastion" }.Contains(l.Type))
-                                    {
-                                        if (l.Type == "fort" && l.Government != null)
-                                        {
-                                            bool hasNegativeFaction = Game1.GameWorld.AllFactions.Any(
-                                                f => (f.CoreValue == "enlightenment" || f.CoreValue == "rogue") &&
-                                                     f.SatelliteGroups.Contains(l.Government)
-                                            );
-                                            if (!hasNegativeFaction) continue;
-                                        }
-                                        isValidLocation = true;
-                                    }
+                                    bool hasNegativeFaction = Game1.GameWorld.AllFactions.Any(
+                                        f => (f.CoreValue == "enlightenment" || f.CoreValue == "rogue") &&
+                                             f.SatelliteGroups.Contains(l.Government)
+                                    );
+                                    if (!hasNegativeFaction) continue;
                                 }
-                                else
-                                {
-                                    if (new List<string> { "archway", "bastion", "fort", "hallway", "hoard", "isofractalcore", "isofractaloutpost", "camp", "city", "town", "village", "preserve", "sanctum", "pyramid", "spire", "toroid", "towers" }.Contains(l.Type))
-                                    {
-                                        if (l.Type == "fort" && l.Government != null)
-                                        {
-                                            bool hasPositiveFaction = Game1.GameWorld.AllFactions.Any(
-                                                f => (f.CoreValue == "order" || f.CoreValue == "resistance") &&
-                                                     f.SatelliteGroups.Contains(l.Government)
-                                            );
-                                            if (!hasPositiveFaction) continue;
-                                        }
-                                        isValidLocation = true;
-                                    }
-                                }
-
-                                if (isValidLocation)
-                                {
-                                    switch (selectedObjective)
-                                    {
-                                        // Specific logic for each objective
-                                        case "GI":
-                                            if (!f.Plans.Any(p => p.PlanLocation == l))
-                                            {
-                                                objectiveEntitiesForCurrentObjective.Add(null); // No specific entities needed
-                                            }
-                                            break;
-
-                                        case "SVT":
-                                            var validStructuresWithObjects = l.AllStructures
-                                                .Where(s => s.HistoricalObjects.Any(o => o.Name != null))
-                                                .Select(s => new
-                                                {
-                                                    Structure = s,
-                                                    ValidObjects = s.HistoricalObjects.Where(o => o.Name != null).ToList()
-                                                })
-                                                .ToList();
-
-                                            if (validStructuresWithObjects.Count > 0)
-                                            {
-                                                var selectedStructureWithObjects = validStructuresWithObjects[Game1.GameWorld.rnd.Next(validStructuresWithObjects.Count)];
-                                                var targetStructure = selectedStructureWithObjects.Structure;
-                                                var targetObject = selectedStructureWithObjects.ValidObjects[Game1.GameWorld.rnd.Next(selectedStructureWithObjects.ValidObjects.Count)];
-                                                var targetDistrict = targetStructure.Block.District;
-
-                                                objectiveEntitiesForCurrentObjective.Add(l); // Location
-                                                objectiveEntitiesForCurrentObjective.Add(targetDistrict); // District
-                                                objectiveEntitiesForCurrentObjective.Add(targetStructure); // Structure
-                                                objectiveEntitiesForCurrentObjective.Add(targetObject); // Artifact
-                                            }
-                                            break;
-
-                                        case "RB":
-                                            if (l.AllStructures.Count > 0)
-                                            {
-                                                var targetStructure = l.AllStructures[Game1.GameWorld.rnd.Next(l.AllStructures.Count)];
-                                                objectiveEntitiesForCurrentObjective.Add(l); // Location
-                                                objectiveEntitiesForCurrentObjective.Add(targetStructure); // Building
-                                            }
-                                            break;
-
-                                        case "CI":
-                                            var validArchitects = l.Districts
-                                                .SelectMany(d => d.Architects)
-                                                .ToList();
-
-                                            if (validArchitects.Count > 0)
-                                            {
-                                                var targetArchitect = validArchitects[Game1.GameWorld.rnd.Next(validArchitects.Count)];
-                                                objectiveEntitiesForCurrentObjective.Add(l); // Location
-                                                objectiveEntitiesForCurrentObjective.Add(targetArchitect); // Architect
-                                            }
-                                            break;
-
-                                        case "GT":
-                                            objectiveEntitiesForCurrentObjective.Add(l); // Location
-                                            break;
-
-                                        case "ESP":
-                                            bool isEnemyEspBase = Game1.GameWorld.AllFactions
-                                                .Any(f => f.SatelliteGroups.Contains(l.Government) &&
-                                                          (f.CoreValue == "enlightenment" || f.CoreValue == "rogue"));
-                                            if (isEnemyEspBase)
-                                            {
-                                                objectiveEntitiesForCurrentObjective.Add(l); // Location
-                                            }
-                                            break;
-
-                                        default:
-                                            objectiveEntitiesForCurrentObjective.Add(null);
-                                            break;
-                                    }
-
-                                    if (objectiveEntitiesForCurrentObjective.Count > 0)
-                                    {
-                                        LocationEntityTuples.Add(new Tuple<Location, List<Entity>>(l, objectiveEntitiesForCurrentObjective));
-                                    }
-                                }
-
+                                isValidLocation = true;
                             }
+                        }
+                        else
+                        {
+                            if (new List<string> { "archway", "bastion", "fort", "hallway", "hoard", "isofractalcore", "isofractaloutpost", "camp", "city", "town", "village", "preserve", "sanctum", "pyramid", "spire", "toroid", "towers" }.Contains(l.Type))
+                            {
+                                if (l.Type == "fort" && l.Government != null)
+                                {
+                                    bool hasPositiveFaction = Game1.GameWorld.AllFactions.Any(
+                                        f => (f.CoreValue == "order" || f.CoreValue == "resistance") &&
+                                             f.SatelliteGroups.Contains(l.Government)
+                                    );
+                                    if (!hasPositiveFaction) continue;
+                                }
+                                isValidLocation = true;
+                            }
+                        }
 
-                            if (LocationEntityTuples.Count == 0) break;
 
-                            probability *= 0.4;
+                        if (isValidLocation)
+                        {
+                            foreach(string s in PossiblePlans)
+                            {
+                                switch (s)
+                                {
+                                    // Specific logic for each objective
+                                    case "GI":
+                                        objectiveEntitiesForCurrentObjective.Add(l);
+                                        break;
+
+                                    case "SVT":
+                                        var structuresWithNamedObjects = l.AllStructures
+                                            .Select(s => new
+                                            {
+                                                Structure = s,
+                                                ValidObjects = s.HistoricalObjects.Where(o => o.Name != null).ToList()
+                                            })
+                                            .Where(x => x.ValidObjects.Count > 0)
+                                            .ToList();
+
+                                        if (structuresWithNamedObjects.Count > 0)
+                                        {
+                                            var rnd = Game1.GameWorld.rnd;
+                                            var selected = structuresWithNamedObjects[rnd.Next(structuresWithNamedObjects.Count)];
+                                            var targetStructure = selected.Structure;
+                                            var targetObject = selected.ValidObjects[rnd.Next(selected.ValidObjects.Count)];
+                                            var targetDistrict = targetStructure.Block.District;
+
+                                            objectiveEntitiesForCurrentObjective.Add(l); // Location
+                                            objectiveEntitiesForCurrentObjective.Add(targetDistrict); // District
+                                            objectiveEntitiesForCurrentObjective.Add(targetStructure); // Structure
+                                            objectiveEntitiesForCurrentObjective.Add(targetObject); // Artifact
+                                        }
+                                        break;
+
+
+                                    case "RB":
+                                        if (l.AllStructures.Count > 0)
+                                        {
+                                            var targetStructure = l.AllStructures[Game1.GameWorld.rnd.Next(l.AllStructures.Count)];
+                                            objectiveEntitiesForCurrentObjective.Add(l); // Location
+                                            objectiveEntitiesForCurrentObjective.Add(targetStructure); // Building
+                                        }
+                                        break;
+
+                                    case "CI":
+                                        var validArchitects = l.Districts
+                                            .SelectMany(d => d.DistrictArchitects)
+                                            .ToList();
+
+                                        if (validArchitects.Count > 0)
+                                        {
+                                            var targetArchitect = validArchitects[Game1.GameWorld.rnd.Next(validArchitects.Count)];
+                                            objectiveEntitiesForCurrentObjective.Add(l); // Location
+                                            objectiveEntitiesForCurrentObjective.Add(targetArchitect); // Architect
+                                        }
+                                        break;
+
+                                    case "GT":
+                                        objectiveEntitiesForCurrentObjective.Add(l); // Location
+                                        break;
+
+                                    case "ESP":
+                                        bool isEnemyEspBase = Game1.GameWorld.AllFactions
+                                            .Any(f => f.SatelliteGroups.Contains(l.Government) &&
+                                                      (f.CoreValue == "enlightenment" || f.CoreValue == "rogue"));
+                                        if (isEnemyEspBase)
+                                        {
+                                            objectiveEntitiesForCurrentObjective.Add(l); // Location
+                                        }
+                                        break;
+
+                                    default:
+                                        objectiveEntitiesForCurrentObjective.Add(null);
+                                        break;
+                                }
+
+                                if (objectiveEntitiesForCurrentObjective.Count > 0)
+                                {
+                                    PossibleLocationEntityObjectiveTriplets.Add((l, new List<Entity>(objectiveEntitiesForCurrentObjective), s));
+                                }
+                                objectiveEntitiesForCurrentObjective.Clear();
+                            }
                         }
                     }
+
+                    // Phase 1.5: Filter out locations who don't have the right number of Entities in their Tuple for stuff yk
+
+                    PossibleLocationEntityObjectiveTriplets = PossibleLocationEntityObjectiveTriplets
+                        .Where(tuple => tuple.Item2.Count == ConvertObjectiveToRequiredEntityCount[tuple.Item3])
+                        .ToList();
+
+
+
+                    //so now we have a list of possible objectives, locations, and entities. So now we need to sort out locations that have a ton of objective tuples at them.
+
 
                     // Phase 2: Final Location and Plan Creation
-                    if (LocationEntityTuples.Count > 0 && ObjectiveTypes.Count == LocationEntityTuples.Count)
+                    if (PossibleLocationEntityObjectiveTriplets.Count > 0)
                     {
-                        // 80% chance to prefer target locations
-                        if (Game1.GameWorld.rnd.NextDouble() < 0.8)
+                        if (Game1.GameWorld.rnd.NextDouble() < 0.5)
                         {
-                            EntityHashSet<Location> preferredLocations = f.PreferredTargetLocations();
-                            var filteredTuples = LocationEntityTuples
-                                .Where(t => preferredLocations.Contains(t.Item1))
+                            var preferred = f.PreferredTargetLocations();
+                            var filtered = PossibleLocationEntityObjectiveTriplets
+                                .Where(t => preferred.Contains(t.Item1))
                                 .ToList();
-
-                            // If the filtered list is empty, default back to the original LocationEntityTuples
-                            if (filteredTuples.Count > 0)
-                            {
-                                LocationEntityTuples = filteredTuples;
-                            }
+                            if (filtered.Count > 0)
+                                PossibleLocationEntityObjectiveTriplets = filtered;
                         }
 
-                        // Pick a random location
-                        var selectedTuple = LocationEntityTuples[Game1.GameWorld.rnd.Next(LocationEntityTuples.Count)];
+                        // Pick a required starting objective type from the list of available ones in the triplets
+                        var availableObjectiveTypes = PossibleLocationEntityObjectiveTriplets.Select(t => t.Item3).Distinct().ToList();
+                        string requiredObjective = availableObjectiveTypes[Game1.GameWorld.rnd.Next(availableObjectiveTypes.Count)];
 
-                        List<List<Entity>> finalObjectiveEntities = new List<List<Entity>>();
+                        // Only keep triplets matching the required first objective
+                        var requiredObjectiveTriplets = PossibleLocationEntityObjectiveTriplets
+                            .Where(t => t.Item3 == requiredObjective)
+                            .ToList();
 
-                        for (int i = 0; i < ObjectiveTypes.Count; i++)
+                        if (requiredObjectiveTriplets.Count > 0)
                         {
-                            finalObjectiveEntities.Add(selectedTuple.Item2);
-                        }
+                            // Attempt to build a plan starting with that required objective
+                            int maxObjectiveCount = Game1.GameWorld.rnd.Next(1, 3); // Try for 2, fallback to 1
+                            List<(Location, List<Entity>, string)> selectedObjectives = null;
+                            Location finalLocation = null;
 
-                        double cycleForPlanInitiation = Game1.GameWorld.Cycle + Game1.GameWorld.rnd.Next(
-                            24192000 * 36, // 3 months
-                            290304000 * 3  // 3 years
-                        );
-
-                        Group planInitiator = f.SatelliteGroups[Game1.GameWorld.rnd.Next(f.SatelliteGroups.Count)];
-
-
-                        // Generate the historical event for the created plan
-                        string planObjective = ObjectiveTypes.First() switch
-                        {
-                            "GI" => "gathering intelligence",
-                            "ESP" => "espionage",
-                            "CI" => "kidnapping",
-                            "SVT" => "stealing",
-                            "RB" => "razing",
-                            "GT" => "stealing",
-                            _ => "Unknown Objective"
-                        };
-
-                        List<string> entityNames = finalObjectiveEntities[0].Select(entity => entity.Name).ToList();
-
-
-                        Plan newPlan = new Plan(
-                            selectedTuple.Item1,
-                            (double)Math.Round(cycleForPlanInitiation),
-                            planInitiator,
-                            ObjectiveTypes,
-                            finalObjectiveEntities
-                        );
-
-
-                        foreach (var participant in planInitiator.Architects) // Assuming 'Members' contains participants
-                        {
-                            if (participant != planInitiator.Leader)
+                            while (maxObjectiveCount > 0)
                             {
-                                // Convert cycle to readable date
-                                double executionCycle = cycleForPlanInitiation;
-                                int years = (int)(executionCycle / 290304000);
-                                executionCycle %= 290304000;
-                                int months = (int)(executionCycle / 24192000);
-                                executionCycle %= 24192000;
-                                int weeks = (int)(executionCycle / 6048000);
-                                executionCycle %= 6048000;
-                                int days = (int)(executionCycle / 864000);
+                                var groupedByLocation = requiredObjectiveTriplets
+                                    .GroupBy(t => t.Item1)
+                                    .Where(g => g.Count() >= maxObjectiveCount)
+                                    .ToList();
 
-                                string dateString = $"{months + 1}/{days + 1}/{years}";
-
-                                // Generate short letter variations
-                                string[] letterVariants = new string[]
+                                if (groupedByLocation.Count > 0)
                                 {
-                                    $"Meet at {selectedTuple.Item1.Name} on {dateString}. '{newPlan.Name}' is set then to take place. -{string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0]))}",
-                                    $"Plan '{newPlan.Name}' set. Assemble at {selectedTuple.Item1.Name}, {dateString}. Our targets include {Game1.FormatAndList(entityNames)}. -{string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0]))}",
-                                    $"Attend {selectedTuple.Item1.Name} on {dateString}. Plan '{newPlan.Name}' targets {Game1.FormatAndList(entityNames)}. -{string.Concat(planInitiator.Leader.Name.Split().Select(word => word[0]))}"
-                                };
+                                    var selectedGroup = groupedByLocation[Game1.GameWorld.rnd.Next(groupedByLocation.Count)];
+                                    finalLocation = selectedGroup.Key;
+                                    selectedObjectives = selectedGroup.Take(maxObjectiveCount).ToList();
+                                    break;
+                                }
 
-                                // Randomly select one of the letter variants
-                                string letterContent = letterVariants[new Random().Next(letterVariants.Length)];
+                                maxObjectiveCount--;
+                            }
 
-                                // Send the letter
-                                Letter l = new Letter(planInitiator.Leader, participant, new TextStorage(letterContent, Color.LightBlue, new EntityList<Entity>() { selectedTuple.Item1, newPlan }), true);
+                            if (selectedObjectives != null)
+                            {
+                                var finalObjectiveEntities = selectedObjectives
+                                    .Select(t => t.Item2)
+                                    .ToList();
 
+                                var objectiveTypes = selectedObjectives
+                                    .Select(t => t.Item3)
+                                    .ToList();
+
+                                if (!finalObjectiveEntities.Any(o => o.Any(e => e == null)))
+                                {
+                                    double cycleForPlanInitiation = Game1.GameWorld.Cycle + Game1.GameWorld.rnd.Next(
+                                        24192000 * 6, // 6 months
+                                        290304000     // 1 year
+                                    );
+
+                                    Group g = f.SatelliteGroups[Game1.GameWorld.rnd.Next(f.SatelliteGroups.Count)];
+
+                                    EntityList<Architect> planInitiators = new EntityList<Architect>(g.Architects);
+
+                                    
+
+                                    Plan newPlan = new Plan(
+                                        finalLocation,
+                                        (double)Math.Round(cycleForPlanInitiation),
+                                        planInitiators,
+                                        objectiveTypes,
+                                        finalObjectiveEntities,
+                                        g.Name
+                                    );
+
+                                    newPlan.StoredGroup = g;
+
+                                    List<string> entityNames = finalObjectiveEntities.SelectMany(x => x).Where(x => x != null).Select(x => x.Name).Distinct().ToList();
+
+                                    foreach (var participant in planInitiators)
+                                    {
+                                        if (participant != planInitiators.First())
+                                        {
+                                            double execCycle = cycleForPlanInitiation;
+                                            int y = (int)(execCycle / 290304000); execCycle %= 290304000;
+                                            int m = (int)(execCycle / 24192000); execCycle %= 24192000;
+                                            int d = (int)(execCycle / 864000);
+
+                                            string dateString = $"{m + 1}/{d + 1}/{y}";
+
+                                            string[] letterVariants = new string[]
+                                            {
+                            $"Meet at {finalLocation.Name} on {dateString}. '{newPlan.Name}' is set then to take place. -{string.Concat(planInitiators.First().Name.Split().Select(word => word[0]))}",
+                            $"Plan '{newPlan.Name}' set. Assemble at {finalLocation.Name}, {dateString}. Our targets include {Game1.FormatAndList(entityNames)}. -{string.Concat(planInitiators.First().Name.Split().Select(word => word[0]))}",
+                            $"Attend {finalLocation.Name} on {dateString}. Plan '{newPlan.Name}' targets {Game1.FormatAndList(entityNames)}. -{string.Concat(planInitiators.First().Name.Split().Select(word => word[0]))}"
+                                            };
+
+                                            string letterContent = letterVariants[Game1.GameWorld.rnd.Next(letterVariants.Length)];
+                                            Letter l = new Letter(planInitiators.First(), participant, new TextStorage(letterContent, Color.LightBlue, new EntityList<Entity>() { finalLocation, newPlan }), true);
+                                        }
+                                    }
+
+                                    string planObjective = objectiveTypes.Count == 1
+                                        ? objectiveTypes[0] switch
+                                        {
+                                            "GI" => "gathering intelligence",
+                                            "ESP" => "espionage",
+                                            "CI" => "kidnapping",
+                                            "SVT" => "stealing",
+                                            "RB" => "razing",
+                                            "GT" => "stealing",
+                                            _ => "Unknown Objective"
+                                        }
+                                        : "multiple operations";
+
+                                    string eventDetails = $"{f.Name} has devised a plan named '{newPlan.Name}' with a primary objective of {planObjective}, targeted at {Game1.FormatAndList(entityNames)}. The plan is set to be executed in {Math.Round(cycleForPlanInitiation / 290304000)}.";
+
+                                    EntityList<Entity> involvedEntities = new EntityList<Entity>
+                {
+                    finalLocation,
+                    f,
+                    finalObjectiveEntities[0].FirstOrDefault()
+                };
+                                    involvedEntities.AddRange(finalObjectiveEntities.SelectMany(x => x));
+
+                                    LogEvent(eventDetails, finalLocation.Region, involvedEntities);
+                                    f.CurrentPlan = newPlan;
+                                }
                             }
                         }
-
-                        string eventDetails = $"{f.Name} has devised a plan named '{newPlan.Name}' with a primary objective of {planObjective}, targeted at {Game1.FormatAndList(entityNames)}. The plan is set to be executed in {Math.Round(cycleForPlanInitiation / 290304000)}.";
-
-                        // Log the historical event
-                        EntityList<Entity> involvedEntities = new EntityList<Entity>
-                        {
-                            selectedTuple.Item1, // The location
-                            f,                   // The faction
-                            selectedTuple.Item2.First() // The primary target entity
-                        };
-
-                        // Add all entities involved in the objective
-                        involvedEntities.AddRange(finalObjectiveEntities[0]);
-
-                        // Log the historical event with the correct entities
-                        LogEvent(eventDetails, selectedTuple.Item1.Region, involvedEntities);
-
-                        f.Plans.Add(newPlan);
                     }
+
                 }
 
                 // Base Assignment Logic
@@ -708,266 +769,362 @@ namespace Lightrealm
                             f.Base = f.SatelliteGroups[0].Leader.HomeLocation;
                         }
                     }
+
+
+                    // Expel the dead
+
+                    var architectsToRemove = new List<Architect>();
+
+                    foreach (Architect a in g.Architects)
+                    {
+                        if (!a.IsAlive)
+                        {
+                            architectsToRemove.Add(a);
+                        }
+                    }
+
+                    foreach (Architect a in architectsToRemove)
+                    {
+                        g.Architects.Remove(a);
+                    }
+
                 }
 
-                // Execute Plans
-                foreach (Plan p in f.Plans.ToList())
+                if (f.CurrentPlan != null && f.CurrentPlan.Foiled().Item1)
                 {
-                    if (p.CycleForPlanInitiation < Game1.GameWorld.Cycle)
+                    LogEvent("The plan " + f.CurrentPlan.Name + " was foiled due to " + f.CurrentPlan.Foiled().Item2, f.CurrentPlan.PlanLocation.Region, new EntityList<Entity>() { f.CurrentPlan });
+                    f.CurrentPlan = null;
+                }
+
+                if(f.CurrentPlan != null)
+                {
+                    if (f.CurrentPlan.CycleForPlanInitiation - 6048000d < Game1.GameWorld.Cycle)
                     {
-                        Architect leader = null;
-                        if (p.PlanInitiator is Architect a)
-                        {
-                            leader = a;
-                            LogEvent(a.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { a, p.PlanLocation, p });
-                        }
-                        else if (p.PlanInitiator is Group g)
-                        {
-                            leader = g.Leader;
-                            LogEvent(g.Name + ", led by " + g.Leader.Name + " left for " + p.PlanLocation.Name + ", for the execution of " + p.Name + " created by " + f.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { g, g.Leader, p.PlanLocation, p });
-                        }
+                        //migrate
 
-                        while (p.ObjectiveEntities.Count > 0)
+                        if (f.CurrentPlan.AnnouncedTraveling == false)
                         {
-                            string currentObjectiveType = p.ObjectiveTypes[0];
-                            List<Entity> currentObjectiveEntities = p.ObjectiveEntities[0];
-
-                            if (p.ObjectiveEntities.Count != p.ObjectiveTypes.Count)
+                            if (f.CurrentPlan.PlanInitiators.Count == 1)
                             {
-                                break; // Safety check to avoid mismatches
+                                LogEvent(f.CurrentPlan.PlanInitiators.First().Name + " left for " + f.CurrentPlan.PlanLocation.Name + ", for the execution of " + f.CurrentPlan.Name + " created by " + f.Name + ".", f.CurrentPlan.PlanLocation.Region, new EntityList<Entity>() { f.CurrentPlan.PlanInitiators.First(), f.CurrentPlan.PlanLocation, f.CurrentPlan });
+                            }
+                            else if (f.CurrentPlan.PlanInitiators[0].Group != null)
+                            {
+                                LogEvent(f.CurrentPlan.StoredGroup.Name + ", led by " + f.CurrentPlan.StoredGroup.Leader.Name + " left for " + f.CurrentPlan.PlanLocation.Name + ", for the execution of " + f.CurrentPlan.Name + " created by " + f.Name + ".", f.CurrentPlan.PlanLocation.Region, new EntityList<Entity>() { f.CurrentPlan.StoredGroup, f.CurrentPlan.StoredGroup.Leader, f.CurrentPlan.PlanLocation, f.CurrentPlan });
                             }
 
-                            EntityList<Entity> planTargets = new EntityList<Entity>();
+                            f.CurrentPlan.AnnouncedTraveling = true;
+                        }
 
-
-                            // Perform the action and get success rate
-                            int successRate = 0;
-                            switch (currentObjectiveType)
+                        foreach (Architect AA in f.CurrentPlan.PlanInitiators)
+                        {
+                            if (AA.Unit != null && AA.Unit.TargetLocation != f.CurrentPlan.PlanLocation)
                             {
-                                case "GI":
-                                    f.InsightedLocations.Add(p.PlanLocation);
-                                    LogEvent(p.PlanInitiator.Name + ", and thus " + f.Name + ", gathered an increased insight unto " + p.PlanLocation.Name + ", to assist the execution of " + p.Name + ".", p.PlanLocation.Region, new EntityList<Entity>() { p.PlanInitiator, f, p.PlanLocation, p });
-                                    successRate = Game1.GameWorld.rnd.Next(0, 100);
-                                    break;
-
-                                case "ESP":
-                                    f.InsightedLocations.Add(p.PlanLocation);
-                                    LogEvent(p.PlanInitiator.Name + ", and thus " + f.Name + ", spied around " + p.PlanLocation.Name + ", gaining valuable sources.", p.PlanLocation.Region, new EntityList<Entity>() { p.PlanInitiator, f, p.PlanLocation });
-                                    successRate = Game1.GameWorld.rnd.Next(0, 100);
-                                    break;
-
-                                case "CI":
-                                    if (currentObjectiveEntities.Count >= 2)
-                                    {
-                                        planTargets.Add(currentObjectiveEntities[0]);
-                                        planTargets.Add(((Architect)currentObjectiveEntities[1]).District);
-                                        planTargets.Add(currentObjectiveEntities[1]);
-                                        successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "kidnaptarget", p.PlanInitiator, planTargets);
-                                    }
-                                    break;
-
-                                case "SVT":
-                                    if (currentObjectiveEntities.Count >= 4)
-                                    {
-                                        planTargets.Add(currentObjectiveEntities[0]);
-                                        planTargets.Add(currentObjectiveEntities[1]);
-                                        planTargets.Add(currentObjectiveEntities[2]);
-                                        planTargets.Add(currentObjectiveEntities[3]);
-                                        successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "artifacttheft", p.PlanInitiator, planTargets);
-                                    }
-                                    break;
-
-                                case "RB":
-                                    if (currentObjectiveEntities.Count >= 2)
-                                    {
-                                        planTargets.Add(currentObjectiveEntities[0]);
-                                        planTargets.Add(currentObjectiveEntities[1]);
-                                        successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "razebuilding", p.PlanInitiator, planTargets);
-                                    }
-                                    break;
-
-                                case "GT":
-                                    if (currentObjectiveEntities.Count >= 1)
-                                    {
-                                        planTargets.Add(currentObjectiveEntities[0]);
-                                        successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "theft", p.PlanInitiator, planTargets);
-                                    }
-                                    break;
-
-                                default:
-                                    break;
+                                AA.Unit.TargetLocation = f.CurrentPlan.PlanLocation;
                             }
-
-                            // Compose the report letter
-                            if (leader != null && (leader is Architect || leader is Group))
+                            else if (AA.Unit == null && (AA.Location != f.CurrentPlan.PlanLocation || AA.District != f.CurrentPlan.PlanLocation.Districts[0]))
                             {
-                                // Select a random architect from the faction's satellite groups
-                                var allArchitects = f.SatelliteGroups.SelectMany(g => g.Architects).ToList();
-                                if (allArchitects.Any())
+                                AA.NextMigrationLocation = f.CurrentPlan.PlanLocation;
+                                AA.MigrationReason = "My goals are beyond your understanding, traveler.";
+                            }
+                        }
+                    }
+
+                    if (f.CurrentPlan.CycleForPlanInitiation < Game1.GameWorld.Cycle )
+                    {
+                        //execute with THOSE WHO HAVE ARRIVED.
+
+                        //test lack of arrival, this runs if the time has run out for people to arrive.
+
+
+                        //temporary condition to force everyone to be there
+
+                        bool AreTheyAllArrived = f.CurrentPlan.PlanInitiators.All(a => a.Location == f.CurrentPlan.PlanLocation);
+
+                        if (f.CurrentPlan.AllArrivedCycle <= 0 && AreTheyAllArrived)
+                        {
+                            f.CurrentPlan.AllArrivedCycle = Game1.GameWorld.Cycle;
+                        }
+                        else if (Game1.GameWorld.Cycle > f.CurrentPlan.AllArrivedCycle + 6048000) // execute plan one week after arrival
+                        {
+                            Architect leader = null;
+                            LogEvent(f.CurrentPlan.Name + "'s execution began at " + f.CurrentPlan.PlanLocation.Name + ".", f.CurrentPlan.PlanLocation.Region, new EntityList<Entity>() { f.CurrentPlan, f.CurrentPlan.PlanLocation });
+
+                            while (f.CurrentPlan.ObjectiveEntities.Count > 0)
+                            {
+                                string currentObjectiveType = f.CurrentPlan.ObjectiveTypes[0];
+                                List<Entity> currentObjectiveEntities = f.CurrentPlan.ObjectiveEntities[0];
+
+                                if (f.CurrentPlan.ObjectiveEntities.Count != f.CurrentPlan.ObjectiveTypes.Count)
                                 {
-                                    var recipient = allArchitects[Game1.GameWorld.rnd.Next(allArchitects.Count)];
+                                    break; // Safety check to avoid mismatches
+                                }
 
-                                    string objectiveDescription = "";
-                                    string actionDetails = "";
-                                    List<Entity> entities = p.ObjectiveEntities[0];
-
-                                    switch (currentObjectiveType)
-                                    {
-                                        case "GI":
-                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
-                                            {
-                                                0 => "gathering critical intelligence",
-                                                1 => "acquiring important information",
-                                                2 => "collecting strategic data"
-                                            };
-                                            actionDetails = $"We traveled to {entities[0]?.Name} to conduct reconnaissance and gather intelligence.";
-                                            break;
-
-                                        case "ESP":
-                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
-                                            {
-                                                0 => "conducting covert espionage",
-                                                1 => "spying on operations",
-                                                2 => "performing secret reconnaissance"
-                                            };
-                                            actionDetails = $"We infiltrated {entities[0]?.Name} to carry out espionage activities.";
-                                            break;
-
-                                        case "CI":
-                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
-                                            {
-                                                0 => "kidnapping a high-value target",
-                                                1 => "abducting a crucial individual",
-                                                2 => "removing a key figure"
-                                            };
-                                            actionDetails = $"We went to {entities[0]?.Name} to kidnap {entities[1]?.Name}, who was located in {((Architect)entities[1])?.District?.Name}.";
-                                            break;
-
-                                        case "SVT":
-                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
-                                            {
-                                                0 => "stealing a priceless artifact",
-                                                1 => "acquiring a rare treasure",
-                                                2 => "seizing a valuable relic"
-                                            };
-                                            if (entities.Count <= 2 || entities[2]?.Name == entities[0]?.Name)
-                                            {
-                                                // Structure and Location have the same name
-                                                actionDetails = $"We aimed to steal {entities[3]?.Name} from {entities[2]?.Name}.";
-                                            }
-                                            else
-                                            {
-                                                actionDetails = $"We aimed to steal {entities[3]?.Name} from {entities[2]?.Name} in {entities[0]?.Name}.";
-                                            }
-                                            break;
-
-                                        case "RB":
-                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
-                                            {
-                                                0 => "razing an important structure",
-                                                1 => "destroying a key building",
-                                                2 => "leveling a strategic location"
-                                            };
-                                            if (entities[1]?.Name == entities[0]?.Name)
-                                            {
-                                                // Structure and Location have the same name
-                                                actionDetails = $"Our objective was to raze {entities[1]?.Name}.";
-                                            }
-                                            else
-                                            {
-                                                actionDetails = $"Our objective was to raze {entities[1]?.Name} located in {entities[0]?.Name}.";
-                                            }
-                                            break;
-
-                                        case "GT":
-                                            objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
-                                            {
-                                                0 => "conducting general theft",
-                                                1 => "stealing vital resources",
-                                                2 => "plundering supplies"
-                                            };
-                                            actionDetails = $"We executed a theft operation in {entities[0]?.Name} to acquire essential resources.";
-                                            break;
-
-                                        default:
-                                            objectiveDescription = "an unknown action";
-                                            actionDetails = "Details of the operation are unavailable.";
-                                            break;
-                                    }
+                                EntityList<Entity> planTargets = new EntityList<Entity>();
 
 
-                                    string successMessage = successRate >= 50 ? Game1.GameWorld.rnd.Next(3) switch
-                                    {
-                                        0 => "considered a success",
-                                        1 => "executed successfully",
-                                        2 => "a positive move overall"
-                                    } : Game1.GameWorld.rnd.Next(3) switch
-                                    {
-                                        0 => "deemed a failure",
-                                        1 => "unsuccessful in its goals",
-                                        2 => "a disappointing result"
-                                    };
+                                // Perform the action and get success rate
+                                int successRate = 0;
+                                switch (currentObjectiveType)
+                                {
+                                    case "GI":
+                                        f.InsightedLocations.Add(f.CurrentPlan.PlanLocation);
+                                        LogEvent(f.CurrentPlan.CreditedName + ", and thus " + f.Name + ", gathered an increased insight unto " + f.CurrentPlan.PlanLocation.Name + ", to assist the execution of " + f.CurrentPlan.Name + ".", f.CurrentPlan.PlanLocation.Region, new EntityList<Entity>() { f.CurrentPlan.StoredGroup, f, f.CurrentPlan.PlanLocation, f.CurrentPlan });
+                                        successRate = Game1.GameWorld.rnd.Next(0, 100);
+                                        break;
 
-                                    string opinion = successRate >= 75
-                                        ? Game1.GameWorld.rnd.Next(3) switch
+                                    case "ESP":
+                                        f.InsightedLocations.Add(f.CurrentPlan.PlanLocation);
+                                        LogEvent(f.CurrentPlan.CreditedName + ", and thus " + f.Name + ", spied around " + f.CurrentPlan.PlanLocation.Name + ", gaining valuable sources.", f.CurrentPlan.PlanLocation.Region, new EntityList<Entity>() { f.CurrentPlan.StoredGroup, f, f.CurrentPlan.PlanLocation });
+                                        successRate = Game1.GameWorld.rnd.Next(0, 100);
+                                        break;
+
+                                    case "CI":
+                                        if (currentObjectiveEntities.Count >= 2)
                                         {
-                                            0 => "The plan exceeded expectations, delivering outstanding results.",
-                                            1 => "The operation was carried out flawlessly, achieving remarkable success.",
-                                            2 => "The mission's execution was exemplary, setting a new standard for excellence."
+                                            planTargets.Add(currentObjectiveEntities[0]);
+                                            planTargets.Add(((Architect)currentObjectiveEntities[1]).District);
+                                            planTargets.Add(currentObjectiveEntities[1]);
+                                            successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "kidnaptarget", f.CurrentPlan.StoredGroup, planTargets, true);
                                         }
-                                        : successRate >= 50
-                                        ? Game1.GameWorld.rnd.Next(3) switch
+                                        break;
+
+                                    case "SVT":
+                                        if (currentObjectiveEntities.Count >= 4)
                                         {
-                                            0 => "While the results were satisfactory, there remains room for improvement.",
-                                            1 => "The operation achieved its goals but could benefit from refinement.",
-                                            2 => "The mission met expectations, though future plans should aim higher."
+                                            planTargets.Add(currentObjectiveEntities[0]);
+                                            planTargets.Add(currentObjectiveEntities[1]);
+                                            planTargets.Add(currentObjectiveEntities[2]);
+                                            planTargets.Add(currentObjectiveEntities[3]);
+                                            successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "artifacttheft", f.CurrentPlan.StoredGroup, planTargets, true);
                                         }
-                                        : Game1.GameWorld.rnd.Next(3) switch
+                                        break;
+
+                                    case "RB":
+                                        if (currentObjectiveEntities.Count >= 2)
                                         {
-                                            0 => "The plan encountered setbacks and requires thorough analysis.",
-                                            1 => "The operation's shortcomings highlight areas needing significant improvement.",
-                                            2 => "The mission failed to meet its objectives, necessitating a reevaluation of our strategy."
+                                            planTargets.Add(currentObjectiveEntities[0]);
+                                            planTargets.Add(currentObjectiveEntities[1]);
+                                            successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "razebuilding", f.CurrentPlan.StoredGroup, planTargets, true);
+                                        }
+                                        break;
+
+                                    case "GT":
+                                        if (currentObjectiveEntities.Count >= 1)
+                                        {
+                                            planTargets.Add(currentObjectiveEntities[0]);
+                                            successRate = WorldActionInitiator.InitiateAction(Game1.GameWorld, "theft", f.CurrentPlan.StoredGroup, planTargets, true);
+                                        }
+                                        break;
+
+                                    default:
+                                        break;
+                                }
+
+                                // Compose the report letter
+                                if (leader != null)
+                                {
+                                    // Select a random architect from the faction's satellite groups
+                                    var allArchitects = f.SatelliteGroups.SelectMany(g => g.Architects).ToList();
+                                    if (allArchitects.Any())
+                                    {
+                                        var recipient = allArchitects[Game1.GameWorld.rnd.Next(allArchitects.Count)];
+
+                                        string objectiveDescription = "";
+                                        string actionDetails = "";
+                                        List<Entity> entities = f.CurrentPlan.ObjectiveEntities[0];
+
+                                        switch (currentObjectiveType)
+                                        {
+                                            case "GI":
+                                                objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
+                                                {
+                                                    0 => "gathering critical intelligence",
+                                                    1 => "acquiring important information",
+                                                    2 => "collecting strategic data",
+                                                    _ => ""
+                                                };
+                                                actionDetails = $"We traveled to {entities[0]?.Name} to conduct reconnaissance and gather intelligence.";
+                                                break;
+
+                                            case "ESP":
+                                                objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
+                                                {
+                                                    0 => "conducting covert espionage",
+                                                    1 => "spying on operations",
+                                                    2 => "performing secret reconnaissance",
+                                                    _ => ""
+                                                };
+                                                actionDetails = $"We infiltrated {entities[0]?.Name} to carry out espionage activities.";
+                                                break;
+
+                                            case "CI":
+                                                objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
+                                                {
+                                                    0 => "kidnapping a high-value target",
+                                                    1 => "abducting a crucial individual",
+                                                    2 => "removing a key figure",
+                                                    _ => ""
+                                                };
+                                                actionDetails = $"We went to {entities[0]?.Name} to kidnap {entities[1]?.Name}, who was located in {((Architect)entities[1])?.District?.Name}.";
+                                                break;
+
+                                            case "SVT":
+                                                objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
+                                                {
+                                                    0 => "stealing a priceless artifact",
+                                                    1 => "acquiring a rare treasure",
+                                                    2 => "seizing a valuable relic",
+                                                    _ => ""
+                                                };
+
+                                                if (entities.Count < 2)
+                                                {
+                                                    actionDetails = $"Our plan to thieve was foiled by unknown circumstances.";
+                                                }
+                                                else if (entities.Count == 2 || (entities.Count > 2 && entities[2]?.Name == entities[0]?.Name))
+                                                {
+                                                    actionDetails = $"We aimed to steal {entities[1]?.Name} from {entities[0]?.Name}.";
+                                                }
+                                                else if (entities.Count == 1)
+                                                {
+                                                    actionDetails = $"We aimed to steal from {entities[0]?.Name}.";
+                                                }
+                                                else
+                                                {
+                                                    actionDetails = $"We aimed to steal {entities[3]?.Name} from {entities[2]?.Name} in {entities[0]?.Name}.";
+                                                }
+                                                break;
+
+                                            case "RB":
+                                                objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
+                                                {
+                                                    0 => "razing an important structure",
+                                                    1 => "destroying a key building",
+                                                    2 => "leveling a strategic location",
+                                                    _ => ""
+                                                };
+                                                if (entities[1]?.Name == entities[0]?.Name)
+                                                {
+                                                    actionDetails = $"Our objective was to raze {entities[1]?.Name}.";
+                                                }
+                                                else
+                                                {
+                                                    actionDetails = $"Our objective was to raze {entities[1]?.Name} located in {entities[0]?.Name}.";
+                                                }
+                                                break;
+
+                                            case "GT":
+                                                objectiveDescription = Game1.GameWorld.rnd.Next(3) switch
+                                                {
+                                                    0 => "conducting general theft",
+                                                    1 => "stealing vital resources",
+                                                    2 => "plundering supplies",
+                                                    _ => ""
+                                                };
+                                                actionDetails = $"We executed a theft operation in {entities[0]?.Name} to acquire essential resources.";
+                                                break;
+
+                                            default:
+                                                objectiveDescription = "an unknown action";
+                                                actionDetails = "Details of the operation are unavailable.";
+                                                break;
+                                        }
+
+                                        string successMessage = successRate >= 50 ? Game1.GameWorld.rnd.Next(3) switch
+                                        {
+                                            0 => "considered a success",
+                                            1 => "executed successfully",
+                                            2 => "a positive move overall",
+                                            _ => ""
+                                        } : Game1.GameWorld.rnd.Next(3) switch
+                                        {
+                                            0 => "deemed a failure",
+                                            1 => "unsuccessful in its goals",
+                                            2 => "a disappointing result",
+                                            _ => ""
                                         };
 
-                                    string report = $"Dear {recipient.Name}, " +
-                                                    Game1.GameWorld.rnd.Next(3) switch
-                                                    {
-                                                        0 => $"I write to inform you of the outcome of our recent operation, '{p.Name}'. ",
-                                                        1 => $"Regarding our recent endeavor, '{p.Name}', I am writing to provide a detailed account. ",
-                                                        2 => $"Allow me to update you on the results of our latest operation, '{p.Name}'. "
-                                                    } +
-                                                    $"The plan's primary objective was {objectiveDescription}. " +
-                                                    $"{actionDetails} " +
-                                                    $"The operation was {successMessage}. {opinion} " +
-                                                    Game1.GameWorld.rnd.Next(3) switch
-                                                    {
-                                                        0 => $"I hope to see you soon, Yours in strategy, {leader.Name}",
-                                                        1 => $"We shall meet again soon, with respect, {leader.Name}",
-                                                        2 => $"Soon we must meet to discuss further goals. Faithfully yours, {leader.Name}"
-                                                    };
+                                        string opinion = successRate >= 75
+                                            ? Game1.GameWorld.rnd.Next(3) switch
+                                            {
+                                                0 => "The plan exceeded expectations, delivering outstanding results.",
+                                                1 => "The operation was carried out flawlessly, achieving remarkable success.",
+                                                2 => "The mission's execution was exemplary, setting a new standard for excellence.",
+                                                _ => ""
+                                            }
+                                            : successRate >= 50
+                                            ? Game1.GameWorld.rnd.Next(3) switch
+                                            {
+                                                0 => "While the results were satisfactory, there remains room for improvement.",
+                                                1 => "The operation achieved its goals but could benefit from refinement.",
+                                                2 => "The mission met expectations, though future plans should aim higher.",
+                                                _ => ""
+                                            }
+                                            : Game1.GameWorld.rnd.Next(3) switch
+                                            {
+                                                0 => "The plan encountered setbacks and requires thorough analysis.",
+                                                1 => "The operation's shortcomings highlight areas needing significant improvement.",
+                                                2 => "The mission failed to meet its objectives, necessitating a reevaluation of our strategy.",
+                                                _ => ""
+                                            };
 
-                                    Letter reportLetter = new Letter(
-                                        leader,
-                                        recipient,
-                                        new TextStorage(report, Color.White, new EntityList<Entity>() { p.PlanLocation, p }),
-                                        true
-                                    );
+                                        string report = $"Dear {recipient.Name}, " +
+                                                        Game1.GameWorld.rnd.Next(3) switch
+                                                        {
+                                                            0 => $"I write to inform you of the outcome of our recent operation, '{f.CurrentPlan.Name}'. ",
+                                                            1 => $"Regarding our recent endeavor, '{f.CurrentPlan.Name}', I am writing to provide a detailed account. ",
+                                                            2 => $"Allow me to update you on the results of our latest operation, '{f.CurrentPlan.Name}'. ",
+                                                            _ => ""
+                                                        } +
+                                                        $"The plan's primary objective was {objectiveDescription}. " +
+                                                        $"{actionDetails} " +
+                                                        $"The operation was {successMessage}. {opinion} " +
+                                                        Game1.GameWorld.rnd.Next(3) switch
+                                                        {
+                                                            0 => $"I hope to see you soon, Yours in strategy, {leader.Name}",
+                                                            1 => $"We shall meet again soon, with respect, {leader.Name}",
+                                                            2 => $"Soon we must meet to discuss further goals. Faithfully yours, {leader.Name}",
+                                                            _ => ""
+                                                        };
+
+
+                                        Letter reportLetter = new Letter(
+                                            leader,
+                                            recipient,
+                                            new TextStorage(report, Color.White, new EntityList<Entity>() { f.CurrentPlan.PlanLocation, f.CurrentPlan }),
+                                            true
+                                        );
+                                    }
+                                    else
+                                    {
+                                        return new EntityList<LocationBuilderPacket>() { }; // Handle case where there are no architects
+                                    }
                                 }
-                                else
+
+
+
+                                f.CurrentPlan.ObjectiveEntities.RemoveAt(0);
+                                f.CurrentPlan.ObjectiveTypes.RemoveAt(0);
+                            }
+
+                            f.PlansExecutedSuccessfully++;
+                            f.CurrentPlan.Complete = true;
+
+                            foreach (Architect AA in f.CurrentPlan.PlanInitiators)
+                            {
+                                AA.NextMigrationLocation = AA.HomeLocation;
+                                AA.MigrationReason = "I'd prefer not discuss it.";
+
+                                if (AA.Unit != null)
                                 {
-                                    return new EntityList<LocationBuilderPacket>() { }; // Handle case where there are no architects
+                                    AA.Unit.TargetLocation = AA.HomeLocation;
+                                    AA.MigrationReason = "I'd prefer not discuss it.";
                                 }
                             }
 
-
-
-                            p.ObjectiveEntities.RemoveAt(0);
-                            p.ObjectiveTypes.RemoveAt(0);
+                            f.CurrentPlan = null;
                         }
-
-                        f.PlansExecutedSuccessfully++;
-
-                        f.Plans.Remove(p);
                     }
                 }
 

@@ -22,20 +22,14 @@ namespace Lightrealm
 
         public EntityList<Location> InsightedLocations = new EntityList<Location>();
 
-        public EntityList<Plan> Plans = new EntityList<Plan>();
+        public Plan CurrentPlan = null;
 
         public bool Organized = false;
         public string CoreValue = ValueList[Game1.GameWorld.rnd.Next(ValueList.Count)];
         public string ResourceValue = "";
 
         public EntityList<Group> SatelliteGroups = new EntityList<Group>();
-
-        private int _baseID;
-        public Location Base
-        {
-            get => EntityGet<Location>(_baseID);
-            set => _baseID = value?.ID ?? 0;
-        }
+        public Location Base;
 
         public EntityList<Location> Outposts = new EntityList<Location>();
 

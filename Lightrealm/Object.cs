@@ -22,8 +22,21 @@ namespace Lightrealm
 
         public EntityList<Material> Materials { get; set; } = new EntityList<Material>();
 
+        public bool IsConstructBolt = false;
+
         public string Description { get; set; } = "???";
         public bool IsContainer { get; set; }
+
+        public bool OopsIDroppedIt { get; set; } = false;
+
+        public bool IsTwoHanded { get; set; } = false;
+        public bool IsLight { get; set; } = false;
+
+        public string AmuletGift = "";
+
+        public Location ConsoleDropLocation = null;
+
+        public Quest QuestConsoleUsedFor = null;
 
         public Letter LetterContent { get; set; } = null;
 
@@ -33,6 +46,35 @@ namespace Lightrealm
 
             return Materials.Select(material => material?.Name).Where(name => name != null).ToList();
         }
+
+        public Architect LastToggler = null;
+
+        public void Delete()
+        {
+            foreach(Object o in ContainedObjects)
+            {
+                o.Delete();
+            }
+
+            foreach(Imbuement i in Imbuements)
+            {
+                i.Delete();
+            }
+            Game1.GameWorld.EntityLedger.Remove(ID);
+            Game1.AnnouncementEntitiesToDeleteThisCycle.Add(ID);
+        }
+
+        public bool ClothingVisible = true;
+
+
+        public double Rotation = Game1.GameWorld.rnd.NextDouble() * 2 * Math.PI;
+        public int Distance;
+
+        public bool SpecialLooted;
+
+        public string StoredInvocation = null;
+
+        public bool ConsoleOn = false;
 
         public EntityList<Object> ContainedObjects { get; set; } = new EntityList<Object>();
 
@@ -52,31 +94,18 @@ namespace Lightrealm
         public EntityList<Architect> AwareArchitects = new EntityList<Architect>();
 
         public EntityList<Entity> CarvedSymbols = new EntityList<Entity>();
+        public string Symbols = "";
 
-        public Structure Structure
+        public void UpdateCarvedSymbols()
         {
-            get => Room?.Structure;
+            Symbols = Game1.FormatAndList(CarvedSymbols.Select(s => s.ReferredToNames[0]).ToList());
         }
 
+        public Structure Structure => Room?.Structure;
         public bool Polished = false;
         public bool Cleaned = false;
-
-
-        private int _blockId;
-        
-        public Block Block
-        {
-            get => EntityGet<Block>(_blockId);
-            set => _blockId = value?.ID ?? 0;
-        }
-
-
-        private int _roomId;
-        public Room Room
-        {
-            get => EntityGet<Room>(_roomId);
-            set => _roomId = value?.ID ?? 0;
-        }
+        public Block Block;
+        public Room Room;
 
 
 
@@ -122,60 +151,18 @@ namespace Lightrealm
         public int Exposure { get; set; } = 0;
         public bool IsBodyPart { get; set; } = false;
         public bool MajorArteryIsSevered { get; set; } = false;
-
-        private int _airborneTargetId;
-        
-        public Entity AirborneTarget
-        {
-            get => EntityGet<Entity>(_airborneTargetId);
-            set => _airborneTargetId = value?.ID ?? 0;
-        }
-
+        public Entity AirborneTarget;
         public int AirbornePower { get; set; } = 0;
         public int AirborneCyclesToHitTarget { get; set; } = 0;
-
-        private int _throwerId;
-        
-        public Architect Thrower
-        {
-            get => EntityGet<Architect>(_throwerId);
-            set => _throwerId = value?.ID ?? 0;
-        }
-
-        private int _creatorId;
-        
-        public Entity Creator
-        {
-            get => EntityGet<Entity>(_creatorId);
-            set => _creatorId = value?.ID ?? 0;
-        }
+        public Architect Thrower;
+        public Entity Creator;
 
         public int FireSeconds { get; set; } = 0;
         public int WetCycles { get; set; } = 0;
         public int DestabilizedCycles { get; set; } = 0;
         public int FractalCycles { get; set; } = 0;
+        public (Location, District, Block, Structure, Room) RematerializeLocation;
 
-        private (int, int, int, int, int, int) _rematerializeLocation = (0, 0, 0, 0, 0, 0);
-        
-        public (Region, Location, District, Block, Structure, Room) RematerializeLocation
-        {
-            get => (
-                _rematerializeLocation.Item1 != 0 ? EntityGet<Region>(_rematerializeLocation.Item1) : null,
-                _rematerializeLocation.Item2 != 0 ? EntityGet<Location>(_rematerializeLocation.Item2) : null,
-                _rematerializeLocation.Item3 != 0 ? EntityGet<District>(_rematerializeLocation.Item3) : null,
-                _rematerializeLocation.Item4 != 0 ? EntityGet<Block>(_rematerializeLocation.Item4) : null,
-                _rematerializeLocation.Item5 != 0 ? EntityGet<Structure>(_rematerializeLocation.Item5) : null,
-                _rematerializeLocation.Item6 != 0 ? EntityGet<Room>(_rematerializeLocation.Item6) : null
-            );
-            set => _rematerializeLocation = (
-                value.Item1?.ID ?? 0,
-                value.Item2?.ID ?? 0,
-                value.Item3?.ID ?? 0,
-                value.Item4?.ID ?? 0,
-                value.Item5?.ID ?? 0,
-                value.Item6?.ID ?? 0
-            );
-        }
 
         public int PlantCycles { get; set; } = 0;
 
@@ -187,36 +174,14 @@ namespace Lightrealm
         public string DamageType { get; set; } = "bashing";
         public bool ProjectileAerodynamic { get; set; } = false;
         public int Strength { get; set; } = 1;
+        public Composition CompositionContent;
+        public Entity SpecialKnowledge;
+        public bool IsGeneralGood { get; set; } = false;
+        public Entity Owner;
 
         public bool Dissipating { get; set; } = false;
         public int Integrity { get; set; } = 100;
         public bool IsWritable { get; set; } = false;
-
-        private int _compositionContentId;
-        
-        public Composition CompositionContent
-        {
-            get => EntityGet<Composition>(_compositionContentId);
-            set => _compositionContentId = value?.ID ?? 0;
-        }
-
-        private int _specialKnowledgeId;
-        
-        public Entity SpecialKnowledge
-        {
-            get => EntityGet<Entity>(_specialKnowledgeId);
-            set => _specialKnowledgeId = value?.ID ?? 0;
-        }
-
-        public bool IsGeneralGood { get; set; } = false;
-
-        private int _ownerId;
-        
-        public Entity Owner
-        {
-            get => EntityGet<Entity>(_ownerId);
-            set => _ownerId = value?.ID ?? 0;
-        }
 
         public virtual int Value()
         {
@@ -225,16 +190,25 @@ namespace Lightrealm
                 return 0;
             }
 
-            int totalRarity = 0;
+
+            if (this.Type == "fragment" && Materials[0].Name == "vitalium")
+                return 10;
+            if (this.Type == "prism" && Materials[0].Name == "vitalium")
+                return 500;
+
+            if (this.Type == "log" || this.Type == "stone" || this.Type == "ore" || this.Type == "pile" || this.Type == "bunch" || this.Type == "block")
+                return 1;
+
+            double totalRarity = 0;
             foreach (Material m in Materials)
             {
                 totalRarity += m.Rarity;
             }
 
             double averageMaterialRarity = (double)totalRarity / Materials.Count();
-            int value = (int)Math.Round(((averageMaterialRarity * Weight) + (5 * (averageMaterialRarity + 1))));
+            int value = (int)Math.Round(((averageMaterialRarity * (Weight/2)) + (5 * (averageMaterialRarity + 1))));
 
-            if(Polished)
+            if (Polished)
             {
                 value = (int)Math.Round(value * 1.2);
             }
@@ -242,6 +216,8 @@ namespace Lightrealm
             {
                 value = (int)Math.Round(value * 1.1);
             }
+
+            value += ContainedObjects.Sum(o => o.Value());
 
             return value;
         }
@@ -363,6 +339,11 @@ namespace Lightrealm
                 }
             }
 
+            if (Exposure > 50)
+            {
+                ((Architect)Creator).CompanionMessage("repositionorretract", this.Type);
+            }
+
             if (Exposure > 50 && InitialExposure <= 50)
             {
                 return new TextStorage(ReferredToNames[0] + " is very exposed!", Color.Orange, new EntityList<Entity>() { this });
@@ -373,9 +354,21 @@ namespace Lightrealm
             }
         }
 
-        public virtual EntityList<TextStorage> TakeDamageFromObject(Object o, int Power,  /*only used for announcements*/   Architect MeleeAttacker, string DescriptiveVerb)
+        public void AnnounceToParty(string announcement, Color color, EntityList<Entity> Entities)
         {
-            EntityList<TextStorage> Announcements = new EntityList<TextStorage>();
+            foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+            {
+                if ((a.Room != null && a.Room.Objects.Contains(this)) || (a.Room == null && a.Block.Objects.Contains(this)))
+                {
+                    Game1.MakeObservation(announcement, color, Entities);
+                    break;
+                }
+            }
+        }
+
+        public virtual List<TextStorage> TakeDamageFromObject(Object o, int Power,  /*only used for announcements*/   Architect MeleeAttacker, string DescriptiveVerb)
+        {
+            List<TextStorage> Announcements = new List<TextStorage>();
 
             if (IsBodyPart)
             {
@@ -388,43 +381,13 @@ namespace Lightrealm
                 double baseBleeding = 2;
                 double baseEnergyLoss = 10;
 
-                // Modifiers based on weapon type
-                double painModifier = 1;
-                double integrityModifier = 1;
-                double bleedingModifier = 1;
-                double energyLossModifier = 1;
-
-                // Adjust modifiers based on weapon type
-                switch (o.DamageType)
-                {
-                    case "piercing":
-                        integrityModifier = 1.5;
-                        bleedingModifier = 0.5;
-                        energyLossModifier = 1.2;
-                        break;
-                    case "slashing":
-                        bleedingModifier = 1.5;
-                        integrityModifier = 0.8;
-                        painModifier = 1.2;
-                        break;
-                    case "bashing":
-                        integrityModifier = 1.2;
-                        painModifier = 1.1;
-                        energyLossModifier = 1.3;
-                        bleedingModifier = 0.3;
-                        break;
-                    case "scourging":
-                        bleedingModifier = 2;
-                        painModifier = 1.5;
-                        integrityModifier = 0.5;
-                        break;
-                }
+                // Get modifiers from Game1
+                var (painModifier, integrityModifier, bleedingModifier, energyLossModifier) = Game1.GetModifiers(o.DamageType);
 
                 // Proficiency factor
                 double PowerFactor = 1 + (Power * 0.05);
                 double weaponFactor = 1 + (o.FindObjectGenericStrength() * 0.05);
-
-                double targetFocusMod = (1 - (0.1) * (((Architect)Owner).Focus));
+                double targetFocusMod = 1 - (0.1 * ((Architect)Owner).Focus);
 
                 // Calculate damage outcomes
                 int Pain = (int)(basePain * painModifier * PowerFactor * weaponFactor * targetFocusMod);
@@ -433,11 +396,20 @@ namespace Lightrealm
                 int EnergyLoss = (int)(baseEnergyLoss * energyLossModifier * PowerFactor * weaponFactor);
 
 
+
+                if (o.IsConstructBolt || o.Type == "star")
+                {
+                    Pain /= 2;
+                    IntegrityDamage /= 2;
+                    Bleeding /= 2;
+                    EnergyLoss /= 2;
+                }
+
                 //heat damage
                 if (o.HeatInCelsius > 50)
                 {
-                    Announcements.Add(new TextStorage("The weapon is very hot!", Color.OrangeRed, new EntityList<Entity>(){}));
-                    EnergyLoss += (int)Math.Round((decimal)((o.HeatInCelsius - 45) / 5));
+                    Announcements.Add(new TextStorage("The weapon sears " + o.ReferredToNames[0] + "!", Color.OrangeRed, new EntityList<Entity>(){}));
+                    EnergyLoss += 8;
                 }
 
 
@@ -455,31 +427,47 @@ namespace Lightrealm
                     return "The " + trimmedPhrase;
                 }
 
-                // Determine if the attack gets blocked by coverage or armor
                 if (Game1.GameWorld.rnd.Next(100) < Coverage && Game1.TutorialActive == false)
                 {
-                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>() { }));
-                    return Announcements;
+                    // Roll again to determine full deflection or partial reduction
+                    int deflectRoll = Game1.GameWorld.rnd.Next(100);
+
+                    if (deflectRoll < 20)
+                    {
+                        // Fully deflected
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is fully deflected by " + CoverageName + "!", Color.Green, new EntityList<Entity>() { o }));
+                        return Announcements;
+                    }
+                    else
+                    {
+                        // Half damage applied
+                        Pain /= 2;
+                        IntegrityDamage /= 2;
+                        Bleeding /= 2;
+                        EnergyLoss /= 2;
+
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + "'s strike is stifled by " + CoverageName + "!", Color.Green, new EntityList<Entity>() { o }));
+                    }
                 }
 
                 if (Owner != null && Owner is Architect a && IsBodyPart && Game1.TutorialActive == false)
                 {
-                    if (Game1.GameWorld.rnd.Next(100) < a.BarrierStacks * 10)
+                    if (Game1.GameWorld.rnd.Next(100) < Math.Min(50, a.BarrierStacks * 10))
                     {
-                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>() { }));
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " is blocked by a barrier stack!", Color.LimeGreen, new EntityList<Entity>() { o }));
                         a.BarrierStacks--;
                         return Announcements;
                     }
 
-                    int armorDamage = Game1.GameWorld.rnd.Next(1, Math.Max(Power, 1) + 4);
+                    int armorDamage = Game1.GameWorld.rnd.Next(3, Math.Max(Power, 1) + 4);
                     if (Game1.GameWorld.rnd.Next(100) < a.NaturalArmor)
                     {
-                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " breaks through and damages " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " breaks through " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { o, a }));
                         a.NaturalArmor -= armorDamage;
                     }
                     else if (a.NaturalArmor > 0)
                     {
-                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { a }));
+                        Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " damages, but does not pierce " + a.ReferredToNames[0] + "'s natural armor!", Color.Green, new EntityList<Entity>() { o, a }));
                         a.NaturalArmor -= armorDamage;
                         return Announcements;
                     }
@@ -490,38 +478,42 @@ namespace Lightrealm
 
                 if (IntegrityDamage > 0)
                 {
-                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " damages " + ReferredToNames[0] + "!", Color.Orange, new EntityList<Entity>() { this }));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " damages " + ReferredToNames[0] + "!", Color.Orange, new EntityList<Entity>() { o, this }));
                 }
-                else
+
+                if(IsBodyPart && Integrity <= 0)
                 {
                     Announcements.Add(new TextStorage(ReferredToNames[0] + " is a broken, lifeless husk!", Color.Red, new EntityList<Entity>() { this }));
                 }
 
                 if (Bleeding > 5)
                 {
-                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>() { }));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " pierces multiple membranes, causing heavy bleeding!", Color.Green, new EntityList<Entity>() { o }));
                 }
                 else if (Bleeding > 3)
                 {
-                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>() { }));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " pierces a membrane, causing bleeding!", Color.Green, new EntityList<Entity>() { o }));
                 }
                 else if (Bleeding > 1)
                 {
-                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " draws a small amount of blood!", Color.Green, new EntityList<Entity>() { }));
+                    Announcements.Add(new TextStorage(EnsureThePrefix(o.ReferredToNames[0]) + " draws a small amount of blood!", Color.Green, new EntityList<Entity>() {  o }));
                 }
 
 
-                if (Pain > 20)
+                if(((Architect)Creator).IsAlive)
                 {
-                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
-                }
-                else if (Pain > 14)
-                {
-                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
-                }
-                else if (Pain > 7)
-                {
-                    Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
+                    if (Pain > 20)
+                    {
+                        Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " yelps very audibly!", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
+                    }
+                    else if (Pain > 14)
+                    {
+                        Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " winces!", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
+                    }
+                    else if (Pain > 7)
+                    {
+                        Announcements.Add(new TextStorage(((Architect)Creator).ReferredToNames[0] + " takes a breath...", Color.Green, new EntityList<Entity>() { ((Architect)Creator) }));
+                    }
                 }
 
                 ((Architect)Owner).Bleeding += Bleeding;
@@ -560,11 +552,19 @@ namespace Lightrealm
                     {
                         ((Architect)Owner).DeathCause = "died mysteriously";
                     }
+
+
+
+                    if (MeleeAttacker != null)
+                    {
+                        MeleeAttacker.TryComment("onkill", 50);
+                    }
                 }
+                
+
 
                 if (((Architect)Owner).Energy < 1 && MeleeAttacker != null && MeleeAttacker.FinaleReady)
                 {
-                    MeleeAttacker.FinaleReady = false;
                     Announcements.Add(new TextStorage(((Architect)Owner).ReferredToNames[0] + " radiates energy in a grand finale!", Color.Green, new EntityList<Entity>() { ((Architect)Owner) }));
 
                     EntityList<Architect> nearbyPeoples = ((Architect)Owner).Room != null ? ((Architect)Owner).Room.Architects : ((Architect)Owner).Block.Architects;
@@ -576,11 +576,15 @@ namespace Lightrealm
              architect.TargetArchitect == A &&
              (architect.Task == "killtarget" || architect.Task == "disabletarget"))))
                         {
-                            A.Energy -= 30;
-                            Announcements.Add(new TextStorage(A.ReferredToNames[0] + " looks drained!", Color.Green, new EntityList<Entity>() { A }));
+                            A.Energy -= 60;
+                            A.Bleeding += 10;
+                            Announcements.Add(new TextStorage(A.ReferredToNames[0] + " looks critically wounded!", Color.Green, new EntityList<Entity>() { A }));
                         }
                     }
                 }
+
+                if(MeleeAttacker != null)
+                    MeleeAttacker.FinaleReady = false;
             }
             else
             {
@@ -688,34 +692,34 @@ namespace Lightrealm
                 Announcements.Add(new TextStorage(message, Color.Orange, new EntityList<Entity> { obj }));
             }
 
+
             return Announcements;
         }
 
-        public void UpdateNames(bool IgnoreLUC, Architect Possessor)
+        public void UpdateNames(bool IgnoreLUC, Architect Possessor, bool Loaded)
         {
-            if (LatestUpdateCycle == Game1.GameWorld.Cycle && IgnoreLUC == false)
-            {
+            if (LatestUpdateCycle == Game1.GameWorld.Cycle && !IgnoreLUC)
                 return;
-            }
 
             LatestUpdateCycle = Game1.GameWorld.Cycle;
-            ClearReferredToNames();
+            _referredToNames.Clear();
 
-            string Symbols = Game1.FormatAndList(CarvedSymbols.Select(s => s.ReferredToNames[0]).ToList());
-            string engravedPrefix = string.IsNullOrEmpty(Symbols) ? "" : Symbols + "-engraved ";
-            string statueSuffix = string.IsNullOrEmpty(Symbols) ? "statue" : "statue of " + Symbols;
+            if (!string.IsNullOrWhiteSpace(Name) && !Loaded)
+            {
+                AddReferredToName(Name);
+            }
+
+            string engravedPrefix = string.IsNullOrEmpty(Symbols) ? "" : string.Concat(Symbols, "-engraved ");
+            string statueSuffix = string.IsNullOrEmpty(Symbols) ? "statue" : string.Concat("statue of ", Symbols);
 
             if (this is Door door && door.SourceRoom != null)
             {
-                AddReferredToName(engravedPrefix + door.Direction + " " + Game1.FormatMaterialList(Materials) + " " + Type + " (door " + door.Number + ")");
-                AddReferredToName("door " + door.Number);
+                AddReferredToName(string.Concat(engravedPrefix, door.Direction, " ", Game1.FormatMaterialList(Materials), " ", Type, " (door ", door.Number, ")"));
+                AddReferredToName(string.Concat("door ", door.Number.ToString()));
 
-                Room currentRoom = door.SourceRoom;
-                Door quickestExitDoor = currentRoom.FindQuickestExitDoor();
-
-                if (quickestExitDoor == door)
+                if (door.IsQuickestExit)
                 {
-                    string quickestName = ReferredToNames[0] + " [<]";
+                    string quickestName = string.Concat(ReferredToNames[0], " [<]");
                     ReferredToNames.Insert(0, quickestName);
                 }
 
@@ -724,16 +728,17 @@ namespace Lightrealm
             }
             else if (this.IsBodyPart)
             {
-                foreach (string s in Owner.ReferredToNames)
+                foreach (string s in Creator.ReferredToNames)
                 {
-                    AddReferredToName(s + "'s " + Type);
+                    AddReferredToName(string.Concat(s, "'s ", Type));
                 }
+
                 AddReferredToName(ID.ToString());
                 return;
             }
             else if (LetterContent != null)
             {
-                AddReferredToName(engravedPrefix + "Letter to " + LetterContent.Recipient.Name);
+                AddReferredToName(Name);
                 AddReferredToName(ID.ToString());
                 return;
             }
@@ -742,33 +747,31 @@ namespace Lightrealm
             {
                 if (Type == "statue")
                 {
-                    // Include Name, Material List, and Images
-                    AddReferredToName($"{Name}, {Game1.FormatMaterialList(Materials)} {statueSuffix}");
+                    AddReferredToName(string.Concat(Name, ", ", Game1.FormatMaterialList(Materials), " ", statueSuffix));
                 }
                 else
                 {
-                    AddReferredToName(engravedPrefix + Name + ", " + Game1.FormatMaterialList(Materials) + " " + Type);
-                    AddReferredToName(engravedPrefix + Name);
+                    AddReferredToName(string.Concat(engravedPrefix, Name, ", ", Game1.FormatMaterialList(Materials), " ", Type));
+                    AddReferredToName(string.Concat(engravedPrefix, Name));
                 }
             }
             else
             {
                 if (Type == "statue")
                 {
-                    AddReferredToName($"{Game1.FormatMaterialList(Materials)} {statueSuffix}");
-                    // Exclude Name, include Material List and Images
+                    AddReferredToName(string.Concat(Game1.FormatMaterialList(Materials), " ", statueSuffix));
                     AddReferredToName(statueSuffix);
-                    AddReferredToName("the " + Game1.FormatMaterialList(Materials) + " " + statueSuffix);
+                    AddReferredToName(string.Concat("the ", Game1.FormatMaterialList(Materials), " ", statueSuffix));
                 }
                 else
                 {
-                    AddReferredToName(engravedPrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                    AddReferredToName(string.Concat(engravedPrefix, Game1.FormatMaterialList(Materials), " ", Type));
                     AddReferredToName(Type);
-                    AddReferredToName("the " + engravedPrefix + Game1.FormatMaterialList(Materials) + " " + Type);
+                    AddReferredToName(string.Concat("the ", engravedPrefix, Game1.FormatMaterialList(Materials), " ", Type));
                 }
             }
 
-            if (Game1.MostRecentPartyTurnArchitect != null &&
+            if (Game1.MostRecentPartyTurnArchitect != null && Game1.GameWorld.GamePlayerAssociation != null &&
                 Game1.GameWorld.GamePlayerAssociation.ActiveParty != null &&
                 (Game1.MostRecentPartyTurnArchitect.OffHeldObject == this ||
                  Game1.MostRecentPartyTurnArchitect.MainHeldObject == this ||
@@ -778,7 +781,7 @@ namespace Lightrealm
 
                 foreach (string s in ReferredToNames)
                 {
-                    newItems.Add("my " + engravedPrefix + s);
+                    newItems.Add(string.Concat("my ", engravedPrefix, s));
                 }
 
                 foreach (string newItem in newItems)
@@ -787,7 +790,12 @@ namespace Lightrealm
                 }
             }
 
-            if (Type == "shadow fountain" && ReferredToNames.Contains("shadow fountain"))
+            if (this.Type == "exit door")
+            {
+                string quickestName = string.Concat(ReferredToNames[0], " [<]");
+                ReferredToNames.Insert(0, quickestName);
+            }
+            else if (Type == "shadow fountain" && ReferredToNames.Contains("shadow fountain"))
             {
                 ReferredToNames.Remove("shadow fountain");
             }
@@ -797,42 +805,32 @@ namespace Lightrealm
                 List<string> newNames = new List<string>();
                 foreach (string s in ReferredToNames)
                 {
-                    newNames.Add("airborne " + s);
+                    newNames.Add(string.Concat("airborne ", s));
                 }
-                ClearReferredToNames();
+                _referredToNames.Clear();
                 foreach (string newName in newNames)
                 {
                     AddReferredToName(newName);
                 }
             }
-
             foreach (Object o in ContainedObjects)
             {
-                o.UpdateNames(true, Possessor);
+                o.UpdateNames(true, Possessor, Loaded);
             }
-
-            ReferredToNames.RemoveAll(s => string.IsNullOrEmpty(s));
 
             if (Game1.SplitMode)
             {
                 if (ReferredToNames.Count > 0)
                 {
                     string firstName = ReferredToNames[0];
-                    ClearReferredToNames();
-                    AddReferredToName($"{firstName} ({ID})");
+                    _referredToNames.Clear();
+                    AddReferredToName(string.Concat(firstName, " (", ID.ToString(), ")"));
                     AddReferredToName(firstName);
                 }
             }
 
-            if (this.Type == "exit door")
-            {
-                string quickestName = ReferredToNames[0] + " [<]";
-                ReferredToNames.Insert(0, quickestName);
-            }
-
             if (Possessor != null)
             {
-                // Create a copy of the collection to avoid modification issues during iteration
                 var referredToNamesCopy = new List<string>(ReferredToNames);
 
                 foreach (string s in referredToNamesCopy)
@@ -840,13 +838,23 @@ namespace Lightrealm
                     if (s.StartsWith("the "))
                         continue;
 
-                    if (Possessor.ReferredToNames[0].Last() == 's')
-                        AddReferredToName(Possessor.ReferredToNames[0] + "' " + s);
+                    string prefix = Possessor.ReferredToNames[0];
+                    if (prefix.EndsWith("s"))
+                        AddReferredToName(string.Concat(prefix, "' ", s));
                     else
-                        AddReferredToName(Possessor.ReferredToNames[0] + "'s " + s);
+                        AddReferredToName(string.Concat(prefix, "'s ", s));
                 }
             }
 
+            _referredToNames = _referredToNames.Distinct().ToList();
+
+            for (int i = ReferredToNames.Count - 1; i >= 0; i--)
+            {
+                if (string.IsNullOrEmpty(ReferredToNames[i]))
+                {
+                    ReferredToNames.RemoveAt(i);
+                }
+            }
 
             AddReferredToName(ID.ToString());
         }
@@ -854,51 +862,9 @@ namespace Lightrealm
 
 
 
-        public void UpdateSelfActionsAndSuch()
+
+        public void UpdateSelfActionsAndSuch(Architect Possessor, bool PossessorNearArch)
         {
-            //remove bad spells
-
-            if (Game1.GameWorld.DeletedSpells.Contains(SpecialKnowledge))
-            {
-                SpecialKnowledge = null;
-            }
-            if (Game1.GameWorld.DeletedCompositions.Contains(CompositionContent))
-            {
-                CompositionContent = null;
-            }
-
-            //remove bad materials, if this is the first removal add void.
-
-            if(Game1.GameWorld.DeletedMaterials.Count > 0)
-            {
-                EntityList<Material> MaterialsToReplace = new EntityList<Material>();
-
-                foreach (Material m in Game1.GameWorld.DeletedMaterials)
-                {
-                    if (Materials.Contains(m) && !MaterialsToReplace.Contains(m))
-                    {
-                        MaterialsToReplace.Add(m);
-                    }
-                }
-
-                if(MaterialsToReplace.Count > 0)
-                {
-                    int originalCount = Materials.Count();
-                    Materials.RemoveAll(item => MaterialsToReplace.Contains(item));
-                    int newCount = Materials.Count();
-
-                    if (newCount < originalCount && !Materials.Contains(Game1.GameWorld.Void))
-                    {
-                        Materials.Add(Game1.GameWorld.Void);
-                    }
-
-                    Materials = Materials.Distinct();
-                }
-            }
-
-
-
-
             //gravity
 
             if (YLevelInFeet > 0)
@@ -926,15 +892,16 @@ namespace Lightrealm
 
             //burn
 
-            if (FireSeconds > 0 && Game1.GameWorld.Cycle % 10 == 0)
+            if (FireSeconds > 0 && ((ulong)Math.Round(Game1.GameWorld.Cycle)) % 10 == 0)
             {
                 Integrity -= FireSeconds;
                 FireSeconds--;
             }
 
+
             //plants
 
-            if(PlantCycles > 0)
+            if (PlantCycles > 0)
             {
                 PlantCycles--;
             }
@@ -976,11 +943,25 @@ namespace Lightrealm
 
                                 triggeringArchitect.AnnounceToParty(a.ReferredToNames[0] + " is destabilized!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
                                 a.DestabilizedCycles += 200;
-                                a.Energy -= 20;
+
+                                if(Game1.GameWorld.rnd.Next(2) == 1)
+                                {
+                                    a.Bound = true;
+                                    triggeringArchitect.AnnounceToParty(a.ReferredToNames[0] + " was bound!", Color.Red, new EntityList<Entity>() { triggeringArchitect });
+                                }
+                                else
+                                {
+                                    triggeringArchitect.AnnounceToParty(a.ReferredToNames[0] + " barely managed to escape.", Color.Red, new EntityList<Entity>() { triggeringArchitect });
+                                }
                             }
                         }
                     }
                 }
+            }
+
+            if(PossessorNearArch)
+            {
+                UpdateNames(false, Possessor, true);
             }
         }
 
@@ -994,10 +975,29 @@ namespace Lightrealm
             IsGeneralGood = isGeneralGood;
             Creator = creator;
 
+            Distance = Game1.FurnitureItems.Contains(type) ? Game1.GameWorld.rnd.Next(400, 500) : Game1.GameWorld.rnd.Next(200, 400);
+
+            if (type == "console")
+            {
+                ConsoleOn = Game1.GameWorld.rnd.Next(2) == 0;
+            }
+
+            if(name != null && Game1.GameWorld != null)
+            {
+                Game1.GameWorld.SubjectsToWriteAbout.Add(this);
+            }
+
+
+
             Block = b;
             Room = r;
 
             Name = name;
+
+            if(Name != null)
+            {
+                Game1.GameWorld.AllArtifacts.Add(this);
+            }
 
             if (IsContainer)
             {
@@ -1005,7 +1005,7 @@ namespace Lightrealm
             }
 
             ApplyImbuements(0);
-            UpdateNames(true, null);
+            UpdateNames(true, null, Game1.LoadedArchitects.Count > 0);
         }
 
         public Object(string name, string type, EntityList<Material> materials, Entity creator)
@@ -1014,6 +1014,15 @@ namespace Lightrealm
             Type = type;
             Materials = materials;
             Creator = creator;
+
+            Distance = Game1.FurnitureItems.Contains(type) ? Game1.GameWorld.rnd.Next(300, 450) : Game1.GameWorld.rnd.Next(100, 300);
+
+            if (Name != null)
+            {
+                Game1.GameWorld.AllArtifacts.Add(this);
+                Game1.GameWorld.SubjectsToWriteAbout.Add(this);
+            }
+
 
             // Default values for common properties
             IfTrueUseInIfFalseUseOn = false;
@@ -1028,6 +1037,7 @@ namespace Lightrealm
                 // Basic resource types
                 case "bar":
                     Weight = 1000; // e.g., in grams
+                    IsGeneralGood = true;
                     Description = "An ingot used to efficiently store /m.";
                     break;
                 case "star":
@@ -1035,12 +1045,18 @@ namespace Lightrealm
                     Description = "A bright concentration of energy. It seems highly unstable.";
                     break;
                 case "fragment":
-                    Weight = 5;
+                    Weight = 1;
+                    IsGeneralGood = true;
                     Description = "A small shard of /m.";
                     IsConsumable = true;
                     break;
+                case "prism":
+                    Weight = 50;
+                    Description = "A large shard of /m.";
+                    break;
                 case "log":
                     Weight = 3000;
+                    IsGeneralGood = true;
                     Description = "A long, cylinderical piece of /m.";
                     break;
                 case "stone":
@@ -1055,13 +1071,18 @@ namespace Lightrealm
                     Weight = 3000;
                     Description = "A pile of /m.";
                     break;
+                case "raft":
+                    Weight = 10000;
+                    Description = "A raft made of /m that allows travel over water. You might not carry this around.";
+                    break;
                 case "bunch":
                     Weight = 300;
                     Description = "A bunch of /m";
                     break;
-                case "bolt":
+                case "roll":
                     Weight = 300;
-                    Description = "A bolt of cloth, made of /m";
+                    Description = "A roll of cloth, made of /m";
+                    IsGeneralGood = true;
                     break;
 
 
@@ -1069,6 +1090,7 @@ namespace Lightrealm
                 case "scroll":
                     IsWritable = true;
                     CompositionContent = null;
+                    IsGeneralGood = true;
                     Weight = 100; // example weight in grams
                     Description = "A sheet attached to a roller.";
                     break;
@@ -1088,188 +1110,14 @@ namespace Lightrealm
                     Description = "A sheet of /m";
                     Weight = 50; // example weight
                     break;
-                case "waxtablet":
+                case "wax tablet":
                     IsWritable = true;
                     CompositionContent = null;
+                    IsGeneralGood = true;
                     Description = "A tablet on which can be scratched to inscribe.";
                     Weight = 300; // example weight
                     break;
 
-
-                case "small hat":
-                    Weight = 100;
-                    IsWearable = true;
-                    Description = "A small head covering made of /m.";
-                    CoverageValues.Add(("head", 4)); // Smaller coverage than a large hat
-                    break;
-
-                case "large hat":
-                    Weight = 200;
-                    IsWearable = true;
-                    Description = "A larger head covering made of /m.";
-                    CoverageValues.Add(("head", 6)); // Smaller coverage than a large hat
-                    break;
-                case "hood":
-                    Weight = 150;
-                    IsWearable = true;
-                    Description = "A head and neck covering made of /m.";
-                    CoverageValues.Add(("head", 5));
-                    CoverageValues.Add(("neck", 5));
-                    break;
-                case "cape":
-                    Weight = 150;
-                    IsWearable = true;
-                    Description = "A long, flowing back garment made of /m.";
-                    CoverageValues.Add(("left shoulder", 3));
-                    CoverageValues.Add(("right shoulder", 3));
-                    CoverageValues.Add(("torso", 2)); // Minimal torso coverage as it's open at the front
-                    break;
-                case "robe":
-                    Weight = 150;
-                    IsWearable = true;
-                    Description = "A long, flowing back garment made of /m.";
-                    CoverageValues.Add(("left shoulder", 5));
-                    CoverageValues.Add(("right shoulder", 5));
-                    CoverageValues.Add(("torso", 5)); // Minimal torso coverage as it's open at the front
-                    CoverageValues.Add(("left leg", 3));
-                    CoverageValues.Add(("right leg", 3));
-                    break;
-                case "amulet":
-                    Weight = 50;
-                    IsWearable = true;
-                    Description = "A small, wearable ornament made of /m.";
-                    // Amulets do not provide coverage in the context of physical protection
-                    break;
-                case "flair":
-                    Weight = 50;
-                    IsWearable = true;
-                    Description = "A decorative, wearable item made of /m.";
-                    // Flairs, like amulets, typically do not provide coverage
-                    break;
-                case "left glove":
-                    Weight = 200;
-                    IsWearable = true;
-                    Description = "A left-hand covering made of /m.";
-                    CoverageValues.Add(("left hand", 8));
-                    break;
-                case "right glove":
-                    Weight = 200;
-                    IsWearable = true;
-                    Description = "A left-hand covering made of /m.";
-                    CoverageValues.Add(("left hand", 8));
-                    break;
-                case "left wristwrap":
-                    Weight = 200;
-                    IsWearable = true;
-                    Description = "A left wrapping for a wrist made of /m.";
-                    CoverageValues.Add(("left arm", 2)); // Assuming wrist wraps cover a bit of the lower arm
-                    break;
-                case "right wristwrap":
-                    Weight = 200;
-                    IsWearable = true;
-                    Description = "A right wrapping for a wrist made of /m.";
-                    CoverageValues.Add(("right arm", 2));
-                    break;
-                case "skirt":
-                    Weight = 200;
-                    IsGeneralGood = true;
-                    Description = "A free-flowing lower body garment made of /m.";
-                    CoverageValues.Add(("left leg", 4)); // Assuming wrist wraps cover a bit of the lower arm
-                    CoverageValues.Add(("right leg", 4));
-                    break;
-                case "shortsleeve shirt":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "A shirt with short sleeves made of /m.";
-                    CoverageValues.Add(("torso", 7));
-                    CoverageValues.Add(("left shoulder", 4));
-                    CoverageValues.Add(("right shoulder", 4));
-                    break;
-                case "longsleeve shirt":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "A shirt with long sleeves made of /m.";
-                    CoverageValues.Add(("torso", 7));
-                    CoverageValues.Add(("left arm", 7));
-                    CoverageValues.Add(("right arm", 7));
-                    break;
-                case "uppershirt":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "An upper body garment made of /m.";
-                    CoverageValues.Add(("torso", 8));
-                    break;
-                case "brassiere":
-                    Weight = 0;
-                    IsWearable = true;
-                    Description = "An undergarment for the upper body made of /m.";
-                    break;
-                case "undergarment":
-                    Weight = 0;
-                    IsWearable = true;
-                    Description = "An undergarment for the lower body made of /m.";
-                    break;
-                case "straps":
-                    Weight = 300;
-                    IsWearable = true;
-                    Description = "Body straps made of /m.";
-                    CoverageValues.Add(("torso", 2));
-                    break;
-                case "pants":
-                    Weight = 400;
-                    IsWearable = true;
-                    Description = "A lower body garment made of /m.";
-                    CoverageValues.Add(("left leg", 9));
-                    CoverageValues.Add(("right leg", 9));
-                    break;
-                case "shorts":
-                    Weight = 400;
-                    IsWearable = true;
-                    Description = "A shorter lower body garment made of /m.";
-                    CoverageValues.Add(("left leg", 5));
-                    CoverageValues.Add(("right leg", 5));
-                    break;
-                case "kilt":
-                    Weight = 350;
-                    IsWearable = true;
-                    Description = "A knee-length skirt made of /m.";
-                    CoverageValues.Add(("left leg", 6)); // Assuming it covers both legs equally
-                    CoverageValues.Add(("right leg", 6));
-                    break;
-                case "wraps":
-                    Weight = 350;
-                    IsWearable = true;
-                    Description = "Body wraps made of /m.";
-                    CoverageValues.Add(("torso", 2));
-                    break;
-                case "left boot":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "A sturdy, tall foot covering made of /m.";
-                    CoverageValues.Add(("left foot", 9));
-                    CoverageValues.Add(("right foot", 9));
-                    break;
-                case "right boot":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "A sturdy, tall foot covering made of /m.";
-                    CoverageValues.Add(("left foot", 9));
-                    CoverageValues.Add(("right foot", 9));
-                    break;
-                case "left shoe":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "A standard foot covering made of /m.";
-                    CoverageValues.Add(("left foot", 7));
-                    CoverageValues.Add(("right foot", 7));
-                    break;
-                case "right shoe":
-                    Weight = 250;
-                    IsWearable = true;
-                    Description = "A standard foot covering made of /m.";
-                    CoverageValues.Add(("left foot", 7));
-                    CoverageValues.Add(("right foot", 7));
-                    break;
                 // The trade and craft items below are not wearable in the sense that they provide coverage, so they do not need CoverageValues entries.
 
                 case "jar":
@@ -1416,144 +1264,179 @@ namespace Lightrealm
                     Description = "A raw, uncut /m gemstone.";
                     break;
 
+
+
+
                 case "shortsword":
-                    Weight = 1500;
+                    Weight = 1200;
+                    IsGeneralGood = true;
                     IsWeapon = true;
                     DamageType = "slashing";
-                    Description = "A balanced weapon for slashing, causing bleeding and pain.";
+                    Description = "A balanced slashing weapon that causes moderate pain, bleeding, and energy loss.";
                     break;
                 case "knife":
                     Weight = 300;
                     IsWeapon = true;
+                    IsLight = true;
                     DamageType = "slashing";
                     Description = "A versatile tool used for cutting, or as a weapon.";
                     break;
                 case "dagger":
                     Weight = 150;
                     IsWeapon = true;
+                    IsLight = true;
                     DamageType = "piercing";
                     Description = "An aerodynamic weapon often used for throwing or stabbing.";
                     ProjectileAerodynamic = true;
                     break;
-                case "greatsword":
-                    Weight = 2000;
+                case "longsword":
+                    Weight = 1800;
                     IsWeapon = true;
+                    IsGeneralGood = true;
                     DamageType = "slashing";
-                    Description = "A large sword excelling in causing significant bleeding and damage.";
+                    Description = "A heavy two-handed slashing weapon inflicting moderate pain, energy loss, and bleeding.";
+                    IsTwoHanded = true;
                     break;
                 case "battle axe":
-                    Weight = 1500;
+                    Weight = 1200;
+                    IsGeneralGood = true;
                     IsWeapon = true;
                     DamageType = "slashing";
-                    Description = "A small axe designed for powerful slashing, causing extensive bleeding.";
+                    Description = "A compact axe that delivers painful slashing strikes and blood loss.";
                     break;
-                case "axe":
-                    Weight = 1500;
+                case "work axe":
+                    Weight = 1800;
                     IsWeapon = true;
+                    IsGeneralGood = true;
                     DamageType = "slashing";
-                    Description = "A small axe, versatile as both a tool and weapon for chopping and slashing.";
+                    Description = "A heavy two-handed axe, typically used for chopping trees or logs.";
+                    IsTwoHanded = true;
                     break;
                 case "greataxe":
                     WeaponMaximumRange = 1;
-                    Weight = 2000;
+                    IsGeneralGood = true;
+                    Weight = 1800;
                     IsWeapon = true;
                     DamageType = "slashing";
-                    Description = "An enormous axe, ideal for causing severe bleeding and pain.";
+                    Description = "An enormous two-handed axe, ideal for causing severe bleeding, pain, and functional loss.";
+                    IsTwoHanded = true;
                     break;
                 case "rapier":
                     Weight = 1200;
                     IsWeapon = true;
+                    IsGeneralGood = true;
                     DamageType = "piercing";
-                    Description = "A non-bladed pointed weapon, ideal for quick stabs to the head.";
+                    Description = "A precision piercing weapon that disables body functions and drains energy.";
                     break;
                 case "spear":
                     WeaponMaximumRange = 1;
                     Weight = 1200;
+                    IsGeneralGood = true;
                     IsWeapon = true;
                     DamageType = "piercing";
-                    Description = "A long spear, ideal for quick stabs to the head.";
+                    Description = "A long piercing weapon ideal for disabling specific body parts and energy flow.";
                     break;
                 case "pike":
                     WeaponMaximumRange = 2;
-                    Weight = 1200;
+                    Weight = 1800;
                     IsWeapon = true;
+                    IsGeneralGood = true;
                     DamageType = "piercing";
-                    Description = "A lengthy weapon for focused piercing damage, particularly to the head. It can strike at a significant distance.";
+                    Description = "A long-range two-handed piercing weapon that disables body parts and disrupts energy flow.";
                     break;
                 case "pickaxe":
                     Weight = 1200;
                     DamageType = "piercing";
+                    IsGeneralGood = true;
                     Description = "A useful mining tool. Can be used to gather various tough materials.";
                     break;
                 case "shovel":
                     Weight = 1200;
                     DamageType = "piercing";
+                    IsGeneralGood = true;
                     Description = "A tool used for digging. Ideal for gathering sand.";
                     break;
                 case "scythe":
                     Weight = 1200;
+                    IsGeneralGood = true;
                     DamageType = "piercing";
-                    Description = "A too lwith a long curved blade used to gather plants.";
+                    Description = "A tool with a long curved blade used to gather plants.";
                     break;
                 case "mace":
-                    Weight = 1800;
+                    Weight = 1200;
                     IsWeapon = true;
+                    IsGeneralGood = true;
                     DamageType = "bashing";
-                    Description = "A solid weapon causing high damage with less bleeding.";
+                    Description = "A solid bashing weapon causing functional damage, pain, and energy loss.";
                     break;
-                case "hammer":
-                    Weight = 1800;
+                case "war hammer":
+                    Weight = 1200;
                     IsWeapon = true;
+                    IsGeneralGood = true;
                     DamageType = "bashing";
-                    Description = "A blunt weapon designed for powerful bashing, inflicting severe damage.";
+                    Description = "A bashing weapon that causes major functional damage and energy loss.";
                     break;
                 case "staff":
                     Weight = 800;
+                    IsLight = true;
                     IsWeapon = true;
                     DamageType = "bashing";
                     Description = "A long polished rod suitable for both physical combat and magical use.";
                     break;
                 case "shield":
-                    Weight = 2500;
+                    Weight = 1200;
+                    IsGeneralGood = true;
                     IsWeapon = true;
                     DamageType = "bashing";
-                    Description = "A defensive tool that can be used to bash, causing significant damage.";
+                    Description = "A defensive tool that can be used to block attacks or bash.";
                     break;
                 case "whip":
                     Weight = 1200;
                     IsWeapon = true;
-                    DamageType = "scourging";
-                    Description = "A flexible weapon that can cause high levels of pain and bleeding.";
+                    IsGeneralGood = true;
+                    DamageType = "thrashing";
+                    Description = "A flexible weapon that causes high bleeding and pain.";
                     break;
                 case "scourge":
-                    Weight = 1300;
+                    Weight = 1200;
+                    IsGeneralGood = true;
                     IsWeapon = true;
-                    DamageType = "scourging";
+                    DamageType = "thrashing";
                     Description = "A multi-tailed whip, causing extensive bleeding and pain.";
                     break;
                 case "flail":
-                    Weight = 800;
+                    Weight = 1200;
                     IsWeapon = true;
-                    DamageType = "scourging";
+                    DamageType = "thrashing";
                     Description = "A medium, spiked ball attached to a chain and rod, causing major bleeding and pain.";
                     break;
                 case "chain":
-                    Weight = 400;
+                    Weight = 1200;
                     WeaponMaximumRange = 1;
                     IsWeapon = true;
-                    DamageType = "scourging";
-                    Description = "A lengthy chain attached to a rod, capable causing extensive bleeding and pain.";
+                    DamageType = "thrashing";
+                    Description = "A lengthy chain, capable causing extensive bleeding and pain.";
                     break;
+
+
+
+
                 case "rope trap":
                     Weight = 1000000;
                     Description = "A trap made of rope.";
                     break;
-                case "energy bolt":
+                case "bolt":
                     Weight = 10;
                     IsWeapon = true;
                     DamageType = "piercing";
                     Description = "A small projectile fired from an enchanted object.";
                     break;
+
+                case "shock mine":
+                    Weight = 100;
+                    Description = "An explosive device that protects certain items.";
+                    break;
+
                 case "wave":
                     Weight = 10;
                     IsWeapon = true;
@@ -1568,13 +1451,204 @@ namespace Lightrealm
                     break;
                 // other amror
 
+
+                case "small hat":
+                    Weight = 100;
+                    IsWearable = true;
+                    Description = "A small head covering made of /m.";
+                    CoverageValues.Add(("head", 4)); // Smaller coverage than a large hat
+                    CoverageValues.Add(("left eye", 2));
+                    CoverageValues.Add(("right eye", 2));
+                    break;
+
+                case "large hat":
+                    Weight = 200;
+                    IsWearable = true;
+                    Description = "A larger head covering made of /m.";
+                    CoverageValues.Add(("head", 6)); // Smaller coverage than a large hat
+                    CoverageValues.Add(("left eye", 2));
+                    CoverageValues.Add(("right eye", 2));
+
+                    break;
+                case "hood":
+                    Weight = 150;
+                    IsGeneralGood = true;
+                    IsWearable = true;
+                    Description = "A head and neck covering made of /m.";
+                    CoverageValues.Add(("head", 5));
+                    CoverageValues.Add(("neck", 6));
+                    CoverageValues.Add(("left eye", 8));
+                    CoverageValues.Add(("right eye", 8));
+                    break;
+                case "cape":
+                    Weight = 150;
+                    IsWearable = true;
+                    IsGeneralGood = true;
+                    Description = "A long, flowing back garment made of /m.";
+                    CoverageValues.Add(("left shoulder", 3));
+                    CoverageValues.Add(("right shoulder", 3));
+                    CoverageValues.Add(("neck", 5));
+                    CoverageValues.Add(("torso", 2)); // Minimal torso coverage as it's open at the front
+                    break;
+                case "robe":
+                    Weight = 150;
+                    IsGeneralGood = true;
+                    IsWearable = true;
+                    Description = "A long, flowing back garment made of /m.";
+                    CoverageValues.Add(("left shoulder", 5));
+                    CoverageValues.Add(("right shoulder", 5));
+                    CoverageValues.Add(("torso", 5)); // Minimal torso coverage as it's open at the front
+                    CoverageValues.Add(("left leg", 3));
+                    CoverageValues.Add(("right leg", 3));
+                    break;
+                case "amulet":
+                    Weight = 50;
+                    IsWearable = true;
+                    IsGeneralGood = true;
+                    Description = "A small, wearable ornament made of /m.";
+                    // Amulets do not provide coverage in the context of physical protection
+                    break;
+                case "flair":
+                    Weight = 50;
+                    IsGeneralGood = true;
+                    IsWearable = true;
+                    Description = "A decorative, wearable item made of /m.";
+                    CoverageValues.Add(("neck", 4));
+                    // Flairs, like amulets, typically do not provide coverage
+                    break;
+                case "left glove":
+                    Weight = 200;
+                    IsWearable = true;
+                    Description = "A left-hand covering made of /m.";
+                    CoverageValues.Add(("left hand", 8));
+                    break;
+                case "right glove":
+                    Weight = 200;
+                    IsWearable = true;
+                    Description = "A left-hand covering made of /m.";
+                    CoverageValues.Add(("right hand", 8));
+                    break;
+                case "left wristwrap":
+                    Weight = 200;
+                    IsWearable = true;
+                    Description = "A left wrapping for a wrist made of /m.";
+                    CoverageValues.Add(("left arm", 2)); // Assuming wrist wraps cover a bit of the lower arm
+                    break;
+                case "right wristwrap":
+                    Weight = 200;
+                    IsWearable = true;
+                    Description = "A right wrapping for a wrist made of /m.";
+                    CoverageValues.Add(("right arm", 2));
+                    break;
+                case "skirt":
+                    Weight = 200;
+                    IsGeneralGood = true;
+                    Description = "A free-flowing lower body garment made of /m.";
+                    CoverageValues.Add(("left leg", 4)); // Assuming wrist wraps cover a bit of the lower arm
+                    CoverageValues.Add(("right leg", 4));
+                    break;
+                case "shortsleeve shirt":
+                    Weight = 250;
+                    IsGeneralGood = true;
+                    IsWearable = true;
+                    Description = "A shirt with short sleeves made of /m.";
+                    CoverageValues.Add(("torso", 7));
+                    CoverageValues.Add(("left shoulder", 4));
+                    CoverageValues.Add(("right shoulder", 4));
+                    break;
+                case "longsleeve shirt":
+                    Weight = 250;
+                    IsWearable = true;
+                    Description = "A shirt with long sleeves made of /m.";
+                    CoverageValues.Add(("torso", 7));
+                    CoverageValues.Add(("left arm", 7));
+                    CoverageValues.Add(("right arm", 7));
+                    break;
+                case "uppershirt":
+                    Weight = 250;
+                    IsWearable = true;
+                    Description = "An upper body garment made of /m.";
+                    CoverageValues.Add(("torso", 8));
+                    break;
+                case "brassiere":
+                    Weight = 0;
+                    IsWearable = true;
+                    Description = "An undergarment for the upper body made of /m.";
+                    break;
+                case "undergarment":
+                    Weight = 0;
+                    IsWearable = true;
+                    Description = "An undergarment for the lower body made of /m.";
+                    break;
+                case "straps":
+                    Weight = 300;
+                    IsWearable = true;
+                    Description = "Body straps made of /m.";
+                    CoverageValues.Add(("torso", 2));
+                    break;
+                case "pants":
+                    Weight = 400;
+                    IsWearable = true;
+                    IsGeneralGood = true;
+                    Description = "A lower body garment made of /m.";
+                    CoverageValues.Add(("left leg", 9));
+                    CoverageValues.Add(("right leg", 9));
+                    break;
+                case "shorts":
+                    Weight = 400;
+                    IsWearable = true;
+                    Description = "A shorter lower body garment made of /m.";
+                    CoverageValues.Add(("left leg", 5));
+                    CoverageValues.Add(("right leg", 5));
+                    break;
+                case "kilt":
+                    Weight = 350;
+                    IsWearable = true;
+                    Description = "A knee-length skirt made of /m.";
+                    CoverageValues.Add(("left leg", 6)); // Assuming it covers both legs equally
+                    CoverageValues.Add(("right leg", 6));
+                    break;
+                case "wraps":
+                    Weight = 350;
+                    IsWearable = true;
+                    Description = "Body wraps made of /m.";
+                    CoverageValues.Add(("torso", 2));
+                    break;
+                case "left boot":
+                    Weight = 250;
+                    IsWearable = true;
+                    IsGeneralGood = true;
+                    Description = "A sturdy, tall foot covering made of /m.";
+                    CoverageValues.Add(("left foot", 9));
+                    break;
+                case "right boot":
+                    Weight = 250;
+                    IsGeneralGood = true;
+                    IsWearable = true;
+                    Description = "A sturdy, tall foot covering made of /m.";
+                    CoverageValues.Add(("right foot", 9));
+                    break;
+                case "left shoe":
+                    Weight = 250;
+                    IsWearable = true;
+                    Description = "A standard foot covering made of /m.";
+                    CoverageValues.Add(("left foot", 7));
+                    break;
+                case "right shoe":
+                    Weight = 250;
+                    IsWearable = true;
+                    Description = "A standard foot covering made of /m.";
+                    CoverageValues.Add(("right foot", 7));
+                    break;
                 // Inside the switch statement of your object constructor
                 case "helmet":
                     Weight = 1500;
                     IsWearable = true;
                     IsGeneralGood = true;
                     Description = "A protective headgear made of /m.";
-                    CoverageValues.Add(("head", 9)); // High protection for the head
+                    CoverageValues.Add(("head", 7)); // High protection for the head
+                    CoverageValues.Add(("left eye", 7));
+                    CoverageValues.Add(("right eye", 7));
                     break;
 
                 case "chestplate":
@@ -1582,7 +1656,10 @@ namespace Lightrealm
                     IsWearable = true;
                     IsGeneralGood = true;
                     Description = "A sturdy torso armor made of /m.";
-                    CoverageValues.Add(("torso", 10)); // Maximum protection for the torso
+                    CoverageValues.Add(("torso", 8)); // Maximum protection for the torso
+                    CoverageValues.Add(("left shoulder", 8)); // Maximum protection for the torso
+                    CoverageValues.Add(("right shoulder", 8)); // Maximum protection for the torso
+                    CoverageValues.Add(("neck", 6)); // Maximum protection for the torso
                     break;
 
                 case "left gauntlet":
@@ -1590,8 +1667,8 @@ namespace Lightrealm
                     IsWearable = true;
                     IsGeneralGood = true;
                     Description = "Armored gloves for hand and wrist protection made of /m.";
-                    CoverageValues.Add(("left hand", 9)); // High protection for the left hand
-                    CoverageValues.Add(("left arm", 4)); // Additional protection for the lower arm
+                    CoverageValues.Add(("left hand", 7)); // High protection for the left hand
+                    CoverageValues.Add(("left arm", 7)); // Additional protection for the lower arm
                     break;
 
                 case "right gauntlet":
@@ -1599,8 +1676,8 @@ namespace Lightrealm
                     IsWearable = true;
                     IsGeneralGood = true;
                     Description = "Armored gloves for hand and wrist protection made of /m.";
-                    CoverageValues.Add(("right hand", 9)); // High protection for the right hand
-                    CoverageValues.Add(("right arm", 4)); // Additional protection for the lower arm
+                    CoverageValues.Add(("right hand", 7)); // High protection for the right hand
+                    CoverageValues.Add(("right arm", 7)); // Additional protection for the lower arm
                     break;
 
                 case "leggings":
@@ -1608,13 +1685,8 @@ namespace Lightrealm
                     IsWearable = true;
                     IsGeneralGood = true;
                     Description = "Armor for leg protection made of /m.";
-                    CoverageValues.Add(("left leg", 10)); // Maximum protection for the left leg
-                    CoverageValues.Add(("right leg", 10)); // Maximum protection for the right leg
-                    break;
-                case "textile":
-                    Weight = 200;
-                    IsGeneralGood = true;
-                    Description = "A piece of fabric made of /m.";
+                    CoverageValues.Add(("left leg", 8)); // Maximum protection for the left leg
+                    CoverageValues.Add(("right leg", 8)); // Maximum protection for the right leg
                     break;
 
                 case "drink":
@@ -1628,6 +1700,7 @@ namespace Lightrealm
                     Weight = 10; // Approximate weight for a small cube, like an ice cube, in grams
                     IsContainer = false; // This is a solid object, not a container
                     Description = "A small cube of /m.";
+                    IsGeneralGood = true;
                     IsConsumable = true;
                     break;
                 case "block":
@@ -1640,36 +1713,37 @@ namespace Lightrealm
                 case "spatial grenade":
                     Weight = 250;
                     IsWeapon = false; // Considering its grenade nature
-                    Description = "A strange /m capsule with an unknown function.";
+                    Description = "A strange /m capsule with an unknown function. It moves through space weightlessly, ten times slower.";
                     break;
 
                 // Case for a "lightning grenade"
                 case "lightning grenade":
                     Weight = 250;
                     IsWeapon = false;
-                    Description = "A strange /m capsule with an unknown function.";
+                    Description = "A strange /m capsule with an unknown function. It moves through space weightlessly, ten times slower.";
                     break;
 
 
 
                 // healing
                 case "salve":
-                    Weight = 50;
+                    Weight = 75;
                     IsGeneralGood = true;
                     IsWeapon = false;
                     IsConsumable = true;
                     Description = "A salve of /m that can be used to reduce pain.";
                     break;
                 case "bandage":
-                    Weight = 50;
+                    Weight = 75;
                     IsGeneralGood = true;
                     IsWeapon = false;
                     IsConsumable = true;
                     Description = "A bandage made of /m that can be used to stop bleeding.";
                     break;
                 case "vial":
-                    Weight = 50;
+                    Weight = 75;
                     IsGeneralGood = true;
+                    IsWeapon = false;
                     IsContainer = true;
                     IsConsumable = true;
                     Description = "A vial of vitality, a fast acting energy source.";
@@ -1680,18 +1754,21 @@ namespace Lightrealm
                 case "urn":
                     Weight = 1500; // Example weight for an urn
                     IsContainer = true;
+                    IsGeneralGood = true;
                     Description = "An urn, often used for storing ashes or as a decorative piece.";
                     break;
 
                 case "small chalice":
                     Weight = 200; // Example weight for a chalice
                     IsContainer = true;
+                    IsGeneralGood = true;
                     Description = "A small chalice, often used for ceremonial purposes.";
                     break;
 
                 case "big chalice":
                     Weight = 500; // Example weight for a chalice
                     IsContainer = true;
+                    IsGeneralGood = true;
                     Description = "A big chalice, typically used in rituals or as a decorative item.";
                     break;
 
@@ -1758,9 +1835,15 @@ namespace Lightrealm
                     break;
 
                 case "shadow fountain":
-                    Weight = 8000;
+                    Weight = 10000000;
                     IsContainer = false;
                     Description = "A fountain that flows from a realm of pure shadow, commonly found at the center of a civilization. Items sent inside can be recalled from any fountain at will.";
+                    break;
+
+                case "chromaweaver":
+                    Weight = 10000000;
+                    IsContainer = false;
+                    Description = "A mysterious device that bends light around it.";
                     break;
 
                 case "forge":
@@ -1797,6 +1880,12 @@ namespace Lightrealm
                     Weight = 5000;
                     IsContainer = true;
                     Description = "A base structure for displaying significant objects or statues.";
+                    break;
+
+                case "pylon":
+                    Weight = 50000;
+                    IsContainer = true;
+                    Description = "An ancient device that seems to be linked to somoene.";
                     break;
 
                 case "pedestal":
@@ -1861,7 +1950,7 @@ namespace Lightrealm
                
 
                 default:
-                    
+                    int shibe = 1;
                     throw new Exception("Trying to create an unimplemented object!");
 
             }
@@ -1907,9 +1996,13 @@ namespace Lightrealm
                 }
             }
 
+            if(Name != null)
+            {
+                IsGeneralGood = false;
+            }
 
             ApplyImbuements(0);
-            UpdateNames(false, null);
+            UpdateNames(false, null, Game1.LoadedArchitects.Count > 0);
         }
 
         public void ApplyImbuements(int Extra)
@@ -1949,11 +2042,9 @@ namespace Lightrealm
                 "+attack",         // +% attack power
                 "+shield",         // +% shield effectiveness
                 "+dodge",          // +% dodge chance
-                "+redirection",    // +% redirection chance
-                "+bash",           // +% bashing resistance
-                "+pierce",         // +% piercing resistance
-                "+slash",          // +% slashing resistance
-                "+scourge",        // +% scourging resistance
+                "+weaponreaction",    // +% redirection chance
+                "+bashpierce",     // +% bashing resistance
+                "+slashthrash",    // +% slashing resistance
                 "+stealth",        // become harder to see and target
                 "+regen"           // +X energy regen/cycle
             };
@@ -2008,32 +2099,48 @@ namespace Lightrealm
                         buffOrEffect = PassiveEffects[buffIndex];
                     } while (conditionOrTrigger == "maxenergy" && buffOrEffect == "+regen");
 
-                    // Example power calculation for passive buffs
-                    if (buffOrEffect.Equals("+regen"))
+                    // === Assign power levels based on effect ===
+                    if (buffOrEffect == "+regen")
                     {
                         secondPower = Game1.GameWorld.rnd.Next(1, 4);
                     }
-                    else if (buffOrEffect.StartsWith("+") && buffOrEffect != "+stealth")
+                    else if (
+                        buffOrEffect == "+bashpierce" ||
+                        buffOrEffect == "+slashthrash"
+                    )
                     {
-                        // Assuming heal and regen buffs require specific power values
-                        secondPower = Game1.GameWorld.rnd.Next(2, 7); // Example range from 5 to 20
+                        secondPower = Game1.GameWorld.rnd.Next(10, 16); // Resistances: 8 to 12
+                    }
+                    else if (
+                        buffOrEffect == "+shield" ||
+                        buffOrEffect == "+dodge" ||
+                        buffOrEffect == "+weaponreaction"
+                    )
+                    {
+                        secondPower = Game1.GameWorld.rnd.Next(10, 16); // Reaction chances: 5 to 11
+                    }
+                    else if (
+                        buffOrEffect == "+attack"
+                    )
+                    {
+                        secondPower = Game1.GameWorld.rnd.Next(10, 16); // General power boosts
                     }
 
-                    // For 'diminished' condition, set a specific range for the firstPower
-                    if (conditionOrTrigger.Equals("diminished"))
+                    // === Optional: Assign firstPower for specific conditions ===
+                    if (conditionOrTrigger == "diminished")
                     {
-                        firstPower = Game1.GameWorld.rnd.Next(40, 61); // Randomly choose a value between 40 to 60
+                        firstPower = Game1.GameWorld.rnd.Next(50, 71); // Threshold for low energy
                     }
                 }
 
-                this.Imbuements.Add(new Imbuement(isTrigger, conditionOrTrigger, buffOrEffect, firstPower, secondPower));
+                this.Imbuements.Add(new Imbuement(isTrigger, conditionOrTrigger, buffOrEffect, firstPower, secondPower, this));
             }
         }
 
         public void Fractallize(int Cycles, Architect Executor)
         {
             FractalCycles = Cycles;
-            RematerializeLocation = (Executor.Block.District.Location.Region, Executor.Block.District.Location, Executor.Block.District, Executor.Block, Executor.Structure, Executor.Room);
+            RematerializeLocation = (Executor.Block.District.Location, Executor.Block.District, Executor.Block, Executor.Structure, Executor.Room);
             Game1.GameWorld.FractalObjects.Add(this);
 
             if (Executor.Room != null)

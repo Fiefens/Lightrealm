@@ -33,47 +33,21 @@ namespace Lightrealm
             set => _governmentId = value?.ID ?? 0;
         }
 
-        
         private Group GovernmentAsGroup => EntityGet<Group>(_governmentId);
-
-        
         private Architect GovernmentAsArchitect => EntityGet<Architect>(_governmentId);
+
 
         public int X { get; set; }
         public int Z { get; set; }
 
-        private int _primaryRaceId;
-
-        
-        public Race PrimaryRace
-        {
-            get => EntityGet<Race>(_primaryRaceId);
-            set => _primaryRaceId = value?.ID ?? 0;
-        }
-
         public int MiscPopulation { get; set; }
         public int ColonizationDesire { get; set; }
-
-        private int _homeCivilizationId;
-
-        
-        public Civilization HomeCivilization
-        {
-            get => EntityGet<Civilization>(_homeCivilizationId);
-            set => _homeCivilizationId = value?.ID ?? 0;
-        }
+        public Race PrimaryRace;
+        public Civilization HomeCivilization;
+        public Location BaseLocation;
 
         public string Type { get; set; }
         public EntityList<Object> Artifacts { get; set; } = new EntityList<Object>();
-
-        private int _baseLocationId;
-
-        
-        public Location BaseLocation
-        {
-            get => EntityGet<Location>(_baseLocationId);
-            set => _baseLocationId = value?.ID ?? 0;
-        }
 
         public string Dockside { get; set; }
 

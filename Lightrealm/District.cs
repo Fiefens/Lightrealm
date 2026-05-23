@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
@@ -10,6 +11,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using System.Xml.Serialization;
 
 namespace Lightrealm
 {
@@ -17,13 +19,7 @@ namespace Lightrealm
     public class District : Entity
     {
         public bool IsPrimary { get; set; } = false;
-
-        private int _locationId;
-        public Location Location
-        {
-            get => EntityGet<Location>(_locationId);
-            set => _locationId = value?.ID ?? 0;
-        }
+        public Location Location;
 
         public EntityList<Architect> AllArchitectsInDistrict()
         {
@@ -35,11 +31,17 @@ namespace Lightrealm
             return architects;
         }
 
+
+        public Room PylonRoom = null;
+        public Block PylonBlock1 = null;
+        public Block PylonBlock2 = null;
+        public bool PylonsPlaced = false;
+
         public int UnplacedPopulation { get; set; }
 
         public int MaxPopulation { get; set; }
 
-        public EntityHashSet<Architect> Architects { get; set; } = new EntityHashSet<Architect>();
+        public EntityHashSet<Architect> DistrictArchitects { get; set; } = new EntityHashSet<Architect>();
 
         public EntityHashSet<Architect> ArchitectsToRemove { get; set; } = new EntityHashSet<Architect>();
 
@@ -171,7 +173,7 @@ namespace Lightrealm
 
         public int Population()
         {
-            return Architects.Count() + UnplacedPopulation;
+            return DistrictArchitects.Count() + UnplacedPopulation;
         }
 
         public void SupplyLocation(int Intensity)
@@ -312,7 +314,7 @@ namespace Lightrealm
                                     AddOrUpdateItem("flair", materials, 1);
                                     break;
                                 case > 19:
-                                    AddOrUpdateItem("bolt", materials, 1);
+                                    AddOrUpdateItem("roll", materials, 1);
                                     break;
                             }
                         }
@@ -323,7 +325,7 @@ namespace Lightrealm
 
                         void AddSpicePouch(string spiceType, string spiceMaterial)
                         {
-                            List<string> containedItems = new List<string> { $"{spiceType},{Game1.GameWorld.rnd.Next(10, 20)},{spiceMaterial}" };
+                            List<string> containedItems = new List<string> { $"{spiceType},{10},{spiceMaterial}" };
                             string contained = GenerateContainedItems(containedItems);
                             AddOrUpdateItem($"{spiceMaterial} pouch", spiceMaterials, 1, contained);
                         }
@@ -351,7 +353,7 @@ namespace Lightrealm
 
                         void AddCoffeeCrate(string spiceType, string spiceMaterial)
                         {
-                            List<string> containedItems = new List<string> { $"{spiceType},{Game1.GameWorld.rnd.Next(10, 15)},{spiceMaterial}" };
+                            List<string> containedItems = new List<string> { $"{spiceType},{10},{spiceMaterial}" };
                             string contained = GenerateContainedItems(containedItems);
                             AddOrUpdateItem("coffee crate", coffeeMaterials, 1, contained);
                         }
@@ -367,7 +369,7 @@ namespace Lightrealm
 
                         void AddTeaCrate(string spiceType, string spiceMaterial)
                         {
-                            List<string> containedItems = new List<string> { $"{spiceType},{Game1.GameWorld.rnd.Next(10, 15)},{spiceMaterial}" };
+                            List<string> containedItems = new List<string> { $"{spiceType},{10},{spiceMaterial}" };
                             string contained = GenerateContainedItems(containedItems);
                             AddOrUpdateItem("tea crate", teaMaterials, 1, contained);
                         }
@@ -395,13 +397,13 @@ namespace Lightrealm
                         if (Game1.GameWorld.rnd.Next(0, 5) == 0)
                             AddOrUpdateItem("scythe", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         if (Game1.GameWorld.rnd.Next(0, 5) == 0)
-                            AddOrUpdateItem("axe", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
+                            AddOrUpdateItem("work axe", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         if (Game1.GameWorld.rnd.Next(0, 5) == 0)
                             AddOrUpdateItem("shovel", new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
                         break;
 
                     case "military":
-                        string[] weaponTypes = { "shortsword", "greatsword", "battle axe", "greataxe", "rapier", "spear", "pike", "mace", "hammer", "shield", "whip", "scourge" };
+                        string[] weaponTypes = { "shortsword", "longsword", "battle axe", "greataxe", "rapier", "spear", "pike", "mace", "war hammer", "shield", "whip", "scourge" };
                         foreach (string weapon in weaponTypes)
                             if (Game1.GameWorld.rnd.Next(0, 12) == 0)
                                 AddOrUpdateItem(weapon, new List<string> { Location.HomeCivilization.CulturalMetal.Name }, 1);
@@ -487,7 +489,7 @@ namespace Lightrealm
                             AddOrUpdateItem("jar", materials, 1, contained);
                         }
                         if (Game1.GameWorld.rnd.Next(0, 10) == 0)
-                            AddOrUpdateItem("waxtablet", new List<string> { Game1.GameWorld.Waspwax.Name }, 1);
+                            AddOrUpdateItem("wax tablet", new List<string> { Game1.GameWorld.Waspwax.Name }, 1);
                         if (Game1.GameWorld.rnd.Next(0, 5) == 0)
                             AddOrUpdateItem("candle", new List<string> { Game1.GameWorld.Waspwax.Name }, 1);
                         if (Game1.GameWorld.rnd.Next(0, 2) == 0)
@@ -584,7 +586,7 @@ namespace Lightrealm
                 {
                     architect.Task = "druidcrafting";
 
-                    architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room);
+                    architect.Target = (architect.Location, architect.District, architect.Block, architect.Room);
                     architect.CyclesLeftInTask = 500;
 
                     return;
@@ -613,7 +615,7 @@ namespace Lightrealm
                     case "house":
                     case "ship":
                     case "cove":
-                    case "mound":
+                    case "hoard":
                     case "monastery":
                     case "bastion":
                     case "fort":
@@ -643,6 +645,9 @@ namespace Lightrealm
                     case "commune":
                         possibleTasks.AddRange(new List<string> { "study", "discussion", "waitforgame" });
                         break;
+                    case "library":
+                        possibleTasks.AddRange(new List<string> { "study" });
+                        break;
                     case "tavern":
                         possibleTasks.AddRange(new List<string> { "waitforgame", "waitforgame", "waitforgame", "sleeping", "eating", "drinking", "socializing", "performmusic", "performpoetry" });
                         break;
@@ -658,14 +663,14 @@ namespace Lightrealm
                 architect.Task = possibleTasks[Game1.GameWorld.rnd.Next(possibleTasks.Count())];
                 architect.CyclesLeftInTask = architect.Task switch
                 {
-                    "vacanttfortrade" => 600, // spend a minute before deciding if you want to do something again
+                    "vacantfortrade" => 600, 
                     "druidcrafting" => 300, // druidcraft for 30 seconds
                     "drinking" => 300, // drinking a glass or bucketish cup water takes roughly around 30 seconds
                     "drinkingcaffeine" => 500, // savor caffeine a bit, though. also it's hot
                     "eating" => 500, // this takes longer for a similar reason, also it's food
                     "sleeping" => 350000,
                     "discussion" => 500, // chat chat chat chat
-                    "study" => 3000, // takes five minutes at minimum
+                    "study" => 10000, // takes five minutes at minimum
                     "socializing" => 300, // conversations don't last too long, but I want them going in and out often if it's the well
                     "performmusic" => 500,
                     "waitforgame" =>  2000,
@@ -690,7 +695,7 @@ namespace Lightrealm
                 // Randomly adjust CyclesLeftInTask with a variation of -50 to +50, ensuring a minimum of 50
                 architect.CyclesLeftInTask = Math.Max(architect.CyclesLeftInTask + Game1.GameWorld.rnd.Next(-50, 51), 50);
             }
-            architect.Target = (architect.Location.Region, architect.Location, architect.District, architect.Block, architect.Room);
+            architect.Target = (architect.Location, architect.District, architect.Block, architect.Room);
         }
 
 
@@ -698,10 +703,19 @@ namespace Lightrealm
         EntityList<Structure> GetPossibleStructures(Architect a)
         {
             EntityList<Structure> possibleStructures = new EntityList<Structure>();
+
+            if (a.IsAlive == false && Location.Type == "tomb")
+            {
+                possibleStructures.Add(Location.AllStructures[0]);
+                return possibleStructures;
+            }
+
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
             {
                 for (int DistrictZ = 0; DistrictZ < 7; DistrictZ++)
                 {
+
+
                     if (Game1.ConvertProfessionToBuilding.ContainsKey(a.Profession))
                     {
                         var structures = DistrictMap[DistrictX + DistrictZ * 7].Structures
@@ -738,15 +752,156 @@ namespace Lightrealm
         public void Load()
         {
             IsLoaded = true;
+            Game1.LastNameUpdateCycle = 0.0;
+            //this is requried for allsubjects
+            Game1.LastLoadedDistrict = this;
+
+            Game1.ArchitectIndex = 0;
 
             Game1.AllSubjects = Game1.CollectAllSubjects(Game1.MostRecentPartyTurnArchitect, "none");
 
-            EntityList<Architect> allArchitects = new EntityList<Architect>();
-            allArchitects.AddRange(Architects);
+            EntityList<Architect> allArchitectsThatIThinkNeedSpecialProcessing = new EntityList<Architect>();
+
+
+            foreach(Architect a in DistrictArchitects)
+            {
+                a.PopulateSelf(Game1.GameWorld.HumanoidRaces.Contains(a.Race));
+                a.Task = "";
+                a.Target = (null, null, null, null);
+            }
+
+
+            allArchitectsThatIThinkNeedSpecialProcessing.AddRange(DistrictArchitects);
 
             EntityList<Structure> allDistrictStructures = new EntityList<Structure>();
 
-            if(this.Location.AllStructures.Count > 0)
+            if (Game1.GameWorld.GamePlayerAssociation.ActiveParty != null)
+                Game1.GameWorld.GamePlayerAssociation.ActiveParty.ReceivedPlanMessageThisLoad = false;
+
+            List<int> outskirtsBlockIndexes = new List<int>()
+{
+    // Top row
+    0, 1, 2, 3, 4, 5, 6,
+    
+    // Right column (without corners already added)
+    13, 20, 27, 34, 41,
+
+    // Bottom row
+    42, 43, 44, 45, 46, 47, 48,
+
+    // Left column (without corners already added)
+    7, 14, 21, 28, 35
+};
+
+            List<int> allBlockIndexes = new List<int>()
+{
+    0, 1, 2, 3, 4, 5, 6,
+    7, 8, 9, 10, 11, 12, 13,
+    14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27,
+    28, 29, 30, 31, 32, 33, 34,
+    35, 36, 37, 38, 39, 40, 41,
+    42, 43, 44, 45, 46, 47, 48
+};
+
+            //scaffold blocks
+
+
+            if (Game1.GameWorld.AllFactions.Any(f => f.CurrentPlan != null && f.CurrentPlan.PlanLocation == this.Location))
+            {
+                foreach(int i in outskirtsBlockIndexes)
+                {
+                    if(Game1.r.Next(2) == 1)
+                    {
+                        int Scaffolds = Game1.r.Next(2, 5);
+
+                        for (int Z = 0; Z < Scaffolds; Z++)
+                            DistrictMap[i].Objects.Add(new Object(null, "scaffold", new EntityList<Material>() { Location.Region.HarvestableMetal }, false, false, null, null, 1000, false, DistrictMap[i], null, null, false));
+                    }
+                }
+            }
+
+
+
+
+
+
+            // Populate AllImportantEntities_Domains
+            Game1.AllImportantEntities_Domains = new EntityList<Entity>();
+            foreach (Entity domain in Game1.GameWorld.Domains)
+            {
+                Game1.AllImportantEntities_Domains.Add(domain);
+            }
+
+            // Populate AllImportantEntities_Locations
+            Game1.AllImportantEntities_Locations = new EntityList<Entity>(
+                Game1.GameWorld.AllLocations
+                    .SelectMany(location => location.AllStructures.Concat(new EntityList<Entity> { location }))
+                    .Concat(Game1.GameWorld.AllHistoricalArchitects)
+            );
+
+
+
+            //because traders can be in a unit somewhere in Nebraska, we want to make sure if we load them here we are certain ablout their whereabouts.
+
+            foreach (Group g in this.Location.TradersAtThisLocation)
+            {
+                foreach(Architect a in g.Architects)
+                {
+                    a.Location = this.Location;
+                    a.District = this;
+
+                    if(!a.SelfPopulated)
+                    {
+                        a.PopulateSelf(true);
+                    }
+                }
+            }
+
+
+
+            //max of 4 objectives, prioritize those that are active.
+
+            var sortedObjectives = Location.Objectives.Where(o => o.IsActiveObjective)
+    .OrderByDescending(o => o.ParentQuest.Objectives.IndexOf(o) == 1) // true (1) comes before false (0)
+    .ThenBy(o => o.ParentQuest.Objectives.IndexOf(o)) // sort within groups by index (0 or 1)
+    .Take(4)
+    .ToList();
+
+            if (Location.Districts[0] == this)
+            {
+                foreach (Objective o in sortedObjectives)
+                {
+                    Game1.LoadedHooks.Add(o.Hook);
+
+                    o.Hook.AnnouncedSelfThisLoad = false;
+
+                    int randomIndex = Game1.GameWorld.rnd.Next(allBlockIndexes.Count);
+                    int selectedBlockIndex = allBlockIndexes[randomIndex];
+                    Block b = DistrictMap[selectedBlockIndex];
+
+                    if (o.Hook is Object O)
+                    {
+                        b.Objects.Add(O);
+                    }
+                    else if (o.Hook is Architect A)
+                    {
+                        b.Architects.Add(A);
+                        Game1.LoadedArchitects.Add(A);
+                        A.PopulateSelf(Game1.GameWorld.HumanoidRaces.Contains(A.Race));
+                        A.District = this;
+                        A.Location = this.Location;
+                        A.Block = b;
+                    }
+
+                    allBlockIndexes.RemoveAt(randomIndex);
+                }
+            }
+
+
+
+
+            if (this.Location.AllStructures.Count > 0)
             {
                 for (int x = 0; x < 7; x++)
                 {
@@ -758,8 +913,8 @@ namespace Lightrealm
 
                         if (Decider == 1)
                             DistrictMap[x + z * 7].SocializationTopic = this.Location.AllStructures[Game1.GameWorld.rnd.Next(this.Location.AllStructures.Count)];
-                        else if (Decider == 2 && this.Architects.Count > 0)
-                            DistrictMap[x + z * 7].SocializationTopic = this.Architects.GetRandomItem();
+                        else if (Decider == 2 && this.DistrictArchitects.Count > 0)
+                            DistrictMap[x + z * 7].SocializationTopic = this.DistrictArchitects.GetRandomItem();
                         else
                             DistrictMap[x + z * 7].SocializationTopic = this.Location.GroupsAtThisLocation.Count > 0 ? (this.Location.GroupsAtThisLocation[Game1.GameWorld.rnd.Next(this.Location.GroupsAtThisLocation.Count)]) : (this.Location.Government != null ? this.Location.Government : this.Location);
 
@@ -791,10 +946,7 @@ namespace Lightrealm
                 }
             }
 
-            if (Location.Prism != null)
-            {
-                allDistrictStructures.Add(Location.Prism);
-            }
+          
 
             if (!HasBeenLoadedEver)
             {
@@ -820,11 +972,11 @@ namespace Lightrealm
                     {
                         Layout = Location.Layout;
                     }
-
                       int extraRoomCount = Layout switch
                     {
-                        "house" or "ship" or "cove" or "mound" or "monastery" => Game1.GameWorld.rnd.Next(0, 4),
-                        "spire" or "archway" or "hallway" or "fortress" or "monument" or "toroid" or "towers" or "outpost" or "fort" or "bastion" or "pyramid" or "sanctum" => Game1.GameWorld.rnd.Next(10, 18),
+                        "house" or "ship" or "cove" or "hoard" or "monastery" => Game1.GameWorld.rnd.Next(0, 4),
+                        "spire" or "archway" or "hallway" or "towers" or "toroid" or "outpost" or "bastion" or "fort" or "pyramid" => Game1.GameWorld.rnd.Next(8, 13),
+                        "fortress" or "monument" or "sanctum" => Game1.GameWorld.rnd.Next(12, 19),
                         "keep" => Game1.GameWorld.rnd.Next(1, 4),
                         "core" or "heart" or "stronghold" => 18,
                         "tower" or "commune" => Game1.GameWorld.rnd.Next(10, 13),
@@ -841,15 +993,80 @@ namespace Lightrealm
                         r.PopulateRoom();
                     }
 
-                    foreach (Object o in s.HistoricalObjects)
-                    {
-                        s.Rooms[Game1.GameWorld.rnd.Next(s.Rooms.Count())].Objects.Add(o);
-                    }
-                    s.HistoricalObjects.Clear();
                 }
             }
 
-            if (Location.Market != null)
+            //pylons
+
+            if (Location.Type == "stronghold")
+            {
+                if(!PylonsPlaced)
+                {
+                    List<int> innerBlockIndexes = new List<int>()
+                    {
+                        8, 9, 10, 11, 12,
+                        15, 16, 17, 18, 19,
+                        22, 23, 24, 25, 26,
+                        29, 30, 31, 32, 33,
+                        36, 37, 38, 39, 40
+                    };
+
+                    int index1 = Game1.GameWorld.rnd.Next(innerBlockIndexes.Count);
+                    Block pylonBlock1 = DistrictMap[innerBlockIndexes[index1]];
+
+                    int index2;
+                    do
+                    {
+                        index2 = Game1.GameWorld.rnd.Next(innerBlockIndexes.Count);
+                    } while (index2 == index1);
+
+                    Block pylonBlock2 = DistrictMap[innerBlockIndexes[index2]];
+
+                    PylonBlock1 = pylonBlock1;
+                    PylonBlock2 = pylonBlock2;
+
+
+                    int roomCount = Location.AllStructures[0].Rooms.Count;
+                    if (roomCount > 5)
+                    {
+                        PylonRoom = Location.AllStructures[0].Rooms[Game1.GameWorld.rnd.Next(5, roomCount)];
+                    }
+                    else
+                    {
+                        PylonRoom = Location.AllStructures[0].Rooms[0]; // fallback in case there's only one room
+                    }
+
+                    Object p1 = new Object(null, "pylon", new EntityList<Material>() { Game1.GameWorld.Shadesteel }, null);
+                    Object p2 = new Object(null, "pylon", new EntityList<Material>() { Game1.GameWorld.Shadesteel }, null);
+                    Object p3 = new Object(null, "pylon", new EntityList<Material>() { Game1.GameWorld.Shadesteel }, null);
+
+                    PylonBlock1.Objects.Add(p1);
+                    PylonBlock2.Objects.Add(p2);
+                    PylonRoom.Objects.Add(p3);
+
+                    PylonsPlaced = true;
+                }
+            }
+
+            //place pylons
+
+
+
+
+            //pls still do this
+
+            foreach (Structure s in allDistrictStructures)
+            {
+                foreach (Object o in s.HistoricalObjects)
+                {
+                    s.Rooms[Game1.GameWorld.rnd.Next(s.Rooms.Count())].Objects.Add(o);
+                }
+                s.HistoricalObjects.Clear();
+            }
+
+
+
+            if (Location.Market != null && Location.Market.Block.District == this)
             {
                 if (Location.DebtShibas.Count() == 0)
                 {
@@ -857,6 +1074,10 @@ namespace Lightrealm
                     for (int i = 0; i < shibas; i++)
                     {
                         Architect a = new Architect("", Game1.Sexes[Game1.GameWorld.rnd.Next(2)], Game1.GameWorld.GetRace("debtshiba"), Game1.GameWorld.rnd.Next(9999999), "debtshiba", new EntityList<Object>(), Location, this, Location.Market.Block, "", 4, false);
+
+                        a.PopulateSelf(false);
+
+                        a.AssignSpells();
                         a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
                         a.HomeStructure = Location.Market;
                         a.Block = Location.Market.Block;
@@ -865,8 +1086,8 @@ namespace Lightrealm
                     }
                 }
 
-                allArchitects.AddRange(Location.DebtShibas);
                 Location.Market.Block.Architects.AddRange(Location.DebtShibas);
+                Location.DebtShibas.Clear();
             }
 
             // Define the outcast civilization types and their professions
@@ -885,6 +1106,8 @@ namespace Lightrealm
                 string role = Game1.WeightedRandomNormalProfessions[Game1.GameWorld.rnd.Next(Game1.WeightedRandomNormalProfessions.Count())];
                 Race race;
 
+                bool WillFightYou = false;
+
                 if (Location.PrimaryRace.Name == "luminarch" || Location.PrimaryRace.Name == "nightfell" || Location.PrimaryRace.Name == "archaix")
                 {
                     if (Game1.GameWorld.rnd.Next(1, 101) <= 95) // 95% chance
@@ -901,6 +1124,7 @@ namespace Lightrealm
                 else if (Location.PrimaryRace.Name == "shade" || Location.PrimaryRace.Name == "isofractal" || Location.PrimaryRace.Name == "photonexus")
                 {
                     race = Location.PrimaryRace;
+                    WillFightYou = true;
                 }
                 else
                 {
@@ -950,9 +1174,11 @@ namespace Lightrealm
                     }
                 }
 
-                Architect a = new Architect("", sex, race, Game1.GameWorld.rnd.Next(14, 90), role, new EntityList<Object>(), Location, this, null, destiny, 1, false);
+                Architect a = new Architect("", sex, race, Game1.GameWorld.rnd.Next(14, 90), role, new EntityList<Object>(), Location, this, null, destiny, WillFightYou ? 2 : 1, false);
+                a.PopulateSelf(Game1.GameWorld.HumanoidRaces.Contains(a.Race));
                 a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
-                allArchitects.Add(a);
+                allArchitectsThatIThinkNeedSpecialProcessing.Add(a);
+                a.ImportantThisLoad = false;
             }
 
 
@@ -962,6 +1188,32 @@ namespace Lightrealm
             {
                 foreach (Group g in Location.TradersAtThisLocation)
                 {
+                    // Do specificlaly market items
+
+
+                    EntityList<Object> CaravanItems = new EntityList<Object>();
+
+                    foreach (string itemString in g.CaravanItems)
+                    {
+                        EntityList<Object> items = Game1.ConvertStringToObjects(itemString);
+                        CaravanItems.AddRange(items);
+                    }
+
+                    g.CaravanItems.Clear();
+
+                    // Determine the target room for each item
+                    foreach (Object item in CaravanItems)
+                    {
+                        Room targetRoom = Location.Market.Rooms[Game1.r.Next(Location.Market.Rooms.Count)];
+                        targetRoom.Objects.Add(item);
+                        item.Owner = g;
+                        item.UpdateNames(false, null, true);
+                    }
+
+
+
+
+
                     foreach (Architect a in g.Architects)
                     {
                         if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
@@ -969,14 +1221,148 @@ namespace Lightrealm
                             Location.Market.Rooms[0].Architects.Add(a);
                             a.Room = Location.Market.Rooms[0];
                             a.Block = a.Room.Structure.Block;
+                            a.Location = this.Location;
+                            a.IsLoadedTrader = true;
                             Game1.LoadedArchitects.Add(a);
+                            a.PopulateSelf(true);
                         }
                     }
                 }
             }
 
-            foreach (Architect a in allArchitects)
+
+            if (Game1.MostRecentPartyTurnArchitect.District == null)
             {
+                Game1.MostRecentPartyTurnArchitect.District = this; 
+                Game1.MostRecentPartyTurnArchitect.DistrictMarked = true;
+            }
+
+            if (Location.Prism != null && Game1.GameWorld.SettlementTypes.Contains(Location.Type))
+            {
+                allDistrictStructures.Add(Location.Prism);
+
+                if (Location.Prism.Block.District == this)
+                {
+                    foreach (Room r in Location.Prism.Rooms)
+                    {
+                        r.Objects.Add(new Object(null, "shock mine", new EntityList<Material>() { Location.HomeCivilization.CulturalMetal }, null));
+                    }
+                }
+            }
+
+            //i hate this issue
+
+            foreach (Structure s in Location.AllStructures)
+            {
+                if (s.Block.District == this && s.Rooms.Count == 0)
+                {
+                    s.Rooms.Add(new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>()));
+                    s.Rooms[0].PopulateRoom();
+                }
+            }
+
+            if (Location.Districts.Count() == 1 && Location.AllStructures.Count() == 1)
+            {
+                Structure structureInSameDistrict = Location.AllStructures.FirstOrDefault(s => s.Block.District == this);
+                if (structureInSameDistrict != null)
+                {
+                    for (int i = Location.GuardiansInNetwork; i > 0; i--)
+                    {
+                        Block b = structureInSameDistrict.Block;
+                        Race race = Location.Type == "sanctum"
+                            ? Game1.GameWorld.ConstructRaces[Game1.GameWorld.rnd.Next(Game1.GameWorld.ConstructRaces.Count())]
+                            : Location.GuardianType;
+
+                        Architect a = new Architect("", Game1.Sexes[Game1.GameWorld.rnd.Next(2)], race, 10, "construct", new EntityList<Object>(), Location, this, b, "", 5, false);
+                        a.PopulateSelf(false);
+                        a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(Game1.GameWorld.rnd.Next(3, 7)));
+                        a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
+                        a.HomeLocation = Location;
+
+                        // Get rooms with fewer than 2 constructs
+                        var validRooms = structureInSameDistrict.Rooms
+                            .Where(r => r.Architects.Count() < 2)
+                            .ToList();
+
+                        // If there are valid rooms, pick one randomly
+                        if (validRooms.Count > 0)
+                        {
+                            a.Room = validRooms[Game1.GameWorld.rnd.Next(validRooms.Count)];
+                        }
+                        else
+                        {
+                            // Fallback: place in a random room anyway
+                            a.Room = structureInSameDistrict.Rooms[Game1.GameWorld.rnd.Next(structureInSameDistrict.Rooms.Count)];
+                            // Optional: log or flag that this is overflow
+                        }
+
+                        a.Block = a.Room.Structure.Block;
+                        a.Room.Architects.Add(a);
+                        Game1.LoadedArchitects.Add(a);
+
+                        a.AddToNumberOnReload = true;
+                    }
+
+                    Location.GuardiansInNetwork = 0;
+
+                    List<Room> untakenRooms = structureInSameDistrict.Rooms.Skip(1).ToList(); // All rooms except the first
+                    List<Room> usedRooms = new List<Room> { structureInSameDistrict.Rooms[0] }; // Start with room[0] used
+
+
+                    for (int i = Location.AnimalsInNetwork; i > 0; i--)
+                    {
+                        Block b = structureInSameDistrict.Block;
+                        Race race = Location.AnimalRace;
+
+                        Architect a = new Architect("", Game1.Sexes[Game1.GameWorld.rnd.Next(2)], race, 10, "beast", new EntityList<Object>(), Location, this, b, "", 2, false);
+                        a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
+                        a.PopulateSelf(false);
+
+                        if (i == Location.AnimalsInNetwork) // First animal → first room
+                        {
+                            a.Room = structureInSameDistrict.Rooms[0];
+                        }
+                        else if (untakenRooms.Count > 0) // Randomly choose from remaining untaken rooms
+                        {
+                            int index = Game1.GameWorld.rnd.Next(untakenRooms.Count);
+                            a.Room = untakenRooms[index];
+                            usedRooms.Add(a.Room);
+                            untakenRooms.RemoveAt(index);
+                        }
+                        else // If all rooms are used, allow stacking
+                        {
+                            a.Room = structureInSameDistrict.Rooms[Game1.GameWorld.rnd.Next(structureInSameDistrict.Rooms.Count)];
+                        }
+
+                        a.Block = a.Room.Structure.Block;
+                        a.HomeLocation = Location;
+                        a.Room.Architects.Add(a);
+                        Game1.LoadedArchitects.Add(a);
+
+                        a.AddToNumberOnReload = true;
+                    }
+
+
+                    Location.AnimalsInNetwork = 0;
+                }
+            }
+
+
+
+
+            foreach (Architect a in allArchitectsThatIThinkNeedSpecialProcessing)
+            {
+                if(a.Location != this.Location)
+                {
+                    //somethieng weird is happening and you shouldn't be here
+
+                    continue;
+                }
+
+                a.District = this;
+                a.DistrictMarked = true;
+
+
                 bool isCoolProfession = a.Profession == "artist" ||
                                  a.Profession == "curator" ||
                                  a.Profession == "perfectionist" ||
@@ -988,11 +1374,11 @@ namespace Lightrealm
                 {
                     if (a.Race.Name == "photonexus")
                     {
-                        a.Profession = Game1.GameWorld.rnd.Next(100) < 20 ? "curator" : "artist";
+                        a.Profession = Game1.GameWorld.rnd.Next(100) < 20 ? "manager" : "perfectionist";
                     }
                     else if (a.Race.Name == "isofractal")
                     {
-                        a.Profession = Game1.GameWorld.rnd.Next(100) < 20 ? "manager" : "perfectionist";
+                        a.Profession = Game1.GameWorld.rnd.Next(100) < 20 ? "curator" : "artist";
                     }
                     else if (a.Race.Name == "shade")
                     {
@@ -1000,17 +1386,93 @@ namespace Lightrealm
                     }
                 }
 
-                if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && !Location.DebtShibas.Contains(a) && a.NextMigrationLocation == null)
+
+
+                List<Plan> PlansIShouldBeWorriedAbout = Game1.GameWorld.AllFactions
+    .Where(f => f.CurrentPlan != null && f.CurrentPlan.PlanLocation == this.Location)
+    .Select(f => f.CurrentPlan)
+    .ToList();
+
+
+                if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && a.Race.Name != "debtshiba" && a.NextMigrationLocation == null && !a.IsLoadedTrader)
                 {
                     a.Loaded = true;
                     a.UpdateNames();
 
                     EntityList<Structure> possibleStructures = GetPossibleStructures(a);
 
-                    if (possibleStructures.Count() > 0 && Game1.GameWorld.rnd.Next(3) != 0)
+
+                    if (PlansIShouldBeWorriedAbout.Any(p => p.PlanInitiators.Contains(a)))
+                    {
+                        Block b = DistrictMap[outskirtsBlockIndexes[Game1.r.Next(outskirtsBlockIndexes.Count)]];
+                        b.Architects.Add(a);
+                        a.Block = b;
+
+                        a.Task = "idle";
+                        a.CyclesLeftInTask = 9999999;
+
+                        Game1.PlanLoadedArchitects.Add(a);
+                    }
+                    else if (PylonBlock1 != null && PylonBlock1.Objects.Where(o => o.Type == "pylon").Count > 0 &&
+         PylonBlock1.Architects.Count(a => a.IsCalamity) < 3 &&
+         a.IsCalamity &&
+         a != Game1.GameWorld.Calamity[0] &&
+         (!a.SpellsKnown.Any() || PylonBlock1.Architects.Count(x => x.SpellsKnown.Count > 0) == 0))
+                    {
+                        PylonBlock1.Architects.Add(a);
+                        a.Block = PylonBlock1;
+                        a.Task = "idle";
+                        a.CyclesLeftInTask = 9999999;
+                    }
+                    else if (PylonBlock2 != null && PylonBlock2.Objects.Where(o => o.Type == "pylon").Count > 0 &&
+                             PylonBlock2.Architects.Count(a => a.IsCalamity) < 3 &&
+                             a.IsCalamity &&
+                             a != Game1.GameWorld.Calamity[0] &&
+                             (!a.SpellsKnown.Any() || PylonBlock2.Architects.Count(x => x.SpellsKnown.Count > 0) == 0))
+                    {
+                        PylonBlock2.Architects.Add(a);
+                        a.Block = PylonBlock2;
+                        a.Task = "idle";
+                        a.CyclesLeftInTask = 9999999;
+                    }
+                    else if (PylonRoom != null && PylonRoom.Objects.Where(o => o.Type == "pylon").Count > 0 &&
+                             PylonRoom.Architects.Count(a => a.IsCalamity && Game1.GameWorld.ConstructRaces.Contains(a.Race)) < 3 &&
+                             a.IsCalamity &&
+                             a != Game1.GameWorld.Calamity[0] &&
+                             (!a.SpellsKnown.Any() || PylonRoom.Architects.Count(x => x.SpellsKnown.Count > 0) == 0))
+                    {
+                        PylonRoom.Architects.Add(a);
+                        a.Block = PylonRoom.Structure.Block;
+                        a.Room = PylonRoom;
+                        a.Task = "idle";
+                        a.CyclesLeftInTask = 9999999;
+                    }
+
+                    else if (possibleStructures.Count() > 0 && (Game1.GameWorld.rnd.Next(3) != 0 || possibleStructures[0].Type == "tomb" || possibleStructures[0].Type == "core"))
                     {
                         Structure chosenStructure = possibleStructures[Game1.GameWorld.rnd.Next(possibleStructures.Count())];
-                        Room chosenRoom = chosenStructure.Rooms[0];
+                        Room chosenRoom;
+
+                        if (Game1.GameWorld.Calamity[0] == a)
+                        {
+                            // Ensure we choose a room that is NOT the first one
+                            int roomCount = chosenStructure.Rooms.Count;
+                            if (roomCount > 5)
+                            {
+                                chosenRoom = chosenStructure.Rooms[Game1.GameWorld.rnd.Next(5, roomCount)];
+                            }
+                            else
+                            {
+                                chosenRoom = chosenStructure.Rooms[0]; // fallback in case there's only one room
+                            }
+                        }
+                        else
+                        {
+                            chosenRoom = chosenStructure.Type == "tomb"
+                                ? chosenStructure.Rooms[Game1.GameWorld.rnd.Next(chosenStructure.Rooms.Count)]
+                                : chosenStructure.Rooms[0];
+                        }
+
                         chosenRoom.Architects.Add(a);
                         a.Room = chosenRoom;
                         a.Block = chosenRoom.Structure.Block;
@@ -1039,29 +1501,7 @@ namespace Lightrealm
                 }
             }
 
-            if (Location.Districts.Count() == 1 && Location.AllStructures.Count() == 1)
-            {
-                Structure structureInSameDistrict = Location.AllStructures.FirstOrDefault(s => s.Block.District == this);
-                if (structureInSameDistrict != null)
-                {
-                    for (int i = Location.GuardiansInNetwork; i > 0; i--)
-                    {
-                        Block b = structureInSameDistrict.Block;
-                        Race race = Location.Type == "sanctum"
-                            ? Game1.GameWorld.ConstructRaces[Game1.GameWorld.rnd.Next(Game1.GameWorld.ConstructRaces.Count())]
-                            : Location.GuardianType;
 
-                        Architect a = new Architect("", Game1.Sexes[Game1.GameWorld.rnd.Next(2)], race, 10, "construct", new EntityList<Object>(), Location, this, b, "", 5, false);
-                        a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(Game1.GameWorld.rnd.Next(3, 7)));
-                        a.Name = Game1.GameWorld.GenerateUniqueArchitectName(a);
-                        a.Room = structureInSameDistrict.Rooms[Game1.GameWorld.rnd.Next(structureInSameDistrict.Rooms.Count())];
-                        a.Block = a.Room.Structure.Block;
-                        a.HomeLocation = Location;
-                        a.Room.Architects.Add(a);
-                        Game1.LoadedArchitects.Add(a);
-                    }
-                }
-            }
 
             // Load General Items
             EntityList<Object> itemsToAdd = new EntityList<Object>();
@@ -1071,6 +1511,8 @@ namespace Lightrealm
                 itemsToAdd.AddRange(items);
             }
 
+            GeneralItemsWeHave.Clear();
+
             // Determine the target room for each item
             foreach (Object item in itemsToAdd)
             {
@@ -1079,8 +1521,15 @@ namespace Lightrealm
                     : GetRandomRoom(allDistrictStructures);
 
                 targetRoom.Objects.Add(item);
-                item.UpdateNames(false, null);
+                item.UpdateNames(false, null, true);
             }
+
+
+
+
+
+
+
 
 
             Game1.LoadedArchitects.AddRange(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects);
@@ -1124,15 +1573,36 @@ namespace Lightrealm
                             {
                                 o.Block = DistrictMap[x + z * 7];
                                 o.Room = r;
+                                
                                 if (EverythingBelongsToTheQueen)
                                 {
                                     o.Owner = Location.Government;
                                 }
+
+                                if(o is Door d)
+                                {
+                                    d.IsQuickestExit = false;
+                                }
                             }
+
+                            r.FixRotation();
+
+
+                            //find quickest exit door
+
+                            Door DD = r.FindQuickestExitDoor();
+
+                            if(DD != null)
+                                DD.IsQuickestExit = true;
                         }
                     }
                 }
             }
+
+            //protect the idiots, this should save the debtshibas, beasts, and more from being addd to the list twice
+
+            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
+
 
             foreach (Architect a in Game1.LoadedArchitects)
             {
@@ -1140,7 +1610,7 @@ namespace Lightrealm
                 {
                     a.Task = "sentinel";
                     a.CyclesLeftInTask = 99999;
-                    a.Target = (a.Location.Region, a.Location, a.District, a.Block, a.Room);
+                    a.Target = (a.Location, a.District, a.Block, a.Room);
 
                     if (a.Room != null)
                     {
@@ -1154,41 +1624,109 @@ namespace Lightrealm
                 }
             }
 
-            Architects.Clear();
+            DistrictArchitects.Clear();
             HasBeenLoadedEver = true;
             Game1.TicksSinceLoad = 0;
 
 
-            //i hate this issue
 
-            foreach(Structure s in Location.AllStructures)
+            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
+
+            foreach(Architect a in Game1.LoadedArchitects)
             {
-                if(s.Block.District == this && s.Rooms.Count == 0)
+                a.SpellsKnown = a.SpellsKnown.Distinct();
+                a.SkillsKnown = a.SkillsKnown.Distinct();
+
+                foreach(Object o in a.BodyParts)
                 {
-                    s.Rooms.Add(new Room(s, new EntityList<Object>(), new EntityList<Architect>(), new EntityList<Architect>()));
-                    s.Rooms[0].PopulateRoom();
+                    o.Owner = a;
+                }
+
+                if(a.Race.Accursed && a.Race.Name != "shade")
+                {
+                    a.BodyParts.Clear();
+                    a.Race = Game1.GameWorld.GetRace("shade");
+
+                    a.PopulateSelf(false);
+                }
+
+                if(a.Block != null)
+                {
+                    var target = a.Block.FindNearestThing("tavern");
+
+                    if (target.Item2 == a.District)
+                        a.NearestTavernThisLoad = target;
                 }
             }
 
-            Game1.LoadedArchitects = Game1.LoadedArchitects.Distinct().ToList();
+
+
+            foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+            {
+                if(a.Inventory.Any(o => o.Type == "raft"))
+                {
+                    a.AnnounceToParty("You are still carrying a raft. You might consider dropping it to save weight.", Color.Orange, new EntityList<Entity>());
+                }
+
+                if(a.Invisible)
+                {
+                    a.AnnounceToParty("You are still invisible. Watch your energy.", Color.Magenta, new EntityList<Entity>());
+                }
+            }
+
+
+            foreach (Architect a in Game1.LoadedArchitects)
+            {
+                // Clean up deleted entities from ArchitectsForOpinions and their corresponding Opinions
+                for (int i = a.ArchitectsForOpinions._entityIds.Count - 1; i >= 0; i--)
+                {
+                    int entityId = a.ArchitectsForOpinions._entityIds[i];
+                    if (!Game1.GameWorld.EntityLedger.ContainsKey(entityId))
+                    {
+                        a.ArchitectsForOpinions._entityIds.RemoveAt(i);
+                        a.Opinions.RemoveAt(i);
+                    }
+                }
+
+                // Clean up deleted entities from KnownArchitects
+                for (int i = a.KnownArchitects._entityIds.Count - 1; i >= 0; i--)
+                {
+                    int entityId = a.KnownArchitects._entityIds[i];
+                    if (!Game1.GameWorld.EntityLedger.ContainsKey(entityId))
+                    {
+                        a.KnownArchitects._entityIds.RemoveAt(i);
+                        a.KnownArchitects._cachedEntities.Clear(); // Optional: if clearing cache fully every time
+                    }
+                }
+            }
+
+
+            Game1.UpdateNonPlayerWorld();
         }
 
         void AddOrUpdateItemString(List<string> itemList, string itemString)
         {
+            // Split into type, count, and rest (materials + maybe &cont(...)&)
             string[] itemParts = itemString.Split(new[] { ',' }, 3);
             string itemType = itemParts[0];
             int itemCount = int.Parse(itemParts[1]);
-            string itemMaterialsAndContained = itemParts[2];
+            string itemRest = itemParts[2]; // materials + possibly &cont(...)&
 
-            string existingItem = itemList.FirstOrDefault(item => item.StartsWith($"{itemType},{itemMaterialsAndContained}"));
+            // Find match by checking equality ignoring count
+            string existingItem = itemList.FirstOrDefault(item =>
+            {
+                string[] parts = item.Split(new[] { ',' }, 3);
+                return parts.Length == 3 && parts[0] == itemType && parts[2] == itemRest;
+            });
+
             if (existingItem != null)
             {
                 string[] existingItemParts = existingItem.Split(new[] { ',' }, 3);
-                int existingItemCount = int.Parse(existingItemParts[1]);
-                int newCount = existingItemCount + itemCount;
+                int existingCount = int.Parse(existingItemParts[1]);
+                int newCount = existingCount + itemCount;
 
                 itemList.Remove(existingItem);
-                itemList.Add($"{itemType},{newCount},{itemMaterialsAndContained}");
+                itemList.Add($"{itemType},{newCount},{itemRest}");
             }
             else
             {
@@ -1203,6 +1741,58 @@ namespace Lightrealm
         {
             IsLoaded = false;
             int TotalArchitects = 0;
+            Game1.LoadedFinalPointers.Clear();
+
+            //ditch shock mines
+
+            List<Architect> DeletedArchitects = new List<Architect>();
+
+
+            if (Location.Prism != null && Location.Prism.Block.District == this)
+            {
+                foreach (Room r in Location.Prism.Rooms)
+                {
+                    foreach (var obj in r.Objects.Where(o => o.Type == "shock mine").ToList())
+                    {
+                        obj.Delete();
+                        r.Objects.Remove(obj);
+                    }
+                }
+            }
+
+
+            //get rid of hooks and dont count them
+
+            foreach (Block b in DistrictMap)
+            {
+                foreach(Architect a in b.Architects)
+                {
+                    if(Game1.LoadedHooks.Contains(a))
+                    {
+                        b.ArchitectsToRemove.Add(a);
+                    }
+                }
+                foreach(Architect a in b.ArchitectsToRemove)
+                {
+                    b.Architects.Remove(a);
+                }
+                b.ArchitectsToRemove.Clear();
+
+                //dont save scaffold objects
+                foreach (var obj in b.Objects.Where(o => o.Type == "scaffold").ToList())
+                {
+                    obj.Delete();
+                    b.Objects.Remove(obj);
+                }
+            }
+
+            if (Location.Market != null)
+                Location.Market.MarketDebtToUs = 0;
+
+
+            Game1.LoadedHooks.Clear();
+            Game1.GaveInactiveWarningMessage = false;
+
 
             // Remove tasks
             foreach (Architect a in Game1.LoadedArchitects)
@@ -1210,7 +1800,21 @@ namespace Lightrealm
                 a.Task = "";
                 a.CooldownCycles = 0;
                 a.CyclesLeftInTask = 0;
+
+                a.MovementMode = "walking";
+
+                if (a.MainInteractionAppendage != null)
+                    a.MainInteractionAppendage.OopsIDroppedIt = false;
+                if (a.OffInteractionAppendage != null)
+                    a.OffInteractionAppendage.OopsIDroppedIt = false;
+
+                //clear distancing/rotoation data
+                a._distances.Clear();
+                a._rotations.Clear();
+                a._architects.Clear();
             }
+
+            int TraderItemsProcessed = 0;
 
             // Remove architects and round up the population
             for (int DistrictX = 0; DistrictX < 7; DistrictX++)
@@ -1221,7 +1825,24 @@ namespace Lightrealm
                     {
                         if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a))
                         {
-                            if (!a.IsLoadedTrader && !Game1.GameWorld.ConstructRaces.Contains(a.Race))
+                            if(a.AddToNumberOnReload)
+                            {
+                                if(Game1.GameWorld.ConstructRaces.Contains(a.Race))
+                                {
+                                    Location.GuardiansInNetwork++;
+                                    DeletedArchitects.Add(a);
+                                }
+                                else if (a.IsAlive)
+                                {
+                                    Location.AnimalsInNetwork++;
+                                    DeletedArchitects.Add(a);
+                                }
+                            }
+                            else if (a.Transient)
+                            {
+                                DeletedArchitects.Add(a);
+                            }
+                            else if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && !a.IsLoadedTrader)
                             {
                                 if (a.Race == Game1.GameWorld.GetRace("debtshiba"))
                                 {
@@ -1231,7 +1852,7 @@ namespace Lightrealm
                                 }
                                 else
                                 {
-                                    Architects.Add(a);
+                                    DistrictArchitects.Add(a);
                                     a.Task = "";
                                     a.Loaded = false;
                                     TotalArchitects++;
@@ -1243,48 +1864,74 @@ namespace Lightrealm
                             }
                         }
                     }
+
                     DistrictMap[DistrictX + DistrictZ * 7].Architects.Clear();
 
-                    // Create a list to hold the objects to remove
-                    EntityList<Object> objectsToRemove = new EntityList<Object>();
+                    // Create lists to hold the objects to remove and to add
+                    List<Object> objectsToRemove = new();
+                    List<Object> objectsToAddToDistrict24 = new();
+                    List<Object> objectsToDelete = new();
 
-                    foreach (Object o in DistrictMap[DistrictX + DistrictZ * 7].Objects)
+                    // First pass: decide what to remove and what to add elsewhere
+                    foreach (Object o in DistrictMap[DistrictX + DistrictZ * 7].Objects.ToList())
                     {
-                        if (o.Type == "shadow fountain" || o.Type == "well")
-                        {
+                        if (o.Type == "shadow fountain" || o.Type == "well" || o.Type == "chromaweaver" || o.Type == "console" || o.Type == "pylon")
                             continue;
-                        }
 
-                        objectsToRemove.Add(o);
+                        bool shouldRemove = true;
 
-                        if (o.IsGeneralGood)
+                        if (o.IsGeneralGood && o.Significance == 0 && Game1.GameWorld.GlobalResidenceTypes.Contains(Location.Type) && o.HookedObjective == null && o.IAmAFinalPointerThatFollowsAfterThisObjective == null)
                         {
-                            string itemString = Game1.ConvertObjectToString(o);
-                            AddOrUpdateItemString(GeneralItemsWeHave, itemString);
+                            if(Location.TradersAtThisLocation.Contains(o.Owner))
+                            {
+                                string itemString = Game1.ConvertObjectToString(o);
+                                AddOrUpdateItemString((o.Owner as Group).CaravanItems, itemString);
+                                objectsToDelete.Add(o); // queue for deletion
+                                TraderItemsProcessed++;
+                            }
+                            else
+                            {
+                                string itemString = Game1.ConvertObjectToString(o);
+                                AddOrUpdateItemString(GeneralItemsWeHave, itemString);
+                                objectsToDelete.Add(o); // queue for deletion
+                            }
                         }
                         else
                         {
                             if (Location.Prism != null)
-                            {
                                 Location.Prism.HistoricalObjects.Add(o);
-                            }
                             else if (Location.AllStructures.Count() > 0)
-                            {
                                 Location.AllStructures[0].HistoricalObjects.Add(o);
+                            else
+                            {
+                                objectsToAddToDistrict24.Add(o);
+                                shouldRemove = false;
                             }
                         }
+
+                        if (shouldRemove)
+                            objectsToRemove.Add(o);
                     }
 
-                    // Remove the collected objects from the DistrictMap
+                    // Second pass: remove from district
                     foreach (Object o in objectsToRemove)
                     {
                         DistrictMap[DistrictX + DistrictZ * 7].Objects.Remove(o);
-
-                        if(Location.AllStructures.Count() > 0)
-                        {
-                            Location.AllStructures[Game1.GameWorld.rnd.Next(Location.AllStructures.Count())].HistoricalObjects.Add(o);
-                        }
                     }
+
+                    // Final pass: delete
+                    foreach (Object o in objectsToDelete)
+                    {
+                        o.Delete();
+                    }
+
+
+                    // Third pass: add to District 24
+                    foreach (Object o in objectsToAddToDistrict24)
+                    {
+                        DistrictMap[24].Objects.Add(o);
+                    }
+
 
                     // Handle structures and rooms
                     foreach (Structure s in DistrictMap[DistrictX + DistrictZ * 7].Structures)
@@ -1294,7 +1941,22 @@ namespace Lightrealm
                             EntityList<Architect> ArchitectsToRemove = new EntityList<Architect>();
                             foreach (Architect a in r.Architects)
                             {
-                                if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && !a.IsLoadedTrader)
+                                if (a.AddToNumberOnReload)
+                                {
+                                    if (Game1.GameWorld.ConstructRaces.Contains(a.Race))
+                                    {
+                                        Location.GuardiansInNetwork++;
+                                    }
+                                    else if (a.IsAlive)
+                                    {
+                                        Location.AnimalsInNetwork++;
+                                    }
+                                }
+                                else if (a.Transient)
+                                {
+                                    DeletedArchitects.Add(a);
+                                }
+                                else if (!Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(a) && !a.IsLoadedTrader)
                                 {
                                     if (a.Race == Game1.GameWorld.GetRace("debtshiba"))
                                     {
@@ -1305,7 +1967,7 @@ namespace Lightrealm
                                     }
                                     else if (!a.Race.Name.EndsWith("guardian"))
                                     {
-                                        Architects.Add(a);
+                                        DistrictArchitects.Add(a);
                                         a.Task = "";
                                         a.Loaded = false;
                                         TotalArchitects++;
@@ -1314,24 +1976,49 @@ namespace Lightrealm
                             }
                             r.Architects.Clear();
 
-                            // Create a list to hold objects that are general goods
-                            EntityList<Object> RoomObjectsToRemove = new EntityList<Object>();
+                            // Create a list to hold objects to remove (some will be deleted, some saved to history)
+                            EntityList<Object> RoomObjectsToRemove = new();
+                            EntityList<Object> RoomObjectsToDelete = new();
 
                             // Handle objects in the room
                             foreach (Object o in r.Objects)
                             {
-                                if (o.IsGeneralGood)
+                                if (o.IsGeneralGood && o.Significance == 0 && Game1.GameWorld.GlobalResidenceTypes.Contains(Location.Type) && o.HookedObjective == null && o.IAmAFinalPointerThatFollowsAfterThisObjective == null)
                                 {
-                                    string itemString = Game1.ConvertObjectToString(o);
-                                    AddOrUpdateItemString(GeneralItemsWeHave, itemString);
-                                    RoomObjectsToRemove.Add(o);
+                                    if (Location.TradersAtThisLocation.Contains(o.Owner))
+                                    {
+                                        string itemString = Game1.ConvertObjectToString(o);
+                                        AddOrUpdateItemString((o.Owner as Group).CaravanItems, itemString);
+                                        RoomObjectsToDelete.Add(o); // queue for deletion from room
+                                        TraderItemsProcessed++;
+                                    }
+                                    else
+                                    {
+                                        string itemString = Game1.ConvertObjectToString(o);
+                                        AddOrUpdateItemString(GeneralItemsWeHave, itemString);
+                                        RoomObjectsToDelete.Add(o); // queue for deletion from room
+                                    }
                                 }
+                                else if (o.Name != null)
+                                {
+                                    s.HistoricalObjects.Add(o);
+                                    RoomObjectsToRemove.Add(o); // Just remove it
+                                }
+                                // else: leave it in the room (like unnamed objects for shibas)
                             }
 
+                            // Remove from room
                             foreach (Object o in RoomObjectsToRemove)
                             {
                                 r.Objects.Remove(o);
                             }
+
+                            foreach (Object o in RoomObjectsToDelete)
+                            {
+                                r.Objects.Remove(o);
+                                o.Delete(); // Actual deletion
+                            }
+
                         }
                     }
                 }
@@ -1354,6 +2041,97 @@ namespace Lightrealm
                 a.Room = null;
                 a.Block = null;
             }
+
+
+            //if nobody knows who you are get tf out of my house
+
+
+            foreach (Architect a in Game1.LoadedArchitects)
+            {
+                if (!a.ImportantThisLoad)
+                {
+                    Game1.GameWorld.AllHistoricalArchitects.Remove(a);
+                    a.District.DistrictArchitects.Remove(a);
+                    UnplacedPopulation++;
+
+                    DeletedArchitects.Add(a); // Mark for deletion, but don't delete yet
+
+                    a.ResponseDatabase.Clear();
+                    a.MessagesNotRespondedTo.Clear();
+                }
+                else
+                {
+                    a.ResponseDatabase.Clear();
+                    a.MessagesNotRespondedTo.Clear();
+                }
+            }
+
+            foreach(Message m in Game1.MessagesThisLoad)
+            {
+                m.Delete();
+            }
+            Game1.MessagesThisLoad.Clear();
+
+            List<int> DeletedIDs = DeletedArchitects.Select(a => a.ID).ToList();
+
+
+            foreach (Architect a in Game1.LoadedArchitects.Union(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects))
+            {
+                //iterate through all existing architects to detlete opinions from them
+                if (DeletedArchitects.Contains(a)) continue; // but skip architects that will be deleted
+
+                // Ensure opinions are cleared before proceeding
+                for (int i = a.ArchitectsForOpinions.Count - 1; i >= 0; i--)
+                {
+                    // Check if the _entityId of the architect is valid (i.e., it exists in the EntityLedger)
+                    if (DeletedIDs.Contains(a.ArchitectsForOpinions._entityIds[i]))
+                    {
+                        // Remove the entity and its associated opinion if the ID is invalid
+                        a.ArchitectsForOpinions.RemoveAt(i);
+                        a.Opinions.RemoveAt(i);
+                    }
+                }
+
+                for (int i = a.KnownArchitects._entityIds.Count - 1; i >= 0; i--)
+                {
+                    int entityId = a.KnownArchitects._entityIds[i];
+                    if (DeletedIDs.Contains(entityId))
+                    {
+                        a.KnownArchitects._entityIds.RemoveAt(i);
+                        a.KnownArchitects._cachedEntities.Clear();
+                    }
+                }
+            }
+
+
+            foreach (Architect a in DeletedArchitects)
+            {
+                a.DepopulateSelf();
+                a.Delete();
+            }
+
+            foreach(Object o in Game1.ObjectsToDeleteOnUnload)
+            {
+                o.Delete();
+            }
+            Game1.ObjectsToDeleteOnUnload.Clear();
+
+
+            foreach (Architect a in Game1.LoadedAttackers)
+            {
+                if(a.IsAlive)
+                {
+                    a.NextMigrationLocation = a.HomeLocation;
+                }
+            }
+            Game1.LoadedAttackers.Clear();
+
+
+            foreach (TextStorage t in Game1.Announcements)
+            {
+                t.Entities._entityIds.RemoveAll(id => Game1.AnnouncementEntitiesToDeleteThisCycle.Contains(id));
+            }
+            Game1.AnnouncementEntitiesToDeleteThisCycle.Clear();
 
             Game1.LoadedArchitects.Clear();
         }

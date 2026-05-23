@@ -13,21 +13,13 @@ namespace Lightrealm
         public int Length { get; set; }
 
         public EntityList<Entity> Domains { get; set; } = new EntityList<Entity>();
+        public Composition Parent;
 
         public List<string> Perspectives { get; set; } = new List<string>();
         public string Tone { get; set; }
         public int Quality { get; set; }
         public string Type { get; set; }
         public string Description { get; set; }
-
-        private int _parentId;
-
-        
-        public Composition Parent
-        {
-            get => EntityGet<Composition>(_parentId);
-            set => _parentId = value?.ID ?? 0;
-        }
 
         public int Number { get; set; }
 

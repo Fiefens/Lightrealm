@@ -12,32 +12,10 @@ namespace Lightrealm
     {
         public string Verb { get; set; }
 
-        private int _attackerId;
+        public Architect Attacker;
+        public Object Target;
+        public Object Weapon;
 
-        
-        public Architect Attacker
-        {
-            get => EntityGet<Architect>(_attackerId);
-            set => _attackerId = value?.ID ?? 0;
-        }
-
-        private int _targetId;
-
-        
-        public Object Target
-        {
-            get => EntityGet<Object>(_targetId);
-            set => _targetId = value?.ID ?? 0;
-        }
-
-        private int _weaponId;
-
-        
-        public Object Weapon
-        {
-            get => EntityGet<Object>(_weaponId);
-            set => _weaponId = value?.ID ?? 0;
-        }
 
         public Attack(string verb, Architect attacker, Object target, Object weapon)
         {
@@ -45,7 +23,23 @@ namespace Lightrealm
             Attacker = attacker;
             Target = target;
             Weapon = weapon;
+
+            // Only proceed if target is a body part
+            if (target.IsBodyPart)
+            {
+                if (attacker.ImportantThisLoad ||
+                    (target.Creator is Architect creatorArchitect && creatorArchitect.ImportantThisLoad))
+                {
+                    attacker.ImportantThisLoad = true;
+
+                    if (target.Creator is Architect creator)
+                    {
+                        creator.ImportantThisLoad = true;
+                    }
+                }
+            }
         }
+
 
         public Attack()
         {

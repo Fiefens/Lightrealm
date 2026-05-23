@@ -11,88 +11,26 @@ namespace Lightrealm
     [Serializable]
     public class Civilization : Entity
     {
-        private int _primaryInhabitantRaceId;
-
-        
-        public Race PrimaryInhabitantRace
-        {
-            get => EntityGet<Race>(_primaryInhabitantRaceId);
-            set => _primaryInhabitantRaceId = value?.ID ?? 0;
-        }
-
+        public Race PrimaryInhabitantRace;
         public int StartX { get; set; }
         public int StartZ { get; set; }
-
         public string Type { get; set; }
         public string WarType { get; set; }
+        public Material CulturalCloth;
+        public Material CulturalWood;
+        public Material CulturalStone;
+        public Material CulturalMetal;
+        public Material CulturalGemstone;
+        public Material CulturalSheet;
 
-        private int _culturalClothId;
-
-        
-        public Material CulturalCloth
-        {
-            get => EntityGet<Material>(_culturalClothId);
-            set => _culturalClothId = value?.ID ?? 0;
-        }
-
-        private int _culturalWoodId;
-
-        
-        public Material CulturalWood
-        {
-            get => EntityGet<Material>(_culturalWoodId);
-            set => _culturalWoodId = value?.ID ?? 0;
-        }
-
-        private int _culturalStoneId;
-
-        
-        public Material CulturalStone
-        {
-            get => EntityGet<Material>(_culturalStoneId);
-            set => _culturalStoneId = value?.ID ?? 0;
-        }
-
-        private int _culturalMetalId;
-
-        
-        public Material CulturalMetal
-        {
-            get => EntityGet<Material>(_culturalMetalId);
-            set => _culturalMetalId = value?.ID ?? 0;
-        }
-
-        private int _culturalGemstoneId;
-
-        
-        public Material CulturalGemstone
-        {
-            get => EntityGet<Material>(_culturalGemstoneId);
-            set => _culturalGemstoneId = value?.ID ?? 0;
-        }
-
-        private int _culturalSheetId;
-
-        
-        public Material CulturalSheet
-        {
-            get => EntityGet<Material>(_culturalSheetId);
-            set => _culturalSheetId = value?.ID ?? 0;
-        }
 
         public int ElectionFrequency { get; set; } = Game1.GameWorld.rnd.Next(1401520000, 1501520000);
         public Dictionary<string, int> HatredPoints { get; set; } = new Dictionary<string, int>();
         public int CyclesTillElection { get; set; } = 0;
         public EntityList<Architect> Citizens { get; set; } = new EntityList<Architect>();
+        public Architect Alpha;
+        public Location Capitol;
 
-        private int _alphaId;
-
-        
-        public Architect Alpha
-        {
-            get => EntityGet<Architect>(_alphaId);
-            set => _alphaId = value?.ID ?? 0;
-        }
 
         public int WakeUpAndChooseViolencePoints { get; set; } = 0;
         public EntityList<Division> MillitaryDivisions { get; set; } = new EntityList<Division>();
@@ -103,15 +41,6 @@ namespace Lightrealm
         public string CulturalLegwear { get; set; } = Game1.Legwear[Game1.GameWorld.rnd.Next(Game1.Legwear.Count())];
         public string CulturalHandwear { get; set; } = Game1.Handwear[Game1.GameWorld.rnd.Next(Game1.Handwear.Count())];
         public string CulturalFootwear { get; set; } = Game1.Footwear[Game1.GameWorld.rnd.Next(Game1.Footwear.Count())];
-
-        private int _capitolId;
-
-        
-        public Location Capitol
-        {
-            get => EntityGet<Location>(_capitolId);
-            set => _capitolId = value?.ID ?? 0;
-        }
 
         public Civilization(Race race, string type, int Startx, int Startz, World world)
         {
@@ -147,7 +76,17 @@ namespace Lightrealm
             CulturalCloth = world.Cloths[Game1.GameWorld.rnd.Next(world.Cloths.Count)];
             CulturalWood = world.Woods[Game1.GameWorld.rnd.Next(world.Woods.Count)];
             CulturalStone = world.Stones[Game1.GameWorld.rnd.Next(world.Stones.Count)];
-            CulturalMetal = world.Metals[Game1.GameWorld.rnd.Next(world.Metals.Count)];
+
+            var eligibleMetals = world.Metals.Where(m => m.Toughness <= 8).ToList();
+            if (eligibleMetals.Any())
+            {
+                CulturalMetal = eligibleMetals[Game1.GameWorld.rnd.Next(eligibleMetals.Count)];
+            }
+            else
+            {
+                CulturalMetal = null; // Or handle case when no eligible metal exists
+            }
+
             CulturalGemstone = world.Gemstones[Game1.GameWorld.rnd.Next(world.Gemstones.Count)];
             CulturalSheet = world.Sheets[Game1.GameWorld.rnd.Next(world.Sheets.Count)];
 

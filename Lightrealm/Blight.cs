@@ -47,7 +47,7 @@ namespace Lightrealm
             FoundingYear = Game1.TemporaryRand.Next(1, 245);
             Name = "kesuvumovostuseve"; //placeholder that is guaranteed to exist in the world so the loop will run
 
-            while (w.SubjectCatalogue.ContainsKey(Name) || Name == "kesuvumovostuseve")
+            while (w.UniqueNameCatalogue.ContainsKey(Name) || Name == "kesuvumovostuseve")
             {
                 Name = "The " + adjectives[Game1.TemporaryRand.Next(adjectives.Count())] + " " + nouns[Game1.TemporaryRand.Next(nouns.Count())];
             }
@@ -56,7 +56,7 @@ namespace Lightrealm
 
             AddReferredToName(this.Name);
 
-            w.SubjectCatalogue.Add(Name, this);
+            w.UniqueNameCatalogue.Add(Name, this);
         }
 
         public Blight()

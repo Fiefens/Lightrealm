@@ -16,14 +16,18 @@ namespace Lightrealm
         public int FirstPower { get; set; }
         public int SecondPower { get; set; }
         public bool IsSatisfied { get; set; }
+        public bool IsActive { get; set; } = false;
 
-        public Imbuement(bool isTrigger, string conditionOrTrigger, string buffOrResult, int firstPower, int secondPower)
+        public Object Source;
+
+        public Imbuement(bool isTrigger, string conditionOrTrigger, string buffOrResult, int firstPower, int secondPower, Object source)
         {
             IsTrigger = isTrigger;
             ConditionOrTrigger = conditionOrTrigger;
             BuffOrResult = buffOrResult;
             FirstPower = firstPower;
             SecondPower = secondPower;
+            Source = source;
         }
         public Imbuement()
         {
@@ -140,26 +144,17 @@ namespace Lightrealm
                     case "+dodge":
                         description = $"increase roll chance by {SecondPower}%.";
                         break;
-                    case "+redirection":
-                        description = $"increase redirection chance by {SecondPower}%.";
+                    case "+weaponreaction":
+                        description = $"increase parry and redirection chance by {SecondPower}%.";
                         break;
-                    case "+bash":
-                        description = $"increase bashing resistance by {SecondPower}%.";
+                    case "+bashpierce":
+                        description = $"increase bashing and piercing resistance by {SecondPower}%.";
                         break;
-                    case "+pierce":
-                        description = $"increase piercing resistance by {SecondPower}%.";
-                        break;
-                    case "+slash":
-                        description = $"increase slashing resistance by {SecondPower}%.";
-                        break;
-                    case "+scourge":
-                        description = $"increase scourging resistance by {SecondPower}%.";
+                    case "+slashthrash":
+                        description = $"increase slashing and thrashing resistance by {SecondPower}%.";
                         break;
                     case "+stealth":
                         description = "become slightly harder to see and target.";
-                        break;
-                    case "+heal":
-                        description = $"enhance healing capability by {SecondPower}%.";
                         break;
                     case "+regen":
                         description = $"regenerate {SecondPower} energy per second.";

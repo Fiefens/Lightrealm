@@ -28,6 +28,18 @@ namespace Lightrealm
                 {
                     e.Significance++;
                 }
+                e.AssociatedEvents.Add(this);
+            }
+
+            if(Game1.MostRecentPartyTurnArchitect != null)
+            {
+                foreach (Entity e in Entities)
+                {
+                    if (e is Architect a && Game1.LoadedArchitects.Contains(a))
+                    {
+                        a.ImportantThisLoad = true;
+                    }
+                }
             }
 
             // Determine significance based on override or entity significance
@@ -45,9 +57,9 @@ namespace Lightrealm
             }
 
             // Add to significant events list if the event is significant
-            if (Significant && Region != null && Region.Realm != null)
+            if (Significant && Region != null && Region.Hyperregion != null)
             {
-                Region.Realm.SignificantEvents.Add(this);
+                Region.Hyperregion.SignificantEvents.Add(this);
                 Game1.GameWorld.SignificantEvents.Add(this);
             }
         }

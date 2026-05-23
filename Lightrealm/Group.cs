@@ -13,27 +13,9 @@ namespace Lightrealm
     {
         public bool IsPrimary { get; set; } = false;
 
-        private int _locationId;
-
-        
-        public Location Location
-        {
-            get => EntityGet<Location>(_locationId);
-            set => _locationId = value?.ID ?? 0;
-        }
-
         public EntityList<Architect> Architects { get; set; } = new EntityList<Architect>();
 
         public EntityList<Architect> ArchitectsToRemove { get; set; } = new EntityList<Architect>();
-
-        private int _leaderId;
-
-        
-        public Architect Leader
-        {
-            get => EntityGet<Architect>(_leaderId);
-            set => _leaderId = value?.ID ?? 0;
-        }
 
         public string Type { get; set; }
 
@@ -54,15 +36,6 @@ namespace Lightrealm
         {
             get => _daysOld; // Accessor for the age in days
             set => _daysOld = value; // Mutator for the age in days
-        }
-
-        private int _baseId;
-
-        
-        public Location Base
-        {
-            get => EntityGet<Location>(_baseId);
-            set => _baseId = value?.ID ?? 0;
         }
 
         public EntityList<Architect> ArchitectsWhoDeclined { get; set; } = new EntityList<Architect>();
@@ -92,25 +65,22 @@ namespace Lightrealm
         public int CourageValue { get; set; } = 0;
         public int CreativityValue { get; set; } = 0;
 
-        private int _factionId;
-        public Faction HomeFaction
-        {
-            get => EntityGet<Faction>(_factionId);
-            set => _factionId = value?.ID ?? 0;
-        }
-
+        public Faction HomeFaction;
+        public Location Location;
+        public Architect Leader;
+        public Location Base;
 
         public void Recruit(World world, string Date)
         {
             // Ensure the leader has a valid location and region
-            if (this.Leader?.Location?.Region?.Realm == null)
+            if (this.Leader?.Location?.Region?.Hyperregion == null)
                 return;
 
             // Select an architect from the World based on the criteria
             var validArchitects = world.AllHistoricalArchitects.Where(arch =>
                 arch.HomeLocation != null &&  // The architect has a home location
                 world.SettlementTypes.Contains(arch.HomeLocation.Type) &&  // The home location is a settlement
-                arch.HomeLocation.Region?.Realm == this.Leader.Location.Region.Realm &&  // The architect is in the same Realm as the leader
+                arch.HomeLocation.Region?.Hyperregion == this.Leader.Location.Region.Hyperregion &&  // The architect is in the same Realm as the leader
                 !(
                     (arch.HomeLocation.Government is Architect && arch.HomeLocation.Government == arch) ||  // The architect is not the government
                     (arch.HomeLocation.Government is Group && ((Group)(arch.HomeLocation.Government)).Architects.Contains(arch))  // The architect is not a member of a group that is the government
@@ -161,10 +131,13 @@ namespace Lightrealm
             return catalogueBuilder.ToString().Trim();
         }
 
+        public static List<string> HireableGroups = new List<string>() { "military", "mercenary", "squad" };
+
+
         public Group(EntityList<Architect> architects, string type, Architect leader, Location Basee)
         {
-            if(Game1.GameWorld != null)
-                Game1.GameWorld.LegacyGroups.Add(this);
+            if (Game1.GameWorld != null)
+                Game1.GameWorld.Groups.Add(this);
 
             Name = Game1.GameWorld.GenerateUniqueName("1S" + (Game1.GameWorld.rnd.Next(3, 6)) + "s", this, Game1.GameWorld.rnd);
             Architects = architects;
@@ -184,6 +157,13 @@ namespace Lightrealm
             PatriotismValue = leader.PatriotismValue;
             CourageValue = leader.CourageValue;
             CreativityValue = leader.CreativityValue;
+
+
+
+            if(HireableGroups.Contains(type) && leader.Reputation > 0)
+            {
+                Game1.GameWorld.Hireables.Add(this);
+            }
 
             AddReferredToName(Name);
         }

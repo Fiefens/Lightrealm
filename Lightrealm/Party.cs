@@ -13,21 +13,22 @@ namespace Lightrealm
     {
         public int MapCursorDistrict { get; set; } = 0;
 
-        public EntityList<TextStorage> Intrigue = new EntityList<TextStorage>();
+        public List<TextStorage> Intrigue = new List<TextStorage>();
+
+        public Architect originalLeader = null;
 
         public int MapCursorX;
         public int MapCursorZ;
 
-        private int _currentEventId;
+        public bool ReceivedPlanMessageThisLoad = true;
 
-        public Unit CurrentEvent
-        {
-            get => EntityGet<Unit>(_currentEventId);
-            set => _currentEventId = value?.ID ?? 0;
-        }
+        public EntityList<Room> RoomsUnsearched = new EntityList<Room>();
+
+        public EntityList<Objective> ActiveObjectives = new EntityList<Objective>();
 
         public EntityList<Architect> IntriguingArchitects { get; set; } = new EntityList<Architect>();
-        public EntityList<Region> CurrentlyMarkedRegions { get; set; } = new EntityList<Region>();
+        public List<Region> CurrentlyMarkedRegions { get; set; } = new List<Region>();
+        public Unit CurrentEvent;
 
         public Party() : base()
         {
@@ -54,6 +55,8 @@ namespace Lightrealm
             : base(architects, type, leader, basee)
         {
             // Constructor logic, if any, goes here.
+
+            originalLeader = leader;
         }
 
     }

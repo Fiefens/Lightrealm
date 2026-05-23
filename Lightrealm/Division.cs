@@ -11,13 +11,7 @@ namespace Lightrealm
     public class Division : Group
     {
         public int OtherSoldiers { get; set; }
-
-        private int _homeCivilizationID;
-        public Civilization HomeCivilization
-        {
-            get => EntityGet<Civilization>(_homeCivilizationID);
-            set => _homeCivilizationID = value?.ID ?? 0;
-        }
+        public Civilization HomeCivilization;
 
         public string Style { get; set; } = new List<string> { "aggressive", "defensive", "evasive", "balanced", "deceptive" }[Game1.GameWorld.rnd.Next(5)];
 

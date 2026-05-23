@@ -24,29 +24,13 @@ namespace Lightrealm
 
         public EntityList<Entity> Embezzlements { get; set; } = new EntityList<Entity>();
 
-        private int _marketId;
-        
-        public Structure Market
-        {
-            get => EntityGet<Structure>(_marketId);
-            set => _marketId = value?.ID ?? 0;
-        }
+        public Structure Market;
+        public Structure Library;
+        public Structure Prism;
 
-        private int _libraryId;
-        
-        public Structure Library
-        {
-            get => EntityGet<Structure>(_libraryId);
-            set => _libraryId = value?.ID ?? 0;
-        }
+        public bool FellPreviously { get; set; } = false;
 
-        private int _prismId;
-        
-        public Structure Prism
-        {
-            get => EntityGet<Structure>(_prismId);
-            set => _prismId = value?.ID ?? 0;
-        }
+        public EntityList<Architect> BurialArchitects { get; set; } = new EntityList<Architect>();
 
         public string Color { get; set; }
 
@@ -66,7 +50,7 @@ namespace Lightrealm
         public int Wealth { get; set; } // value is measured in Shobes, an arbitrary unit
         public int PassiveStructuralIncome { get; set; } // value is measured in Shobes, an arbitrary unit
 
-        private int _homeCivilizationId;
+        public EntityList<Objective> Objectives = new EntityList<Objective>();
 
         public Civilization HomeCivilization;
 
@@ -75,13 +59,14 @@ namespace Lightrealm
 
         public bool IsCapitol { get; set; } = false;
 
+        public int AnimalsInNetwork = 0;
+        public Race AnimalRace;
+
         public EntityList<Architect> DebtShibas { get; set; } = new EntityList<Architect>();
 
         public EntityList<Group> TradersAtThisLocation { get; set; } = new EntityList<Group>();
 
         public EntityList<Group> TradersAtThisLocationToRemove { get; set; } = new EntityList<Group>();
-
-        public EntityList<Group> TradersAtThisLocationToAdd { get; set; } = new EntityList<Group>();
 
         public Race GuardianType { get; set; }
         public int GuardiansInNetwork { get; set; }
@@ -90,31 +75,15 @@ namespace Lightrealm
 
         public EntityList<Group> GroupsAtThisLocationToRemove { get; set; } = new EntityList<Group>();
 
-        public EntityList<Object> UnplacedArtifacts { get; set; } = new EntityList<Object>();
-
         public int X { get; set; }
         public int Z { get; set; }
-
-        private int _governmentId;
-        
-        public Entity Government
-        {
-            get => EntityGet<Entity>(_governmentId);
-            set => _governmentId = value?.ID ?? 0;
-        }
-
-        private int _regionId;
-        
-        public Region Region
-        {
-            get => EntityGet<Region>(_regionId);
-            set => _regionId = value?.ID ?? 0;
-        }
+        public Entity Government;
+        public Region Region;
 
         // THESE VALUES ARE USED IF THE LOCATION IS LOADED
 
         public int TruePopulation() =>
-            Districts.Sum(d => d.UnplacedPopulation + d.Architects.Count(a => a.Group == null || a.Group.Type != "trade"));
+            Districts.Sum(d => d.UnplacedPopulation + d.DistrictArchitects.Count(c => c.Profession != "trader" && c.IsAlive));
 
 
 
@@ -142,6 +111,9 @@ namespace Lightrealm
             {
                 Color = new List<string>() { "white", "gray", "black", "brown", "maroon" }[Game1.GameWorld.rnd.Next(5)];
                 Layout = new List<string>() { "archway", "hallway", "toroid", "towers", "pyramid" }[Game1.GameWorld.rnd.Next(5)];
+
+                AnimalsInNetwork = Game1.GameWorld.rnd.Next(3, 6); // Some Creatures
+                AnimalRace = Game1.GameWorld.WildRaces[Game1.GameWorld.rnd.Next(Game1.GameWorld.WildRaces.Count)];
             }
 
             PrimaryRace = primaryrace;
@@ -160,31 +132,30 @@ namespace Lightrealm
 
             switch (Type)
             {
-                case "archway":
-                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 10); // Half of 10-20 rooms
-                    break;
                 case "commune":
-                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 7); // Half of 10-13 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(3, 6); // Half of 10-13 rooms
                     break;
                 case "stronghold":
-                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(15, 20); // MOAR
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(8, 15); // MOAR
                     break;
                 case "monument":
-                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(10, 15); // Half of 20-30 rooms
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 11); // Half of 20-30 rooms
                     break;
                 case "monastery":
                     GuardiansInNetwork = Game1.GameWorld.rnd.Next(0, 2); // Half of 0-4 rooms
                     break;
-                case "towers":
-                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(5, 10); // Half of 10-20 rooms
-                    break;
                 case "sanctum":
-                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(20, 40); // a lottteee
+                    GuardiansInNetwork = Game1.GameWorld.rnd.Next(8, 15); // a lottteee
                     break;
                 default:
                     GuardiansInNetwork = 0;
                     break;
             }
+
+            Game1.GameWorld.SubjectsToWriteAbout.Add(this);
+
+
+
 
             GuardianType = Game1.GameWorld.ConstructRaces[Game1.GameWorld.rnd.Next(Game1.GameWorld.ConstructRaces.Count())];
         }

@@ -9,15 +9,7 @@ namespace Lightrealm
     public class Composition : Entity
     {
         public string Type { get; set; }
-
-        private int _subjectId;
-
-        
-        public Entity Subject
-        {
-            get => EntityGet<Entity>(_subjectId);
-            set => _subjectId = value?.ID ?? 0;
-        }
+        public Entity Subject;
 
         private EntityList<Entity> _subjects = new EntityList<Entity>();
 
@@ -28,37 +20,28 @@ namespace Lightrealm
             Type = type;
             Subject = ChosenEntity;
 
-            if(Subject is Architect a)
+            if (Subject is Architect a)
             {
                 a.UpdateNames();
             }
             else if (Subject is Object o)
             {
-                o.UpdateNames(false, null);
+                o.UpdateNames(false, null, Game1.LoadedArchitects.Count > 0);
             }
 
-            if(Subject.Name != null)
-            {
-                Name = GenerateName(type, Subject.Name);
-            }
-            else if (Subject.ReferredToNames.Count > 0)
-            {
-                Name = GenerateName(type, Subject.ReferredToNames[0]);
-            }
-            else
-            {
-                Name = GenerateName(type, "Something");
-            }
+            string domain = Subject.Name ?? Subject.ReferredToNames.FirstOrDefault() ?? "Something";
+            Name = GenerateName(type, domain);
 
             Sections = GenerateSectionsFromSubject(type, Author, Subject);
         }
+
 
         public string GetCompleteWorkDescription()
         {
             var averageQuality = Sections.Average(s => s.Quality);
             string qualityDescription = GetQualityDescription(averageQuality);
 
-            var descriptions = Sections.Select((s, i) => s.Description);
+            var descriptions = Sections.Select(s => s.Description);
             string sectionType = Type switch
             {
                 "book" => "Chapter",
@@ -68,7 +51,7 @@ namespace Lightrealm
 
             string FormattedName = Subject.Name != null ? Subject.Name : Subject.ReferredToNames[0];
 
-            return $"The work is a {qualityDescription} {Type}, primarily on {FormattedName}, with {Sections.Count()} {sectionType.ToLower()}s. " +
+            return $"The work is a {qualityDescription} {Type}, primarily on {FormattedName}, with {Sections.Count} {sectionType.ToLower()}s. " +
                    string.Join(" ", descriptions);
         }
 
@@ -96,99 +79,71 @@ namespace Lightrealm
                 _ => "supernatural"
             };
         }
+        public static readonly List<string> Adjectives = new()
+        {
+            "somber", "inquisitive", "mysterious", "joyful", "melancholic",
+            "serene", "vibrant", "epic", "wistful", "enchanting"
+        };
 
+            public static readonly Dictionary<string, List<string>> NounsByType = new()
+            {
+                ["song"] = new List<string>
+            {
+                "melody", "harmony", "rhythm", "serenade", "ballad",
+                "chorus", "lullaby", "symphony", "refrain"
+            },
+                ["poem"] = new List<string>
+            {
+                "sonnet", "verse", "stanza", "rhyme", "elegy",
+                "couplet", "whisper"
+            },
+                ["book"] = new List<string>
+            {
+                "tale", "chronicle", "narrative", "story", "journey",
+                "myth", "legend", "account", "fable", "saga"
+            }
+            };
+
+            public static readonly List<string> NameFormats = new()
+        {
+            "[a] [n] of [d]",
+            "[a] [d] [n]",
+            "The [a] [n] in [d]",
+            "[n] of the [a] [d]",
+            "[d]: A [a] [n]",
+            "The [n] of [a] [d]",
+            "[a] [d]: [n]",
+            "A [n] of [a] [d]",
+            "[d]'s [a] [n]",
+            "[n] from the [a] [d]"
+        };
         private string GenerateName(string type, string domain)
         {
-            List<string> adjectives = new List<string>
-            {
-                "somber",
-                "inquisitive",
-                "mysterious",
-                "joyful",
-                "melancholic",
-                "serene",
-                "vibrant",
-                "epic",
-                "wistful",
-                "enchanting"
-            };
+            var adjList = Adjectives;
+            var nounList = NounsByType[type];
 
-            List<string> songNouns = new List<string>
-            {
-                "melody",
-                "harmony",
-                "rhythm",
-                "serenade",
-                "ballad",
-                "chorus",
-                "lullaby",
-                "symphony",
-                "refrain"
-            };
+            string adjective = Game1.Capitalize(adjList[Game1.GameWorld.rnd.Next(adjList.Count)]);
+            string noun = Game1.Capitalize(nounList[Game1.GameWorld.rnd.Next(nounList.Count)]);
+            string dom = Game1.Capitalize(domain);
 
-            List<string> poemNouns = new List<string>
-            {
-                "sonnet",
-                "verse",
-                "stanza",
-                "rhyme",
-                "elegy",
-                "couplet",
-                "whisper"
-            };
+            string format = NameFormats[Game1.GameWorld.rnd.Next(NameFormats.Count)];
 
-            List<string> bookNouns = new List<string>
-            {
-                "tale",
-                "chronicle",
-                "narrative",
-                "story",
-                "journey",
-                "myth",
-                "legend",
-                "account",
-                "fable",
-                "saga"
-            };
-
-            string adjective = Game1.Capitalize(adjectives[Game1.GameWorld.rnd.Next(adjectives.Count())]);
-            string noun = Game1.Capitalize(type switch
-            {
-                "song" => songNouns[Game1.GameWorld.rnd.Next(songNouns.Count())],
-                "poem" => poemNouns[Game1.GameWorld.rnd.Next(poemNouns.Count())],
-                "book" => bookNouns[Game1.GameWorld.rnd.Next(bookNouns.Count())],
-                _ => throw new ArgumentException("Invalid type specified")
-            });
-
-            domain = Game1.Capitalize(domain);
-
-            List<string> formats = new List<string>
-            {
-                $"{adjective} {noun} of {domain}",
-                $"{adjective} {domain} {noun}",
-                $"The {adjective} {noun} in {domain}",
-                $"{noun} of the {adjective} {domain}",
-                $"{domain}: A {adjective} {noun}",
-                $"The {noun} of {adjective} {domain}",
-                $"{adjective} {domain}: {noun}",
-                $"A {noun} of {adjective} {domain}",
-                $"{domain}'s {adjective} {noun}",
-                $"{noun} from the {adjective} {domain}"
-            };
-
-            string format = formats[Game1.GameWorld.rnd.Next(formats.Count())];
-            return format.Replace("{adjective}", adjective).Replace("{noun}", noun).Replace("{domain}", domain);
+            return format
+                .Replace("[a]", adjective)
+                .Replace("[n]", noun)
+                .Replace("[d]", dom);
         }
+
 
         private EntityList<Section> GenerateSectionsFromSubject(string type, Architect Author, Entity subject)
         {
             EntityList<Section> sections = new EntityList<Section>();
             var events = GetEventsForSubject(subject);
 
-            int numberSections = Math.Min(type == "book" ? Game1.GameWorld.rnd.Next(5, 20) : Game1.GameWorld.rnd.Next(3, 12), events.Count());
+            int numberSections = Math.Min(type == "book" ? Game1.GameWorld.rnd.Next(2, 9) : Game1.GameWorld.rnd.Next(1, 6), events.Count);
 
             // If no events are found, create a generic section
-            if (events.Count() == 0)
+            if (events.Count == 0)
             {
                 sections.Add(new Section(type, this, Author.Creativity, 1, "none"));
             }
@@ -196,7 +151,6 @@ namespace Lightrealm
             {
                 if (type == "song")
                 {
-                    List<string> sectionTypes = new List<string> { "Verse" };
                     bool hasChorus = false;
                     bool hasBridge = false;
 
@@ -236,48 +190,58 @@ namespace Lightrealm
             return sections;
         }
 
-        private Entity GenerateRandomSubject()
-        {
-            EntityList<Entity> subjects = new EntityList<Entity>();
-
-            subjects.AddRange(Game1.GameWorld.AllHistoricalArchitects);
-            subjects.AddRange(Game1.GameWorld.AllLocations);
-            subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures));
-            subjects.AddRange(Game1.GameWorld.AllLocations.SelectMany(loc => loc.AllStructures.SelectMany(structure => structure.HistoricalObjects)));
-
-            return subjects[Game1.GameWorld.rnd.Next(subjects.Count())];
-        }
-
         private List<string> GetEventsForSubject(Entity subject)
         {
-            // Use a null-coalescing operator to handle null values for subject.Name
             string subjectName = subject.Name ?? subject.ReferredToNames.FirstOrDefault();
+            var result = new List<string>();
 
-            // Use LINQ with minimal operations to extract relevant event details
-            var events = Game1.GameWorld.HistoricalEvents
-                .Where(e => e.EventData.Contains(subjectName)) // Filter by subjectName
-                .Select(e =>
+            foreach (var e in subject.AssociatedEvents)
+            {
+                string yearAndDay = "Unknown";
+                string processedEvent = e.EventData;
+
+                int yearStart = e.EventData.IndexOf('(');
+                int yearEnd = e.EventData.IndexOf(')', yearStart + 1);
+                if (yearStart != -1 && yearEnd != -1 && yearEnd > yearStart)
                 {
-                    // Find and extract year and day
-                    int yearStart = e.EventData.IndexOf("(") + 1;
-                    int yearEnd = e.EventData.IndexOf(")", yearStart);
-                    string yearAndDay = yearStart > 0 && yearEnd > yearStart
-                        ? e.EventData.Substring(yearStart, yearEnd - yearStart)
-                        : "Unknown";
+                    yearAndDay = e.EventData.Substring(yearStart + 1, yearEnd - yearStart - 1);
+                }
 
-                    // Extract event description
-                    int descriptionStart = e.EventData.IndexOf(") ") + 2;
-                    string processedEvent = descriptionStart > 1
-                        ? e.EventData.Substring(descriptionStart)
-                        : e.EventData;
+                int descriptionStart = e.EventData.IndexOf(") ") + 2;
+                if (descriptionStart > 1 && descriptionStart < e.EventData.Length)
+                {
+                    processedEvent = e.EventData.Substring(descriptionStart);
+                }
 
-                    return $"In {yearAndDay}, {processedEvent}";
-                })
-                .ToList(); // Materialize the list here
+                result.Add($"In {yearAndDay}, {processedEvent}");
+            }
 
-            return events;
+            return result;
         }
 
+
+        public Composition(Entity subject, string name)
+        {
+            Type = "book";
+            Subject = subject;
+            Name = name;
+
+            Sections = new EntityList<Section>
+            {
+                new Section
+                {
+                    Parent = this,
+                    Number = 1,
+                    Type = "Chapter",
+                    Length = 10,
+                    Tone = "informative",
+                    Perspectives = new List<string> { "neutral" },
+                    Domains = new EntityList<Entity> { subject },
+                    Quality = 5,
+                    Description = "Section one covers " + subject.Name + " and how it affects shiba inus."
+                }
+            };
+        }
 
 
         public Composition()

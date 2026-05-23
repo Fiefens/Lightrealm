@@ -10,96 +10,29 @@ using System.Threading.Tasks;
 namespace Lightrealm
 {
     [Serializable]
-    public class Region : Entity
+    public class Region
     {
         public string Biome { get; set; }
         public int Elevation { get; set; }
         public int Heat { get; set; }
         public int X { get; set; }
         public int Z { get; set; }
-
-        public Realm Realm;
-
-        private int _myLocationId;
-        
-        public Location Location
-        {
-            get => EntityGet<Location>(_myLocationId);
-            set => _myLocationId = value?.ID ?? 0;
-        }
-
+        public Hyperregion Hyperregion;
+        public Location Location;
         public List<(int, int)> TragedyPoints { get; set; } = new List<(int, int)>();
-
         public bool Explored { get; set; } = false;
         public bool DeepExplored { get; set; } = false;
-
-        private int _blightId;
-        
-        public Blight Blight
-        {
-            get => EntityGet<Blight>(_blightId);
-            set => _blightId = value?.ID ?? 0;
-        }
-
+        public Blight Blight;
         public string PortName { get; set; } = "";
-
-        private int _harvestableWoodId;
-        
-        public Material HarvestableWood
-        {
-            get => EntityGet<Material>(_harvestableWoodId);
-            set => _harvestableWoodId = value?.ID ?? 0;
-        }
-
-        private int _harvestableStoneId;
-        
-        public Material HarvestableStone
-        {
-            get => EntityGet<Material>(_harvestableStoneId);
-            set => _harvestableStoneId = value?.ID ?? 0;
-        }
-
-        private int _harvestableMetalId;
-        
-        public Material HarvestableMetal
-        {
-            get => EntityGet<Material>(_harvestableMetalId);
-            set => _harvestableMetalId = value?.ID ?? 0;
-        }
-
-        private int _harvestableSandId;
-        
-        public Material HarvestableSand
-        {
-            get => EntityGet<Material>(_harvestableSandId);
-            set => _harvestableSandId = value?.ID ?? 0;
-        }
-
-        private int _harvestableIceId;
-        
-        public Material HarvestableIce
-        {
-            get => EntityGet<Material>(_harvestableIceId);
-            set => _harvestableIceId = value?.ID ?? 0;
-        }
-
-        private int _harvestableFiberId;
-        
-        public Material HarvestableFiber
-        {
-            get => EntityGet<Material>(_harvestableFiberId);
-            set => _harvestableFiberId = value?.ID ?? 0;
-        }
-
+        public Material HarvestableWood;
+        public Material HarvestableStone;
+        public Material HarvestableMetal;
+        public Material HarvestableSand;
+        public Material HarvestableIce;
+        public Material HarvestableFiber;
         public EntityList<Unit> Units { get; set; } = new EntityList<Unit>();
+        public Entity Owner;
 
-        private int _ownerId;
-        
-        public Entity Owner
-        {
-            get => EntityGet<Civilization>(_ownerId);
-            set => _ownerId = value?.ID ?? 0;
-        }
 
         public Region(string biome, int elevation, int heat, int x, int z, World w)
         {
@@ -114,7 +47,8 @@ namespace Lightrealm
             HarvestableWood = w.Woods[rr.Next(w.Woods.Count())];
             HarvestableFiber = w.Fibers[rr.Next(w.Fibers.Count())];
             HarvestableStone = w.Stones[rr.Next(w.Stones.Count())];
-            HarvestableMetal = w.Metals[rr.Next(w.Metals.Count())];
+
+            HarvestableMetal = w.Metals.Take(8)[rr.Next(w.Metals.Count() / 2)];
             HarvestableSand = w.Sands[rr.Next(w.Sands.Count())];
             HarvestableIce = w.Ices[rr.Next(w.Ices.Count())];
         }

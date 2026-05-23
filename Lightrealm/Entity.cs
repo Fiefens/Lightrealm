@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -15,6 +16,12 @@ namespace Lightrealm
     {
         private string _name;
 
+        public bool AnnouncedSelfThisLoad = false;
+
+        public bool Expunged = false;
+
+        public int LettersReceived = 0;
+
         public string Name
         {
             get { return _name; }
@@ -30,14 +37,43 @@ namespace Lightrealm
 
         public string EntityColor = "";
 
+        public Quest AssociatedQuest;
+        public Objective HookedObjective;
+        public Objective IAmAFinalPointerThatFollowsAfterThisObjective;
+
         public Civilization HahaCivHiredMe;
+
+        public bool Expertise = false;
 
         public int ID;
         public int Significance = 0;
         public int Reputation = 0;
-        private List<string> _referredToNames = new List<string>();
+        public List<string> _referredToNames = new List<string>();
 
-        public bool Incapacitated;
+        public virtual bool Incapacitated
+        {
+            get
+            {
+                return this switch
+                {
+                    Architect architect => !architect.IsAlive || architect.Bound,
+                    Faction faction => !faction.SatelliteGroups.Any(g => g.Architects.Count > 0),
+                    Location location => location.TruePopulation() == 0,
+                    Group group => group.Architects.Count == 0,
+                    Association association => Game1.GameState != "ascendant",
+                    _ => false
+                };
+            }
+        }
+
+
+
+        public void Delete()
+        {
+            Game1.GameWorld.EntityLedger.Remove(ID);
+            Game1.AnnouncementEntitiesToDeleteThisCycle.Add(ID);
+        }
+
 
         public bool Reinforced = false;
 
@@ -45,6 +81,7 @@ namespace Lightrealm
         public string EntityType { get; set; }
 
         public EntityList<Entity> Enemies { get; set; } = new EntityList<Entity>();
+        public EntityList<Event> AssociatedEvents { get; set; } = new EntityList<Event>();
 
         public Entity PairedObject()
         {
@@ -102,7 +139,7 @@ namespace Lightrealm
                 }
                 foreach (var district in location.Districts)
                 {
-                    entitiesToPissOff.AddRange(district.Architects.Where(a => Game1.GameWorld.rnd.Next(0, 100) < 1)); // 1 percent chance
+                    entitiesToPissOff.AddRange(district.DistrictArchitects.Where(a => Game1.GameWorld.rnd.Next(0, 100) < 1)); // 1 percent chance
                 }
             }
             else if (Victim is Architect architect)
@@ -145,7 +182,23 @@ namespace Lightrealm
             // Announce if any new enemies were made
             if (victimFriends.Count > 0)
             {
-                MakeAnnouncement(Victim, StealthAttempt, victimFriends, (Victim is Architect a ? a.Location.Region : (Victim is Group g ? g.Leader.Location.Region : (Victim is Location l ? l.Region : ((Faction)Victim).Base.Region))), new EntityList<Entity>() { Victim }.Union(entitiesToPissOff));
+                MakeAnnouncement(
+                    Victim,
+                    StealthAttempt,
+                    victimFriends,
+                    (Victim is Architect a
+                        ? (a.Location != null
+                            ? a.Location.Region
+                            : Game1.GameWorld.WorldMap[Game1.GameWorld.rnd.Next(Game1.GameWorld.WorldMap.Count())])
+                    : Victim is Group g
+                        ? (g.Leader.Location != null
+                            ? g.Leader.Location.Region
+                            : Game1.GameWorld.WorldMap[Game1.GameWorld.rnd.Next(Game1.GameWorld.WorldMap.Count())])
+                    : Victim is Location l
+                        ? l.Region
+                    : ((Faction)Victim).Base.Region),
+                    new EntityList<Entity>() { Victim }.Union(entitiesToPissOff)
+                );
             }
 
             // Specific logic for player association
@@ -167,11 +220,27 @@ namespace Lightrealm
             return true;
         }
 
+        public static string FormatEnemyList(List<string> enemies)
+        {
+            int count = enemies.Count;
+
+            if (count == 0)
+                return "";
+
+            if (count <= 3)
+                return Game1.FormatAndList(enemies);
+
+            var topThree = enemies.Take(3).ToList();
+            int others = count - 3;
+
+            return $"{Game1.FormatAndList(topThree)}, and {others} other{(others == 1 ? "" : "s")}";
+        }
+
         private void MakeAnnouncement(Entity Victim, bool StealthAttempt, List<string> victimFriends, Region r, EntityList<Entity> Entities)
         {
             int Month = ((int)Math.Round((decimal)(Game1.GameWorld.Cycle / 24192000)) % 12) + 1;
             int Year = (int)Math.Round((decimal)(Game1.GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
-            string formattedEnemies = Game1.FormatAndList(victimFriends);
+            string formattedEnemies = FormatEnemyList(victimFriends); // <-- updated to use the new function
             string message;
 
             if (StealthAttempt)
@@ -185,6 +254,7 @@ namespace Lightrealm
 
             Game1.GameWorld.HistoricalEvents.Add(new Event(message, r, Entities));
         }
+
 
 
 
@@ -377,11 +447,6 @@ namespace Lightrealm
             _referredToNames.Add(name);
         }
 
-        public void ClearReferredToNames()
-        {
-            _referredToNames.Clear();
-        }
-
         public Entity()
         {
             EntityType = GetType().Name;
@@ -425,6 +490,33 @@ namespace Lightrealm
             }
 
             AddReferredToName(ID.ToString());
+        }
+
+        public static List<string> InvalidQuestRaces = new List<string>() { "photonexus", "hypernexus", "icosidodecahedron", "isofractal", "shadeheart", "shade" };
+
+        public bool IsValidQuestTarget()
+        {
+            if (this is Architect a)
+            {
+                if (!a.IsAlive || a.Location == null || a.District == null || a.IsCalamity)
+                    return false;
+
+                if (InvalidQuestRaces.Contains(a.Race.Name))
+                    return false;
+            }
+
+            if (string.IsNullOrEmpty(Name))
+                return false;
+
+
+            if (ReferredToNames.Any(string.IsNullOrEmpty))
+                return false;
+
+            if (this.HookedObjective != null || this.IAmAFinalPointerThatFollowsAfterThisObjective != null || this.AssociatedQuest != null)
+                return false;
+
+
+            return true;
         }
 
     }

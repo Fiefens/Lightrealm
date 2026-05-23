@@ -17,11 +17,12 @@ namespace Lightrealm
         public EntityList<Structure> Residences = new EntityList<Structure>();
         public EntityList<Object> Resources = new EntityList<Object>();
 
+        public int AscendantInstability = 0;
+
         public bool HasAttacked = false;
         public int RanCommands { get; set; } = 0;
         public bool UsedThis { get; set; } = false;
         public bool ReceivedPartyAdvice { get; set; } = false;
-        public bool ReceivedAbilityAdvice = false;
 
         public int AscendantX = 0;
         public int AscendantZ = 0;
@@ -117,30 +118,65 @@ namespace Lightrealm
                     {
                         a.HairID = Game1.GameWorld.rnd.Next(0, 2);
 
-                        int count = Game1.GameWorld.rnd.Next(50, 101);
-
-                        for (int i = 0; i < count; i++)
+                        // Calculate total value of items in inventory
+                        int existingValue = 0;
+                        foreach (Object obj in a.Inventory)
                         {
-                            a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
+                            existingValue += obj.Value();
                         }
+
+                        // Convert value to number of fragments (since each is worth 10)
+                        int existingFragments = existingValue / 10;
+
+                        // Generate target number of fragments, minus what's already represented
+                        int baseCount = Game1.GameWorld.rnd.Next(250, 351);
+                        int remainingFragments = Math.Max(0, baseCount - existingFragments);
+
 
 
                         a.Inventory.Add(new Object(null, "dagger", new EntityList<Material> { Game1.GameWorld.Metals[Game1.r.Next(0,4)] }, null));
 
-
                         /*
-                        a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
-                        a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
-                        a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
-                        a.PathOfBodyLevel = 8;
-                        a.PathOfDeathLevel = 8;
-                        a.PathOfLifeLevel = 8;
-                        a.PathOfShadowLevel = 8;
-                        a.PathOfStarsLevel = 8;
-                        a.PathOfHeatLevel = 8;
-                        a.PathOfRealityLevel = 8;
-                        a.PathOfLightLevel = 8;
+                        for(int i = 0; i < 20; i++)
+                        {
+                            a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(10));
+                        }
                         */
+
+                        var gifts = new List<string>
+                        {
+                            "wind", "alacrity", "shadows", "lightning", "mindreaving",
+                            "telepathy", "siphoning", "detection", "slashing", "transformation",
+                            "blight", "abjuration", "swiftness"
+                        };
+
+
+
+                        //a.Invocations.AddRange(gifts);
+                       // a.PathOfBodyLevel = 8;
+                       // a.PathOfDeathLevel = 8;
+                     //   a.PathOfLifeLevel = 8;
+                      //  a.PathOfShadowLevel = 8;
+
+                      //  a.PathOfStarsLevel = 8;
+                       // a.PathOfHeatLevel = 8;
+                       // a.PathOfRealityLevel = 8;
+                        //a.PathOfLightLevel = 8;
+                        
+                       // a.SpellsKnown.AddRange(Game1.GameWorld.AllLegendarySpells);
+                       // a.SpellsKnown.AddRange(Game1.GameWorld.AllSpells);
+                       // a.SkillsKnown.AddRange(Game1.GameWorld.AllSkills);
+                        //imbuement testing
+                        /*
+                        for(int i = 0; i < 20; i++)
+                        {
+                            a.Inventory.Add(Game1.GameWorld.MagicalSuperLoot(8));
+                        }
+                        */
+
+
+
+
 
                         // Uncommented logic as per your original Party constructor
                         int healingItem = Game1.GameWorld.rnd.Next(1, 4);
@@ -157,6 +193,21 @@ namespace Lightrealm
                                 a.Inventory.Add(new Object(null, "vial", new EntityList<Material> { Game1.GameWorld.Glass, Game1.GameWorld.Vitalium }, null));
                                 break;
                         }
+
+
+
+
+
+
+                        //THEN finally APPLY FRAGS
+
+
+                        // Add the remaining fragments to the inventory
+                        for (int i = 0; i < remainingFragments; i++)
+                        {
+                            a.Inventory.Add(new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null));
+                        }
+
                     }
                 }
             }

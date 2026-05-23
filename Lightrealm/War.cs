@@ -10,7 +10,9 @@ public class War : Entity
     public Civilization Civilization1 { get; set; } // First civilization involved in the war
     public Civilization Civilization2 { get; set; } // Second civilization involved in the war
 
-    public EntityList<Region> Frontline = new EntityList<Region>();
+    public List<Region> Frontline = new List<Region>();
+
+    public Entity Causee { get; set; } = null;
 
     public War(Civilization civ1, Civilization civ2)
     {
@@ -139,7 +141,6 @@ public class War : Entity
 
             string Date = $"({Month}/{Year})";
             region.Owner = civilization;
-            Game1.GameWorld.HistoricalEvents.Add(new Event($"{Date} {civilization.Name} has claimed territory in {region.Name}.", region, new EntityList<Entity>() { civilization }));
         }
     }
 

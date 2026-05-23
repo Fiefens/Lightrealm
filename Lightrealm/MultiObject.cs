@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Lightrealm
@@ -63,6 +64,8 @@ namespace Lightrealm
             // CarvedSymbols: Union of all carved symbols without duplicates
             CarvedSymbols = new EntityList<Entity>(objectsToCombine.SelectMany(o => o.CarvedSymbols).Distinct().ToList());
 
+            UpdateCarvedSymbols();
+
             Block = null;
             Room = null;
 
@@ -85,7 +88,10 @@ namespace Lightrealm
             IsWearable = objectsToCombine.Any(o => o.IsWearable);
 
             // Rarity: Set to the highest rarity
-            Rarity = objectsToCombine.MaxBy(o => GetRarityRank(o.Rarity)).Rarity;
+            var nonNullRarityObjects = objectsToCombine.Where(o => o.Rarity != null).ToList();
+            Rarity = nonNullRarityObjects.Any()
+                ? nonNullRarityObjects.MaxBy(o => GetRarityRank(o.Rarity)).Rarity
+                : "uncommon";
 
             // Exposure: Set to 0
             Exposure = 0;
@@ -115,7 +121,7 @@ namespace Lightrealm
             // FractalCycles: Set to 0
             FractalCycles = 0;
 
-            RematerializeLocation = (null, null, null, null, null, null);
+            RematerializeLocation = (null, null, null, null, null);
 
             // IsCoveredInPlants: True if any are
             PlantCycles = objectsToCombine.Sum(o => o.PlantCycles);
@@ -135,7 +141,7 @@ namespace Lightrealm
             IsWeapon = objectsToCombine.Any(o => o.IsWeapon);
 
             // DamageType: Pick the first damage type found in this order
-            string[] damagePriority = { "piercing", "slashing", "scourging", "bashing" };
+            string[] damagePriority = { "piercing", "slashing", "thrashing", "bashing" };
             DamageType = objectsToCombine
                 .Where(o => o.IsWeapon)
                 .Select(o => o.DamageType)
@@ -165,6 +171,39 @@ namespace Lightrealm
 
             // Owner: Set to null
             Owner = null;
+
+            // Additional MultiObject setup (after main property merging)
+
+            // Always null
+            ConsoleDropLocation = null;
+
+            // Use first LetterContent that is not null
+            LetterContent = objectsToCombine.FirstOrDefault(o => o.LetterContent != null)?.LetterContent;
+
+            // Reset rotation and distance
+            Rotation = Game1.GameWorld.rnd.NextDouble() * 2 * Math.PI;
+            Distance = Game1.FurnitureItems.Contains(Type) ? Game1.GameWorld.rnd.Next(400, 500) : Game1.GameWorld.rnd.Next(200, 400);
+
+            // Reset console state and stored invocation
+            ConsoleOn = false;
+            StoredInvocation = null;
+
+            // CompositionContent from first non-null object
+            CompositionContent = objectsToCombine.FirstOrDefault(o => o.CompositionContent != null)?.CompositionContent;
+
+            // IsWritable if any object is writable
+            IsWritable = objectsToCombine.Any(o => o.IsWritable);
+
+            // SpecialKnowledge from first object that has it
+            SpecialKnowledge = objectsToCombine.FirstOrDefault(o => o.SpecialKnowledge != null)?.SpecialKnowledge;
+
+            ClothingVisible = true;
+            // IsLight: Only true if all objects are light
+            IsLight = objectsToCombine.All(o => o.IsLight);
+
+            // IsTwoHanded: True if any object is two-handed
+            IsTwoHanded = objectsToCombine.Any(o => o.IsTwoHanded);
+
         }
 
         // Override Value function to combine values of all objects
@@ -196,9 +235,9 @@ namespace Lightrealm
         }
 
         // Override TakeDamageFromObject to handle multi-object damage
-        public override EntityList<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
+        public override List<TextStorage> TakeDamageFromObject(Object o, int WielderProficiency, Architect MeleeAttacker, string DescriptiveVerb)
         {
-            var announcements = new EntityList<TextStorage>();
+            var announcements = new List<TextStorage>();
 
             foreach (var boundObject in BoundObjects.ToList()) // Use ToList to avoid modification during iteration
             {
@@ -219,11 +258,11 @@ namespace Lightrealm
         {
             // Use the MultiObject type name
             string combinedName = string.Join("-", BoundObjects.Select(o => o.Type).Distinct());
-            ClearReferredToNames();
+            _referredToNames.Clear();
             AddReferredToName(combinedName);
 
             // Additional logic to handle named multiobjects if necessary
-            base.UpdateNames(false, null);
+            base.UpdateNames(false, null, Game1.LoadedArchitects.Count > 0);
         }
     }
 }

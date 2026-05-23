@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 
 namespace Lightrealm
 {
@@ -11,31 +12,63 @@ namespace Lightrealm
         public HashSet<int> _entityIds = new HashSet<int>();
 
         [NonSerialized]
+        private Dictionary<int, T> _cachedEntities = new();
+
+        [NonSerialized]
         private Type _entityType = typeof(T);
 
-        // Property to store the EntityType as a string for serialization
+        // This will be serialized and used to restore the Type
+        private string _entityTypeString;
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            _cachedEntities = new Dictionary<int, T>();
+            if (!string.IsNullOrEmpty(_entityTypeString))
+            {
+                var resolved = Type.GetType(_entityTypeString);
+                if (resolved != null)
+                    _entityType = resolved;
+            }
+        }
+
+        // Expose the type string via a property (optional, for external use)
         public string EntityTypeString
         {
-            get => _entityType.AssemblyQualifiedName;
-            set => _entityType = Type.GetType(value);
+            get => _entityTypeString;
+            set
+            {
+                _entityTypeString = value;
+                _entityType = Type.GetType(value);
+            }
         }
 
         public Type EntityType
         {
             get => _entityType;
-            set => _entityType = value;
+            set
+            {
+                _entityType = value;
+                _entityTypeString = value?.AssemblyQualifiedName;
+            }
+        }
+
+        // Ensure the constructor initializes the type string correctly
+        public EntityHashSet()
+        {
+            _cachedEntities = new Dictionary<int, T>();
+            _entityType = typeof(T);
+            _entityTypeString = _entityType.AssemblyQualifiedName;
+        }
+
+        public EntityHashSet(IEnumerable<T> items) : this()
+        {
+            _entityIds = new HashSet<int>(items.Select(item => item.ID));
         }
 
         public int Count => _entityIds.Count;
 
         public bool IsReadOnly => false;
-
-        public EntityHashSet() { }
-
-        public EntityHashSet(IEnumerable<T> items)
-        {
-            _entityIds = new HashSet<int>(items.Select(item => item.ID));
-        }
 
         public void Add(T item)
         {
@@ -56,7 +89,7 @@ namespace Lightrealm
         {
             foreach (var id in _entityIds)
             {
-                array[arrayIndex++] = EntityGet<T>(id);
+                array[arrayIndex++] = EntityGet(id);
             }
         }
 
@@ -69,7 +102,7 @@ namespace Lightrealm
         {
             foreach (var id in _entityIds)
             {
-                yield return EntityGet<T>(id);
+                yield return EntityGet(id);
             }
         }
 
@@ -98,7 +131,7 @@ namespace Lightrealm
             var selectedSet = new EntityHashSet<TResult>();
             foreach (var id in _entityIds)
             {
-                var entity = EntityGet<T>(id);
+                var entity = EntityGet(id);
                 selectedSet.Add(selector(entity));
             }
             return selectedSet;
@@ -109,7 +142,7 @@ namespace Lightrealm
             var selectedSet = new EntityHashSet<TResult>();
             foreach (var id in _entityIds)
             {
-                var entity = EntityGet<T>(id);
+                var entity = EntityGet(id);
                 foreach (var result in selector(entity))
                 {
                     selectedSet.Add(result);
@@ -131,7 +164,7 @@ namespace Lightrealm
             var filteredSet = new EntityHashSet<T>();
             foreach (var id in _entityIds)
             {
-                var entity = EntityGet<T>(id);
+                var entity = EntityGet(id);
                 if (predicate(entity))
                 {
                     filteredSet.Add(entity);
@@ -154,7 +187,7 @@ namespace Lightrealm
             {
                 if (currentIndex == randomIndex)
                 {
-                    return EntityGet<T>(id);
+                    return EntityGet(id);
                 }
                 currentIndex++;
             }
@@ -172,24 +205,47 @@ namespace Lightrealm
 
         public void RemoveAll(Func<T, bool> predicate)
         {
-            var itemsToRemove = _entityIds.Where(id => predicate(EntityGet<T>(id))).ToList();
+            var itemsToRemove = _entityIds.Where(id => predicate(EntityGet(id))).ToList();
             foreach (var id in itemsToRemove)
             {
                 _entityIds.Remove(id);
             }
         }
 
-        private TE EntityGet<TE>(int entityId) where TE : Entity
+        private T EntityGet(int entityId)
         {
-            if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger != null && Game1.GameWorld.EntityLedger.ContainsKey(entityId))
+            if (_cachedEntities.TryGetValue(entityId, out var cached))
+                return (T)cached;
+
+            if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger.TryGetValue(entityId, out var entity))
             {
-                return (TE)Game1.GameWorld.EntityLedger[entityId];
+                _cachedEntities[entityId] = (T)entity;
+                return (T)entity;
             }
-            if (Game1.TemporaryEntityLedger.ContainsKey(entityId))
+            if (Game1.TemporaryEntityLedger.TryGetValue(entityId, out entity))
             {
-                return (TE)Game1.TemporaryEntityLedger[entityId];
+                _cachedEntities[entityId] = (T)entity;
+                return (T)entity;
             }
-            throw new KeyNotFoundException("Entity ID not found in either AllEntities or TemporaryEntities.");
+
+            throw new KeyNotFoundException("Entity ID not found");
+        }
+
+        public void UnionWith(IEnumerable<T> other)
+        {
+            foreach (var item in other)
+            {
+                _entityIds.Add(item.ID);
+            }
+        }
+
+        public void RemoveWhere(Predicate<T> match)
+        {
+            var itemsToRemove = _entityIds.Where(id => match(EntityGet(id))).ToList();
+            foreach (var id in itemsToRemove)
+            {
+                _entityIds.Remove(id);
+            }
         }
 
         // ToEntityList method to convert the EntityHashSet to EntityList
@@ -198,7 +254,7 @@ namespace Lightrealm
             var entityList = new EntityList<T>();
             foreach (var id in _entityIds)
             {
-                entityList.Add(EntityGet<T>(id));
+                entityList.Add(EntityGet(id));
             }
             return entityList;
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Lightrealm
 {
@@ -7,19 +8,20 @@ namespace Lightrealm
     public class SerializableRandom
     {
         private int seed;
-        private int usageCount; // Tracks how many times Random.Next() has been called
-        [NonSerialized]
-        private Random random; // Do not serialize the Random instance directly
+        public int Seed => seed;
 
-        public bool IsTracking = false;
+        private long usageCount;
+        public long UsageCount => usageCount;
+
+        [NonSerialized]
+        private Random random;
+
+        public bool IsTracking = true;
         public List<double> TrackedNumbers = new List<double>();
-        public string TrackedString
-        {
-            get
-            {
-                return string.Join(" ", TrackedNumbers);
-            }
-        }
+        public string TrackedString => string.Join(" ", TrackedNumbers);
+
+        public enum RandomOp { Next, NextMax, NextRange, NextDouble, NextLong }
+        public List<RandomOp> OperationHistory = new List<RandomOp>();
 
         public SerializableRandom(int seed)
         {
@@ -28,67 +30,89 @@ namespace Lightrealm
             this.random = new Random(seed);
         }
 
-        // Next(int maxValue)
-        public int Next(int maxValue)
-        {
-            usageCount++;
-            int result = random.Next(maxValue);
-            if (IsTracking)
-            {
-                TrackedNumbers.Add(result);
-            }
-            return result;
-        }
-
         public int Next()
         {
             usageCount++;
-            int result = random.Next();
-            if (IsTracking)
-            {
-                TrackedNumbers.Add(result);
-            }
-            return result;
+            OperationHistory.Add(RandomOp.Next);
+            return random.Next();
         }
 
-        // Next(int minValue, int maxValue)
+        public int Next(int maxValue)
+        {
+            usageCount++;
+            OperationHistory.Add(RandomOp.NextMax);
+            return random.Next(maxValue);
+        }
+
         public int Next(int minValue, int maxValue)
         {
             usageCount++;
-            int result = random.Next(minValue, maxValue);
-            if (IsTracking)
-            {
-                TrackedNumbers.Add(result);
-            }
-            return result;
+            OperationHistory.Add(RandomOp.NextRange);
+            return random.Next(minValue, maxValue);
         }
 
-        // NextDouble()
         public double NextDouble()
         {
             usageCount++;
-            double result = random.NextDouble();
+            OperationHistory.Add(RandomOp.NextDouble);
+            return random.NextDouble();
+        }
+
+        public long NextLong(long minValue, long maxValue)
+        {
+            if (minValue >= maxValue)
+                throw new ArgumentOutOfRangeException(nameof(minValue), "minValue must be less than maxValue");
+
+            usageCount++;
+            OperationHistory.Add(RandomOp.NextLong);
+
+            ulong range = (ulong)(maxValue - minValue);
+            ulong ulongRand;
+
+            byte[] buf = new byte[8];
+            do
+            {
+                random.NextBytes(buf);
+                ulongRand = BitConverter.ToUInt64(buf, 0);
+            }
+            while (ulongRand > ulong.MaxValue - ((ulong.MaxValue % range) + 1) % range);
+
+            long result = (long)(ulongRand % range + (ulong)minValue);
+            /*
             if (IsTracking)
             {
-                TrackedNumbers.Add(result);
+                TrackedNumbers.Add(result); // You may need to cast to double
             }
+            */
             return result;
         }
 
-        // Reinitialize the Random instance after deserialization
         public void Initialize()
         {
             random = new Random(seed);
 
-            // Advance the Random state to the correct usage count
-            for (int i = 0; i < usageCount; i++)
+            foreach (var op in OperationHistory)
             {
-                random.Next();
+                switch (op)
+                {
+                    case RandomOp.Next:
+                        random.Next();
+                        break;
+                    case RandomOp.NextMax:
+                        random.Next(100);
+                        break;
+                    case RandomOp.NextRange:
+                        random.Next(0, 100);
+                        break;
+                    case RandomOp.NextDouble:
+                        random.NextDouble();
+                        break;
+                    case RandomOp.NextLong:
+                        byte[] dummy = new byte[8];
+                        random.NextBytes(dummy); // advance RNG for NextLong
+                        break;
+                }
             }
         }
-
-        // Properties for serialization
-        public int Seed => seed;
-        public int UsageCount => usageCount;
     }
 }

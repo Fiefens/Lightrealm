@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 
 namespace Lightrealm
 {
@@ -11,8 +12,37 @@ namespace Lightrealm
         public List<int> _entityIds = new List<int>();
 
         [NonSerialized]
+        public Dictionary<int, T> _cachedEntities = new();
+
+        [NonSerialized]
         private Type _entityType = typeof(T);
+
         private string _entityTypeString;
+
+        public EntityList()
+        {
+            _cachedEntities = new Dictionary<int, T>();
+            _entityType = typeof(T);
+            _entityTypeString = _entityType.AssemblyQualifiedName;
+        }
+
+        public EntityList(IEnumerable<T> items) : this()
+        {
+            _entityIds = items.Select(item => item.ID).ToList();
+        }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            _cachedEntities = new Dictionary<int, T>();
+
+            if (!string.IsNullOrEmpty(_entityTypeString))
+            {
+                var resolved = Type.GetType(_entityTypeString);
+                if (resolved != null)
+                    _entityType = resolved;
+            }
+        }
 
         public Type EntityType
         {
@@ -20,7 +50,7 @@ namespace Lightrealm
             set
             {
                 _entityType = value;
-                _entityTypeString = value?.AssemblyQualifiedName; // Update the string representation
+                _entityTypeString = value?.AssemblyQualifiedName;
             }
         }
 
@@ -30,10 +60,22 @@ namespace Lightrealm
             set
             {
                 _entityTypeString = value;
-                _entityType = Type.GetType(value); // Rehydrate the Type from the string
+                _entityType = Type.GetType(value);
             }
         }
 
+        public int Count => _entityIds.Count;
+        public bool IsReadOnly => false;
+
+        private T GetCachedEntity(int id)
+        {
+            if (_cachedEntities.TryGetValue(id, out T value))
+                return value;
+
+            T entity = EntityGet<T>(id);
+            _cachedEntities[id] = entity;
+            return entity;
+        }
 
         public T this[int index]
         {
@@ -41,7 +83,7 @@ namespace Lightrealm
             {
                 if (index < 0 || index >= _entityIds.Count)
                 {
-                     throw new IndexOutOfRangeException($"Index {index} is out of range for entity IDs list.");
+                    throw new IndexOutOfRangeException($"Index {index} is out of range for entity IDs list.");
                 }
 
                 int entityId = _entityIds[index];
@@ -58,17 +100,6 @@ namespace Lightrealm
             }
         }
 
-        public EntityList() { }
-
-        public EntityList(IEnumerable<T> items)
-        {
-            _entityIds = items.Select(item => item.ID).ToList();
-        }
-
-        public int Count => _entityIds.Count;
-
-        public bool IsReadOnly => false;
-
         public void Add(T item)
         {
             _entityIds.Add(item.ID);
@@ -77,17 +108,33 @@ namespace Lightrealm
         public EntityList<T> Distinct()
         {
             var distinctEntityList = new EntityList<T>();
-            var distinctIds = _entityIds.Distinct();
-            distinctEntityList.AddRange(distinctIds.Select(id => EntityGet<T>(id)));
+            var seen = new HashSet<int>();
+
+            foreach (int id in _entityIds)
+            {
+                if (seen.Add(id))
+                {
+                    distinctEntityList.Add(GetCachedEntity(id));
+                }
+            }
+
             return distinctEntityList;
         }
 
         public EntityList<T> Take(int count)
         {
             var takenEntityList = new EntityList<T>();
-            takenEntityList.AddRange(_entityIds.Take(count).Select(id => EntityGet<T>(id)));
+
+            int limit = Math.Min(count, _entityIds.Count); // Avoid out-of-range
+            for (int i = 0; i < limit; i++)
+            {
+                takenEntityList.Add(GetCachedEntity(_entityIds[i]));
+            }
+
             return takenEntityList;
         }
+
+
 
         public bool SequenceEqual(EntityList<T> other)
         {
@@ -114,14 +161,24 @@ namespace Lightrealm
 
         public EntityList<T> ShuffleNew()
         {
-            var shuffledEntityList = new EntityList<T>(this);
-            shuffledEntityList.Shuffle();
-            return shuffledEntityList;
+            var shuffledIds = new List<int>(_entityIds);
+
+            int n = shuffledIds.Count;
+            while (n > 1)
+            {
+                n--;
+                int k = Game1.GameWorld.rnd.Next(n + 1);
+                (shuffledIds[k], shuffledIds[n]) = (shuffledIds[n], shuffledIds[k]);
+            }
+
+            var list = new EntityList<T> { _entityIds = shuffledIds }; // Reuse IDs directly
+            return list;
         }
+
 
         public bool Contains(T item)
         {
-            if(item == null)
+            if (item == null)
             {
                 return false;
             }
@@ -131,16 +188,41 @@ namespace Lightrealm
         public EntityList<TResult> Select<TResult>(Func<T, TResult> selector) where TResult : Entity
         {
             var selectedEntityList = new EntityList<TResult>();
-            selectedEntityList.AddRange(_entityIds.Select(id => selector(EntityGet<T>(id))));
+
+            foreach (int id in _entityIds)
+            {
+                T entity = GetCachedEntity(id);
+                TResult result = selector(entity);
+                if (result != null)
+                    selectedEntityList.Add(result);
+            }
+
             return selectedEntityList;
         }
+
+
 
         public EntityList<TResult> SelectMany<TResult>(Func<T, IEnumerable<TResult>> selector) where TResult : Entity
         {
             var selectedEntityList = new EntityList<TResult>();
-            selectedEntityList.AddRange(_entityIds.SelectMany(id => selector(EntityGet<T>(id)).Select(e => e.ID)).Select(EntityGet<TResult>));
+
+            foreach (int id in _entityIds)
+            {
+                T entity = GetCachedEntity(id);
+                IEnumerable<TResult> results = selector(entity);
+                if (results == null) continue;
+
+                foreach (TResult result in results)
+                {
+                    if (result != null)
+                        selectedEntityList.Add(result);
+                }
+            }
+
             return selectedEntityList;
         }
+
+
 
         public void CopyTo(T[] array, int arrayIndex)
         {
@@ -153,24 +235,40 @@ namespace Lightrealm
         public EntityList<TResult> Cast<TResult>() where TResult : Entity
         {
             var castedEntityList = new EntityList<TResult>();
-            castedEntityList.AddRange(_entityIds.Select(id => (TResult)(EntityGet<Entity>(id))));
+
+            foreach (int id in _entityIds)
+            {
+                Entity entity = EntityGet<Entity>(id);
+                if (entity is TResult result)
+                {
+                    castedEntityList.Add(result);
+                }
+            }
+
             return castedEntityList;
         }
+
 
         public EntityList<T> GetRange(int index, int count)
         {
             var rangeEntityList = new EntityList<T>();
-            var rangeIds = _entityIds.GetRange(index, count);
-            rangeEntityList.AddRange(rangeIds.Select(id => EntityGet<T>(id)));
+
+            int limit = Math.Min(index + count, _entityIds.Count);
+            for (int i = index; i < limit; i++)
+            {
+                rangeEntityList.Add(GetCachedEntity(_entityIds[i]));
+            }
+
             return rangeEntityList;
         }
+
 
         public EntityList<U> ConvertAll<U>(Func<T, U> converter) where U : Entity
         {
             var convertedEntityList = new EntityList<U>();
             foreach (var id in _entityIds)
             {
-                var entity = EntityGet<T>(id);
+                var entity = GetCachedEntity(id);
                 var convertedEntity = converter(entity);
                 convertedEntityList.Add(convertedEntity);
             }
@@ -179,34 +277,34 @@ namespace Lightrealm
 
         public EntityList<T> OrderBy<TKey>(Func<T, TKey> keySelector) where TKey : IComparable<TKey>
         {
-            var orderedEntities = _entityIds
-                .Select(id => EntityGet<T>(id))
-                .OrderBy(keySelector);
+            var entities = new List<T>(_entityIds.Count);
+            foreach (int id in _entityIds)
+            {
+                entities.Add(GetCachedEntity(id));
+            }
+
+            entities.Sort((a, b) => keySelector(a).CompareTo(keySelector(b)));
 
             var orderedEntityList = new EntityList<T>();
-            orderedEntityList.AddRange(orderedEntities);
-
+            orderedEntityList.AddRange(entities);
             return orderedEntityList;
         }
-
         public EntityList<T> OrderByDescending<TKey>(Func<T, TKey> keySelector) where TKey : IComparable<TKey>
         {
-            var orderedEntities = _entityIds
-                .Select(id => EntityGet<T>(id))
-                .OrderByDescending(keySelector);
+            var entities = new List<T>(_entityIds.Count);
+            foreach (int id in _entityIds)
+            {
+                entities.Add(GetCachedEntity(id));
+            }
+
+            entities.Sort((a, b) => keySelector(b).CompareTo(keySelector(a)));
 
             var orderedEntityList = new EntityList<T>();
-            orderedEntityList.AddRange(orderedEntities);
-
+            orderedEntityList.AddRange(entities);
             return orderedEntityList;
         }
 
-        public EntityList<T> Union(IEnumerable<T> other)
-        {
-            var unionEntityList = new EntityList<T>(this);
-            unionEntityList.AddRange(other);
-            return unionEntityList;
-        }
+
 
         public IEnumerator<T> GetEnumerator()
         {
@@ -260,15 +358,35 @@ namespace Lightrealm
 
         public void RemoveAll(Predicate<T> match)
         {
-            var idsToRemove = _entityIds.Where(id => match(EntityGet<T>(id)));
-            _entityIds.RemoveAll(id => idsToRemove.Contains(id));
+            for (int i = _entityIds.Count - 1; i >= 0; i--)
+            {
+                int id = _entityIds[i];
+                T entity = EntityGet<T>(id);
+                if (match(entity))
+                {
+                    _entityIds.RemoveAt(i);
+                }
+            }
         }
 
         public void Sort(Comparison<T> comparison)
         {
-            var sorted = this.OrderBy(item => item, Comparer<T>.Create(comparison));
-            _entityIds = sorted.Select(item => item.ID).ToList();
+            var entities = new List<T>(_entityIds.Count);
+            foreach (int id in _entityIds)
+            {
+                entities.Add(GetCachedEntity(id));
+            }
+
+            entities.Sort(comparison);
+
+            _entityIds.Clear();
+            foreach (T entity in entities)
+            {
+                _entityIds.Add(entity.ID);
+            }
         }
+
+
 
         public void ForEach(Action<T> action)
         {
@@ -296,8 +414,15 @@ namespace Lightrealm
 
         public List<T> ToList()
         {
-            return _entityIds.Select(id => EntityGet<T>(id)).ToList();
+            var list = new List<T>(_entityIds.Count);
+            foreach (int id in _entityIds)
+            {
+                list.Add(GetCachedEntity(id));
+            }
+            return list;
         }
+
+
 
         public void RemoveRange(int index, int count)
         {
@@ -311,16 +436,15 @@ namespace Lightrealm
 
         private TE EntityGet<TE>(int entityId) where TE : Entity
         {
-            if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger != null && Game1.GameWorld.EntityLedger.ContainsKey(entityId))
-            {
-                return (TE)Game1.GameWorld.EntityLedger[entityId];
-            }
-            if (Game1.TemporaryEntityLedger.ContainsKey(entityId))
-            {
-                return (TE)Game1.TemporaryEntityLedger[entityId];
-            }
-            throw new KeyNotFoundException("Entity ID not found in either AllEntities or TemporaryEntities.");
+            if (Game1.GameWorld != null && Game1.GameWorld.EntityLedger.TryGetValue(entityId, out var entity))
+                return (TE)entity;
+
+            if (Game1.TemporaryEntityLedger.TryGetValue(entityId, out entity))
+                return (TE)entity;
+
+            throw new KeyNotFoundException("Entity ID not found in either EntityLedger or TemporaryEntityLedger.");
         }
+
 
         public void UnionWith(EntityList<T> other)
         {
@@ -338,9 +462,44 @@ namespace Lightrealm
             }
         }
 
+
+        public EntityList<T> ThenBy<TKey>(Func<T, TKey> keySelector) where TKey : IComparable<TKey>
+        {
+            var entities = new List<T>(_entityIds.Count);
+            foreach (int id in _entityIds)
+            {
+                entities.Add(GetCachedEntity(id));
+            }
+
+            entities.Sort((a, b) => keySelector(a).CompareTo(keySelector(b)));
+
+            var orderedEntityList = new EntityList<T>();
+            orderedEntityList.AddRange(entities);
+            return orderedEntityList;
+        }
+
+
+        public EntityList<T> Union(IEnumerable<T> other)
+        {
+            var unionEntityList = new EntityList<T>(this);
+
+            var existingIds = new HashSet<int>(_entityIds);
+
+            foreach (var item in other)
+            {
+                if (item != null && existingIds.Add(item.ID))
+                {
+                    unionEntityList._entityIds.Add(item.ID);
+                    unionEntityList._cachedEntities[item.ID] = item;
+                }
+            }
+
+            return unionEntityList;
+        }
+
         public EntityList<T> Except(EntityList<T> other)
         {
-            var resultEntityList = new EntityList<T>();
+            var resultEntityList = new EntityList<T>(); // Preallocate capacity
 
             var otherIds = new HashSet<int>(other._entityIds);
 
@@ -348,22 +507,24 @@ namespace Lightrealm
             {
                 if (!otherIds.Contains(id))
                 {
-                    resultEntityList.Add(EntityGet<T>(id));
+                    resultEntityList.Add(GetCachedEntity(id));
                 }
             }
 
             return resultEntityList;
         }
 
+
         public EntityList<T> Reverse()
         {
             var reversedEntityList = new EntityList<T>();
             for (int i = _entityIds.Count - 1; i >= 0; i--)
             {
-                reversedEntityList.Add(EntityGet<T>(_entityIds[i]));
+                reversedEntityList.Add(GetCachedEntity(_entityIds[i]));
             }
             return reversedEntityList;
         }
+
 
         public void RemoveWhere(Predicate<T> match)
         {
@@ -376,7 +537,7 @@ namespace Lightrealm
 
             foreach (var id in _entityIds)
             {
-                T entity = EntityGet<T>(id);
+                T entity = GetCachedEntity(id);
                 if (match(entity))
                 {
                     idsToRemove.Add(id);
@@ -394,7 +555,7 @@ namespace Lightrealm
             var filteredEntityList = new EntityList<T>();
             foreach (var id in _entityIds)
             {
-                T entity = EntityGet<T>(id);
+                T entity = GetCachedEntity(id);
                 if (predicate(entity))
                 {
                     filteredEntityList.Add(entity);
@@ -402,5 +563,23 @@ namespace Lightrealm
             }
             return filteredEntityList;
         }
+
+        public bool Exists(Predicate<T> match)
+        {
+            if (match == null)
+            {
+                throw new ArgumentNullException(nameof(match), "Predicate cannot be null.");
+            }
+
+            foreach (var id in _entityIds)
+            {
+                if (match(GetCachedEntity(id)))
+                    return true;
+            }
+
+            return false;
+        }
+
+
     }
 }

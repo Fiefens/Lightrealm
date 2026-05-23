@@ -21,7 +21,7 @@ namespace Lightrealm
 
             selectedPieces = new List<string>();
 
-            string[] objectives = { "capture your opponent's pieces", "arrange your pieces in a specific pattern", "remove all of your opponent's pieces", "roll the highest number", "build the tallest structure", "control the board", "assemble a specific combination of pieces", "be the last player with pieces remaining", "dominate the most territories", "collect the most resources" };
+            string[] objectives = { "capture your opponent's pieces", "arrange your pieces in a specific pattern", "remove all of their opponent's pieces", "roll the highest number", "build the tallest structure", "control the board", "assemble a specific combination of pieces", "be the last player with pieces remaining", "dominate the most territories", "collect the most resources" };
             string[] setupModes = { "place all pieces on the board", "distribute pieces among players", "give each player an equal number of pieces", "arrange pieces in a circle", "scatter pieces randomly", "place pieces in a grid", "create a central pool of pieces", "divide the pieces into territories", "place pieces in alternating turns", "assign pieces based on a roll", "shuffle and deal pieces randomly", "line up pieces in rows", "assign pieces according to color", "group pieces by type", "set pieces at random positions", "arrange pieces based on player choice", "place pieces in secret locations", "build initial structures with pieces", "place pieces in a spiral pattern" };
             string[] turnOrders = { "goes clockwise based on the player with the lowest roll", "goes counterclockwise based on the player with the lowest roll", "goes clockwise based on the player with the highest roll", "is decided randomly", "starts with the player with the fewest pieces and escalates", "starts with the player with the most pieces and de-escalates", "is clockwise starting with the youngest", "is clockwise starting with the oldest", "is based on the opinion of the most experienced player" };
             string[] masterActions = { "place a piece", "move a piece", "remove a piece", "trade a piece", "roll a die", "flip a piece", "exchange a piece", "hide a piece", "steal a piece", "gain a piece" };
@@ -61,7 +61,7 @@ namespace Lightrealm
                     objectiveActions.Add($"place a {ObjectivePiece} in the pattern");
                     objectiveActions.Add($"move a {ObjectivePiece} to form the pattern");
                     break;
-                case "remove all of your opponent's pieces":
+                case "remove all of their opponent's pieces":
                     objectiveActions.Add($"remove an opponent's {ObjectivePiece}");
                     objectiveActions.Add($"replace an opponent's {ObjectivePiece} with their {GetOrCreatePiece()}");
                     break;
@@ -90,8 +90,8 @@ namespace Lightrealm
                     objectiveActions.Add($"fortify a territory with a {ObjectivePiece}");
                     break;
                 case "collect the most resources":
-                    objectiveActions.Add($"harvest resources based on the represented number of your {ObjectivePiece}s");
-                    objectiveActions.Add($"trade resources based on the represented number of your {ObjectivePiece}s");
+                    objectiveActions.Add($"harvest resources based on the represented number of their {ObjectivePiece}s");
+                    objectiveActions.Add($"trade resources based on the represented number of their {ObjectivePiece}s");
                     break;
             }
 

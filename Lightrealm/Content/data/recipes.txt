@@ -11,21 +11,21 @@ right boot,metal,metal
 shortsword,metal,metal
 knife,metal,metal
 dagger,metal,metal
-greatsword,metal,metal,metal
-battle axe,metal,metal,metal
-axe,metal,metal
-greataxe,metal,metal,metal
+longsword,metal,metal
+battle axe,metal,metal
+work axe,metal,metal
+greataxe,metal,metal
 rapier,metal,metal
 spear,metal,metal
 pike,metal,metal
 pickaxe,metal,metal
 mace,metal,metal
-hammer,metal,metal
+war hammer,metal,metal
 staff,wood,gemstone
 shield,metal,metal
-whip,fiber,fiber
-scourge,fiber,fiber
-flail,metal,fiber,fiber
+whip,metal,metal
+scourge,metal,metal
+flail,metal,metal
 chain,metal,metal
 small hat,cloth,cloth
 large hat,cloth,cloth,cloth
@@ -61,11 +61,6 @@ small bowl,stone,stone
 big bowl,stone,stone,stone
 small cup,glass,glass
 big cup,glass,glass
-urn,stone,stone
-pot,stone,stone
-mug,stone,stone
-bowl,stone,stone
-cup,glass,glass
 small chalice,metal,gemstone
 big chalice,metal,gemstone,gemstone
 bookcase,wood,wood,wood
@@ -82,3 +77,10 @@ armor stand,wood,metal
 pedestal,stone,stone
 pillar,stone,stone,stone
 rug,cloth,cloth
+book,cloth,cloth
+book,cloth,cloth,fiber
+scroll,cloth,wood
+jar,sheet,sheet
+bottle,sheet,sheet
+bin,wood,wood
+barrel,wood,wood

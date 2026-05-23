@@ -1,11 +1,13 @@
-﻿using Microsoft.VisualBasic;
+﻿using Humanizer;
+using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
-using nFMOD;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Net.Security;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -26,46 +28,191 @@ namespace Lightrealm
             return (T)Convert.ChangeType(Game1.GameWorld.EntityLedger[entityId], typeof(T));
         }
 
+static Dictionary<string, string[]> ChapterReadText = new Dictionary<string, string[]>
+{
+    { "Chapter 1: Basic Combat", new[]
+        {
+            " ",
+            "[ Basic Combat ]",
+            "To defeat an architect, you must deplete their bodily energy supply without them depleting yours. To do this, you must land attacks, cast spells, and/or use other abilities to bring their energy down as fast as possible. This is most commonly done with the \"approach\" and \"directed attack\" actions.",
+            "Creatures in Lightrealm have the ability to quickly heal themselves, so focus on ending a combat quickly rather than keeping your reserves up. Ending a fight near death is no less of a victory than ending one in peak condition."
+        }
+    },
+    { "Chapter 2: Stats", new[]
+        {
+            " ",
+            "[ Stats ]",
+            "Certain stats improve your characters' combat ability. ",
+            "Strength generally improves melee power and speed.",
+            "Agility increases action speed, your chance to dodge attacks, and your chance to escape when moving away from a combat encounter.",
+            "Dexterity improves exposure, throwing power, and ability to dodge projectiles.",
+            "Endurance improves your maximum energy and decreases the burden carried items have on your action speed.",
+            "Creativity increases the maximum imbuements you can sustain from magical items.",
+            "Focus improves your magic effectiveness and decreases pain felt and accrued."
+        }
+    },
+    { "Chapter 3: Weapons", new[]
+        {
+            " ",
+            "[ Weapons ]",
+            "Weapons have a damage type that dictates their effects. Bashing weapons apply significant energy loss, functional damage, and considerable pain, but inflict minimal bleeding. Piercing weapons excel at damaging functions of body parts and destroying energy, but cause minor pain and minimal bleeding. Slashing weapons offer a balanced array of bleeding, energy loss, and pain, with slightly less functional damage than other types. Thrashing weapons cause great pain and bleeding, but minimal functional damage or direct energy loss."
+        }
+    },
+
+    { "Chapter 4: Imbuements", new[]
+        {
+            " ",
+            "[ Imbuements ]",
+            "Certain objects you find in a world may possess one or more magical imbuements. If you find one, it will provide either a conditional passive bonus, or a triggerable effect. Your character can sustain imbuements equal to 3 + Creativity, and you can use the game menu and the manage imbuements button to change which imbuements you wish to channel at any time."
+        }
+    },
+    { "Chapter 5: Strike Targeting", new[]
+        {
+            " ",
+            "[ Strike Targeting ]",
+            "Depending on your target, you might want to strike a different body part. You might want to strike unarmored parts to maximize general bleeding, pain, and energy loss. Targeting core parts like head, neck, and torso can be harder but cause uncontrollable bleeding later in combat. Targeting hands or arms can cause the item in said hand or arm to be dropped. Targeting legs, wings, or other movement parts can greatly reduce action speed. If a part has recently been attacked, it is likely less exposed, and if a part has been used in an attack recently, it might be easier to strike."
+        }
+    },
+    { "Chapter 6: Reactions", new[]
+        {
+            " ",
+            "[ Reactions ]",
+            "When you are being attacked by a general blow, you have an opportunity to react. Reactability is generally easier when you are skilled at the reaction, and is generally harder when you are destabilized, have atypical apparel, or are exposed. Most reactions will cancel a hit entirely in exchange for exposing you, but some reactions have special other effects.",
+            "Sustaining a hit is default, you take the hit normally. Parrying an attack requires a weapon or shield, and is more effective with specific weapons. Parrying exposes the utilized arm and hand. Blocking an attack is very effective, but requires a shield and exposes all unblocked body parts. Ducking is more effective against high body attacks and exposes upper body parts. Jumping is more effective against low body attacks and exposes lower body parts. Rolling away from an attack is less effective in general, but reduces your exposure all around. Disarming an attacker attempts to remove the attacker's weapon. A success will not protect you, but will remove the attacker's weapon from their hand. Redirecting an attack is slightly less likely to succeed, but a success will expose the limb used in the attack."
+        }
+    },
+    { "Chapter 7: Armor", new[]
+        {
+            " ",
+            "[ Armor ]",
+            "Armor grants certain body parts coverage. For instance, a hood grants half head coverage and half neck coverage, which multiplied with material strength can sometimes reduce significant damage.",
+            "For example, a copper chestplate that grants high coverage, but with low material toughness, would stifle a torso or shoulder attack about 20% of the time, reducing it or uncommonly preventing it."
+        }
+    },
+    { "Chapter 8: Exposure", new[]
+        {
+            " ",
+            "[ Exposure ]",
+            "When you make an attack with a limb or use a limb to make a protective maneuver, that limb gets exposed. Use the \"reposition\" action to decrease exposure of all limbs and the \"retract\" action to heavily decrease the exposure of a commonly-used limb. Exposure decreases your ability to react to attacks against a limb, sometimes making protecting the limb impossible.",
+            "While not directly visible, your opponent gets exposed just as you do, so watch for combat techniques you can exploit."
+        }
+    },
+    { "Chapter 9: Throwing and Projectiles", new[]
+        {
+            " ",
+            "[ Throwing and Projectiles ]",
+            "Objects that are airborne have a specific target and a time-to-hit. Projectiles are created by throwing, imbuements, or other abilities. A projectile might miss if the target is particularly dextrous. Leaving the vicinity of the projectile will also cause it to miss."
+        }
+    },
+    { "Chapter 10: Conditions", new[]
+        {
+            " ",
+            "[ Conditions ]",
+            "A variety of effects can cause temporary conditions to fall upon you or your opponent.",
+            "If you are in combat, or use a combative maneuver, you become Engaged (E). It will be more difficult to escape until you are able to neutralize the threat.",
+            "If you are ignited, you will become On Fire (F). Every second, you will take damage depending on how much fire you have accrued, limited at five, then your fire will reduce.",
+            "If you are wet (W), you will be immunized to fire.",
+            "If you are blind, (B), you will be unable to see what is happening around you, but will still be able to act.",
+            "If you are destabilized (D), your character's reaction success chances will be cut in half.",
+            "If you are knocked out or experience too much pain, your character will go Unconscious (U), preventing action until you return to consciousness.",
+            "If you are radiant (R), you will be slightly slowed.",
+            "If a construct initiates a Cloak ability (C), they will gain extra stealth, helping them escape and/or avoid attacks.",
+            "When something is Fractal (T) it disappears into the fractal dimension until it is no longer fractal.",
+            "If someone is covered in plants (P), their attacks are easier to react against.",
+            "When something is Held (H), it cannot physically move.",
+            "If something is Dismissed (S), it can escape combat much easier, and gets a slight bonus to dodging attacks."
+        }
+    },
+    { "Chapter 11: Spells", new[]
+        {
+            " ",
+            "[ Spells ]",
+            "If you know a spell and are close enough, you can spend your energy to cast it and apply various negative effects. Most spells are not efficient at doing direct damage. You would typically use a spell to gain an edge for physical weapons rather than relying fully on spells for the kill. Focus improves most spell effects and reduces the energy needed to cast them."
+        }
+    },
+    { "Chapter 12: Skills", new[]
+        {
+            " ",
+            "[ Skills ]",
+            "Skills are technical combat maneuvers that provide an instant advantage or augment the following move. Skills can be used once per location, you must leave to refresh your skill list. You can learn up to 3 skills. Skills are instantaneous; they have no cooldown after use."
+        }
+    },
+    { "Chapter 13: Health and Healing Items", new[]
+        {
+            " ",
+            "[ Health and Healing Items ]",
+            "Several items can be used in or out of combat to mitigate critical conditions, for a price.",
+            "Energy is required to live. If you lose all your energy, your character's nuclear fusion will cease and they will subsequently die. You can restore energy slowly out of combat, or with vitalium vials.",
+            "Pain will cause you to \"falter\", accruing for you extra cooldown cycles, which force you to wait longer until your turn. If your pain meter (near your energy orb) fills up, you will go unconscious until it can naturally stabilize (or until you get beaten to death). You can remedy pain with salves, or pain will slowly disappear over time.",
+            "Bleeding will cause energy loss every second equal to bleed stacks accrued, then decrease by one. You can remedy bleeding with bandages, or wait for the stacks to run out.",
+            "Body parts have an Integrity that determines how functional they are. For example, losing leg or foot integrity will force your character to the ground and/or lose speed, losing arm integrity can cause you to drop items, and losing head/torso integrity can cause heavy bleeding. Body part integrity cannot be healed mid-combat, and it will slowly heal out of combat.",
+            "Using any healing items in combat will destabilize you, so you may consider if you truly need one.",
+            "You can also only use 3 healing items before you develop healing sickness, you must move to a new block or room before using more."
+        }
+    },
+    { "Chapter 14: Nerd Stuff", new[]
+        {
+            " ",
+            "[ Nerd Stuff ]",
+            "Grenades are thrown items that create a massive area of effect upon contact with something. They mystically travel rather slowly through the air. You might not want to be in the room when one explodes...",
+            "You can shove an enemy to push them 3-4 units away, dependent on strength.",
+            "You can use a fiber bunch to rig a trap. If an architect who did not see the trap get set enters the area, the trap will spring and they might be bound or destabilized."
+        }
+    },
+    { "Chapter 15: Path Magic", new[]
+        {
+            " ",
+            "[ Path Magic ]",
+            "If you defeat an architect of a higher level than you, you will absorb their soul. You can channel the soul into a particular element, which will boost stats and unlock special abilities."
+        }
+    }
+};
+
+
         public static void MakeObservation(string data, Color color, EntityList<Entity> entities)
         {
             string capitalizedData = Game1.Capitalize(data);
-            Game1.Observations.Add(new TextStorage(capitalizedData, color, entities));
-            Game1.Announcements.Add(new TextStorage(capitalizedData, color, entities));
-        }
-
-        public static void AddMessage(string data, Color color, EntityList<Entity> entities)
-        {
-            string capitalizedData = Game1.Capitalize(data);
-            Game1.Messages.Add(new TextStorage(capitalizedData, color, entities));
             Game1.Announcements.Add(new TextStorage(capitalizedData, color, entities));
         }
 
         public static bool CanUnderstandEachOther(Entity sender, Entity receiver)
         {
-            // Ensure the receiver is an Architect and assign it to recArch
+            // Ensure both sender and receiver are Architects
             if (!(receiver is Architect recArch) || !(sender is Architect senderArch))
             {
                 return false; // They cannot understand each other
             }
 
-            // If either party has a Path of Life Level of 4 or greater
+            // Path of Life Level >= 4 overrides everything
             if (senderArch.PathOfLifeLevel >= 4 || recArch.PathOfLifeLevel >= 4)
             {
-                return true; // They can automatically understand each other
+                return true;
             }
 
-            // Check if both are either ExtraRaces or HumanoidRaces
-            bool senderIsValidRace = Game1.GameWorld.HumanoidRaces.Contains(senderArch.Race) || Game1.GameWorld.ExtraRaces.Contains(senderArch.Race);
-            bool receiverIsValidRace = Game1.GameWorld.HumanoidRaces.Contains(recArch.Race) || Game1.GameWorld.ExtraRaces.Contains(recArch.Race);
+            bool senderIsHumanoid = Game1.GameWorld.HumanoidRaces.Contains(senderArch.Race);
+            bool receiverIsHumanoid = Game1.GameWorld.HumanoidRaces.Contains(recArch.Race);
 
-            if (senderIsValidRace && receiverIsValidRace)
+            if (senderIsHumanoid && receiverIsHumanoid)
             {
-                return true; // They can understand each other
+                return true; // All humanoids understand each other
             }
 
-            // If none of the above conditions are met
+            bool senderIsExtra = Game1.GameWorld.ExtraRaces.Contains(senderArch.Race);
+            bool receiverIsExtra = Game1.GameWorld.ExtraRaces.Contains(recArch.Race);
+
+            if (senderIsExtra && receiverIsExtra && senderArch.Race == recArch.Race)
+            {
+                return true; // ExtraRaces only understand others of the same race
+            }
+
+            if (((senderIsExtra && receiverIsHumanoid) || (receiverIsExtra && senderIsHumanoid)) && (senderArch.PathOfLifeLevel >= 2 || recArch.PathOfLifeLevel >= 2))
+            {
+                return true; // ExtraRaces can understatns dpathoflifers 2.
+            }
+
             return false;
         }
+
 
 
         public static bool RunCommand(Architect Executor, string CommandID, List<Entity> Subjects, List<Architect> LoadedArchitects, World GameWorld, Random r, string OriginalCommand)
@@ -75,8 +222,31 @@ namespace Lightrealm
             int Year = (int)Math.Round((decimal)(GameWorld.Cycle / 290304000), MidpointRounding.ToZero);
 
 
-            
+            //importance
+            if (Game1.GameWorld.GamePlayerAssociation?.ActiveParty?.Architects != null &&
+        Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Executor))
+            {
+                Executor.ImportantThisLoad = true;
 
+                foreach (var subject in Subjects)
+                {
+                    if (subject is Architect arch)
+                    {
+                        arch.ImportantThisLoad = true;
+                    }
+                }
+            }
+
+
+            Game1.LastRanCommand = OriginalCommand;
+            Game1.LastRanCommandBlockX = Executor.Block.X;
+            Game1.LastRanCommandBlockZ = Executor.Block.Z;
+            Game1.ReferredToNamesOfLastCommandEntities = Subjects
+    .Select((s, index) => $"Subject {index + 1}: {s.ReferredToNames[0]}")
+    .ToList();
+
+            Game1.StructureIsNullIfNull = Executor.Structure;
+            Game1.RoomIndexIsNegativeOneIfNull = Executor.Room == null ? -1 : Executor.Room.Structure.Rooms.IndexOf(Executor.Room);
 
             string Date = "(" + Month + "/" + Year + ")";
 
@@ -87,210 +257,84 @@ namespace Lightrealm
                 Subjects = new List<Entity>();
             }
 
-            EntityList<Architect> ArchitectsToUse;
+            EntityList<Architect> ArchitectsToUse; 
+            EntityList<Object> ObjectsToUse;
+
 
             if (Executor.Room != null)
             {
                 ArchitectsToUse = Executor.Room.Architects; // Use architects from the room if it's not null
+                ObjectsToUse = Executor.Room.Objects;
             }
             else
             {
                 ArchitectsToUse = Executor.Block.Architects; // Otherwise, use architects from the block
+                ObjectsToUse = Executor.Block.Objects;
             }
 
-            var waitCommands = new Dictionary<string, int>
+
+            if (CommandID != null && Game1.RecognizedMessages.ContainsKey(CommandID) && Subjects[0] is Architect Reciever)
             {
-                { "wait", 1 },
-                { "wait a second", 1 },
-                { "wait one second", 1 },
-                { "wait two seconds", 2 },
-                { "wait three seconds", 3 },
-                { "wait four seconds", 4 },
-                { "wait five seconds", 5 },
-                { "wait six seconds", 6 },
-                { "wait seven seconds", 7 },
-                { "wait eight seconds", 8 },
-                { "wait nine seconds", 9 },
-                { "wait ten seconds", 10 },
-                { "wait twenty seconds", 20 },
-                { "wait thirty seconds", 30 },
-                { "wait forty seconds", 40 },
-                { "wait fifty seconds", 50 },
-                { "wait a minute", 60 },
-                { "wait one minute", 60 },
-                { "wait two minutes", 120 },
-                { "wait three minutes", 180 },
-                { "wait four minutes", 240 },
-                { "wait five minutes", 300 }
-            };
+                var trimmedSubjects = new List<Entity>(Subjects.Skip(1));
 
-            if (CommandID != null && Game1.RecognizedMessages.ContainsKey(CommandID))
-            {
-                Architect Reciever = (Architect)Subjects[0];
-
-                Subjects.RemoveAt(0);
-
-                SendMessage(CommandID, Executor, Reciever, new EntityList<Entity>(Subjects), GameWorld);
-
+                if (ArchitectsToUse.Contains(Reciever) || Executor.Invocations.Contains("telepathy"))
+                    SendMessage(CommandID, Executor, Reciever, new EntityList<Entity>(trimmedSubjects), GameWorld);
+                else
+                    MakeObservation("That person is not nearby.", Color.Yellow, new EntityList<Entity>());
             }
+
             else if (CommandID == "leave_structure")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
-
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
                 Executor.HideValue = 0;
+
+                Object exitDoor = null;
+                if (Executor.Structure != null)
+                    exitDoor = Executor.Room.Objects.FirstOrDefault(o => o.Type == "exit door");
 
                 if (Executor.Structure == null)
                 {
-                    MakeObservation("You are not in a structure.", Color.Yellow, new EntityList<Entity>());
+                    Executor.AnnounceToParty(Executor.ReferredToNames[0] + " is not in a structure.", Color.Yellow, new EntityList<Entity>() { Executor });
                 }
-                else if (Executor.Room != Executor.Structure.Rooms[0] && !(Executor.Location.Layout == "archway" && Executor.Room == Executor.Structure.Rooms.Last()))
+                else if (exitDoor == null)
                 {
-                    MakeObservation("There is not a way to exit through (Try entering doors your character remembers, marked by [<]).", Color.Yellow, new EntityList<Entity>());
-                }
-                else
-                {
-                    if (Game1.GameWorld.rnd.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
+                    Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed);
+
+                    if (!Executor.Room.TriedBreak)
                     {
-                        Executor.Room.Architects.Remove(Executor);
-                        Executor.Structure = null;
-                        Executor.Room = null;
-                        Executor.Block.Architects.Add(Executor);
-                        Executor.StepSound(1);
-
-                        Game1.SFX.Add(Game1.GameWorld.rnd.Next(2) == 0 ? Game1.DoorOpen1 : Game1.DoorClose0);
-
-                        foreach (Architect a in Executor.Block.Architects)
-                        {
-                            a.Historical = true;
-                            Game1.GameWorld.AllHistoricalArchitects.Add(a);
-                        }
-
-                        Game1.SwitchState("otherturn", false);
-
-                        Game1.ProgressTutorial(21);
+                        Executor.AnnounceToParty($"There is not a way for {Executor.ReferredToNames[0]} to exit through. Use this command again to try to destroy the walls, or path to the exit normally.", Color.Yellow, new EntityList<Entity>() { Executor });
+                        Executor.Room.TriedBreak = true;
                     }
                     else
                     {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
-                        Executor.StepSound(1);
-                        Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
+                        Executor.Bash();
+
+                    }
+                }
+                else
+                {
+                    if (exitDoor.Reinforced)
+                    {
+                        Executor.AnnounceToParty($"The door won't budge. {Executor.ReferredToNames[0]} might need to bash it down.", Color.Yellow, new EntityList<Entity>() { Executor });
+                    }
+                    else
+                    {
+                        // Reuse enter logic for exiting through the door
+                        Executor.Enter(exitDoor, false);
+
+                        if (Executor.Room == null)
+                        {
+                            Game1.SwitchState("otherturn", false);
+                            Game1.ProgressTutorial(21);
+                        }
                     }
                 }
             }
+
             else if (CommandID == "enter")
             {
-                Executor.HideValue = 0;
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.Enter(Subjects[0], false);
 
-                if (Executor.OnTopOfStructure != null)
-                {
-                    MakeObservation("You need to get down from " + Executor.OnTopOfStructure + ", first.", Color.Yellow, new EntityList<Entity>());
-                }
-                else if (Subjects[0].Reinforced)
-                {
-                    MakeObservation("The door won't budge. You might need to bash it down.", Color.Yellow, new EntityList<Entity>());
-                }
-                else if (LoadedArchitects[Game1.ArchitectIndex].Structure != null && Subjects[0] is Door && (Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
-                {
-                    if (Game1.GameWorld.rnd.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
-                    {
-                        Executor.Room.Architects.Remove(Executor);
-                        Executor.Room = ((Door)Subjects[0]).DestinationRoom;
-                        Executor.Room.Architects.Add(Executor);
-
-
-                        Game1.SFX.Add(Game1.GameWorld.rnd.Next(2) == 0 ? Game1.DoorOpen1 : Game1.DoorClose0);
-                        Executor.StepSound(1);
-
-                        Game1.SFX.Add(Game1.GameWorld.rnd.Next(2) == 0 ? Game1.DoorOpen1 : Game1.DoorClose0);
-
-                        foreach (Architect a in Executor.Room.Architects)
-                        {
-                            a.Historical = true;
-                            Game1.GameWorld.AllHistoricalArchitects.Add(a);
-                        }
-
-                        Executor.CooldownCycles += (int)(Math.Round(25 / Executor.Speed()));
-                    }
-                    else
-                    {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
-                        Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
-                        Executor.StepSound(1);
-                    }
-                }
-                else if (LoadedArchitects[Game1.ArchitectIndex].Structure == null && Subjects[0] is Structure)
-                {
-                    if (Game1.GameWorld.rnd.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
-                    {
-                        Executor.Structure = (Structure)Subjects[0];
-                        Executor.Room = ((Structure)Subjects[0]).Rooms[0];
-                        Executor.Block.Architects.Remove(Executor);
-                        Executor.Structure.Rooms[0].Architects.Add(Executor);
-                        Executor.CooldownCycles += (int)(Math.Round(25 / Executor.Speed()));
-
-                        Game1.SFX.Add(Game1.GameWorld.rnd.Next(2) == 0 ? Game1.DoorOpen1 : Game1.DoorClose0);
-                        Executor.StepSound(1);
-
-                        foreach (Architect a in Executor.Room.Architects)
-                        {
-                            a.Historical = true;
-                            Game1.GameWorld.AllHistoricalArchitects.Add(a);
-                        }
-
-
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " enters " + ((Structure)Subjects[0]).Name + ", a " + ((Structure)Subjects[0]).Type + ".", Color.LightBlue, new EntityList<Entity>() { }));
-
-                        if (((Structure)Subjects[0]).PrimarySmells.Count() > 0)
-                        {
-                            Game1.Exposition.Add(new TextStorage("The fresh scent of " + ((Structure)Subjects[0]).PrimarySmells[0] + " fills the area.", Color.Yellow, new EntityList<Entity>() { }));
-                        }
-                        if (((Structure)Subjects[0]).Type == "shrine" && ((Structure)Subjects[0]).Rooms.Any(room => room.Objects.Any(obj => obj.Type == "altar")))
-                        {
-                            Game1.Exposition.Add(new TextStorage("An altar lies in the grand hall of this shrine. Perhaps you could offer it something?", Color.Yellow, new EntityList<Entity>() { }));
-                        }
-
-                        Game1.SwitchState("exposition", false);
-                    }
-                    else
-                    {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
-                        Executor.StepSound(1);
-                        Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
-                    }
-                }
-                else if (Subjects[0] is Object obj && obj.Type == "exit door" && Executor.Room != null)
-                {
-                    if (Game1.GameWorld.rnd.Next(100) <= Executor.EscapeChance() || Executor.CombatCycles == 0)
-                    {
-                        Executor.CooldownCycles += (int)(Math.Round(25 / Executor.Speed()));
-                        Executor.Room.Architects.Remove(Executor);
-                        Executor.Structure = null;
-                        Executor.Room = null;
-                        Executor.Block.Architects.Add(Executor);
-
-                        foreach (Architect a in Executor.Block.Architects)
-                        {
-                            a.Historical = true;
-                            Game1.GameWorld.AllHistoricalArchitects.Add(a);
-                        }
-                        Game1.SFX.Add(Game1.GameWorld.rnd.Next(2) == 0 ? Game1.DoorOpen1 : Game1.DoorClose0);
-                        Executor.StepSound(2);
-
-                        Game1.Exposition.Add(new TextStorage(Executor.Name + " exits through the " + obj.Type + ".", Color.Blue, new EntityList<Entity>() { }));
-                        Game1.GameState = "exposition";
-                    }
-                    else
-                    {
-                        MakeObservation("You struggle to escape, and fail!", Color.OrangeRed, new EntityList<Entity>());
-                        Executor.StepSound(1);
-                        Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed());
-                    }
-                }
-                else
-                {
-                    MakeObservation("The specified subject does not lead you anywhere.", Color.Yellow, new EntityList<Entity>());
-                }
             }
             else if (CommandID == "go_prone" && (Subjects.Count() == 0 || Subjects[0].Metadata == "down"))
             {
@@ -301,7 +345,7 @@ namespace Lightrealm
             else if (CommandID == "stand_up" && (Subjects.Count() == 0 || Subjects[0].Metadata == "up"))
             {
                 MakeObservation("You stand up.", Color.Green, new EntityList<Entity>());
-                Executor.CooldownCycles += (int)Math.Round((20 - Executor.Agility) * Executor.Speed());
+                Executor.CooldownCycles += (int)Math.Round((20 - Executor.Agility) * Executor.Speed);
                 Executor.OnGround = false;
                 Game1.SFX.Add(Game1.Cloth);
             }
@@ -313,7 +357,7 @@ namespace Lightrealm
                     Game1.TriedFakeMove = true;
                 }
 
-                if(Executor.YLevelInFeet > 0)
+                if (Executor.YLevelInFeet > 0)
                 {
                     MakeObservation("You need to be on the ground to move between blocks.", Color.Yellow, new EntityList<Entity>());
                 }
@@ -326,7 +370,7 @@ namespace Lightrealm
                     Executor.Move(Subjects[0].Metadata);
                 }
             }
-            
+
             else if (CommandID == "attack_specific_body_part")
             {
                 Object Weapon;
@@ -351,11 +395,11 @@ namespace Lightrealm
                     Weapon = LoadedArchitects[Game1.ArchitectIndex].BodyParts[Game1.GameWorld.rnd.Next(LoadedArchitects[Game1.ArchitectIndex].BodyParts.Count())];
                 }
 
-                if (Subjects[0] is Architect a && (Executor.Room != null && Executor.Room.Architects.Contains(a) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
+                if (Subjects[0] is Architect a && ((Executor.Room != null && Executor.Room.Architects.Contains(a)) || (Executor.Block.Architects.Contains(a) && Executor.Room == null)))
                 {
                     Object targetBodyPart = a.FindBodyPart(Subjects[1].Metadata);
 
-                    if (targetBodyPart != null && Weapon.WeaponMaximumRange >= Executor.GetDistance(a) && Math.Abs(a.YLevelInFeet - Executor.YLevelInFeet) <= 5 && Game1.TutorialActive == false)
+                    if (targetBodyPart != null && ((Weapon.WeaponMaximumRange + (Executor.Invocations.Contains("slashing") ? 2 : 0)) >= Executor.GetDistance(a)) && Math.Abs(a.YLevelInFeet - Executor.YLevelInFeet) <= 5 && Game1.TutorialActive == false)
                     {
                         Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, targetBodyPart, "decideforme", Weapon);
                         if (Executor.DoubleStrikeReady)
@@ -417,9 +461,49 @@ namespace Lightrealm
                 {
                     Target = ((Architect)(Subjects[0])).BodyParts[Game1.GameWorld.rnd.Next(((Architect)(Subjects[0])).BodyParts.Count())];
                 }
-                else if (Subjects[0] is Object o && (Executor.Room != null && Executor.Room.Objects.Contains(o) || (Executor.Block.Objects.Contains(o) && Executor.Room == null)))
+                else if (Subjects[0] is Object o && (((Executor.Room != null && Executor.Room.Objects.Contains(o)) || (Executor.Block.Objects.Contains(o) && Executor.Room == null))))
                 {
                     Target = (Object)(Subjects[0]);
+                }
+                else if (Subjects[0] is Structure s)
+                {
+                    if (Executor.Room == null && Executor.Block == s.Block)
+                    {
+                        if (s.Reinforced)
+                        {
+                            MakeObservation("You attack the structure, weakening its defenses.", Color.Yellow, new EntityList<Entity>());
+                            s.DoorIntegrity -= 20;
+                            Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
+
+                            if (s.DoorIntegrity < 0)
+                            {
+                                // Reset structure integrity and break reinforcement
+                                s.DoorIntegrity = 50;
+                                s.Reinforced = false;
+                                MakeObservation(s.ReferredToNames[0] + " is no longer reinforced!", Color.Orange, new EntityList<Entity>());
+
+                                // Find the exit door in the structure's primary room
+                                var exitDoor = s.Rooms[0].Objects.FirstOrDefault(obj => obj.Type == "exit door");
+
+                                if (exitDoor != null)
+                                {
+                                    exitDoor.Reinforced = false;
+                                    exitDoor.Integrity = 50;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("You attack the structure, but it seems to be fruitless.", Color.Yellow, new EntityList<Entity>());
+                        }
+
+                        return true;
+                    }
+                    else
+                    {
+                        MakeObservation("That structure is too far away, or you are not outside it.", Color.Yellow, new EntityList<Entity>());
+                        return false;
+                    }
                 }
                 else
                 {
@@ -427,10 +511,27 @@ namespace Lightrealm
                     return false;
                 }
 
+
+                string GetOpposingDirection(string direction)
+                {
+                    return direction switch
+                    {
+                        "north" => "south",
+                        "south" => "north",
+                        "east" => "west",
+                        "west" => "east",
+                        "up" => "down",
+                        "down" => "up",
+                        _ => direction
+                    };
+                }
+
                 // Check if the target is reinforced
                 if (Target.Reinforced)
                 {
                     Target.Integrity -= 20; // Drop integrity by 20
+                    Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
+
 
                     if (Target.Integrity < 0)
                     {
@@ -440,18 +541,32 @@ namespace Lightrealm
 
                         MakeObservation(Target.ReferredToNames[0] + " is no longer reinforced!", Color.Orange, new EntityList<Entity>());
 
-                        // Search for the paired door/object/structure and unreinforce it
-                        Object pairedObject = (Object)(Target.PairedObject());
-                        if (pairedObject != null && pairedObject.Reinforced)
+                        // If the target is an exit door, also unreinforce its structure
+                        if (Target is Object exitDoor && exitDoor.Type == "exit door" && exitDoor.Structure != null)
                         {
-                            pairedObject.Reinforced = false;
-                            pairedObject.Integrity = 50;
+                            exitDoor.Structure.Reinforced = false;
+                            exitDoor.Structure.DoorIntegrity = 50;
+                        }
+                        // If the target is a door, find and unreinforce its paired door
+                        else if (Target is Door door && door.DestinationRoom != null)
+                        {
+                            string opposingDirection = GetOpposingDirection(door.Direction);
+                            var pairedDoor = door.DestinationRoom.Objects
+                                .OfType<Door>()
+                                .FirstOrDefault(d => d.Direction == opposingDirection && d.DestinationRoom == door.SourceRoom);
+
+                            if (pairedDoor != null)
+                            {
+                                pairedDoor.Reinforced = false;
+                                pairedDoor.Integrity = 50;
+                            }
                         }
                     }
                     return true;
                 }
 
-                if (((Target.Owner == null) || (Weapon.WeaponMaximumRange >= Executor.GetDistance((Architect)(Target.Owner)) && Math.Abs(((Architect)(Target.Owner)).YLevelInFeet - Executor.YLevelInFeet) <= 5)) && Game1.TutorialActive == false)
+
+                if (((Target.Owner == null) || ((Weapon.WeaponMaximumRange + (Executor.Invocations.Contains("slashing") ? 2 : 0)) >= Executor.GetDistance((Architect)(Target.Owner)) && Math.Abs(((Architect)(Target.Owner)).YLevelInFeet - Executor.YLevelInFeet) <= 5)) && Game1.TutorialActive == false)
                 {
                     Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                     if (Executor.DoubleStrikeReady)
@@ -483,11 +598,53 @@ namespace Lightrealm
                 {
                     Target = (Object)(Subjects[0]);
                 }
+                else if (Subjects[0] is Structure s)
+                {
+                    if (Executor.Room == null && Executor.Block == s.Block)
+                    {
+                        if (s.Reinforced)
+                        {
+                            MakeObservation("You attack the structure, weakening its defenses.", Color.Yellow, new EntityList<Entity>());
+                            s.DoorIntegrity -= 20;
+                            Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
+
+
+                            if (s.DoorIntegrity < 0)
+                            {
+                                // Reset structure integrity and break reinforcement
+                                s.DoorIntegrity = 50;
+                                s.Reinforced = false;
+                                MakeObservation(s.ReferredToNames[0] + " is no longer reinforced!", Color.Orange, new EntityList<Entity>());
+
+                                // Find the exit door in the structure's primary room
+                                var exitDoor = s.Rooms[0].Objects.FirstOrDefault(obj => obj.Type == "exit door");
+
+                                if (exitDoor != null)
+                                {
+                                    exitDoor.Reinforced = false;
+                                    exitDoor.Integrity = 50;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("You attack the structure, but it seems to be fruitless.", Color.Yellow, new EntityList<Entity>());
+                        }
+
+                        return true;
+                    }
+                    else
+                    {
+                        MakeObservation("That structure is too far away, or you are not outside it.", Color.Yellow, new EntityList<Entity>());
+                        return false;
+                    }
+                }
                 else
                 {
                     MakeObservation("You can't attack that.", Color.Yellow, new EntityList<Entity>());
                     return false;
                 }
+
                 if (Target.Reinforced)
                 {
                     Target.Integrity -= 20;
@@ -509,7 +666,18 @@ namespace Lightrealm
                     return true;
                 }
 
-                if ((Weapon != null && Weapon.WeaponMaximumRange >= Executor.GetDistance((Architect)Target.Owner) && Math.Abs(((Architect)(Target.Owner)).YLevelInFeet - Executor.YLevelInFeet) <= 5) && Game1.TutorialActive == false)
+                if (
+                    Weapon != null &&
+                    (
+                        !Target.IsBodyPart ||
+                        (
+                            Target.Creator == null ||
+                            (Weapon.WeaponMaximumRange + (Executor.Invocations.Contains("slashing") ? 2 : 0)) >= Executor.GetDistance((Architect)Target.Creator)
+                        )
+                    ) &&
+                    Math.Abs(((Architect)(Target.Owner)).YLevelInFeet - Executor.YLevelInFeet) <= 5 &&
+                    Game1.TutorialActive == false
+                )
                 {
                     Game1.CalculateAttack(Game1.DetermineAttackVerb(Weapon.DamageType), Executor, Target, "decideforme", Weapon);
                     if (Executor.DoubleStrikeReady)
@@ -556,7 +724,7 @@ namespace Lightrealm
                                 // Item not accessible
                                 MakeObservation("You need to have that object in your hands or as an accessible part of your body.", Color.Yellow, new EntityList<Entity>());
                             }
-                            else if ((item.WeaponMaximumRange < Executor.GetDistance(a) || Math.Abs(a.YLevelInFeet - Executor.YLevelInFeet) > 5) && Game1.TutorialActive == false)
+                            else if (((item.WeaponMaximumRange + (Executor.Invocations.Contains("slashing") ? 2 : 0)) < Executor.GetDistance(a) || Math.Abs(a.YLevelInFeet - Executor.YLevelInFeet) > 5) && Game1.TutorialActive == false)
                             {
                                 // Target too far away (distance or height)
                                 Game1.Announcements.Add(new TextStorage("You wave your hands around, but you aren't close enough. Use the \"approach target\" command to get closer.", Color.Yellow, new EntityList<Entity>() { }));
@@ -620,7 +788,7 @@ namespace Lightrealm
             }
 
 
-            else if (CommandID == "become_invisible")
+            else if (CommandID == "become_shadow")
             {
                 if (Executor.Invisible)
                 {
@@ -629,6 +797,9 @@ namespace Lightrealm
                 else if (Executor.PathOfShadowLevel >= 4)
                 {
                     MakeObservation("You enter the darkness.", Color.Gray, new EntityList<Entity>());
+
+                    Executor.TryComment("useshadow", 50);
+
                     Executor.Invisible = true;
                     Game1.SFX.Add(Game1.Invisibility);
                     Executor.ExtraStealth += 1000;
@@ -640,11 +811,12 @@ namespace Lightrealm
             }
             else if (CommandID == "exit_invisibility")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
                 if (Executor.Invisible)
                 {
                     MakeObservation("You exit the shadows.", Color.Gray, new EntityList<Entity>());
                     Game1.SFX.Add(Game1.Invisibility);
+                    Executor.TryComment("useshadow", 50);
                     Executor.Invisible = false;
                 }
                 else
@@ -652,12 +824,33 @@ namespace Lightrealm
                     MakeObservation("You are not in the shadows.", Color.Yellow, new EntityList<Entity>());
                 }
             }
-            else if (CommandID == "level_up" && Subjects[0].Metadata == "up")
+            else if (CommandID == "level_up")
             {
-                Executor.Level++;
-                Executor.SpendableLevels++;
-                MakeObservation("You divine an imbuement of great power.", Color.Yellow, new EntityList<Entity>());
+                if (Subjects[0].Metadata == "up")
+                {
+                    Executor.Level++;
+                    Executor.SpendableLevels++;
+                    MakeObservation("You divine a soul from above.", Color.Yellow, new EntityList<Entity>());
+                }
+                else if (Subjects[0].Metadata == "down")
+                {
+                    Executor.Level = 1;
+                    Executor.SpendableLevels = 0;
 
+                    Executor.PathOfShadowLevel = 0;
+                    Executor.PathOfLifeLevel = 0;
+                    Executor.PathOfRealityLevel = 0;
+                    Executor.PathOfLightLevel = 0;
+                    Executor.PathOfDeathLevel = 0;
+                    Executor.PathOfStarsLevel = 0;
+                    Executor.PathOfHeatLevel = 0;
+                    Executor.PathOfBodyLevel = 0;
+                    MakeObservation("You lose all souls.", Color.Yellow, new EntityList<Entity>());
+                }
+                else
+                {
+                    MakeObservation("What in the name of doge are you trying to do...", Color.Yellow, new EntityList<Entity>());
+                }
             }
 
             else if (CommandID == "engage_target")
@@ -674,11 +867,11 @@ namespace Lightrealm
                             }
                             else
                             {
-                                Executor.ModifyDistance(architect, 2); // Increase distance with all others by 2
+                                Executor.ModifyDistance(architect, 2); // Increase Up all others by 2
                             }
                         }
                         MakeObservation("You focus your target, shifting distances.", Color.Green, new EntityList<Entity>());
-                        Executor.CooldownCycles += (int)Math.Round((10 / Executor.Speed()));
+                        Executor.CooldownCycles += (int)Math.Round((10 / Executor.Speed));
 
                         Executor.StepSound(2);
                     }
@@ -701,7 +894,7 @@ namespace Lightrealm
                     {
                         Executor.ModifyDistance(targetArchitect, -2); // Decrease distance by 2
                         MakeObservation("You move closer to the target.", Color.Green, new EntityList<Entity>());
-                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
+                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed));
 
                         Executor.StepSound(2);
                     }
@@ -723,7 +916,7 @@ namespace Lightrealm
                     {
                         Executor.ModifyDistance(targetArchitect, 2); // Increase distance by 2
                         MakeObservation("You increase your distance from the target.", Color.Green, new EntityList<Entity>());
-                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
+                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed));
 
                         Executor.StepSound(2);
                     }
@@ -743,7 +936,7 @@ namespace Lightrealm
                 {
                     if (ArchitectsToUse.Contains(targetArchitect))
                     {
-                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed()));
+                        Executor.CooldownCycles += (int)Math.Round((15 / Executor.Speed));
                         MakeObservation("You deliver headpats to " + targetArchitect.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>());
 
                         if (!Game1.GameWorld.HumanoidRaces.Contains(targetArchitect.Race) && !Game1.GameWorld.ExtraRaces.Contains(targetArchitect.Race))
@@ -772,40 +965,113 @@ namespace Lightrealm
                     MakeObservation("You weren't supposed to pet this.", Color.Yellow, new EntityList<Entity>());
                 }
             }
-
             else if (CommandID == "wield_item")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
-                if (Subjects[0] is Object && LoadedArchitects[Game1.ArchitectIndex].Inventory.Contains((Object)Subjects[0]))
-                {
-                    if (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == null)
-                    {
-                        LoadedArchitects[Game1.ArchitectIndex].MainHeldObject = ((Object)Subjects[0]);
-                        LoadedArchitects[Game1.ArchitectIndex].Inventory.Remove(((Object)Subjects[0]));
-                        MakeObservation("You wield the " + LoadedArchitects[Game1.ArchitectIndex].MainHeldObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { LoadedArchitects[Game1.ArchitectIndex].MainHeldObject });
-                        Game1.SFX.Add(Game1.Wield);
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
 
-                    }
-                    else if (LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == null)
-                    {
-                        LoadedArchitects[Game1.ArchitectIndex].OffHeldObject = ((Object)Subjects[0]);
-                        LoadedArchitects[Game1.ArchitectIndex].Inventory.Remove(((Object)Subjects[0]));
-                        MakeObservation("You wield the " + LoadedArchitects[Game1.ArchitectIndex].OffHeldObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { LoadedArchitects[Game1.ArchitectIndex].OffHeldObject });
-                        Game1.SFX.Add(Game1.Wield);
-                    }
-                    else
-                    {
-                        MakeObservation("Your hands are full.", Color.Yellow, new EntityList<Entity>());
-                    }
+                if (Executor.CarryingEntity != null)
+                {
+                    MakeObservation("You need to drop your carried item before wielding anything.", Color.Yellow, new EntityList<Entity>());
                 }
                 else
                 {
-                    MakeObservation("That is not an object in your inventory.", Color.Yellow, new EntityList<Entity>());
+                    if (Subjects[0] is Object item && Executor.Inventory.Contains(item))
+                    {
+                        bool mainArmFunctional = Executor.MainInteractionAppendage.Integrity >= 60;
+                        bool offArmFunctional = Executor.OffInteractionAppendage.Integrity >= 50;
+
+                        if (Executor.Race.MainInteractionAppendage.EndsWith("hand"))
+                        {
+                            string mainArmName = Executor.Race.MainInteractionAppendage.Replace("hand", "arm").ToLower();
+                            Object mainArm = Executor.BodyParts.FirstOrDefault(x => x.Type.ToLower() == mainArmName);
+                            if (mainArm != null && mainArm.Integrity < 60)
+                            {
+                                mainArmFunctional = false;
+                            }
+                        }
+
+                        if (Executor.Race.OffInteractionAppendage.EndsWith("hand"))
+                        {
+                            string offArmName = Executor.Race.OffInteractionAppendage.Replace("hand", "arm").ToLower();
+                            Object offArm = Executor.BodyParts.FirstOrDefault(x => x.Type.ToLower() == offArmName);
+                            if (offArm != null && offArm.Integrity < 50)
+                            {
+                                offArmFunctional = false;
+                            }
+                        }
+
+                        bool determineFailureMessage = false;
+
+                        // Check if the item is two-handed and both hands are empty
+                        if (item.IsTwoHanded)
+                        {
+                            if (mainArmFunctional && offArmFunctional && Executor.MainHeldObject == null && Executor.OffHeldObject == null)
+                            {
+                                Executor.MainHeldObject = item;
+                                Executor.Inventory.Remove(item);
+                                MakeObservation("You wield the " + item.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { item });
+                                Game1.SFX.Add(Game1.Wield);
+                                determineFailureMessage = true;
+                            }
+                            else
+                            {
+                                MakeObservation("You need both empty hands to wield a two-handed weapon.", Color.Yellow, new EntityList<Entity>());
+                                determineFailureMessage = true;
+                                
+                            }
+                        }
+                        else // Single-handed item logic remains the same
+                        {
+                            // Prevent wielding a single-handed item in the off hand if the main hand holds a two-handed weapon
+                            if (Executor.MainHeldObject != null && Executor.MainHeldObject.IsTwoHanded && Executor.OffHeldObject == null)
+                            {
+                                MakeObservation("You cannot wield another item in your empty hand while holding a two-handed weapon.", Color.Yellow, new EntityList<Entity>());
+                            }
+                            else
+                            {
+                                if (mainArmFunctional && Executor.MainHeldObject == null)
+                                {
+                                    Executor.MainHeldObject = item;
+                                    Executor.Inventory.Remove(item);
+                                    MakeObservation("You wield the " + item.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { item });
+                                    Game1.SFX.Add(Game1.Wield);
+                                    determineFailureMessage = true;
+                                }
+                                else if (offArmFunctional && Executor.OffHeldObject == null)
+                                {
+                                    Executor.OffHeldObject = item;
+                                    Executor.Inventory.Remove(item);
+                                    MakeObservation("You wield the " + item.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { item });
+                                    Game1.SFX.Add(Game1.Wield);
+                                    determineFailureMessage = true;
+                                }
+                            }
+                        }
+
+                        if (!determineFailureMessage)
+                        {
+                            if (Executor.MainHeldObject != null && Executor.OffHeldObject != null)
+                            {
+                                MakeObservation("Your hands are full.", Color.Yellow, new EntityList<Entity>());
+                            }
+                            else
+                            {
+                                MakeObservation("You have no functional arm/hand pairs that can hold the item. Wait for them to heal (click energy orb) or leave the location.", Color.Yellow, new EntityList<Entity>());
+                            }
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("That is not an object in your inventory.", Color.Yellow, new EntityList<Entity>());
+                    }
                 }
             }
+
+
+
             else if (CommandID == "holster_item")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
 
                 if (Subjects[0] is Object itemToHolster)
                 {
@@ -841,7 +1107,7 @@ namespace Lightrealm
 
             else if (CommandID == "ditch_inventory")
             {
-                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed));
 
                 EntityList<Object> Clothings = new EntityList<Object>();
                 foreach (Object o in Executor.Clothing)
@@ -862,7 +1128,7 @@ namespace Lightrealm
                     // Incur market debt if in a market
                     if (Executor.Structure != null && Executor.Structure.Type == "market")
                     {
-                        Executor.Structure.MarketDebt += o.Value();
+                        Executor.Structure.MarketDebtToUs += o.Value();
                     }
                 }
 
@@ -878,7 +1144,7 @@ namespace Lightrealm
                     // Incur market debt if in a market
                     if (Executor.Structure != null && Executor.Structure.Type == "market")
                     {
-                        Executor.Structure.MarketDebt += o.Value();
+                        Executor.Structure.MarketDebtToUs += o.Value();
                     }
                 }
 
@@ -886,124 +1152,240 @@ namespace Lightrealm
             }
 
 
-
-
-            else if (CommandID == "place_item_in")
+            else if (CommandID == "take_item_from")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
-                if (Subjects[0] == Executor.MainHeldObject || Subjects[0] == Executor.OffHeldObject || Executor.Inventory.Contains(Subjects[0]))
+                Executor.CooldownCycles += (int)Math.Round(5 / Executor.Speed);
+
+                if (Subjects.Count > 1 && (Subjects[1].Metadata == "shadow fountain" || (Subjects[1] is Object && ((Object)Subjects[1]).Type == "shadow fountain")))
                 {
-                    // Check if the subject is "shadow fountain" directly, avoiding the need for it to be an Object
-                    if (Subjects[1].Metadata == "shadow fountain" || (Subjects[1] is Object && ((Object)(Subjects[1])).Type == "shadow fountain"))
+                    // Shadow storage logic
+                    if (Executor.Room == null)
                     {
-                        // Shadow storage logic
-                        if (Executor.Room == null)
+                        bool StorageFound = false;
+
+                        foreach (Object o in Executor.Block.Objects)
                         {
-                            bool StorageFound = false;
-                            foreach (Object o in Executor.Block.Objects)
+                            if (o.Type == "shadow fountain")
                             {
-                                if (o.Type == "shadow fountain")
+                                if (Executor.ShadowStorage.Contains((Object)Subjects[0]))
                                 {
-                                    if (!Executor.ShadowStorage.Contains((Object)Subjects[0]))
+                                    // Multi-item check
+                                    bool otherItemsExist = Executor.ShadowStorage.Count(obj => obj.Type == ((Object)Subjects[0]).Type && obj.Materials.SequenceEqual(((Object)Subjects[0]).Materials)) > 1;
+
+                                    if (otherItemsExist)
                                     {
-                                        Executor.ShadowStorage.Add((Object)Subjects[0]);
+                                        Executor.SelectedContainer = o;
+                                        Executor.TryTakeItemType = ((Object)Subjects[0]).Type;
+                                        Executor.TryTakeMaterials.Clear();
+                                        Executor.TryTakeMaterials.UnionWith(((Object)Subjects[0]).Materials);
 
-                                        // Optionally clear the object from hands or inventory, but keep it linked to shadow storage
-                                        if (Subjects[0] == Executor.MainHeldObject)
-                                        {
-                                            Executor.MainHeldObject = null;
-                                        }
-                                        else if (Subjects[0] == Executor.OffHeldObject)
-                                        {
-                                            Executor.OffHeldObject = null;
-                                        }
-                                        else if (Executor.Inventory.Contains(Subjects[0]))
-                                        {
-                                            Executor.Inventory.Remove((Object)(Subjects[0]));
-                                        }
-
-                                        MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the shadow storage.", Color.Green, new EntityList<Entity>() { Subjects[0] });
-
-                                        ((Object)(Subjects[0])).PlaySound();
-
-                                        StorageFound = true;
-
-                                        // Add historical event for placing the item
-                                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
+                                        Game1.GameState = "trytake"; // Switch to selection state
                                     }
                                     else
                                     {
-                                        MakeObservation("The item is already in the shadow storage.", Color.Yellow, new EntityList<Entity>() { });
-                                    }
-                                    break; // Exit the loop once the shadow storage is processed
-                                }
-                            }
+                                        // Proceed with normal item retrieval
+                                        if (Executor.MainHeldObject == null)
+                                        {
+                                            Executor.MainHeldObject = (Object)Subjects[0];
+                                        }
+                                        else if (Executor.OffHeldObject == null)
+                                        {
+                                            Executor.OffHeldObject = (Object)Subjects[0];
+                                        }
+                                        else
+                                        {
+                                            Executor.Inventory.Add((Object)Subjects[0]);
+                                        }
 
-                            if (!StorageFound)
-                            {
-                                MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
+                                        Executor.ShadowStorage.Remove((Object)Subjects[0]);
+
+                                        MakeObservation("You retrieve the " + Subjects[0].ReferredToNames[0] + " from the shadow storage.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                                        StorageFound = true;
+
+                                        ((Object)Subjects[0]).PlaySound();
+
+                                        // Add historical event for taking the item
+                                        Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
+
+                                    }
+                                }
+                                else
+                                {
+                                    MakeObservation("The shadow storage does not contain that.", Color.Green, new EntityList<Entity>());
+                                }
+                                break;
                             }
                         }
-                        else
+
+                        if (!StorageFound)
                         {
                             MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
                         }
                     }
-                    else if (Subjects[1] is Object subjectObject && subjectObject.IsContainer)
-                    {
-                        // Handling normal container logic
-                        if (Subjects[0] == Executor.MainHeldObject)
-                        {
-                            Executor.MainHeldObject = null;
-                        }
-                        else if (Subjects[0] == Executor.OffHeldObject)
-                        {
-                            Executor.OffHeldObject = null;
-                        }
-                        else if (Executor.Inventory.Contains(Subjects[0]))
-                        {
-                            Executor.Inventory.Remove((Object)(Subjects[0]));
-                        }
-
-                        subjectObject.ContainedObjects.Add((Object)Subjects[0]);
-
-                        MakeObservation("You place the " + Subjects[0].ReferredToNames[0] + " into the " + Subjects[1].ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { Subjects[0], Subjects[1] });
-                        ((Object)(Subjects[0])).PlaySound();
-
-                        // Add historical event for placing the item
-                        if (Executor.Structure == null)
-                        {
-                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
-                        }
-                        else
-                        {
-                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " placed " + Subjects[0].Name + " into " + Subjects[1].ReferredToNames[0] + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Subjects[1], Executor.Structure }));
-                        }
-                    }
                     else
                     {
-                        MakeObservation(Subjects[1].ReferredToNames[0] + " can't hold anything.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("There is not a shadow storage nearby.", Color.Green, new EntityList<Entity>());
                     }
                 }
                 else
                 {
-                    if (Executor.Clothing.Contains(Subjects[1]))
+                    EntityList<Object> searchScope = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                    Object container = null;
+                    Object itemToTake = null;
+
+                    // Standard container item retrieval
+                    foreach (Object obj in searchScope)
                     {
-                        if (Executor.Sex == "male")
+                        foreach (Object containedObj in obj.ContainedObjects)
                         {
-                            MakeObservation("You are going to have to take that off first, sir.", Color.Yellow, new EntityList<Entity>());
+                            if (containedObj.Type == ((Object)Subjects[0]).Type && containedObj.Materials.SequenceEqual(((Object)Subjects[0]).Materials))
+                            {
+                                container = obj;
+                                itemToTake = containedObj;
+                                break;
+                            }
                         }
-                        else
-                        {
-                            MakeObservation("You are going to have to take that off first, madame.", Color.Yellow, new EntityList<Entity>());
-                        }
+                        if (container != null && itemToTake != null) break;
+                    }
+
+                    if (container == null || itemToTake == null)
+                    {
+                        MakeObservation("You cannot take that for some reason.", Color.Green, new EntityList<Entity>());
                     }
                     else
                     {
-                        MakeObservation("You don't have that.", Color.Yellow, new EntityList<Entity>());
+                        // Multi-item check
+                        bool otherItemsExist = container.ContainedObjects.Count(obj => obj.Type == itemToTake.Type && obj.Materials.SequenceEqual(itemToTake.Materials)) > 1;
+
+                        if (otherItemsExist)
+                        {
+                            Executor.SelectedContainer = container;
+                            Executor.TryTakeItemType = itemToTake.Type;
+                            Executor.TryTakeMaterials.Clear();
+                            Executor.TryTakeMaterials.UnionWith(itemToTake.Materials);
+
+                            Game1.GameState = "trytake"; // Switch to selection state
+                        }
+                        else
+                        {
+                            // Proceed with taking the item
+                            if (Executor.MainHeldObject == null) Executor.MainHeldObject = itemToTake;
+                            else if (Executor.OffHeldObject == null) Executor.OffHeldObject = itemToTake;
+                            else Executor.Inventory.Add(itemToTake);
+
+                            Executor.IDidSomethingBadSoScanForShockMines();
+
+                            container.ContainedObjects.Remove(itemToTake);
+
+                            MakeObservation("You remove the " + itemToTake.ReferredToNames[0] + " from the " + container.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { itemToTake, container });
+
+                            if (Game1.PossibleMagicalItems.Contains(((Object)Subjects[0]).Type)
+                                        && ((Object)Subjects[0]).SpecialKnowledge != null
+                                        && Game1.GameWorld.AllLegendarySpells.Contains(((Object)Subjects[0]).SpecialKnowledge))
+                            {
+                                MakeObservation(
+                                    "This legendary artifact contains an unprecedented magic of unknown origin.",
+                                    Color.PaleVioletRed,
+                                    new EntityList<Entity>()
+                                );
+                                MakeObservation(
+                                    ((Object)Subjects[0]).SpecialKnowledge.Name,
+                                    Color.PaleVioletRed,
+                                    new EntityList<Entity>()
+                                );
+                                MakeObservation(
+                                    Game1.SkillSpellDescriptions[((Object)Subjects[0]).SpecialKnowledge.Name],
+                                    Color.PaleVioletRed,
+                                    new EntityList<Entity>()
+                                );
+
+                            }
+
+                            itemToTake.PlaySound();
+
+                            if (Executor.Structure != null && Executor.Structure.Type == "market")
+                            {
+                                Executor.Structure.MarketDebtToUs -= itemToTake.Value();
+                            }
+                        }
                     }
                 }
             }
+
+            else if (CommandID == "place_item_in")
+            {
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
+
+                Object container = (Subjects[1] is Object subjectObject && subjectObject.IsContainer) ? subjectObject : null;
+                bool isShadowStorage = Subjects[1].Metadata == "shadow fountain" || (Subjects[1] is Object && ((Object)(Subjects[1])).Type == "shadow fountain");
+
+                if (isShadowStorage)
+                {
+                    foreach (Object o in Executor.Block.Objects)
+                    {
+                        if (o.Type == "shadow fountain")
+                        {
+                            container = o;
+                            break;
+                        }
+                    }
+
+                    if (container == null)
+                    {
+                        MakeObservation("There is no shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+
+                if (container == null)
+                {
+                    MakeObservation(Subjects[1].ReferredToNames[0] + " can't hold anything.", Color.Yellow, new EntityList<Entity>());
+                }
+                else
+                {
+                    Object itemToPlace = (Object)Subjects[0];
+
+                    // Multi-item check
+                    bool otherItemsExist = Executor.Inventory.Count(obj => obj.Type == itemToPlace.Type && obj.Materials.SequenceEqual(itemToPlace.Materials)) > 1;
+
+                    if (otherItemsExist)
+                    {
+                        Executor.SelectedContainerForPlacing = container;
+                        Executor.TryPlaceItemType = itemToPlace.Type;
+                        Executor.TryPlaceMaterials.Clear();
+                        Executor.TryPlaceMaterials.UnionWith(itemToPlace.Materials);
+
+                        Game1.GameState = "tryplace"; // Switch to selection state
+                    }
+                    else
+                    {
+                        // Remove from inventory or hands
+                        if (Executor.MainHeldObject == itemToPlace) Executor.MainHeldObject = null;
+                        else if (Executor.OffHeldObject == itemToPlace) Executor.OffHeldObject = null;
+                        else Executor.Inventory.Remove(itemToPlace);
+
+                        // Place into the container (shadow storage or normal)
+                        if (isShadowStorage)
+                        {
+                            Executor.ShadowStorage.Add(itemToPlace);
+                            MakeObservation("You place the " + itemToPlace.ReferredToNames[0] + " into the shadow storage.", Color.Green, new EntityList<Entity>() { itemToPlace });
+                        }
+                        else
+                        {
+                            container.ContainedObjects.Add(itemToPlace);
+                            MakeObservation("You place the " + itemToPlace.ReferredToNames[0] + " into the " + container.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { itemToPlace, container });
+                        }
+
+                        itemToPlace.PlaySound();
+
+                        if (Executor.Structure != null && Executor.Structure.Type == "market")
+                        {
+                            Executor.Structure.MarketDebtToUs += itemToPlace.Value();
+                        }
+                    }
+                }
+            }
+
+
             else if (CommandID == "claim_structure")
             {
                 if (Executor.Structure == null)
@@ -1030,7 +1412,7 @@ namespace Lightrealm
                         foreach (District district in Executor.Location.Districts)
                         {
                             // Skip the Executor's current district
-                            if (district != Executor.District && district.Architects.Count > 0)
+                            if (district != Executor.District && district.DistrictArchitects.Count > 0)
                             {
                                 canClaimStructure = false;
                                 break; // No need to check further if one district fails
@@ -1054,17 +1436,18 @@ namespace Lightrealm
 
             else if (CommandID == "ascend")
             {
-                if(Executor.TriedAscend == false)
+                if (Executor.TriedAscend == false)
                 {
-                    MakeObservation("The \"ascend\" command lets you access Ascendant Mode from your current player. This mode is heavily under development, is incomplete, and will probably break. If you understand the risks, run the command again.", Color.Red, new EntityList<Entity>());
+                    MakeObservation("The \"ascend\" command lets you access Ascendant Mode from your current player. This process cannot be reversed. Redo this action to ascend to power.", Color.Red, new EntityList<Entity>());
                     Executor.TriedAscend = true;
                 }
                 else
                 {
                     if (Executor.Structure != null && Game1.GameWorld.GamePlayerAssociation.Residences.Contains(Executor.Structure))
                     {
-                        Game1.SwitchState("ascendant", false);
+                        Game1.GameState = "ascendant";
                         Game1.AscendantState = "main";
+                        Game1.GameWorld.GameMode = "ascendant";
 
                         foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                         {
@@ -1073,180 +1456,145 @@ namespace Lightrealm
 
                         Executor.Location.Government = Game1.GameWorld.GamePlayerAssociation.ActiveParty;
 
+                        Game1.GameWorld.GamePlayerAssociation.Residences.Add(Executor.Structure);
+
                         Game1.GameWorld.RevealNearbyTiles(Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorX, Game1.GameWorld.GamePlayerAssociation.ActiveParty.MapCursorZ, 24, false);
 
                         Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects[0].District.Unload();
 
-                        Game1.GameWorld.GamePlayerAssociation.ActiveParty = null;
+                        foreach (Architect a in Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                        {
+                            // Break all prisms into fragments
+                            var prismsToConvert = a.Inventory
+                                .Where(item => item.Type == "prism" && item.Name == null && item.Materials[0] == Game1.GameWorld.Vitalium)
+                                .ToList();
+
+                            foreach (var prism in prismsToConvert)
+                            {
+                                a.Inventory.Remove(prism);
+                                prism.Delete();
+
+                                for (int i = 0; i < 50; i++)
+                                {
+                                    a.Inventory.Add(
+                                        new Object(null, "fragment", new EntityList<Material> { Game1.GameWorld.Vitalium }, null)
+                                    );
+                                }
+                            }
+                        }
+
+
+                        Game1.GameWorld.GamePlayerAssociation.Associates.AddRange(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects);
+                        Game1.GameWorld.GamePlayerAssociation.Associates = Game1.GameWorld.GamePlayerAssociation.Associates.Distinct();
+
+                        MakeObservation(Game1.GameWorld.GamePlayerAssociation.Name + " has elevated to a much greater operation. However, instability is inevitable with such a misplaced group. Act quickly to ensure loyalty, and your new association will live long and prosperously.", Color.OrangeRed, new EntityList<Entity>());
+
                     }
                     else
                     {
                         MakeObservation("You do not control the structure you are in. If you have no competition, you can claim a structure with \"claim this structure\"", Color.Red, new EntityList<Entity>());
                     }
                 }
-               
+
             }
-            else if (CommandID == "take_item_from")
+            else if (CommandID == "wait")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                string timeKey = Subjects[0].Metadata?.ToLowerInvariant();
+                Dictionary<string, decimal> waitTimeLookup = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+{
+    { "a cycle", 0.1m },
+    { "one cycle", 0.1m },
+    { "two cycles", 0.2m },
+    { "three cycles", 0.3m },
+    { "four cycles", 0.4m },
+    { "five cycles", 0.5m },
+    { "six cycles", 0.6m },
+    { "seven cycles", 0.7m },
+    { "eight cycles", 0.8m },
+    { "nine cycles", 0.9m },
+    { "a second", 1 },
+    { "one second", 1 },
+    { "two seconds", 2 },
+    { "three seconds", 3 },
+    { "four seconds", 4 },
+    { "five seconds", 5 },
+    { "six seconds", 6 },
+    { "seven seconds", 7 },
+    { "eight seconds", 8 },
+    { "nine seconds", 9 },
+    { "ten seconds", 10 },
+    { "eleven seconds", 11 },
+    { "twelve seconds", 12 },
+    { "thirteen seconds", 13 },
+    { "fourteen seconds", 14 },
+    { "fifteen seconds", 15 },
+    { "sixteen seconds", 16 },
+    { "seventeen seconds", 17 },
+    { "eighteen seconds", 18 },
+    { "nineteen seconds", 19 },
+    { "twenty seconds", 20 },
+    { "twenty-one seconds", 21 },
+    { "twenty-two seconds", 22 },
+    { "twenty-three seconds", 23 },
+    { "twenty-four seconds", 24 },
+    { "twenty-five seconds", 25 },
+    { "thirty seconds", 30 },
+    { "thirty-five seconds", 35 },
+    { "forty seconds", 40 },
+    { "forty-five seconds", 45 },
+    { "fifty seconds", 50 },
+    { "fifty-five seconds", 55 },
+    { "sixty seconds", 60 },
+    { "a minute", 60 },
+    { "one minute", 60 },
+    { "two minutes", 120 },
+    { "three minutes", 180 },
+    { "four minutes", 240 },
+    { "five minutes", 300 },
+    { "six minutes", 360 },
+    { "seven minutes", 420 },
+    { "eight minutes", 480 },
+    { "nine minutes", 540 },
+    { "ten minutes", 600 },
+    { "fifteen minutes", 900 },
+    { "twenty minutes", 1200 },
+    { "thirty minutes", 1800 },
+    { "forty-five minutes", 2700 },
+    { "one hour", 3600 },
+    { "an hour", 3600 }
+};
 
-                if (Subjects[1].Metadata == "shadow fountain" || (Subjects[1] is Object && ((Object)Subjects[1]).Type == "shadow fountain"))
+                if (timeKey != null && waitTimeLookup.TryGetValue(timeKey, out decimal value))
                 {
-                    // Shadow storage logic
-                    if (Executor.Room == null)
-                    {
-                        bool StorageFound = false;
+                    bool isCycle = timeKey.Contains("cycle");
+                    int cyclesToWait = (int)Math.Round(value * 10); // 10 cycles per second
 
-                        foreach (Object o in Executor.Block.Objects)
-                        {
-                            if (o.Type == "shadow fountain")
-                            {
-                                if (Executor.ShadowStorage.Contains((Object)Subjects[0]))
-                                {
-                                    if (Executor.MainHeldObject == null)
-                                    {
-                                        Executor.MainHeldObject = (Object)Subjects[0];
-                                    }
-                                    else if (Executor.OffHeldObject == null)
-                                    {
-                                        Executor.OffHeldObject = (Object)Subjects[0];
-                                    }
-                                    else
-                                    {
-                                        Executor.Inventory.Add((Object)Subjects[0]);
-                                    }
+                    Executor.CooldownCycles += cyclesToWait;
 
-                                    Executor.ShadowStorage.Remove((Object)Subjects[0]);
+                    string observationMessage = isCycle
+                        ? (cyclesToWait == 1
+                            ? "You wait for one cycle."
+                            : $"You wait for {cyclesToWait} cycles.")
+                        : (value == 1
+                            ? "You wait for one second."
+                            : $"You wait for {value:0} seconds.");
 
-                                    MakeObservation("You retrieve the " + Subjects[0].ReferredToNames[0] + " from the shadow storage.", Color.Green, new EntityList<Entity>() { Subjects[0] });
-                                    StorageFound = true;
-
-                                    ((Object)Subjects[0]).PlaySound();
-
-                                    // Add historical event for taking the item
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " took " + Subjects[0].Name + " from shadow storage in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
-                                }
-                                else
-                                {
-                                    MakeObservation("The shadow storage does not contain that.", Color.Green, new EntityList<Entity>());
-                                }
-                                break; // Exit the loop once the shadow storage is processed
-                            }
-                        }
-
-                        if (!StorageFound)
-                        {
-                            MakeObservation("There is not a shadow storage nearby.", Color.Yellow, new EntityList<Entity>());
-                        }
-                    }
-                    else
-                    {
-                        MakeObservation("There is not a shadow storage nearby.", Color.Green, new EntityList<Entity>());
-                    }
+                    MakeObservation(observationMessage, Color.Green, new EntityList<Entity>());
                 }
                 else
                 {
-                    EntityList<Object> searchScope = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
-
-                    Object container = null;
-                    Object itemToTake = null;
-
-                    foreach (Object obj in searchScope)
-                    {
-                        if (obj.Type == ((Object)Subjects[1]).Type && obj.Materials.SequenceEqual(((Object)Subjects[1]).Materials))
-                        {
-                            if (Subjects[1].Name == null || obj.Name == Subjects[1].Name)
-                            {
-                                foreach (Object containedObj in obj.ContainedObjects)
-                                {
-                                    if (containedObj.Type == ((Object)Subjects[0]).Type && containedObj.Materials.SequenceEqual(((Object)Subjects[0]).Materials))
-                                    {
-                                        if (Subjects[0].Name == null || containedObj.Name == Subjects[0].Name)
-                                        {
-                                            container = obj;
-                                            itemToTake = containedObj;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (container != null && itemToTake != null)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (itemToTake != null && container != null)
-                    {
-                        if (Executor.MainHeldObject == null)
-                        {
-                            Executor.MainHeldObject = itemToTake;
-                        }
-                        else if (Executor.OffHeldObject == null)
-                        {
-                            Executor.OffHeldObject = itemToTake;
-                        }
-                        else
-                        {
-                            Executor.Inventory.Add(itemToTake);
-                        }
-
-                        container.ContainedObjects.Remove(itemToTake);
-
-                        MakeObservation("You remove the " + itemToTake.ReferredToNames[0] + " from the " + container.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { itemToTake, container });
-                        ((Object)Subjects[0]).PlaySound();
-
-                        // Add historical event for taking the item
-
-                        if (itemToTake.Name != null)
-                        {
-                            if (Executor.Structure == null)
-                            {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToTake, Executor.Location }));
-                            }
-                            else
-                            {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " took " + itemToTake.Name + " from " + container.ReferredToNames[0] + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToTake, Executor.Location, Executor.Structure }));
-                            }
-                        }
-
-                        if (Game1.PossibleMagicalItems.Contains(itemToTake.Type) && (itemToTake.SpecialKnowledge != null && Game1.GameWorld.AllLegendarySpells.Contains(itemToTake.SpecialKnowledge)))
-                        {
-                            MakeObservation("This legendary artifact contains an unprecedented magic of unknown orgin.", Color.PaleVioletRed, new EntityList<Entity>());
-                            MakeObservation(itemToTake.SpecialKnowledge.Name, Color.PaleVioletRed, new EntityList<Entity>());
-                            MakeObservation(Game1.SkillSpellDescriptions[itemToTake.SpecialKnowledge.Name], Color.PaleVioletRed, new EntityList<Entity>());
-                        }
-
-                    }
-                    else
-                    {
-                        MakeObservation("You cannot take that for some reason.", Color.Green, new EntityList<Entity>());
-                    }
+                    MakeObservation("That is not a recognized time duration.", Color.ForestGreen, new EntityList<Entity>());
                 }
-            }
-
-
-            else if (CommandID != null && waitCommands.ContainsKey(CommandID.ToLower()))
-            {
-                int secondsToWait = waitCommands[CommandID.ToLower()];
-                Executor.CooldownCycles += secondsToWait * 10;
-                string observationMessage = secondsToWait == 1 ? "You wait for one second." : $"You wait for {secondsToWait} seconds.";
-                MakeObservation(observationMessage, Color.Green, new EntityList<Entity>());
-            }
-            else if (CommandID != null && CommandID.ToLower().StartsWith("wait"))
-            {
-                MakeObservation("Try using common wait times, in plain words, like \"wait six seconds\".", Color.ForestGreen, new EntityList<Entity>());
             }
             else if (CommandID == "wear_item" && (Subjects.Count() == 1 || Subjects[0].Metadata == "all"))
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 if (Subjects[0].Metadata == "all")
                 {
                     var wearableItems = Executor.Inventory.Where(item => item.IsWearable);
 
-                    if(wearableItems.Count > 0)
+                    if (wearableItems.Count > 0)
                     {
                         (wearableItems[0]).PlaySound();
                     }
@@ -1286,7 +1634,7 @@ namespace Lightrealm
 
                             if (Executor.Structure != null && Executor.Structure.Type == "market")
                             {
-                                Executor.Structure.MarketDebt += item.Value();
+                                Executor.Structure.MarketDebtToUs += item.Value();
                             }
 
                             // Add historical event for dropping the item
@@ -1314,17 +1662,29 @@ namespace Lightrealm
 
                             Executor.Clothing.Add(item);
                             Executor.Inventory.Remove(item);
-                            Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                            Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
                         }
                     }
                 }
                 else if (Subjects[0] is Object && (Executor.Inventory.Contains(((Object)Subjects[0])) || Executor.MainHeldObject == ((Object)Subjects[0]) || Executor.OffHeldObject == ((Object)Subjects[0])))
                 {
-                    if (((Object)Subjects[0]).IsWearable)
+
+                    Object item = ((Object)Subjects[0]);
+
+                    if (item.IsWearable)
                     {
-                        if (Executor.Clothing.Any(c => c.Type == ((Object)Subjects[0]).Type) && ((Object)Subjects[0]).Type != "amulet")
+                        if (Executor.Clothing.Any(c => c.Type == item.Type) && item.Type != "amulet")
                         {
-                            MakeObservation($"You can't wear more than one {((Object)Subjects[0]).Type}, fascist.", Color.Yellow, new EntityList<Entity>());
+                            var existing = Executor.Clothing.First(c => c.Type == item.Type);
+
+                            // Swap out existing item
+                            Executor.Clothing.Remove(existing);
+                            Executor.Inventory.Add(existing);
+
+                            Executor.Clothing.Add(item);
+                            Executor.Inventory.Remove(item);
+
+                            MakeObservation($"You swap out the {existing.ReferredToNames[0]} for the {item.ReferredToNames[0]}.", Color.Green, new EntityList<Entity>() { existing, item });
                         }
                         else
                         {
@@ -1352,7 +1712,7 @@ namespace Lightrealm
                     {
                         if (Executor.Clothing.Count() > 0)
                         {
-                            MakeObservation("You hang the " + Subjects[0].ReferredToNames[0] + " off of your " + Executor.Clothing[Game1.GameWorld.rnd.Next(Executor.Clothing.Count())].ReferredToNames[0] + ". You feel disadvantaged, but stylish.", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation("You hang the " + Subjects[0].ReferredToNames[0] + " off of your " + Executor.Clothing[Game1.GameWorld.rnd.Next(Executor.Clothing.Count())].ReferredToNames[0] + ". You feel awkwardly disadvantaged, but stylish.", Color.Green, new EntityList<Entity>() { Subjects[0] });
                             Executor.Clothing.Add(((Object)Subjects[0]));
                         }
                         else
@@ -1396,20 +1756,17 @@ namespace Lightrealm
 
             else if (CommandID == "pick_up_item" && (Subjects.Count() == 1 || (Subjects.Count() == 2 && Subjects[0].Metadata == "up") || Subjects[0].Metadata == "all"))
             {
-                if (Subjects.Count() == 2 && Subjects[0].Metadata == "up")
-                {
-                    Subjects.RemoveAt(0);
-                }
+                List<Entity> effectiveSubjects = (Subjects.Count == 2 && Subjects[0].Metadata == "up")
+    ? Subjects.Skip(1).ToList()
+    : Subjects;
 
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
 
                 bool KeepAddingSounds = true;
 
-                if (Subjects[0] is Object || Subjects[0].Metadata == "all")
+                if (effectiveSubjects[0] is Object || effectiveSubjects[0].Metadata == "all")
                 {
                     EntityList<Object> objectList = null;
-
-
 
                     if (Executor.Room != null)
                     {
@@ -1420,50 +1777,67 @@ namespace Lightrealm
                         objectList = LoadedArchitects[Game1.ArchitectIndex].Block.Objects;
                     }
 
-                    if (Subjects[0].Metadata == "all")
+                    if (effectiveSubjects[0].Metadata == "all")
                     {
-                        // Create a copy of objectList to iterate over
+                        // Summarized 'pick up all' logic
                         var objectsToPickUp = objectList.ToList();
+                        int pickedUpCount = 0;
+                        int tooHeavyCount = 0;
 
+                        // We'll still record historical events, but skip the repeated pick-up messages
                         foreach (var obj in objectsToPickUp)
                         {
                             if (obj.Weight > 6000)
                             {
-                                MakeObservation("The " + obj.ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new EntityList<Entity>() { obj });
+                                tooHeavyCount++;
                                 continue;
                             }
 
-                            MakeObservation("You pick up the " + obj.ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new EntityList<Entity>() { obj });
-
-                            // Modify the original objectList outside of this loop
+                            // Remove from room/block and add to inventory
                             objectList.Remove(obj);
                             LoadedArchitects[Game1.ArchitectIndex].Inventory.Add(obj);
 
-                            // Update historical events, remove from room/block, update GUI, etc.
+                            // Remove references to the old location
                             if (obj.Room != null && obj.Room.Structure.HistoricalObjects.Contains(obj))
                             {
                                 obj.Room.Structure.HistoricalObjects.Remove(obj);
                             }
-
                             obj.Block = null;
                             obj.Room = null;
 
+                            // Historical event for each object
                             if (obj.Name != null)
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " acquired " + obj.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, obj, Executor.Location }));
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                    Date + " " + Executor.Name + " acquired " + obj.Name + " in " + Executor.Location.Name + ".",
+                                    Executor.Location.Region,
+                                    new EntityList<Entity>() { Executor, obj, Executor.Location }
+                                ));
                             }
 
-                            if (obj.Imbuements.Count() > 0 || obj.IsWeapon || obj.Name != null)
+                            // GUI updates if it has imbuements or a name
+                            if (obj.Imbuements.Count() > 0 || obj.IsWeapon || obj.AmuletGift != "")
                             {
                                 Game1.IsInGui = true;
-
                                 if (obj.Name != null)
                                 {
-                                    Game1.ItemPickupGuiLines.Add(Game1.Capitalize(obj.Name) + ", " + Game1.Capitalize(obj.Materials[0].Name) + " " + Game1.Capitalize(obj.Type));
+                                    Game1.ItemPickupGuiLines.Add(
+                                        Game1.Capitalize(obj.Name) + ", " +
+                                        Game1.Capitalize(obj.Materials[0].Name) + " " +
+                                        Game1.Capitalize(obj.Type)
+                                    );
                                 }
                                 else
                                 {
-                                    Game1.ItemPickupGuiLines.Add(Game1.Capitalize(obj.Materials[0].Name) + " " + Game1.Capitalize(obj.Type));
+                                    Game1.ItemPickupGuiLines.Add(
+                                        Game1.Capitalize(obj.Materials[0].Name) + " " +
+                                        Game1.Capitalize(obj.Type)
+                                    );
+                                }
+
+                                if (obj.Materials[0].Type == "metal")
+                                {
+                                    Executor.CompanionMessage("materials", "");
                                 }
 
                                 if (obj.Imbuements.Count() == 0)
@@ -1479,144 +1853,299 @@ namespace Lightrealm
                                     }
                                 }
 
+                                if(obj.AmuletGift != "")
+                                {
+                                    Game1.ItemPickupGuiLines.Add("This amulet provides a divine power.");
+                                    Game1.ItemPickupGuiLines.Add(obj.Description);
+                                }
+
                                 Game1.PickupConfirm.InvisibleLock = false;
                             }
 
-
+                            // Market debt adjustments
                             if (Executor.Structure != null && Executor.Structure.Type == "market")
                             {
-                                Executor.Structure.MarketDebt -= obj.Value();
+                                Executor.Structure.MarketDebtToUs -= obj.Value();
                             }
 
+                            // Cooldown
+                            Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
+                            pickedUpCount++;
+                        }
 
-                            Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                        // Single summarized messages
+                        if (pickedUpCount > 0)
+                        {
+                            MakeObservation(
+                                $"You gather up {pickedUpCount} item{(pickedUpCount > 1 ? "s" : "")} and add {(pickedUpCount > 1 ? "them" : "it")} to your inventory.",
+                                Color.Yellow,
+                                new EntityList<Entity>()
+                            );
+                        }
+                        else
+                        {
+                            MakeObservation("There are no items you can pick up here.", Color.Yellow, new EntityList<Entity>());
+                        }
+
+                        if (tooHeavyCount > 0)
+                        {
+                            MakeObservation(
+                                $"{tooHeavyCount} item{(tooHeavyCount > 1 ? "s" : "")} {(tooHeavyCount > 1 ? "were" : "was")} too heavy to pick up.",
+                                Color.Yellow,
+                                new EntityList<Entity>()
+                            );
                         }
                     }
                     else if (objectList != null)
                     {
                         // Search for other objects with the same ReferredToNames[0]
-                        bool otherObjectsExist = objectList.Any(obj => obj != Subjects[0] && obj.ReferredToNames[0] == Subjects[0].ReferredToNames[0]);
+                        bool otherObjectsExist = objectList.Any(
+                            obj => obj != effectiveSubjects[0] && obj.ReferredToNames[0] == effectiveSubjects[0].ReferredToNames[0]
+                        );
 
                         if (otherObjectsExist)
                         {
-                            if (((Object)Subjects[0]).Weight > 6000)
+                            if (((Object)effectiveSubjects[0]).Weight > 6000)
                             {
-                                MakeObservation("The " + Subjects[0].ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                                MakeObservation(
+                                    "The " + effectiveSubjects[0].ReferredToNames[0] + " is too heavy to pick up.",
+                                    Color.Yellow,
+                                    new EntityList<Entity>() { effectiveSubjects[0] }
+                                );
+
+
+                                if (((Object)effectiveSubjects[0]).Weight < (7000 + (Executor.Strength * 1000)))
+                                    Executor.CompanionMessage("haul", "");
                             }
                             else
                             {
-                                Executor.TryPickUpItemType = ((Object)Subjects[0]).Type;
+                                Executor.TryPickUpItemType = ((Object)effectiveSubjects[0]).Type;
                                 Executor.TryPickUpMaterials.Clear();
 
-                                foreach (var material in ((Object)Subjects[0]).Materials)
+                                foreach (var material in ((Object)effectiveSubjects[0]).Materials)
                                 {
                                     Executor.TryPickUpMaterials.Add(material);
                                 }
                             }
-
                         }
                         else
                         {
-                            if (((Object)Subjects[0]).Weight > 6000)
+                            if (objectList.Contains(effectiveSubjects[0]))
                             {
-                                MakeObservation("The " + Subjects[0].ReferredToNames[0] + " is too heavy to pick up.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+
+                                if (((Object)effectiveSubjects[0]).Weight > 6000)
+                                {
+                                    MakeObservation(
+                                        "The " + effectiveSubjects[0].ReferredToNames[0] + " is too heavy to pick up.",
+                                        Color.Yellow,
+                                        new EntityList<Entity>() { effectiveSubjects[0] }
+                                    );
+
+                                    if (((Object)effectiveSubjects[0]).Weight < (7000 + (Executor.Strength * 1000)))
+                                        Executor.CompanionMessage("haul", "");
+                                }
+                                else
+                                {
+                                    // Proceed as normal
+                                    MakeObservation(
+                                        "You pick up the " + effectiveSubjects[0].ReferredToNames[0] + " and put it in your inventory.",
+                                        Color.Yellow,
+                                        new EntityList<Entity>() { effectiveSubjects[0] }
+                                    );
+
+                                    Executor.IDidSomethingBadSoScanForShockMines();
+
+
+
+                                    objectList.Remove((Object)effectiveSubjects[0]);
+
+                                    LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)effectiveSubjects[0]);
+
+                                    if (KeepAddingSounds)
+                                    {
+                                        ((Object)effectiveSubjects[0]).PlaySound();
+                                    }
+                                    KeepAddingSounds = false;
+
+                                    Game1.ItemPickupGuiLines.Clear();
+
+                                    if (((Object)effectiveSubjects[0]).Room != null &&
+                                        ((Object)effectiveSubjects[0]).Room.Structure.HistoricalObjects.Contains(((Object)effectiveSubjects[0])))
+                                    {
+                                        ((Object)effectiveSubjects[0]).Room.Structure.HistoricalObjects.Remove(((Object)effectiveSubjects[0]));
+                                    }
+
+                                    ((Object)effectiveSubjects[0]).Block = null;
+                                    ((Object)effectiveSubjects[0]).Room = null;
+
+                                    if (Game1.PossibleMagicalItems.Contains(((Object)effectiveSubjects[0]).Type)
+                                        && ((Object)effectiveSubjects[0]).SpecialKnowledge != null
+                                        && Game1.GameWorld.AllLegendarySpells.Contains(((Object)effectiveSubjects[0]).SpecialKnowledge))
+                                    {
+                                        MakeObservation(
+                                            "This legendary artifact contains an unprecedented magic of unknown origin.",
+                                            Color.PaleVioletRed,
+                                            new EntityList<Entity>()
+                                        );
+                                        MakeObservation(
+                                            ((Object)effectiveSubjects[0]).SpecialKnowledge.Name,
+                                            Color.PaleVioletRed,
+                                            new EntityList<Entity>()
+                                        );
+                                        MakeObservation(
+                                            Game1.SkillSpellDescriptions[((Object)effectiveSubjects[0]).SpecialKnowledge.Name],
+                                            Color.PaleVioletRed,
+                                            new EntityList<Entity>()
+                                        );
+
+                                    }
+
+                                    if (((Object)effectiveSubjects[0]).Name != null)
+                                    {
+                                        Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                            Date + " " + Executor.Name + " acquired " + ((Object)effectiveSubjects[0]).Name + " in " + Executor.Location.Name + ".",
+                                            Executor.Location.Region,
+                                            new EntityList<Entity>() { Executor, effectiveSubjects[0], Executor.Location }
+                                        ));
+                                    }
+
+                                    if (((Object)effectiveSubjects[0]).Imbuements.Count() > 0 ||
+                                        ((Object)effectiveSubjects[0]).IsWeapon || ((Object)effectiveSubjects[0]).AmuletGift != "")
+                                    {
+                                        Game1.IsInGui = true;
+
+                                        if (((Object)effectiveSubjects[0]).Name != null)
+                                        {
+                                            Game1.ItemPickupGuiLines.Add(
+                                                Game1.Capitalize(((Object)effectiveSubjects[0]).Name) + ", " +
+                                                Game1.Capitalize(((Object)effectiveSubjects[0]).Materials[0].Name) + " " +
+                                                Game1.Capitalize(((Object)effectiveSubjects[0]).Type)
+                                            );
+                                        }
+                                        else
+                                        {
+                                            Game1.ItemPickupGuiLines.Add(
+                                                Game1.Capitalize(((Object)effectiveSubjects[0]).Materials[0].Name) + " " +
+                                                Game1.Capitalize(((Object)effectiveSubjects[0]).Type)
+                                            );
+                                        }
+
+                                        if (((Object)effectiveSubjects[0]).Materials[0].Type == "metal")
+                                        {
+                                            Executor.CompanionMessage("materials", "");
+                                        }
+
+                                        if (((Object)effectiveSubjects[0]).Imbuements.Count() == 0)
+                                        {
+                                            Game1.ItemPickupGuiLines.Add("This object has no imbuements.");
+                                        }
+                                        else
+                                        {
+                                            List<string> ImbuementDescriptions = new List<string>();
+                                            Game1.ItemPickupGuiLines.Add("This object has some intriguing properties.");
+                                            foreach (Imbuement i in ((Object)effectiveSubjects[0]).Imbuements)
+                                            {
+                                                Game1.ItemPickupGuiLines.Add(i.GetDescription());
+                                            }
+                                        }
+
+                                        if (((Object)effectiveSubjects[0]).AmuletGift != "")
+                                        {
+                                            Game1.ItemPickupGuiLines.Add("This amulet provides a divine power.");
+                                            Game1.ItemPickupGuiLines.Add(((Object)effectiveSubjects[0]).Description);
+                                        }
+
+
+                                        Game1.PickupConfirm.InvisibleLock = false;
+                                        Executor.TryComment("ontreasure", 25);
+                                    }
+
+                                    if (Executor.Structure != null && Executor.Structure.Type == "market")
+                                    {
+                                        Executor.Structure.MarketDebtToUs -= ((Object)(effectiveSubjects[0])).Value();
+                                    }
+
+                                    if (((Object)(effectiveSubjects[0])).Imbuements.Count > 0)
+                                    {
+                                        Executor.CompanionMessage("imbuements", "");
+                                    }
+                                    else if (((Object)(effectiveSubjects[0])).CompositionContent != null ||
+         (Game1.LoadedHooks.Contains(effectiveSubjects[0]) && effectiveSubjects[0].HookedObjective.RequiredInteraction == "read") ||
+            ((Object)(effectiveSubjects[0])).Type == "skill scroll" ||
+         ((Object)(effectiveSubjects[0])).LetterContent != null ||
+         (((Object)(effectiveSubjects[0])).Type == "book" && effectiveSubjects[0].Name != null && effectiveSubjects[0].Name.StartsWith("Chapter")))
+                                    {
+                                        Executor.CompanionMessage("reading", "");
+                                    }
+
+                                    else if (((Object)(effectiveSubjects[0])).IsWearable)
+                                    {
+                                        Executor.CompanionMessage("wear", "");
+                                    }
+                                    else if (((Object)(effectiveSubjects[0])).Type == "invocation crystal")
+                                    {
+                                        Executor.CompanionMessage("invocationcrystal", "");
+                                    }
+                                    else if (((Object)(effectiveSubjects[0])).IsConsumable && ((Object)(effectiveSubjects[0])).Type != "fragment")
+                                    {
+                                        Executor.CompanionMessage("consume", "");
+                                    }
+                                }
                             }
                             else
                             {
                                 // Proceed as normal
-                                MakeObservation("You pick up the " + Subjects[0].ReferredToNames[0] + " and put it in your inventory.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
-                                objectList.Remove((Object)Subjects[0]);
-                                LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)Subjects[0]);
-
-                                if(KeepAddingSounds)
-                                {
-                                    ((Object)Subjects[0]).PlaySound();
-                                }
-                                KeepAddingSounds = false;
-
-                                Game1.ItemPickupGuiLines.Clear();
-
-                                if (((Object)Subjects[0]).Room != null && ((Object)Subjects[0]).Room.Structure.HistoricalObjects.Contains(((Object)Subjects[0])))
-                                {
-                                    ((Object)Subjects[0]).Room.Structure.HistoricalObjects.Remove(((Object)Subjects[0]));
-                                }
-
-                                ((Object)Subjects[0]).Block = null;
-                                ((Object)Subjects[0]).Room = null;
-
-                                if (Game1.PossibleMagicalItems.Contains(((Object)Subjects[0]).Type) && ((Object)Subjects[0]).SpecialKnowledge != null && Game1.GameWorld.AllLegendarySpells.Contains(((Object)Subjects[0]).SpecialKnowledge))
-                                {
-                                    MakeObservation("This legendary artifact contains an unprecedented magic of unknown orgin.", Color.PaleVioletRed, new EntityList<Entity>());
-                                    MakeObservation(((Object)Subjects[0]).SpecialKnowledge.Name, Color.PaleVioletRed, new EntityList<Entity>());
-                                    MakeObservation(Game1.SkillSpellDescriptions[((Object)Subjects[0]).SpecialKnowledge.Name], Color.PaleVioletRed, new EntityList<Entity>());
-                                }
-
-                                if (((Object)Subjects[0]).Name != null)
-                                {
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " acquired " + ((Object)Subjects[0]).Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, Subjects[0], Executor.Location }));
-                                }
-
-                                if (((Object)Subjects[0]).Imbuements.Count() > 0 || ((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).Name != null)
-                                {
-                                    Game1.IsInGui = true;
-
-                                    if (((Object)Subjects[0]).Name != null)
-                                    {
-                                        Game1.ItemPickupGuiLines.Add(Game1.Capitalize(((Object)Subjects[0]).Name) + ", " + Game1.Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Game1.Capitalize(((Object)Subjects[0]).Type));
-                                    }
-                                    else
-                                    {
-                                        Game1.ItemPickupGuiLines.Add(Game1.Capitalize(((Object)Subjects[0]).Materials[0].Name) + " " + Game1.Capitalize(((Object)Subjects[0]).Type));
-                                    }
-
-                                    if (((Object)Subjects[0]).Imbuements.Count() == 0)
-                                    {
-                                        Game1.ItemPickupGuiLines.Add("This object has no imbuements.");
-                                    }
-                                    else
-                                    {
-                                        List<string> ImbuementDescriptions = new List<string>();
-
-                                        Game1.ItemPickupGuiLines.Add("This object has some intriguing properties.");
-
-                                        foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
-                                        {
-                                            Game1.ItemPickupGuiLines.Add(i.GetDescription());
-                                        }
-                                    }
-
-                                    Game1.PickupConfirm.InvisibleLock = false;
-                                }
-
-                                if (Executor.Structure != null && Executor.Structure.Type == "market")
-                                {
-                                    Executor.Structure.MarketDebt -= ((Object)(Subjects[0])).Value();
-                                }
-
+                                MakeObservation(
+                                    "That object is too far away.",
+                                    Color.Yellow,
+                                    new EntityList<Entity>() { effectiveSubjects[0] }
+                                );
                             }
                         }
-                    }
-                    else if (LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == Subjects[0])
-                    {
-                        MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
-                        LoadedArchitects[Game1.ArchitectIndex].OffHeldObject = null;
-                        LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)Subjects[0]);
 
-                        ((Object)Subjects[0]).PlaySound();
+                        if (effectiveSubjects[0] is Object o && o.Type == "fragment" && o.Materials[0].Name == "vitalium")
+                        {
+                            int fragmentCount = Executor.Inventory.Count(item => item is Object obj && obj.Type == "fragment" &&
+                                                                                 obj.Materials.Any(m => m.Name == "vitalium"));
+
+                            if (fragmentCount >= 100 && !(Executor.Structure != null && Executor.Structure.Type == "market"))
+                            {
+                                Executor.CompanionMessage("lotoffrags", "");
+                            }
+                        }
+                        else if (effectiveSubjects[0] is Object O && Game1.Tools.Contains(O.Type))
+                        {
+                            Executor.CompanionMessage("harvest", "");
+                        }
                     }
-                    else if (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == Subjects[0])
+                    else if (LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == effectiveSubjects[0])
                     {
-                        MakeObservation("You stash the " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(
+                            "You stash the " + effectiveSubjects[0].ReferredToNames[0] + ".",
+                            Color.Yellow,
+                            new EntityList<Entity>() { effectiveSubjects[0] }
+                        );
+                        LoadedArchitects[Game1.ArchitectIndex].OffHeldObject = null;
+                        LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)effectiveSubjects[0]);
+                        ((Object)effectiveSubjects[0]).PlaySound();
+                    }
+                    else if (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == effectiveSubjects[0])
+                    {
+                        MakeObservation(
+                            "You stash the " + effectiveSubjects[0].ReferredToNames[0] + ".",
+                            Color.Yellow,
+                            new EntityList<Entity>() { effectiveSubjects[0] }
+                        );
                         LoadedArchitects[Game1.ArchitectIndex].MainHeldObject = null;
-                        LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)Subjects[0]);
-                        ((Object)Subjects[0]).PlaySound();
+                        LoadedArchitects[Game1.ArchitectIndex].Inventory.Add((Object)effectiveSubjects[0]);
+                        ((Object)effectiveSubjects[0]).PlaySound();
                     }
                     else
                     {
                         MakeObservation("You couldn't find anything like that in the area.", Color.Yellow, new EntityList<Entity>() { });
                     }
                 }
-                else if (Subjects[0] is Architect a && a.Race.Name == "shiba")
+                else if (effectiveSubjects[0] is Architect a && a.Race.Name == "shiba")
                 {
                     MakeObservation("Perhaps you can wear the creature directly.", Color.Yellow, new EntityList<Entity>() { });
                 }
@@ -1625,69 +2154,93 @@ namespace Lightrealm
                     MakeObservation("You cannot pick up that.", Color.Yellow, new EntityList<Entity>() { });
                 }
             }
-
-
             else if (CommandID == "drop_item" && (Subjects.Count() == 1 || Subjects[0].Metadata == "all"))
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += 1;
                 bool Found = true;
 
                 // Test if the subject is 'all' to drop all items
                 if (Subjects[0].Metadata == "all")
                 {
                     var itemsToDrop = Executor.Inventory.ToList(); // Create a list of items to drop
+                    int countToDrop = itemsToDrop.Count;
+                    bool Market = false;
 
-                    if(itemsToDrop.Count > 0)
+                    if (countToDrop > 0)
                     {
-                        (Executor.Inventory[0]).PlaySound();
+                        // We'll play sound only once for the entire batch
+                        Executor.Inventory[0].PlaySound();
 
+                        // Remove them all from inventory and place in current room/block
                         foreach (var itemToDrop in itemsToDrop)
                         {
                             Executor.Inventory.Remove(itemToDrop);
 
-                            EntityList<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                            EntityList<Object> objectList = Executor.Room != null
+                                ? Executor.Room.Objects
+                                : Executor.Block.Objects;
 
                             if (Executor.Room != null)
                             {
                                 Executor.Room.Objects.Add(itemToDrop);
                                 itemToDrop.Room = Executor.Room;
                                 itemToDrop.Block = Executor.Room.Structure.Block;
-                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
                             }
                             else
                             {
                                 Executor.Block.Objects.Add(itemToDrop);
                                 itemToDrop.Block = Executor.Block;
-                                MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
                             }
 
+                            // Market debt for each item
                             if (Executor.Structure != null && Executor.Structure.Type == "market")
                             {
-                                Executor.Structure.MarketDebt += itemToDrop.Value();
+                                Executor.Structure.MarketDebtToUs += itemToDrop.Value();
+                                Market = true;
                             }
 
-                            // Add historical event for dropping the item
+                            // Historical event for each item
                             if (itemToDrop.Name != null)
                             {
                                 if (Executor.Structure == null)
                                 {
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location }));
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                        Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".",
+                                        Executor.Location.Region,
+                                        new EntityList<Entity>() { Executor, itemToDrop, Executor.Location }
+                                    ));
                                 }
                                 else
                                 {
-                                    Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location, Executor.Structure }));
+                                    Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                        Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name +
+                                        ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".",
+                                        Executor.Location.Region,
+                                        new EntityList<Entity>() { Executor, itemToDrop, Executor.Location, Executor.Structure }
+                                    ));
 
                                     Executor.Structure.HistoricalObjects.Add(itemToDrop);
                                 }
                             }
 
-                            Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                            // Cooldown for each drop
+                            Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
                         }
+
+                        // Single summarized message
+                        MakeObservation(
+                            $"You drop all {Humanizer.NumberToWordsExtension.ToWords(countToDrop)} item{(countToDrop > 1 ? "s" : "")} from your inventory.",
+                            Color.Yellow,
+                            new EntityList<Entity>()
+                        );
                     }
                     else
                     {
                         MakeObservation("Your inventory is empty.", Color.Yellow, new EntityList<Entity>() { });
                     }
+
+                    if (Market)
+                        Executor.TryComment("exchange", 20);
                 }
                 else if (Executor.CarryingEntity is Object carriedItem && carriedItem == Subjects[0])
                 {
@@ -1696,20 +2249,31 @@ namespace Lightrealm
                         Executor.Room.Objects.Add(carriedItem);
                         carriedItem.Room = Executor.Room;
                         carriedItem.Block = Executor.Room.Structure.Block;
-                        MakeObservation("You drop the " + carriedItem.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { carriedItem });
+                        MakeObservation(
+                            "You drop the " + carriedItem.ReferredToNames[0] + ".",
+                            Color.Yellow,
+                            new EntityList<Entity>() { carriedItem }
+                        );
                         carriedItem.PlaySound();
                     }
                     else
                     {
                         Executor.Block.Objects.Add(carriedItem);
                         carriedItem.Block = Executor.Block;
-                        MakeObservation("You drop the " + carriedItem.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { carriedItem });
+                        MakeObservation(
+                            "You drop the " + carriedItem.ReferredToNames[0] + ".",
+                            Color.Yellow,
+                            new EntityList<Entity>() { carriedItem }
+                        );
                         carriedItem.PlaySound();
                     }
 
                     if (Executor.Structure != null && Executor.Structure.Type == "market")
                     {
-                        Executor.Structure.MarketDebt += carriedItem.Value();
+                        Executor.Structure.MarketDebtToUs += carriedItem.Value();
+
+
+                        Executor.TryComment("exchange", 20);
                     }
 
                     // Add historical event for dropping the hauled item
@@ -1717,11 +2281,20 @@ namespace Lightrealm
                     {
                         if (Executor.Structure == null)
                         {
-                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + carriedItem.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, carriedItem, Executor.Location }));
+                            Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                Date + " " + Executor.Name + " dropped " + carriedItem.Name + " in " + Executor.Location.Name + ".",
+                                Executor.Location.Region,
+                                new EntityList<Entity>() { Executor, carriedItem, Executor.Location }
+                            ));
                         }
                         else
                         {
-                            Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + carriedItem.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, carriedItem, Executor.Location, Executor.Structure }));
+                            Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                Date + " " + Executor.Name + " dropped " + carriedItem.Name + " in " + Executor.Location.Name +
+                                ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".",
+                                Executor.Location.Region,
+                                new EntityList<Entity>() { Executor, carriedItem, Executor.Location, Executor.Structure }
+                            ));
 
                             Executor.Structure.HistoricalObjects.Add(carriedItem);
                         }
@@ -1745,7 +2318,9 @@ namespace Lightrealm
                     else if (Executor.Inventory.Contains(itemToDrop))
                     {
                         // Search for other objects with the same ReferredToNames[0]
-                        bool otherObjectsExist = Executor.Inventory.Any(obj => obj != itemToDrop && obj.ReferredToNames[0] == itemToDrop.ReferredToNames[0]);
+                        bool otherObjectsExist = Executor.Inventory.Any(
+                            obj => obj != itemToDrop && obj.ReferredToNames[0] == itemToDrop.ReferredToNames[0]
+                        );
 
                         if (otherObjectsExist)
                         {
@@ -1775,27 +2350,38 @@ namespace Lightrealm
 
                     if (Found)
                     {
-                        EntityList<Object> objectList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
+                        EntityList<Object> objectList = Executor.Room != null
+                            ? Executor.Room.Objects
+                            : Executor.Block.Objects;
 
                         if (Executor.Room != null)
                         {
                             Executor.Room.Objects.Add(itemToDrop);
                             itemToDrop.Room = Executor.Room;
                             itemToDrop.Block = Executor.Room.Structure.Block;
-                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                            MakeObservation(
+                                "You drop the " + itemToDrop.ReferredToNames[0] + ".",
+                                Color.Yellow,
+                                new EntityList<Entity>() { itemToDrop }
+                            );
                             itemToDrop.PlaySound();
                         }
                         else
                         {
                             Executor.Block.Objects.Add(itemToDrop);
                             itemToDrop.Block = Executor.Block;
-                            MakeObservation("You drop the " + itemToDrop.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>() { itemToDrop });
+                            MakeObservation(
+                                "You drop the " + itemToDrop.ReferredToNames[0] + ".",
+                                Color.Yellow,
+                                new EntityList<Entity>() { itemToDrop }
+                            );
                             itemToDrop.PlaySound();
                         }
 
                         if (Executor.Structure != null && Executor.Structure.Type == "market")
                         {
-                            Executor.Structure.MarketDebt += itemToDrop.Value();
+                            Executor.Structure.MarketDebtToUs += itemToDrop.Value();
+                            Executor.TryComment("exchange", 20);
                         }
 
                         // Add historical event for dropping the item
@@ -1803,11 +2389,20 @@ namespace Lightrealm
                         {
                             if (Executor.Structure == null)
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location }));
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                    Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ".",
+                                    Executor.Location.Region,
+                                    new EntityList<Entity>() { Executor, itemToDrop, Executor.Location }
+                                ));
                             }
                             else
                             {
-                                Game1.GameWorld.HistoricalEvents.Add(new Event(Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name + ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".", Executor.Location.Region, new EntityList<Entity>() { Executor, itemToDrop, Executor.Location, Executor.Structure }));
+                                Game1.GameWorld.HistoricalEvents.Add(new Event(
+                                    Date + " " + Executor.Name + " dropped " + itemToDrop.Name + " in " + Executor.Location.Name +
+                                    ", at the " + Executor.Structure.Type + " " + Executor.Structure.Name + ".",
+                                    Executor.Location.Region,
+                                    new EntityList<Entity>() { Executor, itemToDrop, Executor.Location, Executor.Structure }
+                                ));
 
                                 Executor.Structure.HistoricalObjects.Add(itemToDrop);
                             }
@@ -1819,9 +2414,11 @@ namespace Lightrealm
                     }
                 }
             }
+
+
             else if (CommandID == "drop_haul")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
 
                 // Check if Executor is carrying anything
                 if (Executor.CarryingEntity == null)
@@ -1852,7 +2449,7 @@ namespace Lightrealm
 
                         if (Executor.Structure != null && Executor.Structure.Type == "market")
                         {
-                            Executor.Structure.MarketDebt += carriedObject.Value();
+                            Executor.Structure.MarketDebtToUs += carriedObject.Value();
                         }
 
                         // Add historical event for dropping the object
@@ -1895,7 +2492,7 @@ namespace Lightrealm
 
             else if (CommandID == "remove_worn_item")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
                 if (Subjects[0] is Object && Executor.Clothing.Contains(((Object)Subjects[0])))
                 {
                     MakeObservation("You take off the " + Subjects[0].ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { Subjects[0] });
@@ -1941,87 +2538,141 @@ namespace Lightrealm
             }
             else if (CommandID == "examine")
             {
-                if (Subjects[0] is Architect)
+                if (Executor.BlindCycles > 0)
                 {
-                    MakeObservation(Subjects[0].ReferredToNames[0] + " (Race: " + ((Architect)Subjects[0]).Race.Name + ")", Color.White, new EntityList<Entity>() { Subjects[0] });
-                    MakeObservation(((Architect)Subjects[0]).Race.Description, Color.LimeGreen, new EntityList<Entity>());
-                    MakeObservation(((Architect)Subjects[0]).CheckEnergyLevel(), Color.Magenta, new EntityList<Entity>());
-                    MakeObservation(((Architect)Subjects[0]).DescribeArchitectInventory(), Color.Orange, new EntityList<Entity>());
-
-                    var specialRaces = new HashSet<string>
-                    {
-                        "shade",
-                        "shadeheart",
-                        "isofractal",
-                        "icosidodecahedron",
-                        "photonexus",
-                        "hypernexus"
-                    };
-
-                    // Check if the subject's race is either in HumanoidRaces or matches one of the special races
-                    if (GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) ||
-                        specialRaces.Contains(((Architect)Subjects[0]).Race.Name) 
-                        || Game1.GameWorld.ColossalTypes.Contains((((Architect)Subjects[0])).Race))
-                    {
-                        MakeObservation("Press F2 (or fn+F2) for a portrait.", Color.Cyan, new EntityList<Entity>());
-                        Game1.StoredPortrait = ((Architect)Subjects[0]);
-                    }
-                    else
-                    {
-                        Game1.StoredPortrait = null;
-                    }
+                    MakeObservation("You are blind.", Color.Magenta, new EntityList<Entity>());
                 }
-                else if (Subjects[0] is Object)
+                else
                 {
-                    if ((LoadedArchitects[Game1.ArchitectIndex].Room != null && LoadedArchitects[Game1.ArchitectIndex].Room.Objects.Contains(Subjects[0])) || LoadedArchitects[Game1.ArchitectIndex].Block.Objects.Contains(Subjects[0]) || (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == Subjects[0] || LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == Subjects[0] || LoadedArchitects[Game1.ArchitectIndex].Inventory.Contains(Subjects[0])) || LoadedArchitects[Game1.ArchitectIndex].Clothing.Contains(Subjects[0]))
+
+                    if (Subjects[0] is Architect a)
                     {
-                        MakeObservation(Subjects[0].ReferredToNames[0], Color.White, new EntityList<Entity>() { Subjects[0] });
-                        MakeObservation(((Object)Subjects[0]).Description, Color.White, new EntityList<Entity>());
+                        a = a.ArchitectILookLike;
 
-                        string Materials = "Materials: ";
-                        List<string> materialNames = ((Object)Subjects[0]).Materials.Select(m => m.Name).ToList();
+                        MakeObservation($"{a.ReferredToNames[0]} (Race: {a.Race.Name})", Color.White, new EntityList<Entity> { a });
+                        MakeObservation(a.Race.Description, Color.LimeGreen, new EntityList<Entity>());
+                        MakeObservation(a.CheckEnergyLevel(), Color.Magenta, new EntityList<Entity>());
+                        MakeObservation(a.DescribeArchitectInventory(), Color.Orange, new EntityList<Entity>());
 
-                        if (materialNames.Count() > 1)
+                        var specialRaces = new HashSet<string>
                         {
-                            // Insert "and" before the last element
-                            materialNames[^1] = "and " + materialNames[^1];
+                            "shade", "shadeheart", "isofractal", "icosidodecahedron", "photonexus", "hypernexus"
+                        };
 
-                            // Join all elements with a comma, except the last one which already has "and"
-                            Materials += String.Join(", ", materialNames);
-                        }
-                        else if (materialNames.Count() == 1)
+                        if (Game1.GameWorld.HumanoidRaces.Contains(a.Race) ||
+                            specialRaces.Contains(a.Race.Name) ||
+                            Game1.GameWorld.ColossalTypes.Contains(a.Race))
                         {
-                            // If there's only one material, just add it
-                            Materials += materialNames[0];
+                            MakeObservation("Press F2 (or fn+F2) for a portrait.", Color.Cyan, new EntityList<Entity>());
+                            Game1.StoredPortrait = a;
                         }
-
-                        // Replace "/m" with the formatted material list
-                        Materials = Materials.Replace("/m", Game1.FormatMaterialList(((Object)Subjects[0]).Materials));
-
-                        MakeObservation(Materials, Color.White, (((Object)Subjects[0]).Materials.Cast<Entity>()));
-
-                        foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
+                        else
                         {
-                            MakeObservation(i.GetDescription(), Color.Magenta, new EntityList<Entity>());
+                            Game1.StoredPortrait = null;
                         }
+                    }
+
+                    else if (Subjects[0] is Object)
+                    {
+                        if ((LoadedArchitects[Game1.ArchitectIndex].Room != null && LoadedArchitects[Game1.ArchitectIndex].Room.Objects.Contains(Subjects[0])) || LoadedArchitects[Game1.ArchitectIndex].Block.Objects.Contains(Subjects[0]) || (LoadedArchitects[Game1.ArchitectIndex].MainHeldObject == Subjects[0] || LoadedArchitects[Game1.ArchitectIndex].OffHeldObject == Subjects[0] || LoadedArchitects[Game1.ArchitectIndex].Inventory.Contains(Subjects[0])) || LoadedArchitects[Game1.ArchitectIndex].Clothing.Contains(Subjects[0]))
+                        {
+                            MakeObservation(Subjects[0].ReferredToNames[0], Color.White, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(((Object)Subjects[0]).Description, Color.White, new EntityList<Entity>());
+
+                            string Materials = "Materials: ";
+                            List<string> materialNames = ((Object)Subjects[0]).Materials.Select(m => m.Name).ToList();
+
+                            if (materialNames.Count() > 1)
+                            {
+                                // Insert "and" before the last element
+                                materialNames[^1] = "and " + materialNames[^1];
+
+                                // Join all elements with a comma, except the last one which already has "and"
+                                Materials += String.Join(", ", materialNames);
+                            }
+                            else if (materialNames.Count() == 1)
+                            {
+                                // If there's only one material, just add it
+                                Materials += materialNames[0];
+                            }
+
+                            // Replace "/m" with the formatted material list
+                            Materials = Materials.Replace("/m", Game1.FormatMaterialList(((Object)Subjects[0]).Materials));
+
+                            MakeObservation(Materials, Color.White, (((Object)Subjects[0]).Materials.Cast<Entity>()));
+
+                            foreach (Imbuement i in ((Object)Subjects[0]).Imbuements)
+                            {
+                                MakeObservation(i.GetDescription(), Color.Magenta, new EntityList<Entity>());
+                            }
+
+                            if (((Object)Subjects[0]).IsWeapon)
+                            {
+                                MakeObservation("Inflicts " + ((Object)Subjects[0]).DamageType + " damage.", Color.White, new EntityList<Entity>());
+                            }
+
+                            if (((Object)Subjects[0]).Type == "skill scroll" && ((Object)Subjects[0]).SpecialKnowledge != null)
+                            {
+                                MakeObservation("Contains knowledge of " + ((Object)Subjects[0]).SpecialKnowledge.Name + ".", Color.Lime, new EntityList<Entity>() { ((Object)Subjects[0]).SpecialKnowledge });
+                            }
+
+
+                            if (((Object)Subjects[0]).IsWeapon || ((Object)Subjects[0]).IsWearable || ((Object)Subjects[0]).Type == "bar")
+                            {
+                                MakeObservation("Primary Material Toughness: " + ((Object)Subjects[0]).Materials[0].Toughness, Color.White, new EntityList<Entity>());
+                            }
+                        }
+                        else
+                        {
+                            MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new EntityList<Entity>());
+                        }
+                    }
+                    else if (Subjects[0] is Structure && LoadedArchitects[Game1.ArchitectIndex].Room == null && LoadedArchitects[Game1.ArchitectIndex].Block.Structures.Contains(Subjects[0]))
+                    {
+                        MakeObservation(((Structure)Subjects[0]).GetStructureDescription(), Color.White, new EntityList<Entity>() { ((Structure)Subjects[0]) });
                     }
                     else
                     {
                         MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new EntityList<Entity>());
                     }
-                }
-                else if (Subjects[0] is Structure && LoadedArchitects[Game1.ArchitectIndex].Room == null && LoadedArchitects[Game1.ArchitectIndex].Block.Structures.Contains(Subjects[0]))
-                {
-                    MakeObservation(((Structure)Subjects[0]).GetStructureDescription(), Color.White, new EntityList<Entity>() { ((Structure)Subjects[0]) });
-                }
-                else
-                {
-                    MakeObservation("You couldn't find anything like that nearby.", Color.Yellow, new EntityList<Entity>());
+
+                    if (Game1.LoadedFinalPointers.Contains(Subjects[0]))
+                    {
+                        MakeObservation(Subjects[0].IAmAFinalPointerThatFollowsAfterThisObjective.FinalMessage.Data, Subjects[0].IAmAFinalPointerThatFollowsAfterThisObjective.FinalMessage.Color, Subjects[0].IAmAFinalPointerThatFollowsAfterThisObjective.FinalMessage.Entities);
+                        GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Add(new TextStorage(Subjects[0].IAmAFinalPointerThatFollowsAfterThisObjective.FinalIntrigue, Color.Magenta, new EntityList<Entity>()));
+
+
+                        foreach (Party p in GameWorld.GamePlayerAssociation.Parties)
+                            p.ActiveObjectives.Remove(Subjects[0].IAmAFinalPointerThatFollowsAfterThisObjective);
+
+                        Game1.LoadedFinalPointers.Remove(Subjects[0]);
+
+                    }
+
+                    if (Game1.LoadedHooks.Contains(Subjects[0]) && (Subjects[0]).HookedObjective != null && (Subjects[0]).HookedObjective.RequiredInteraction == "examine")
+                    {
+                        MakeObservation("More interestingly however, " + (Subjects[0]).HookedObjective.PointerMessage.Data, (Subjects[0]).HookedObjective.PointerMessage.Color, (Subjects[0]).HookedObjective.PointerMessage.Entities);
+
+                        TextStorage t = new TextStorage((Subjects[0]).HookedObjective.PointerIntrigue, Color.White, new EntityList<Entity>());
+
+                        t.AttachedQuest = (Subjects[0]).HookedObjective.ParentQuest;
+
+                        Executor.TrySendCompMessageForObjective((Subjects[0]).HookedObjective.ActualTask);
+
+
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Executor))
+                        {
+                            Game1.GameWorld.GamePlayerAssociation.ActiveParty.ActiveObjectives.Add((Subjects[0]).HookedObjective);
+                        }
+
+                        Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Add(t);
+                        MakeObservation("[Intrigue Updated]", Color.Magenta, new EntityList<Entity>());
+                    }
                 }
             }
             else if (CommandID == "give_item")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 if (!(Subjects[0] is Object))
                 {
                     MakeObservation("You can't give something that isn't an object.", Color.Yellow, new EntityList<Entity>());
@@ -2056,18 +2707,18 @@ namespace Lightrealm
 
                 if (Subjects[1] is Architect)
                 {
-                    AddMessage(Executor.Name + ": Here, take this.", Color.White, new EntityList<Entity>() { Executor });
+                    MakeObservation(Executor.Name + ": Here, take this.", Color.White, new EntityList<Entity>() { Executor });
                     MakeObservation("You give the " + Subjects[0].ReferredToNames[0] + " to " + Subjects[1].ReferredToNames[0] + ".", Color.LightBlue, new EntityList<Entity>() { Subjects[1], GivenObject });
 
                     ((Object)Subjects[0]).PlaySound();
 
                     if (CanUnderstandEachOther(Subjects[1], Executor))
                     {
-                        AddMessage(Subjects[1].ReferredToNames[0] + ": Thank you. I appreciate this.", Color.Pink, new EntityList<Entity>() { Subjects[1] });
+                        MakeObservation(Subjects[1].ReferredToNames[0] + ": Thank you. I appreciate this.", Color.Pink, new EntityList<Entity>() { Subjects[1] });
                     }
                     else
                     {
-                        AddMessage(Subjects[1].ReferredToNames[0] + ": *happy shibesque noises*", Color.Pink, new EntityList<Entity>() { Subjects[1] });
+                        MakeObservation(Subjects[1].ReferredToNames[0] + ": *happy shibesque noises*", Color.Pink, new EntityList<Entity>() { Subjects[1] });
                     }
 
                     ((Architect)Subjects[1]).Inventory.Add(GivenObject);
@@ -2078,289 +2729,310 @@ namespace Lightrealm
 
                     if (((Object)Subjects[1]).Type == "altar")
                     {
-                        ((Object)Subjects[0]).PlaySound();
-                        MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + ". It fizzles...", Color.Yellow, new EntityList<Entity>() { Subjects[0], Subjects[1] });
-
-                        int Quality = 0;
-
-                        if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "gemstone"))
+                        if (Game1.GameWorld.Cycle > (Executor.LastDivinationCycle+(864000)))
                         {
-                            Quality = 10;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "metal"))
-                        {
-                            Quality = 8;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "glass"))
-                        {
-                            Quality = 6;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "stone"))
-                        {
-                            Quality = 5;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "cloth"))
-                        {
-                            Quality = 4;
-                        }
-                        else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "wood"))
-                        {
-                            Quality = 2;
+                            Executor.LastDivinationCycle = Game1.GameWorld.Cycle;
+                            Executor.ShrineUsesLeft = 3;
                         }
 
-                        int Outcome = (Quality * 2) + Game1.GameWorld.rnd.Next(-2, 3);
-
-                        //outcome will be from 0-22, depending on quality
-                        string OutcomeString = (new List<string>() { "reject", "reject", "reject", "reject", "reject", "coffee", "tea", "divineprotection", "double", "lightninggrenade", "icedtea", "icedcoffee", "spatialgrenade", "double", "heal", "double", "divinemight", "learnspell", "double", "convertmaterialtodivine", "divineartifact", "divineartifact", "divineweapon" })[Outcome];
-
-                        Deity PrayingDeity;
-                        if (LoadedArchitects[Game1.ArchitectIndex].Structure == null && LoadedArchitects[Game1.ArchitectIndex].Structure.Type == "shrine")
+                        if (Executor.ShrineUsesLeft > 0)
                         {
-                            PrayingDeity = LoadedArchitects[Game1.ArchitectIndex].Structure.PrayingDeity;
-                        }
-                        else if (Game1.GameWorld.rnd.Next(1, 3) == 1)
-                        {
-                            PrayingDeity = Game1.GameWorld.LightDeity;
-                        }
-                        else
-                        {
-                            PrayingDeity = Game1.GameWorld.DarkDeity;
-                        }
+                            Executor.ShrineUsesLeft--;
 
-                        Game1.SFX.Add(Game1.Expel);
+                            ((Object)Subjects[0]).PlaySound();
+                            MakeObservation("You place your " + Subjects[0].ReferredToNames[0] + " on the " + Subjects[1].ReferredToNames[0] + ". It fizzles...", Color.Yellow, new EntityList<Entity>() { Subjects[0], Subjects[1] });
 
-                        switch (OutcomeString)
-                        {
-                            case "reject":
-                                {
-                                    MakeObservation("...and absolutely nothing happens.", Color.Red, new EntityList<Entity>());
-                                    break;
-                                }
-                            case "coffee":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of coffee!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                            int Quality = 0;
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "tea":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of tea!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                            if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "gemstone"))
+                            {
+                                Quality = 10;
+                            }
+                            else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "metal"))
+                            {
+                                Quality = 8;
+                            }
+                            else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "glass"))
+                            {
+                                Quality = 6;
+                            }
+                            else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "stone"))
+                            {
+                                Quality = 5;
+                            }
+                            else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "cloth"))
+                            {
+                                Quality = 4;
+                            }
+                            else if (((Object)Subjects[0]).Materials.Any(obj => obj.Type == "wood"))
+                            {
+                                Quality = 2;
+                            }
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Tea }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "divineprotection":
-                                {
-                                    // Code for the 'divineprotection' case
-                                    MakeObservation(PrayingDeity.Name + " offers you a barrier between the blades of your enemies!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.DivineProtection += 5;
-                                    break;
-                                }
-                            case "double":
-                                {
-                                    // Code for the 'double' case
-                                    MakeObservation(PrayingDeity.Name + " has blessed your offering and doubled it!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.Room.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
-                                    Executor.Room.Objects.Add(new Object(GivenObject.Name, GivenObject.Type, GivenObject.Materials, GivenObject.IfTrueUseInIfFalseUseOn, GivenObject.IsContainer, GivenObject.CompositionContent, GivenObject.Creator, GivenObject.Weight, GivenObject.IsGeneralGood, GivenObject.Block, GivenObject.Structure, GivenObject.Room, GivenObject.IsWearable));
-                                    break;
-                                }
-                            case "lightninggrenade":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with lightning...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.Room.Objects.Add(new Object(null, "lightning grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
-                                    break;
-                                }
-                            case "spatialgrenade":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with violet energy...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.Room.Objects.Add(new Object(null, "spatial grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
-                                    break;
-                                }
-                            case "icedcoffee":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced coffee!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                            int Outcome = (Quality * 2) + Game1.GameWorld.rnd.Next(-4, 5);
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, PrayingDeity));
-                                    o.ContainedObjects.Add(new Object(null, "cube", new EntityList<Material> { GameWorld.Ices[Game1.GameWorld.rnd.Next(GameWorld.Ices.Count())] }, PrayingDeity));
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "icedtea":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced tea!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                            Outcome = Math.Max(0, Math.Min(Outcome, 22));
 
-                                    Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
-                                    o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Tea }, PrayingDeity));
-                                    o.ContainedObjects.Add(new Object(null, "cube", new EntityList<Material> { GameWorld.Ices[Game1.GameWorld.rnd.Next(GameWorld.Ices.Count())] }, PrayingDeity));
-                                    if (Executor.Room != null)
+
+
+                            //outcome will be from 0-22, depending on quality
+                            string OutcomeString = (new List<string>() { "reject", "reject", "reject", "reject", "reject", "coffee", "tea", "divineprotection", "double", "lightninggrenade", "icedtea", "icedcoffee", "spatialgrenade", "double", "divinemight", "double", "divinemight", "learnspell", "double", "convertmaterialtodivine", "divineartifact", "divineartifact", "divineweapon" })[Outcome];
+
+                            Deity PrayingDeity;
+                            if (LoadedArchitects[Game1.ArchitectIndex].Structure == null && LoadedArchitects[Game1.ArchitectIndex].Structure.Type == "shrine")
+                            {
+                                PrayingDeity = LoadedArchitects[Game1.ArchitectIndex].Structure.PrayingDeity;
+                            }
+                            else if (Game1.GameWorld.rnd.Next(1, 3) == 1)
+                            {
+                                PrayingDeity = Game1.GameWorld.LightDeity;
+                            }
+                            else
+                            {
+                                PrayingDeity = Game1.GameWorld.DarkDeity;
+                            }
+
+                            Game1.SFX.Add(Game1.Expel);
+
+                            switch (OutcomeString)
+                            {
+                                case "reject":
                                     {
-                                        Executor.Room.Objects.Add(o);
+                                        MakeObservation("...and absolutely nothing happens.", Color.Red, new EntityList<Entity>());
+                                        break;
                                     }
-                                    else
+                                case "coffee":
                                     {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-                                    break;
-                                }
-                            case "heal":
-                                {
-                                    MakeObservation(PrayingDeity.Name + " envelops you in a beautiful energy wave, fully repairing your body!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    foreach (Object o in Executor.BodyParts)
-                                    {
-                                        o.Integrity = 100;
-                                    }
-                                    Executor.Energy = Executor.MaxEnergy;
-                                    break;
-                                }
-                            case "divinemight":
-                                {
-                                    // Code for the 'divinemight' case
-                                    MakeObservation(PrayingDeity.Name + " offers you a burst of power against your mightiest foes!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    Executor.DivineMight += 12;
-                                    break;
-                                }
-                            case "learnspell":
-                                {
-                                    // Code for the 'learnspell' case
-                                    MakeObservation(PrayingDeity.Name + " attempts to infuse magic into your being...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-                                    if (Game1.GameWorld.rnd.Next(1, 3) == 1 || GameWorld.DiscoveredSpells.Count() == 0)
-                                    {
-                                        var randomSpell = GameWorld.DiscoveredSpells[Game1.GameWorld.rnd.Next(GameWorld.DiscoveredSpells.Count())];
-                                        if (!LoadedArchitects[Game1.ArchitectIndex].SpellsKnown.Contains(randomSpell))
+                                        MakeObservation(PrayingDeity.Name + " has conjured for you a cup of coffee!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+
+                                        Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                        o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, PrayingDeity));
+                                        if (Executor.Room != null)
                                         {
-                                            MakeObservation("You feel a tremendous pain, followed by a strange, uplifting peace.", Color.Goldenrod, new EntityList<Entity>());
-                                            LoadedArchitects[Game1.ArchitectIndex].SpellsKnown.Add(randomSpell);
+                                            Executor.Room.Objects.Add(o);
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(o);
+                                        }
+                                        break;
+                                    }
+                                case "tea":
+                                    {
+                                        MakeObservation(PrayingDeity.Name + " has conjured for you a cup of tea!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+
+                                        Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                        o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Tea }, PrayingDeity));
+                                        if (Executor.Room != null)
+                                        {
+                                            Executor.Room.Objects.Add(o);
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(o);
+                                        }
+                                        break;
+                                    }
+                                case "divineprotection":
+                                    {
+                                        // Code for the 'divineprotection' case
+                                        MakeObservation(PrayingDeity.Name + " offers you a barrier between the blades of your enemies!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                        Executor.DivineProtection += 5;
+                                        break;
+                                    }
+                                case "double":
+                                    {
+                                        MakeObservation(
+                                            PrayingDeity.Name + " has blessed your offering and doubled it!",
+                                            Color.Goldenrod,
+                                            new EntityList<Entity>() { PrayingDeity }
+                                        );
+
+                                        Object firstClone = Game1.Clone(GivenObject);
+                                        Object secondClone = Game1.Clone(GivenObject);
+
+                                        Executor.Room.Objects.Add(firstClone);
+                                        Executor.Room.Objects.Add(secondClone);
+
+                                        break;
+                                    }
+
+                                case "lightninggrenade":
+                                    {
+                                        MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with lightning...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                        Executor.Room.Objects.Add(new Object(null, "lightning grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
+                                        Executor.CompanionMessage("grenade", "");
+                                        break;
+                                    }
+                                case "spatialgrenade":
+                                    {
+                                        MakeObservation(PrayingDeity.Name + " has gifted you a strange sphere filled with violet energy...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                        Executor.Room.Objects.Add(new Object(null, "spatial grenade", new EntityList<Material>() { GameWorld.Glass }, PrayingDeity));
+                                        Executor.CompanionMessage("grenade", "");
+                                        break;
+                                    }
+                                case "icedcoffee":
+                                    {
+                                        MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced coffee!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+
+                                        Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                        o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Coffee }, PrayingDeity));
+                                        o.ContainedObjects.Add(new Object(null, "cube", new EntityList<Material> { GameWorld.Ices[Game1.GameWorld.rnd.Next(GameWorld.Ices.Count())] }, PrayingDeity));
+                                        if (Executor.Room != null)
+                                        {
+                                            Executor.Room.Objects.Add(o);
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(o);
+                                        }
+                                        break;
+                                    }
+                                case "icedtea":
+                                    {
+                                        MakeObservation(PrayingDeity.Name + " has conjured for you a cup of iced tea!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+
+                                        Object o = new Object(null, "small cup", new EntityList<Material>() { LoadedArchitects[Game1.ArchitectIndex].Location.HomeCivilization.CulturalStone }, PrayingDeity);
+                                        o.ContainedObjects.Add(new Object(null, "drink", new EntityList<Material> { GameWorld.Tea }, PrayingDeity));
+                                        o.ContainedObjects.Add(new Object(null, "cube", new EntityList<Material> { GameWorld.Ices[Game1.GameWorld.rnd.Next(GameWorld.Ices.Count())] }, PrayingDeity));
+                                        if (Executor.Room != null)
+                                        {
+                                            Executor.Room.Objects.Add(o);
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(o);
+                                        }
+                                        break;
+                                    }
+                                case "divinemight":
+                                    {
+                                        // Code for the 'divinemight' case
+                                        MakeObservation(PrayingDeity.Name + " offers you a burst of power against your mightiest foes!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                        Executor.DivineMight += 12;
+                                        break;
+                                    }
+                                case "learnspell":
+                                    {
+                                        // Code for the 'learnspell' case
+                                        MakeObservation(PrayingDeity.Name + " attempts to infuse magic into your being...", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                        if (Game1.GameWorld.rnd.Next(1, 3) == 1 || GameWorld.DiscoveredSpells.Count() == 0)
+                                        {
+                                            var randomSpell = GameWorld.DiscoveredSpells[Game1.GameWorld.rnd.Next(GameWorld.DiscoveredSpells.Count())];
+                                            if (!LoadedArchitects[Game1.ArchitectIndex].SpellsKnown.Contains(randomSpell))
+                                            {
+                                                MakeObservation("You feel a tremendous pain, followed by a strange, uplifting peace.", Color.Goldenrod, new EntityList<Entity>());
+                                                LoadedArchitects[Game1.ArchitectIndex].SpellsKnown.Add(randomSpell);
+                                            }
+                                            else
+                                            {
+                                                MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new EntityList<Entity>());
+                                            }
                                         }
                                         else
                                         {
                                             MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new EntityList<Entity>());
                                         }
+                                        break;
                                     }
-                                    else
+                                case "convertmaterialtodivine":
                                     {
-                                        MakeObservation("You feel a tremendous pain, followed by an intense feeling of dissatisfaction.", Color.Goldenrod, new EntityList<Entity>());
-                                    }
-                                    break;
-                                }
-                            case "convertmaterialtodivine":
-                                {
-                                    GivenObject.Materials.Clear();
-                                    MakeObservation(PrayingDeity.Name + " alters your object into a brilliant form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+                                        GivenObject.Materials.Clear();
+                                        MakeObservation(PrayingDeity.Name + " alters your object into a brilliant form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
 
-                                    if (PrayingDeity == GameWorld.LightDeity)
+                                        if (PrayingDeity == GameWorld.LightDeity)
+                                        {
+                                            GivenObject.Materials.Add(GameWorld.Prismite);
+                                        }
+                                        else
+                                        {
+                                            GivenObject.Materials.Add(GameWorld.Shadesteel);
+                                        }
+
+                                        if (Executor.Room != null)
+                                        {
+                                            Executor.Room.Objects.Add(GivenObject);
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(GivenObject);
+                                        }
+                                        break;
+                                    }
+                                case "divineweapon":
                                     {
-                                        GivenObject.Materials.Add(GameWorld.Prismite);
+                                        // Code for the 'divineweapon' case
+
+                                        Material WeaponMaterial;
+
+                                        MakeObservation(PrayingDeity.Name + " reshapes your object into an incredible form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+
+                                        if (PrayingDeity == GameWorld.LightDeity)
+                                        {
+                                            WeaponMaterial = GameWorld.Prismite;
+                                        }
+                                        else
+                                        {
+                                            WeaponMaterial = GameWorld.Shadesteel;
+                                        }
+
+                                        if (Executor.Room != null)
+                                        {
+                                            Executor.Room.Objects.Add(Game1.GameWorld.GenerateRandomWeapon(WeaponMaterial, "rare"));
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(Game1.GameWorld.GenerateRandomWeapon(WeaponMaterial, "rare"));
+                                        }
+
+                                        break;
                                     }
-                                    else
+                                case "divineartifact":
                                     {
-                                        GivenObject.Materials.Add(GameWorld.Shadesteel);
+                                        // Code for the 'divineweapon' case
+
+                                        Material artifactMaterial;
+
+                                        MakeObservation(PrayingDeity.Name + " reshapes your object into an indescribable form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
+
+                                        if (PrayingDeity == GameWorld.LightDeity)
+                                        {
+                                            artifactMaterial = GameWorld.Prismite;
+                                        }
+                                        else
+                                        {
+                                            artifactMaterial = GameWorld.Shadesteel;
+                                        }
+
+                                        Object o = Game1.GameWorld.MagicalSuperLoot(6);
+
+                                        o.Materials.Clear();
+
+                                        o.Materials.Add(artifactMaterial);
+
+                                        if (Executor.Room != null)
+                                        {
+                                            Executor.Room.Objects.Add(o);
+                                        }
+                                        else
+                                        {
+                                            Executor.Block.Objects.Add(o);
+                                        }
+
+                                        break;
                                     }
 
-                                    if (Executor.Room != null)
+                                default:
                                     {
-                                        Executor.Room.Objects.Add(GivenObject);
+                                        // Code for any other case that is not specifically handled
+                                        break;
                                     }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(GivenObject);
-                                    }
-                                    break;
-                                }
-                            case "divineweapon":
-                                {
-                                    // Code for the 'divineweapon' case
+                            }
 
-                                    Material WeaponMaterial;
-
-                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an incredible form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-
-                                    if (PrayingDeity == GameWorld.LightDeity)
-                                    {
-                                        WeaponMaterial = GameWorld.Prismite;
-                                    }
-                                    else
-                                    {
-                                        WeaponMaterial = GameWorld.Shadesteel;
-                                    }
-
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(Game1.GameWorld.GenerateRandomWeapon(WeaponMaterial, "rare"));
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(Game1.GameWorld.GenerateRandomWeapon(WeaponMaterial, "rare"));
-                                    }
-
-                                    break;
-                                }
-                            case "divineartifact":
-                                {
-                                    // Code for the 'divineweapon' case
-
-                                    Material artifactMaterial;
-
-                                    MakeObservation(PrayingDeity.Name + " reshapes your object into an indescribable form!", Color.Goldenrod, new EntityList<Entity>() { PrayingDeity });
-
-                                    if (PrayingDeity == GameWorld.LightDeity)
-                                    {
-                                        artifactMaterial = GameWorld.Prismite;
-                                    }
-                                    else
-                                    {
-                                        artifactMaterial = GameWorld.Shadesteel;
-                                    }
-
-                                    Object o = Game1.GameWorld.MagicalSuperLoot(6);
-
-                                    o.Materials.Clear();
-
-                                    o.Materials.Add(artifactMaterial);
-
-                                    if (Executor.Room != null)
-                                    {
-                                        Executor.Room.Objects.Add(o);
-                                    }
-                                    else
-                                    {
-                                        Executor.Block.Objects.Add(o);
-                                    }
-
-                                    break;
-                                }
-
-                            default:
-                                {
-                                    // Code for any other case that is not specifically handled
-                                    break;
-                                }
+                        }
+                        else
+                        {
+                            MakeObservation("You fail to divinate. Perhaps you've been overambitious...", Color.Yellow, new EntityList<Entity>() { });
                         }
 
                     }
@@ -2373,71 +3045,77 @@ namespace Lightrealm
             }
             else if (CommandID == "throw_item")
             {
-                Object ThrowingObject = null;
-
-                // Check if the item is in the inventory
-                if (Executor.Inventory.Contains((Object)Subjects[0]))
+                if (Subjects[0] is Object o)
                 {
-                    // Wield the item first
-                    if (Executor.MainHeldObject == null)
+                    Object ThrowingObject = null;
+
+                    // Check if the item is in the inventory
+                    if (Executor.Inventory.Contains((Object)Subjects[0]))
                     {
-                        Executor.MainHeldObject = (Object)Subjects[0];
-                        MakeObservation("You take out the item with your dominant hand.", Color.Yellow, new EntityList<Entity>());
+                        // Wield the item first
+                        if (Executor.MainHeldObject == null)
+                        {
+                            Executor.MainHeldObject = (Object)Subjects[0];
+                            MakeObservation("You take out the item with your dominant hand.", Color.Yellow, new EntityList<Entity>());
+                        }
+                        else if (Executor.OffHeldObject == null)
+                        {
+                            Executor.OffHeldObject = (Object)Subjects[0];
+                            MakeObservation("You take out the item with your non-dominant hand.", Color.Yellow, new EntityList<Entity>());
+                        }
+                        else
+                        {
+                            MakeObservation("Your hands are full.", Color.Yellow, new EntityList<Entity>());
+                            return false;
+                        }
+
+                        Executor.Inventory.Remove((Object)Subjects[0]);
+                        Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
                     }
-                    else if (Executor.OffHeldObject == null)
+
+                    if (Executor.MainHeldObject == Subjects[0])
                     {
-                        Executor.OffHeldObject = (Object)Subjects[0];
-                        MakeObservation("You take out the item with your non-dominant hand.", Color.Yellow, new EntityList<Entity>());
+                        ThrowingObject = Executor.MainHeldObject;
+                        Executor.MainHeldObject = null;
+                    }
+                    else if (Executor.OffHeldObject == Subjects[0])
+                    {
+                        ThrowingObject = Executor.OffHeldObject;
+                        Executor.OffHeldObject = null;
+                    }
+
+                    if (ThrowingObject == null)
+                    {
+                        if (Executor.OffHeldObject == null && Executor.MainHeldObject == null)
+                        {
+                            Game1.Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>() { }));
+                        }
+                        else
+                        {
+                            Game1.Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>() { }));
+                        }
                     }
                     else
                     {
-                        MakeObservation("Your hands are full.", Color.Yellow, new EntityList<Entity>());
-                        return false;
+                        Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
+                        MakeObservation("You fling your " + Subjects[0].ReferredToNames[0] + " at nothing. Expectedly, it falls to the ground.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                        Game1.SFX.Add(Game1.Duck);
+                        Executor.Inventory.Remove(ThrowingObject);
+
+                        if (Executor.Room == null)
+                        {
+                            Executor.Block.Objects.Add(ThrowingObject);
+                        }
+                        else
+                        {
+                            Executor.Room.Objects.Add(ThrowingObject);
+                        }
                     }
 
-                    Executor.Inventory.Remove((Object)Subjects[0]);
-                    Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
-                }
-
-                if (Executor.MainHeldObject == Subjects[0])
-                {
-                    ThrowingObject = Executor.MainHeldObject;
-                    Executor.MainHeldObject = null;
-                }
-                else if (Executor.OffHeldObject == Subjects[0])
-                {
-                    ThrowingObject = Executor.OffHeldObject;
-                    Executor.OffHeldObject = null;
-                }
-
-                if (ThrowingObject == null)
-                {
-                    if (Executor.OffHeldObject == null && Executor.MainHeldObject == null)
-                    {
-                        Game1.Observations.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>() { }));
-                        Game1.Announcements.Add(new TextStorage("Your hands are empty. You must have an object in your hands to throw it.", Color.Yellow, new EntityList<Entity>() { }));
-                    }
-                    else
-                    {
-                        Game1.Observations.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>() { }));
-                        Game1.Announcements.Add(new TextStorage("You do not have an object like that in your hands.", Color.Yellow, new EntityList<Entity>() { }));
-                    }
                 }
                 else
                 {
-                    Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
-                    MakeObservation("You fling your " + Subjects[0].ReferredToNames[0] + " at nothing. Expectedly, it falls to the ground.", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
-                    Game1.SFX.Add(Game1.Duck);
-                    Executor.Inventory.Remove(ThrowingObject);
-
-                    if (Executor.Room == null)
-                    {
-                        Executor.Block.Objects.Add(ThrowingObject);
-                    }
-                    else
-                    {
-                        Executor.Room.Objects.Add(ThrowingObject);
-                    }
+                    MakeObservation("You can only throw objects.", Color.Yellow, new EntityList<Entity>());
                 }
             }
 
@@ -2494,7 +3172,7 @@ namespace Lightrealm
                             Executor.MainHeldObject = (Object)Subjects[0];
                             ThrowingObject = Executor.MainHeldObject;
                             Executor.Inventory.Remove((Object)Subjects[0]);
-                            MakeObservation("You wield the " + Subjects[0].ReferredToNames[0] + " in your right hand.", Color.Yellow, new EntityList<Entity>()); 
+                            MakeObservation("You wield the " + Subjects[0].ReferredToNames[0] + " in your right hand.", Color.Yellow, new EntityList<Entity>());
                             Game1.SFX.Add(Game1.Wield);
                         }
                         else
@@ -2503,7 +3181,7 @@ namespace Lightrealm
                             return false;
                         }
                         // Apply cooldown for wielding
-                        Executor.CooldownCycles += (int)(Math.Round((15 - Executor.Dexterity) / Executor.Speed()));
+                        Executor.CooldownCycles += (int)(Math.Round((15 - Executor.Dexterity) / Executor.Speed));
                     }
                     else
                     {
@@ -2513,7 +3191,7 @@ namespace Lightrealm
                 }
 
                 // Apply cooldown for throwing
-                Executor.CooldownCycles += (int)(Math.Round((12 - Executor.Dexterity) / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round((12 - Executor.Dexterity) / Executor.Speed));
 
                 MakeObservation("You throw the " + Subjects[0].ReferredToNames[0] + "...", Color.Yellow, new EntityList<Entity>());
                 Game1.SFX.Add(Game1.Duck);
@@ -2531,7 +3209,7 @@ namespace Lightrealm
                     MakeObservation("You aim at the " + targetObject.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
                 }
 
-                ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, Game1.GameWorld.rnd.Next(12, 20) - Executor.Dexterity);
+                ((Object)Subjects[0]).AirborneCyclesToHitTarget = Math.Max(1, Game1.GameWorld.rnd.Next(12, 20) - Executor.Dexterity) * (((Object)Subjects[0]).Type.Contains("grenade") ? 10 : 1);
                 ((Object)Subjects[0]).Thrower = Executor;
                 ((Object)Subjects[0]).AirbornePower = Executor.Dexterity + Executor.GetDistance(Subjects[0]) + 3;
 
@@ -2563,19 +3241,18 @@ namespace Lightrealm
             else if (CommandID.StartsWith("cast_spell_at"))
             {
                 int numSubjects = int.Parse(CommandID.Last().ToString());  // Get the final number
-                if (Executor.SpellsKnown.Contains(Subjects[0]) ||
-                    (Executor.OffHeldObject != null && Executor.OffHeldObject.SpecialKnowledge == Subjects[0]) ||
-                    (Executor.MainHeldObject != null && Executor.MainHeldObject.SpecialKnowledge == Subjects[0]))
-                {
-                    Entity Spell = Subjects[0];
-                    Subjects.RemoveAt(0);
+                Entity Spell = Subjects[0];
 
+                if (Executor.SpellsKnown.Contains(Spell) ||
+                    (Executor.OffHeldObject != null && Executor.OffHeldObject.SpecialKnowledge == Spell) ||
+                    (Executor.MainHeldObject != null && Executor.MainHeldObject.SpecialKnowledge == Spell))
+                {
                     EntityList<Entity> Targets = new EntityList<Entity>();
 
-                    for (int i = 0; i < numSubjects && i < Subjects.Count(); i++)
-                    {
-                        Entity e = Subjects[i];
+                    var targetSubjects = Subjects.Skip(1).Take(numSubjects);  // Skip the spell itself, take the next N as targets
 
+                    foreach (Entity e in targetSubjects)
+                    {
                         // Add spells that can be casted at literally anything to the list below
                         if ((e is Object || e is Architect) || Spell.Metadata == "expunge" || ((e is Object || e is Structure || e is Architect) && Spell.Metadata == "liquify"))
                         {
@@ -2589,19 +3266,28 @@ namespace Lightrealm
 
                     if (Targets.Count() != 0)
                     {
-                        Game1.Announcements.AddRange(Executor.CastSpell(Spell.Metadata, Targets));
+                        for (int i = 0; i < Executor.SpellcastingPower; i++)
+                        {
+                            List<TextStorage> text = Executor.CastSpell(Spell.Metadata, Targets);
+
+                            foreach (TextStorage t in text)
+                            {
+                                Executor.AnnounceToParty(t.Data, t.Color, t.Entities);
+                            }
+                        }
                     }
                     else
                     {
-                        Game1.Observations.Add(new TextStorage("Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>() { }));
-                        Game1.Announcements.Add(new TextStorage("Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>() { }));
+                        Executor.AnnounceToParty("Most spells can only target architects and objects.", Color.Yellow, new EntityList<Entity>());
                     }
+
                 }
                 else
                 {
                     MakeObservation("You don't know or wield a spell like that.", Color.Yellow, new EntityList<Entity>());
                 }
             }
+
             else if (CommandID == "cast_spell")
             {
                 MakeObservation("You fail to concentrate. You will need a point of interest to cast the spell at, even if unused.", Color.Yellow, new EntityList<Entity>());
@@ -2610,80 +3296,133 @@ namespace Lightrealm
             {
                 bool FoundObject = false;
 
-                if (Executor.OffHeldObject == (Subjects[0]))
-                {
-                    FoundObject = true;
-                    Executor.OffHeldObject = null;
-                }
-                else if (Executor.MainHeldObject == (Subjects[0]))
-                {
-                    FoundObject = true;
-                    Executor.MainHeldObject = null;
-                }
-                else if (Executor.Inventory.Contains(Subjects[0]))
-                {
-                    FoundObject = true;
-                    Executor.Inventory.Remove((Object)Subjects[0]);
-                }
 
-                if (FoundObject)
-                {
-                    Object EatingObject = ((Object)Subjects[0]);
 
-                    // Check if the object is a container
-                    if (EatingObject.IsContainer)
+                if (Executor.HealStrikes == 3)
+                {
+                    Executor.AnnounceToParty("You cannot use another healing item until you move.", Color.Red, new EntityList<Entity>());
+                }
+                else
+                {
+                    if (Executor.OffHeldObject == (Subjects[0]))
                     {
-                        if (EatingObject.ContainedObjects.Count() > 0)
+                        FoundObject = true;
+                        Executor.OffHeldObject = null;
+                    }
+                    else if (Executor.MainHeldObject == (Subjects[0]))
+                    {
+                        FoundObject = true;
+                        Executor.MainHeldObject = null;
+                    }
+                    else if (Executor.Inventory.Contains(Subjects[0]))
+                    {
+                        FoundObject = true;
+                        Executor.Inventory.Remove((Object)Subjects[0]);
+                    }
+
+                    if (FoundObject)
+                    {
+                        Object EatingObject = ((Object)Subjects[0]);
+
+                        // Check if the object is a container
+                        if (EatingObject.IsContainer)
                         {
-                            // Consume each contained object
-                            foreach (var containedObject in EatingObject.ContainedObjects)
+                            if (EatingObject.ContainedObjects.Count() > 0)
                             {
-                                ConsumeObject(containedObject, Executor);
+                                // Consume each contained object
+                                foreach (var containedObject in EatingObject.ContainedObjects)
+                                {
+                                    ConsumeObject(containedObject, Executor);
+                                }
+                            }
+                            else
+                            {
+                                // Consume the container itself if empty
+                                ConsumeObject(EatingObject, Executor);
                             }
                         }
                         else
                         {
-                            // Consume the container itself if empty
+                            // Normal consume logic for non-container objects
                             ConsumeObject(EatingObject, Executor);
+                        }
+
+                        Executor.HealStrikes++;
+
+                        if (Executor.HealStrikes == 3)
+                        {
+                            Executor.AnnounceToParty("Your body is sick of healing items. Move around a bit to use more.", Color.Red, new EntityList<Entity>());
                         }
                     }
                     else
                     {
-                        // Normal consume logic for non-container objects
-                        ConsumeObject(EatingObject, Executor);
+                        MakeObservation("You don't have anything like that.", Color.Yellow, new EntityList<Entity>());
                     }
-                }
-                else
-                {
-                    MakeObservation("You don't have anything like that.", Color.Yellow, new EntityList<Entity>());
+
                 }
 
 
                 // Helper method to handle the consumption logic
                 void ConsumeObject(Object EatingObject, Architect Executor)
                 {
-                    Executor.CooldownCycles += (int)Math.Round(10 * Executor.Speed());
+                    Executor.CooldownCycles += (int)Math.Round(10 * Executor.Speed);
+
+                    Executor.TryComment("consume", 75);
 
                     Game1.SFX.Add(Game1.Apply);
 
+                    
+
                     if (EatingObject.Type == "salve")
                     {
-                        MakeObservation("You apply the salve. The pain begins to vanish.", Color.Yellow, new EntityList<Entity>());
+                        if (Executor.CombatCycles > 0)
+                        {
+                            MakeObservation("You swiftly apply the salve. The pain begins to vanish, but you are destabilized.", Color.Yellow, new EntityList<Entity>());
+                            Executor.DestabilizedCycles += 120;
+                        }
+                        else
+                        {
+                            MakeObservation("You carefully apply the salve. The pain begins to vanish.", Color.Yellow, new EntityList<Entity>());
+                        }
+
                         Executor.Pain = Math.Max(0, Executor.Pain - 35);
                         Executor.Bleeding = Math.Max(0, Executor.Bleeding - 2);
                         Executor.Energy += 5;
+
                     }
                     else if (EatingObject.Type == "bandage")
                     {
-                        MakeObservation("You apply the bandage. Your bleeding slows.", Color.Yellow, new EntityList<Entity>());
+                        if (Executor.CombatCycles > 0)
+                        {
+                            MakeObservation("You swiftly apply the bandage. Your bleeding slows, but you are destabilized.", Color.Yellow, new EntityList<Entity>());
+                            Executor.DestabilizedCycles += 120;
+                        }
+                        else
+                        {
+                            MakeObservation("You carefully apply the bandage. Your bleeding slows.", Color.Yellow, new EntityList<Entity>());
+                        }
+
                         Executor.Pain = Math.Max(0, Executor.Pain - 5);
                         Executor.Bleeding = (int)Math.Round(Math.Max(0, Executor.Bleeding * 0.3m));
                     }
                     else if (EatingObject.Type == "vial")
                     {
-                        MakeObservation("You drink the vial. You feel energized.", Color.Yellow, new EntityList<Entity>());
+                        int EnergyConstant = 50;
+
+                        if (Executor.CombatCycles > 0)
+                        {
+                            MakeObservation("You swiftly drink the vial. You feel somewhat energized, but destabilized.", Color.Yellow, new EntityList<Entity>());
+                            Executor.DestabilizedCycles += 120;
+                            EnergyConstant = 30;
+                        }
+                        else
+                        {
+                            MakeObservation("You drink the vial. You feel energized.", Color.Yellow, new EntityList<Entity>());
+                        }
+
+
                         Executor.Pain = Math.Max(0, Executor.Pain - 5);
-                        Executor.Energy += Math.Max(0, 50 + Game1.GameWorld.rnd.Next(-10, 11));
+                        Executor.Energy += Math.Max(0, EnergyConstant + Game1.GameWorld.rnd.Next(-10, 11));
                         Executor.DaysSinceLiquid = 0;
                     }
                     else if (EatingObject.Type == "portion" || EatingObject.Type == "drink" || EatingObject.Type == "cube")
@@ -2749,16 +3488,33 @@ namespace Lightrealm
                         }
                     }
                 }
+                else if (Subjects[0].Metadata == "invocations")
+                {
+                    MakeObservation("Invocations Invoked:", Color.LightBlue, new EntityList<Entity>());
+
+                    if (Executor.SkillsKnown.Count() == 0)
+                    {
+                        MakeObservation("You have not encountered any invocations.", Color.Yellow, new EntityList<Entity>());
+                    }
+                    else
+                    {
+                        foreach (string s in Executor.Invocations)
+                        {
+                            MakeObservation(s, Color.LightPink, new EntityList<Entity>() { });
+                            MakeObservation(Game1.GiftDescriptions[s], Color.LightPink, new EntityList<Entity>() { });
+                        }
+                    }
+                }
                 else
                 {
-                    MakeObservation("Use this command to list either your spells or skills.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("Use this command to list either your spells, skills, or invocations.", Color.Yellow, new EntityList<Entity>());
                 }
             }
             else if (CommandID == "reposition")
             {
                 MakeObservation("You reposition all of your limbs.", Color.MediumPurple, new EntityList<Entity>());
 
-                Executor.CooldownCycles += (int)Math.Round(3 * Executor.Speed());
+                Executor.CooldownCycles += (int)Math.Round(3 * Executor.Speed);
 
                 foreach (Object o in Executor.BodyParts)
                 {
@@ -2771,7 +3527,7 @@ namespace Lightrealm
             }
             else if (CommandID == "retract")
             {
-                Executor.CooldownCycles += (int)Math.Round(3 * Executor.Speed());
+                Executor.CooldownCycles += (int)Math.Round(3 * Executor.Speed);
 
                 Object bodyPart = null;
 
@@ -2816,8 +3572,13 @@ namespace Lightrealm
                         };
 
                         // Choose a random response
-                        
+
                         int index = Game1.GameWorld.rnd.Next(possibleResponses.Count());
+
+
+
+                        a.KnownArchitects.Add(Executor);
+                        Executor.KnownArchitects.Add(a);
 
                         a.Bound = false;
                         a.CyclesLeftInTask = 0;
@@ -2851,13 +3612,53 @@ namespace Lightrealm
 
                 if (objectToRead != null)
                 {
-                    if (objectToRead.CompositionContent != null)
+                    if (Game1.LoadedHooks.Contains(objectToRead) && objectToRead.HookedObjective.RequiredInteraction == "read")
+                    {
+                        MakeObservation(objectToRead.HookedObjective.PointerMessage.Data, objectToRead.HookedObjective.PointerMessage.Color, objectToRead.HookedObjective.PointerMessage.Entities);
+
+                        TextStorage t = new TextStorage(objectToRead.HookedObjective.PointerIntrigue, Color.White, new EntityList<Entity>());
+                        t.AttachedQuest = objectToRead.HookedObjective.ParentQuest;
+                        Game1.GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Add(t);
+                        MakeObservation("[Intrigue Updated]", Color.Magenta, new EntityList<Entity>());
+
+                        Executor.TrySendCompMessageForObjective(objectToRead.HookedObjective.ActualTask);
+
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Executor))
+                        {
+                            Game1.GameWorld.GamePlayerAssociation.ActiveParty.ActiveObjectives.Add(objectToRead.HookedObjective);
+                        }
+
+                    }
+                    else if (Game1.LoadedFinalPointers.Contains(objectToRead) && objectToRead.HookedObjective.RequiredInteractionForLast == "read")
+                    {
+                        MakeObservation(objectToRead.IAmAFinalPointerThatFollowsAfterThisObjective.FinalMessage.Data, objectToRead.IAmAFinalPointerThatFollowsAfterThisObjective.FinalMessage.Color, objectToRead.IAmAFinalPointerThatFollowsAfterThisObjective.FinalMessage.Entities);
+                        GameWorld.GamePlayerAssociation.ActiveParty.Intrigue.Add(new TextStorage(objectToRead.IAmAFinalPointerThatFollowsAfterThisObjective.FinalIntrigue, Color.Magenta, new EntityList<Entity>()));
+                        
+                        foreach (Party p in Game1.GameWorld.GamePlayerAssociation.Parties)
+                            p.ActiveObjectives.Remove(objectToRead.IAmAFinalPointerThatFollowsAfterThisObjective);
+
+                        Game1.LoadedFinalPointers.Remove(objectToRead);
+                    }
+                    else if (objectToRead.Name != null && ChapterReadText.ContainsKey(objectToRead.Name))
+                    {
+                        bool toggleColor = true; // Flag to alternate colors
+                        foreach (string paragraph in ChapterReadText[objectToRead.Name])
+                        {
+                            Color currentColor = toggleColor ? new Color(0, 255, 0) : new Color(0, 200, 125);
+                            MakeObservation(paragraph.Trim(), currentColor, new EntityList<Entity>() { objectToRead });
+
+                            // Toggle the color for the next iteration
+                            toggleColor = !toggleColor;
+                        }
+                    }
+
+                    else if (objectToRead.CompositionContent != null)
                     {
                         // Object has composition content
                         MakeObservation("You read " + objectToRead.ReferredToNames[0] + ". " + objectToRead.CompositionContent.GetCompleteWorkDescription(), Color.Honeydew, new EntityList<Entity>() { objectToRead });
 
                         int contentLength = objectToRead.CompositionContent.Sections.Count();
-                        Executor.CooldownCycles += (int)(Math.Round((125 * contentLength) / Executor.Speed()));
+                        Executor.CooldownCycles += (int)(Math.Round((125 * contentLength) / Executor.Speed));
 
                         if (objectToRead.SpecialKnowledge != null)
                         {
@@ -2915,7 +3716,7 @@ namespace Lightrealm
                             // Discard old skills if more than 3
                             while (Executor.SkillsKnown.Count() > 3)
                             {
-                                MakeObservation("Your mind is too unfocused for " + Executor.SkillsKnown[0] + ".", Color.OrangeRed, new EntityList<Entity>() { Executor.SkillsKnown[0] });
+                                MakeObservation("Your mind is too unfocused for " + Executor.SkillsKnown[0].Name + ".", Color.OrangeRed, new EntityList<Entity>() { Executor.SkillsKnown[0] });
                                 Executor.SkillsKnown.RemoveAt(0);
                             }
                         }
@@ -2930,12 +3731,11 @@ namespace Lightrealm
                                 MakeObservation("You look over the " + objectToRead.ReferredToNames[0] + ", but it has nothing written on it.", Color.LightBlue, new EntityList<Entity>() { objectToRead });
                             }
                         }
-
                     }
                 }
                 else
                 {
-                    MakeObservation("You don't have " + Subjects[0] + " in your hands or inventory.", Color.Red, new EntityList<Entity>() { Subjects[0] });
+                    MakeObservation("You don't have " + Subjects[0].ReferredToNames[0] + " in your hands or inventory.", Color.Red, new EntityList<Entity>() { Subjects[0] });
                 }
             }
 
@@ -2963,7 +3763,8 @@ namespace Lightrealm
                             int score = Executor.Charisma + randomModifier;
                             score = Math.Clamp(score, 0, 9); // Ensure score is within 0-9
 
-                            // Determine the reaction based on the score
+                            // Determine the
+                            // based on the score
                             string reaction;
                             switch (score)
                             {
@@ -3003,7 +3804,7 @@ namespace Lightrealm
                             }
 
                             // Display the reaction
-                            AddMessage(architect.ReferredToNames[0] + ": " + reaction, Color.Magenta, new EntityList<Entity>() { architect });
+                            MakeObservation(architect.ReferredToNames[0] + ": " + reaction, Color.Magenta, new EntityList<Entity>() { architect });
                         }
                     }
                 }
@@ -3127,14 +3928,14 @@ namespace Lightrealm
             }
             else if (CommandID == "assemble_trap")
             {
-                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
                 if (Subjects[0] is Object o)
                 {
                     if (o.Materials[0].Type == "fiber")
                     {
                         bool Found = false;
 
-                        if(Executor.MainHeldObject == o)
+                        if (Executor.MainHeldObject == o)
                         {
                             Executor.MainHeldObject = null;
                             Found = true;
@@ -3150,7 +3951,7 @@ namespace Lightrealm
                             Found = true;
                         }
 
-                        if(Found)
+                        if (Found)
                         {
                             EntityList<Object> ObjList = Executor.Room != null ? Executor.Room.ObjectsToAdd : Executor.Block.ObjectsToAdd;
                             EntityList<Architect> ArchList = Executor.Room != null ? Executor.Room.Architects : Executor.Block.Architects;
@@ -3185,7 +3986,7 @@ namespace Lightrealm
             }
             else if (CommandID == "repair")
             {
-                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
 
                 if (Subjects[0] is Object o && Subjects[1] is Object O && !o.IsBodyPart && !O.IsBodyPart)
                 {
@@ -3239,7 +4040,7 @@ namespace Lightrealm
             else if (CommandID == "hide")
             {
                 Entity HidingEntity = Subjects[0];
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 Executor.HideValue = 0;
                 string announcement;
@@ -3305,10 +4106,10 @@ namespace Lightrealm
                 {
                     if (Subjects[0] is Architect a && a.Block == Executor.Block)
                     {
-                        if((a.IsAlive == false || a.UnconsciousCycles > 0) && a.Block == Executor.Block)
+                        if ((a.IsAlive == false || a.UnconsciousCycles > 0) && a.Block == Executor.Block)
                         {
                             a.IsAlive = false;
-                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
 
                             MakeObservation("You bury " + a.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
 
@@ -3323,7 +4124,7 @@ namespace Lightrealm
                     else if (Subjects[0] is Object o && o.Block == Executor.Block)
                     {
                         MakeObservation("You bury " + o.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
-                        Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                        Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
                         o.Block.BuriedObjects.Add(o);
                         o.Block.Objects.Remove(o);
                     }
@@ -3347,7 +4148,7 @@ namespace Lightrealm
                         foreach (Architect buriedArchitect in Executor.Block.BuriedArchitects)
                         {
                             Executor.Block.Architects.Add(buriedArchitect);
-                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
                             MakeObservation("You dig up " + buriedArchitect.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
                         }
                         Executor.Block.BuriedArchitects.Clear();
@@ -3356,7 +4157,7 @@ namespace Lightrealm
                         foreach (Object buriedObject in Executor.Block.BuriedObjects)
                         {
                             Executor.Block.Objects.Add(buriedObject);
-                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                            Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
                             MakeObservation("You dig up " + buriedObject.ReferredToNames[0] + ".", Color.Orange, new EntityList<Entity>());
                         }
                         Executor.Block.BuriedObjects.Clear();
@@ -3375,7 +4176,7 @@ namespace Lightrealm
             {
                 if (Executor.OnTopOfStructure != null)
                 {
-                    Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed()));
+                    Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed));
                     MakeObservation("You climb down from " + Executor.OnTopOfStructure.Name + ".", Color.Green, new EntityList<Entity>());
                     Executor.OnTopOfStructure = null;
                     Executor.YLevelInFeet = 0;
@@ -3391,29 +4192,32 @@ namespace Lightrealm
                 {
                     if (Executor.Room != null)
                     {
-                        MakeObservation("You need to be outside.", Color.Orange, new EntityList<Entity>());
+                        if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Executor))
+                            Executor.AnnounceToParty("You need to be outside.", Color.Orange, new EntityList<Entity>());
                     }
                     else if (s.Block == Executor.Block)
                     {
-                        Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed()));
+                        Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed));
+                        
+                        if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Executor))
+                            Executor.AnnounceToParty("You climb atop " + s.Name + ".", Color.Green, new EntityList<Entity>());
 
-                        MakeObservation("You climb atop " + s.Name + ".", Color.Green, new EntityList<Entity>());
                         Executor.OnTopOfStructure = s;
                         Executor.YLevelInFeet += 30;
                     }
                     else
                     {
-                        MakeObservation("There is not a structure like that nearby.", Color.Orange, new EntityList<Entity>());
+                        Executor.AnnounceToParty("There is not a structure like that nearby.", Color.Orange, new EntityList<Entity>());
                     }
                 }
                 else
                 {
-                    MakeObservation("You can only climb structures.", Color.Orange, new EntityList<Entity>());
+                    Executor.AnnounceToParty("You can only climb structures.", Color.Orange, new EntityList<Entity>());
                 }
             }
             else if (CommandID == "carve")
             {
-                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
 
                 Entity Image = Subjects[0];
 
@@ -3428,6 +4232,8 @@ namespace Lightrealm
                     {
                         MakeObservation("You carve a symbol of " + Image.ReferredToNames[0] + " into " + Obj.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>());
                         Obj.CarvedSymbols.Add(Image);
+                        Obj.UpdateCarvedSymbols();
+
                         Game1.SFX.Add(Game1.Parry);
                         Game1.SFX.Add(Game1.Parry);
                         Game1.SFX.Add(Game1.Parry);
@@ -3445,7 +4251,7 @@ namespace Lightrealm
 
             else if (CommandID == "sculpt")
             {
-                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
 
                 Entity Image = Subjects[0];
 
@@ -3461,6 +4267,7 @@ namespace Lightrealm
 
                         Obj.Type = "statue";
                         Obj.CarvedSymbols.Add(Image);
+                        Obj.UpdateCarvedSymbols();
                         Game1.SFX.Add(Game1.Parry);
                         Game1.SFX.Add(Game1.Parry);
                         Game1.SFX.Add(Game1.Parry);
@@ -3478,7 +4285,22 @@ namespace Lightrealm
 
             else if (CommandID == "reinforce")
             {
-                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed()));
+                // Helper function to get the opposing direction of a door
+                string GetOpposingDirection(string direction)
+                {
+                    return direction switch
+                    {
+                        "north" => "south",
+                        "south" => "north",
+                        "east" => "west",
+                        "west" => "east",
+                        "up" => "down",
+                        "down" => "up",
+                        _ => direction
+                    };
+                }
+
+                Executor.CooldownCycles += (int)(Math.Round(100 / Executor.Speed));
 
                 if (Subjects.Count >= 1 && Subjects[0] is Entity entityToReinforce)
                 {
@@ -3521,7 +4343,6 @@ namespace Lightrealm
                     }
                     else
                     {
-
                         // Check if the entity to reinforce is valid
                         bool canReinforce = false;
 
@@ -3533,13 +4354,21 @@ namespace Lightrealm
                             {
                                 canReinforce = true;
                                 structure.Reinforced = true;
-                                MakeObservation("You reinforce the structure, strengthening its defenses.", Color.Green, new EntityList<Entity>() { structure });
+                                MakeObservation("You reinforce the structure door.", Color.Green, new EntityList<Entity>() { structure });
+
+                                // Reinforce the first exit door in the structure's primary room
+                                var exitDoor = structure.Rooms[0].Objects.FirstOrDefault(obj => obj.Type == "exit door");
+                                if (exitDoor != null)
+                                {
+                                    exitDoor.Reinforced = true;
+                                }
                             }
                             else
                             {
                                 MakeObservation("You need to be near or inside the structure to reinforce it.", Color.Orange, new EntityList<Entity>());
                             }
                         }
+
                         // Reinforce a door
                         else if (entityToReinforce is Door door)
                         {
@@ -3548,13 +4377,25 @@ namespace Lightrealm
                                 canReinforce = true;
                                 door.Reinforced = true;
                                 MakeObservation("You reinforce the door, making it sturdier.", Color.Green, new EntityList<Entity>() { door });
+
+                                // Find and reinforce the opposing door in the destination room
+                                string opposingDirection = GetOpposingDirection(door.Direction);
+                                var opposingDoor = door.DestinationRoom?.Objects
+                                    .OfType<Door>()
+                                    .FirstOrDefault(d => d.Direction == opposingDirection && d.DestinationRoom == Executor.Room);
+
+                                if (opposingDoor != null)
+                                {
+                                    opposingDoor.Reinforced = true;
+                                }
                             }
                             else
                             {
                                 MakeObservation("You need to be in the same room as the door to reinforce it.", Color.Orange, new EntityList<Entity>());
                             }
                         }
-                        // Reinforce an object like an exit door
+
+                        // Reinforce an exit door
                         else if (entityToReinforce is Object obj && obj.Type == "exit door")
                         {
                             if (Executor.Room != null && Executor.Room.Objects.Contains(obj))
@@ -3562,6 +4403,12 @@ namespace Lightrealm
                                 canReinforce = true;
                                 obj.Reinforced = true;
                                 MakeObservation("You reinforce the exit door, increasing its durability.", Color.Green, new EntityList<Entity>() { obj });
+
+                                // Reinforce the structure containing the exit door
+                                if (Executor.Structure != null)
+                                {
+                                    Executor.Structure.Reinforced = true;
+                                }
                             }
                             else
                             {
@@ -3613,16 +4460,16 @@ namespace Lightrealm
                             }
                         }
                     }
-
                 }
                 else
                 {
                     MakeObservation("You need a valid entity and suitable material to reinforce.", Color.Orange, new EntityList<Entity>());
                 }
             }
+
             else if (CommandID == "ignite")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 if (Subjects[0] is Object o)
                 {
@@ -3649,7 +4496,7 @@ namespace Lightrealm
 
             else if (CommandID == "brew")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
 
                 // Check if the first subject is either coffee or tea
                 if (Subjects[0].Metadata != "coffee" && Subjects[0].Metadata != "tea")
@@ -3719,14 +4566,14 @@ namespace Lightrealm
             }
             else if (CommandID == "hug")
             {
-                Executor.CooldownCycles += (int)(Math.Round(30 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(30 / Executor.Speed));
 
                 if (Subjects[0] is Architect Interactee)
                 {
                     // Check if they are in the same room or block
                     if (Executor.Room == Interactee.Room || Executor.Block == Interactee.Block)
                     {
-                        if (Interactee.GetOpinion(Executor) > 20)
+                        if (Interactee.GetOpinion(Executor.ArchitectILookLike) > 20)
                         {
                             Interactee.ChangeOpinion(Executor, 3);
                             MakeObservation("You hug " + Interactee.Name + ". They seem to appreciate it.", Color.Green, new EntityList<Entity>() { Interactee });
@@ -3748,9 +4595,33 @@ namespace Lightrealm
                 }
             }
 
+            else if (CommandID == "shapeshift")
+            {
+                if(Executor.Invocations.Contains("transformation"))
+                {
+                    if (ArchitectsToUse.Contains(Subjects[0]))
+                    {
+                        MakeObservation("You quietly transmorph into " + Subjects[0].ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
+                        Executor.ArchitectILookLike = (Architect)(Subjects[0]);
+
+                        Executor.ImportantThisLoad = true;
+                        ((Architect)(Subjects[0])).ImportantThisLoad = true;
+                    }
+                    else
+                    {
+                        MakeObservation("Thats either not an architect, or not near you.", Color.Yellow, new EntityList<Entity>());
+
+                    }
+                }
+                else
+                {
+                    MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+
             else if (CommandID == "tickle")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 if (Subjects[0] is Architect Interactee)
                 {
@@ -3759,14 +4630,14 @@ namespace Lightrealm
                     {
                         if (Executor.Sex != Interactee.Sex)
                         {
-                            if (Interactee.GetOpinion(Executor) > 15)
+                            if (Interactee.GetOpinion(Executor.ArchitectILookLike) > 15)
                             {
                                 Interactee.ChangeOpinion(Executor, 2);
                                 MakeObservation("You tickle " + Interactee.Name + ". They giggle and seem amused.", Color.Green, new EntityList<Entity>() { Interactee });
                             }
                             else
                             {
-                                Interactee.ChangeOpinion(Executor, -3);
+                                Interactee.ChangeOpinion(Executor.ArchitectILookLike, -3);
                                 MakeObservation("You tickle " + Interactee.Name + ". They seem uncomfortable and annoyed.", Color.Orange, new EntityList<Entity>() { Interactee });
                             }
                         }
@@ -3788,7 +4659,7 @@ namespace Lightrealm
 
             else if (CommandID == "hold_hand")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 if (Subjects[0] is Architect Interactee)
                 {
@@ -3797,7 +4668,7 @@ namespace Lightrealm
                     {
                         if (Executor.Sex != Interactee.Sex)
                         {
-                            if (Interactee.GetOpinion(Executor) > 30)
+                            if (Interactee.GetOpinion(Executor.ArchitectILookLike) > 30)
                             {
                                 Interactee.ChangeOpinion(Executor, 5);
                                 MakeObservation("You hold hands with " + Interactee.Name + ". They warmly reciprocate.", Color.Green, new EntityList<Entity>() { Interactee });
@@ -3825,23 +4696,31 @@ namespace Lightrealm
             }
             else if (CommandID == "shove")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 // Check if the target is an Architect
                 if (Subjects[0] is Architect Interactee)
                 {
-                    // Check if they are in the same room or block
-                    if (Executor.Room == Interactee.Room || Executor.Block == Interactee.Block)
+                    if(Interactee == Executor)
                     {
-                        // Shove the architect and apply the distance logic
-                        MakeObservation("You shove " + Interactee.Name + " forcefully.", Color.Orange, new EntityList<Entity>() { Interactee });
-
-                        // Run the distance modification
-                        Executor.ModifyDistance(Interactee, 2);  // This pushes the architect 2 units away (you can adjust this as needed)
+                        MakeObservation("You cannot do this until you find the spell that voids Newton's third law.", Color.Yellow, new EntityList<Entity>() { });
                     }
                     else
                     {
-                        MakeObservation("You are too far away to shove " + Interactee.Name + ".", Color.Yellow, new EntityList<Entity>() { Interactee });
+                        // Check if they are in the same room or block
+                        if ((Executor.Room == Interactee.Room || Executor.Block == Interactee.Block) && Executor.GetDistance(Interactee) <= 1)
+                        {
+                            // Shove the architect and apply the distance logic
+                            MakeObservation("You shove " + Interactee.Name + " forcefully.", Color.Orange, new EntityList<Entity>() { Interactee });
+
+                            // Run the distance modification
+                            Executor.ModifyDistance(Interactee, Executor.Strength >= 4 ? 4 : 3);
+                            
+                        }
+                        else
+                        {
+                            MakeObservation("You are too far away to shove " + Interactee.Name + ".", Color.Yellow, new EntityList<Entity>() { Interactee });
+                        }
                     }
                 }
                 else
@@ -3851,7 +4730,7 @@ namespace Lightrealm
             }
             else if (CommandID == "carry")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
 
                 // Check if the Executor has free hands
                 if (Executor.MainHeldObject != null || Executor.OffHeldObject != null)
@@ -3885,6 +4764,7 @@ namespace Lightrealm
                                 }
                                 else
                                 {
+                                    Executor.IDidSomethingBadSoScanForShockMines();
                                     // Remove the object from its current location (room or block)
                                     if (Executor.Room != null)
                                     {
@@ -3897,6 +4777,13 @@ namespace Lightrealm
 
                                     // Carry the object
                                     Executor.CarryingEntity = obj;
+
+                                    // Incur market debt if in a market
+                                    if (Executor.Structure != null && Executor.Structure.Type == "market")
+                                    {
+                                        Executor.Structure.MarketDebtToUs -= obj.Value();
+                                    }
+
                                     MakeObservation("You pick up and carry the " + obj.ReferredToNames[0] + ".", Color.Green, new EntityList<Entity>() { obj });
                                 }
                             }
@@ -3935,7 +4822,7 @@ namespace Lightrealm
             }
             else if (CommandID == "disarm_traps")
             {
-                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed())); // Adjust the X to a reasonable value like 50
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed)); // Adjust the X to a reasonable value like 50
 
                 // Get the relevant object list and architect list
                 EntityList<Object> ObjList = Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects;
@@ -3977,7 +4864,7 @@ namespace Lightrealm
 
             else if (CommandID == "knock")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
 
                 EntityList<Architect> responseArchitects = new EntityList<Architect>();
                 bool validKnock = false;
@@ -4018,7 +4905,7 @@ namespace Lightrealm
                         isNonResponsiveStructure = structureType == "bastion" || structureType == "commune" || structureType == "core" ||
                                                     structureType == "fort" || structureType == "fortress" || structureType == "heart" ||
                                                     structureType == "keep" || structureType == "monastery" || structureType == "monument" ||
-                                                    structureType == "mound" || structureType == "outpost" || structureType == "sanctum" ||
+                                                    structureType == "hoard" || structureType == "outpost" || structureType == "sanctum" ||
                                                     structureType == "scaffold" || structureType == "scum" || structureType == "spire" ||
                                                     structureType == "stronghold";
                     }
@@ -4070,14 +4957,14 @@ namespace Lightrealm
             }
             else if (CommandID == "stretch")
             {
-                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed));
                 Executor.DestabilizedCycles = 0;
 
                 MakeObservation(Executor.Name + " stretches, stabilizing themselves.", Color.Green, new EntityList<Entity>());
             }
             else if (CommandID == "polish")
             {
-                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed));
 
                 if (Subjects[0] is Object objToPolish)
                 {
@@ -4093,7 +4980,7 @@ namespace Lightrealm
 
             else if (CommandID == "clean")
             {
-                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed));
 
                 if (Subjects[0] is Object objToClean)
                 {
@@ -4108,7 +4995,7 @@ namespace Lightrealm
             }
             else if (CommandID == "bind")
             {
-                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(50 / Executor.Speed));
 
                 // Ensure the player has two objects to bind
                 Object firstObject = Executor.MainHeldObject ?? Executor.OffHeldObject ?? Executor.Inventory.FirstOrDefault();
@@ -4162,38 +5049,46 @@ namespace Lightrealm
 
             else if (CommandID == "tame_creature")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
                 {
-                    AddMessage(Executor.Name + ": Wild one, join the ranks of my great conquest.", Color.Green, new EntityList<Entity>() { Executor });
+                    MakeObservation(Executor.Name + ": Wild one, join the ranks of my great conquest.", Color.Green, new EntityList<Entity>() { Executor });
                     Game1.SFX.Add(Game1.TalkSounds[Executor.VoiceType]);
 
                     if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ConstructRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ColossalTypes.Contains(((Architect)Subjects[0]).Race))
                     {
                         int ExistingAnimals = 0;
-                        foreach (Architect a in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
+                        foreach (Architect A in GameWorld.GamePlayerAssociation.ActiveParty.Architects)
                         {
-                            if (!GameWorld.HumanoidRaces.Contains(a.Race) && !GameWorld.ExtraRaces.Contains(a.Race))
+                            if (!GameWorld.HumanoidRaces.Contains(A.Race) && !GameWorld.ExtraRaces.Contains(A.Race))
                             {
                                 ExistingAnimals++;
                             }
                         }
 
-                        if (Executor.PathOfLifeLevel >= 6 && ExistingAnimals < Executor.PathOfLifeLevel)
+
+                        if (Subjects[0] is Architect a && a.Race.Name == "debtshiba")
                         {
-                            AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + ": *happy shibesque noises*", Color.Green, new EntityList<Entity>() { Subjects[0] });
+                            Executor.AnnounceToParty("One does not simply \"tame\" a debtshiba.", Color.Red, new EntityList<Entity>());
+                            Executor.AnnounceToParty("You know not the power you ask.", Color.Red, new EntityList<Entity>());
+                        }
+                        else if (Executor.PathOfLifeLevel >= 6 && ExistingAnimals < Executor.PathOfLifeLevel)
+                        {
+                            MakeObservation(((Architect)Subjects[0]).ReferredToNames[0] + ": *happy shibesque noises*", Color.Green, new EntityList<Entity>() { Subjects[0] });
                             Game1.SFX.Add(Game1.Augment);
+
+                            Executor.TryComment("uselife", 95);
                             GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(((Architect)Subjects[0]));
                         }
                         else
                         {
-                            AddMessage(((Architect)Subjects[0]).Name + ": *sad shibesque noises*", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
+                            MakeObservation(((Architect)Subjects[0]).Name + ": *sad shibesque noises*", Color.Yellow, new EntityList<Entity>() { Subjects[0] });
                             Game1.SFX.Add(Game1.Augment);
                         }
                     }
                     else
                     {
-                        AddMessage(((Architect)Subjects[0]).ReferredToNames[0] + " *thinks to self* [Something is wrong with this one...]", Color.Orange, new EntityList<Entity>() { Subjects[0] });
+                        MakeObservation(((Architect)Subjects[0]).ReferredToNames[0] + " *thinks to self* [Something is wrong with this one...]", Color.Orange, new EntityList<Entity>() { Subjects[0] });
                         ((Architect)Subjects[0]).ChangeOpinion(Executor, -20);
                     }
                 }
@@ -4204,9 +5099,11 @@ namespace Lightrealm
             }
             else if (CommandID == "starstrike")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 12 - Executor.PathOfStarsLevel);
-                
+
+                Executor.RuinInvisibility();
+
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
                 {
                     MakeObservation("You flick your wrist...", Color.Green, new EntityList<Entity>());
@@ -4223,6 +5120,7 @@ namespace Lightrealm
                         MakeObservation($"...but nothing happens.", Color.Yellow, new EntityList<Entity>());
                     }
 
+                    Executor.TryComment("usestars", 10);
 
                     for (int i = 0; i < StarCount; i++)
                     {
@@ -4247,8 +5145,9 @@ namespace Lightrealm
             }
             else if (CommandID == "flamestrike")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 15 - Executor.PathOfHeatLevel);
+                Executor.RuinInvisibility();
 
                 if (Subjects[0] is Architect targetArchitect && ArchitectsToUse.Contains(Subjects[0]))
                 {
@@ -4260,7 +5159,8 @@ namespace Lightrealm
                         Game1.SFX.Add(Game1.FlameStrike);
                         Object o = new Object(null, "wave", new EntityList<Material>() { GameWorld.Flame }, Executor);
                         o.AirborneTarget = Subjects[0];
-                        o.AirborneCyclesToHitTarget = 30;
+                        o.AirborneCyclesToHitTarget = 15;
+                        Executor.TryComment("useheat", 20);
                         o.Thrower = Executor;
                         (targetArchitect.Room != null ? targetArchitect.Room.Objects : targetArchitect.Block.Objects).Add(o);
                     }
@@ -4276,7 +5176,7 @@ namespace Lightrealm
             }
             else if (CommandID == "heat_object")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= 10 - Executor.PathOfHeatLevel;
 
                 if (Executor.PathOfHeatLevel >= 4)
@@ -4288,7 +5188,9 @@ namespace Lightrealm
                         MakeObservation("You focus...", Color.Green, new EntityList<Entity>());
                         ((Object)targetObject).HeatInCelsius += 50;
                         Game1.SFX.Add(Game1.FlameStrike);
-                        MakeObservation($"The {targetObject.Name} in your hand heats up intensely!", Color.Goldenrod, new EntityList<Entity>() { targetObject });
+                        MakeObservation($"The {targetObject.ReferredToNames[0]} in your hand heats up intensely!", Color.Goldenrod, new EntityList<Entity>() { targetObject });
+
+                        Executor.TryComment("useheat", 50);
                     }
                     else
                     {
@@ -4303,8 +5205,12 @@ namespace Lightrealm
 
             else if (CommandID == "starsmite")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.RuinInvisibility();
+
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 25 - Executor.PathOfStarsLevel);
+
+                Executor.TryComment("usestars", 10);
 
                 if (Subjects[0] is Architect targetArchitect && (targetArchitect.Room == Executor.Room && targetArchitect.Block == Executor.Block))
                 {
@@ -4322,7 +5228,23 @@ namespace Lightrealm
                         targetArchitect.Bleeding += Game1.GameWorld.rnd.Next(2, 2 + Executor.PathOfStarsLevel);
                         targetArchitect.Energy -= Game1.GameWorld.rnd.Next(4, 8 + Executor.PathOfStarsLevel);
 
-                        targetArchitect.ChangeOpinion(Executor, -100);
+                        targetArchitect.ChangeOpinion(Executor, -1900);
+                    }
+                    else
+                    {
+                        MakeObservation($"...but nothing happens.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+                else if (Subjects[0] is Object targetObject && (targetObject.Room == Executor.Room && targetObject.Block == Executor.Block))
+                {
+                    MakeObservation("You point and focus your cosmic energy...", Color.Green, new EntityList<Entity>());
+
+                    if (Executor.PathOfStarsLevel >= 8)
+                    {
+                        MakeObservation($"A swirling vortex appears, and a cosmic energy beam strikes the object!", Color.Goldenrod, new EntityList<Entity>() { Subjects[0] });
+                        Game1.SFX.Add(Game1.StarSmite);
+
+                        targetObject.Integrity -= 3 * Game1.GameWorld.rnd.Next(10, 15 + Executor.PathOfStarsLevel);
                     }
                     else
                     {
@@ -4331,12 +5253,12 @@ namespace Lightrealm
                 }
                 else
                 {
-                    MakeObservation("You couldn't find an architect like that nearby.", Color.Yellow, new EntityList<Entity>());
+                    MakeObservation("You couldn't find a valid target nearby.", Color.Yellow, new EntityList<Entity>());
                 }
             }
             else if (CommandID == "conjure_spark")
             {
-                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(5 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 5 - Executor.PathOfLightLevel);
                 if (Executor.PathOfLightLevel >= 1)
                 {
@@ -4366,11 +5288,35 @@ namespace Lightrealm
                             Executor.Sparks[0].Room.Objects.Remove(Executor.Sparks[0]);
                             Executor.Sparks.RemoveAt(0);
                         }
-                        else
+                        else if (Executor.Sparks[0].Block != null)
                         {
                             Executor.Sparks[0].Block.Objects.Remove(Executor.Sparks[0]);
                             Executor.Sparks.RemoveAt(0);
                         }
+                        else
+                        {
+                            foreach(Architect a in Game1.LoadedArchitects)
+                            {
+                                if(a.MainHeldObject == Executor.Sparks[0])
+                                {
+                                    a.MainHeldObject = null;
+                                }
+                                else if (a.OffHeldObject == Executor.Sparks[0])
+                                {
+                                    a.OffHeldObject = null;
+                                }
+                                else if (a.Inventory.Contains(Executor.Sparks[0]))
+                                {
+                                    a.Inventory.Remove(Executor.Sparks[0]);
+
+                                }
+                                else if (a.ShadowStorage.Contains(Executor.Sparks[0]))
+                                {
+                                    a.ShadowStorage.Remove(Executor.Sparks[0]);
+                                }
+                            }
+                        }
+
                         MakeObservation("You feel a loss of connection to your earliest spark.", Color.Yellow, new EntityList<Entity>());
                     }
                 }
@@ -4381,9 +5327,10 @@ namespace Lightrealm
             }
             else if (CommandID == "evoke_strike")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= 10 - Executor.PathOfStarsLevel;
                 Object FoundSpark = null;
+                Executor.RuinInvisibility();
 
                 if (Executor.PathOfLightLevel >= 4)
                 {
@@ -4411,12 +5358,14 @@ namespace Lightrealm
                             architectTarget.Bleeding += Game1.GameWorld.rnd.Next(5 + Executor.PathOfStarsLevel);
                             architectTarget.Pain += Game1.GameWorld.rnd.Next(5 + Executor.PathOfStarsLevel);
                             architectTarget.ChangeOpinion(Executor, -100);
-                            MakeObservation("A heavenly beam pierces through " + BP.ReferredToNames[0] + ", leaving a burning hole!", Color.Magenta, new EntityList<Entity>() { BP });
+                            MakeObservation("A heavenly beam pierces through " + BP.ReferredToNames[0] + ", leaving a burning space!", Color.Magenta, new EntityList<Entity>() { BP });
+                            Executor.TryComment("uselight", 30);
                         }
                         else if (Subjects[0] is Object objectTarget && objectsInArea.Contains(objectTarget))
                         {
                             objectTarget.Integrity -= Game1.GameWorld.rnd.Next(10, Executor.PathOfStarsLevel * 5);
-                            MakeObservation("A heavenly beam pierces through " + objectTarget.ReferredToNames[0] + ", leaving a burning hole!", Color.Magenta, new EntityList<Entity>() { objectTarget });
+                            MakeObservation("A heavenly beam pierces through " + objectTarget.ReferredToNames[0] + ", leaving a burning space!", Color.Magenta, new EntityList<Entity>() { objectTarget });
+                            Executor.TryComment("uselight", 30);
                         }
                         else
                         {
@@ -4438,7 +5387,7 @@ namespace Lightrealm
             }
             else if (CommandID == "evoke_blindness")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= 10 - Executor.PathOfStarsLevel;
                 Object FoundSpark = null;
 
@@ -4465,7 +5414,7 @@ namespace Lightrealm
                         {
                             if (architect.TargetArchitect != null && GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(architect.TargetArchitect) && (architect.Task == "killtarget" || architect.Task == "disabletarget"))
                             {
-                                architect.BlindCycles += 50;
+                                architect.BlindCycles += 100;
                                 architect.ChangeOpinion(Executor, -60);
                                 MakeObservation(architect.ReferredToNames[0] + " is blinded by the radiance!", Color.Magenta, new EntityList<Entity>() { architect });
                                 foundArchitects = true;
@@ -4475,6 +5424,10 @@ namespace Lightrealm
                         if (!foundArchitects)
                         {
                             MakeObservation("No one is blinded...", Color.Yellow, new EntityList<Entity>());
+                        }
+                        else
+                        {
+                            Executor.TryComment("uselight", 30);
                         }
 
                         Executor.Sparks.Remove(FoundSpark);
@@ -4493,7 +5446,7 @@ namespace Lightrealm
             }
             else if (CommandID == "evoke_healing")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Object FoundSpark = null;
 
                 if (Executor.PathOfLightLevel >= 6)
@@ -4512,14 +5465,18 @@ namespace Lightrealm
                         EntityList<Architect> architectsInArea = FoundSpark.Room != null ? FoundSpark.Room.Architects : FoundSpark.Block.Architects;
                         bool foundArchitects = false;
 
+                        Executor.TryComment("uselight", 30);
+
+                        MakeObservation("You evoke your spark...", Color.White, new EntityList<Entity>());
+                        Game1.SFX.Add(Game1.EvokeSpark);
                         foreach (Architect architect in architectsInArea)
                         {
                             if (GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(architect))
                             {
                                 if (architect.CombatCycles == 0)
                                 {
-                                    architect.Energy = architect.MaxEnergy;
-                                    MakeObservation(architect.Name + " is enveloped in brilliance and fully healed!", Color.Magenta, new EntityList<Entity>() { architect });
+                                    architect.Energy += 10 + Executor.PathOfLightLevel*2;
+                                    MakeObservation(architect.Name + " is enveloped in brilliance and healed some energy!", Color.Magenta, new EntityList<Entity>() { architect });
                                 }
                                 else
                                 {
@@ -4536,8 +5493,6 @@ namespace Lightrealm
 
                         Executor.Sparks.Remove(FoundSpark);
 
-                        MakeObservation("You evoke your spark...", Color.White, new EntityList<Entity>());
-                        Game1.SFX.Add(Game1.EvokeSpark);
 
                         FoundSpark.Room?.Objects.Remove(FoundSpark);
                         FoundSpark.Block?.Objects.Remove(FoundSpark);
@@ -4555,7 +5510,7 @@ namespace Lightrealm
 
             else if (CommandID == "evoke_nexus")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= 30 - Executor.PathOfLightLevel;
                 Object FoundSpark = null;
 
@@ -4578,12 +5533,14 @@ namespace Lightrealm
                         GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(a);
                         Game1.LoadedArchitects.Add(a);
 
-
+                        a.Transient = true;
+                        a.PopulateSelf(false);
 
                         MakeObservation("You evoke your spark...", Color.White, new EntityList<Entity>());
                         Game1.SFX.Add(Game1.EvokeSpark);
                         MakeObservation("A photonexus appears!", Color.Cyan, new EntityList<Entity>());
 
+                        Executor.TryComment("uselight", 30);
 
                         if (Executor.Room != null)
                         {
@@ -4617,13 +5574,14 @@ namespace Lightrealm
             }
             else if (CommandID == "inflame")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= 15 - Executor.PathOfHeatLevel;
 
                 if (Executor.PathOfHeatLevel >= 8)
                 {
                     Executor.FireSeconds += 500;
                     MakeObservation("Your flame burns brighter!", Color.Red, new EntityList<Entity>());
+                    Executor.TryComment("useheat", 30);
                 }
                 else
                 {
@@ -4632,7 +5590,7 @@ namespace Lightrealm
             }
             else if (CommandID == "unflame")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= 15 - Executor.PathOfHeatLevel;
                 if (Executor.PathOfHeatLevel >= 8)
                 {
@@ -4647,10 +5605,10 @@ namespace Lightrealm
 
             else if (CommandID == "augment_creature")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 25 - Executor.PathOfLifeLevel);
 
-                if (Subjects[0] is Architect && ((((Architect)(Subjects[0])).Room == Executor.Room) && (((Architect)(Subjects[0])).Block == Executor.Block)))
+                if (Subjects[0] is Architect && ArchitectsToUse.Contains(Subjects[0]))
                 {
                     if (!GameWorld.HumanoidRaces.Contains(((Architect)Subjects[0]).Race) && !GameWorld.ExtraRaces.Contains(((Architect)Subjects[0]).Race) && GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Subjects[0]))
                     {
@@ -4658,7 +5616,7 @@ namespace Lightrealm
                         {
                             MakeObservation("You gesture.", Color.Magenta, new EntityList<Entity>());
 
-                            if (((Architect)Subjects[0]).Augment == true)
+                            if (((Architect)Subjects[0]).HasBeenAugmented == true)
                             {
                                 MakeObservation(Subjects[0].ReferredToNames[0] + " already has an augmentation.", Color.Magenta, new EntityList<Entity>() { Subjects[0] });
                             }
@@ -4686,7 +5644,9 @@ namespace Lightrealm
                                     Game1.SFX.Add(Game1.Augment);
                                 }
 
-                                ((Architect)Subjects[0]).Augment = true;
+                                Executor.TryComment("uselife", 50);
+
+                                ((Architect)Subjects[0]).HasBeenAugmented = true;
                             }
                         }
                         else
@@ -4696,7 +5656,7 @@ namespace Lightrealm
                     }
                     else
                     {
-                        MakeObservation("We know you love slavery, but you can't augment humanoids or creatures you don't control.", Color.Yellow, new EntityList<Entity>());
+                        MakeObservation("How generous, but you can't augment humanoids or creatures you don't control.", Color.Yellow, new EntityList<Entity>());
                     }
                 }
                 else
@@ -4712,7 +5672,7 @@ namespace Lightrealm
                 }
                 else
                 {
-                    Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                    Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                     Executor.Energy -= Math.Max(0, 30 - Executor.PathOfDeathLevel);
                     MakeObservation("You conjure a spark of dark energy, and speak the name of " + Subjects[0].ReferredToNames[0] + "...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
 
@@ -4727,6 +5687,7 @@ namespace Lightrealm
                                 GameWorld.GamePlayerAssociation.ActiveParty.Architects.Add(architect);
                             }
                         }
+                        Executor.TryComment("usedeath", 40);
                     }
                     else
                     {
@@ -4734,17 +5695,71 @@ namespace Lightrealm
                     }
                 }
             }
+            else if (CommandID == "dismember_corpse")
+            {
+                if (Subjects[0] is Architect architect && architect.IsAlive == false && ArchitectsToUse.Contains(Subjects[0]))
+                {
+                    MakeObservation("You dismember the corpse.", Color.DarkMagenta, new EntityList<Entity>());
+
+                    var addToList = Executor.Room != null ? (ICollection<Object>)Executor.Room.Objects : Executor.Block.Objects;
+
+                    // Drop body parts
+                    foreach (Object o in architect.BodyParts)
+                        addToList.Add(o);
+                    architect.BodyParts.Clear();
+
+                    // Drop clothing
+                    foreach (Object o in architect.Clothing)
+                        addToList.Add(o);
+                    architect.Clothing.Clear();
+
+                    // Drop inventory
+                    foreach (Object o in architect.Inventory)
+                        addToList.Add(o);
+                    architect.Inventory.Clear();
+
+                    // Drop held items
+                    if (architect.MainHeldObject != null)
+                    {
+                        addToList.Add(architect.MainHeldObject);
+                        architect.MainHeldObject = null;
+                    }
+                    if (architect.OffHeldObject != null)
+                    {
+                        addToList.Add(architect.OffHeldObject);
+                        architect.OffHeldObject = null;
+                    }
+
+                    // Remove architect
+                    if (Executor.Room != null)
+                        Executor.Room.Architects.Remove(architect);
+                    else
+                        Executor.Block.Architects.Remove(architect);
+
+                    Game1.LoadedArchitectsToRemove.Add(architect);
+                }
+                else
+                {
+                    MakeObservation("You must target a nearby dead architect.", Color.DarkMagenta, new EntityList<Entity>());
+                }
+            }
+
             else if (CommandID == "fire_spectral_bolt")
             {
-                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(15 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 15 - Executor.PathOfDeathLevel);
+                Executor.RuinInvisibility();
+
+
                 if (Executor.PathOfDeathLevel >= 4 || (Executor.UndeadCreator != null && Executor.UndeadCreator.PathOfDeathLevel >= 8))
                 {
                     if (Subjects[0] is Architect)
                     {
-                        Object o = new Object(null, "energy bolt", new EntityList<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
+                        Object o = new Object(null, "bolt", new EntityList<Material>() { GameWorld.Spectre }, false, false, null, Executor, 0, false, Executor.Block, Executor.Structure, Executor.Room, false);
                         o.AirborneTarget = Subjects[0];
+                        o.AirborneCyclesToHitTarget = 8;
                         o.Owner = Executor;
+                        o.Thrower = Executor;
 
                         if (Executor.Room != null)
                         {
@@ -4757,6 +5772,11 @@ namespace Lightrealm
 
                         Game1.SFX.Add(Game1.SpectralBolt);
                         MakeObservation("You fire a spectral bolt at " + Subjects[0].ReferredToNames[0] + ".", Color.Cyan, new EntityList<Entity>() { Subjects[0] });
+
+                        if (Executor.PathOfDeathLevel >= 4)
+                        {
+                            Executor.TryComment("usedeath", 10);
+                        }
                     }
                     else
                     {
@@ -4773,7 +5793,7 @@ namespace Lightrealm
 
             else if (CommandID == "increase_weight")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4782,6 +5802,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             MakeObservation(Subjects[0].ReferredToNames[0] + " increases in weight!", Color.Green, new EntityList<Entity>() { Subjects[0] });
                             ((Object)Subjects[0]).Weight *= 2; // Adjust the weight increase as necessary
                             ((Object)Subjects[0]).RealityAugmented = true;
@@ -4806,7 +5827,7 @@ namespace Lightrealm
 
             else if (CommandID == "increase_temperature")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4815,6 +5836,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             MakeObservation(Subjects[0].ReferredToNames[0] + " heats up!", Color.Green, new EntityList<Entity>() { Subjects[0] });
                             ((Object)Subjects[0]).HeatInCelsius += 50; // Adjust the temperature increase as needed
                             ((Object)Subjects[0]).RealityAugmented = true;
@@ -4841,7 +5863,7 @@ namespace Lightrealm
             // Increase aerodynamics of an object
             else if (CommandID == "increase_aerodynamics")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4850,6 +5872,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             MakeObservation(Subjects[0].ReferredToNames[0] + " becomes more aerodynamic!", Color.Green, new EntityList<Entity>() { Subjects[0] });
                             ((Object)Subjects[0]).ProjectileAerodynamic = true;
                             ((Object)Subjects[0]).RealityAugmented = true;
@@ -4876,7 +5899,7 @@ namespace Lightrealm
             // Increase integrity of an object
             else if (CommandID == "increase_integrity")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4885,6 +5908,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             // Increase integrity but ensure it does not exceed 100
                             ((Object)Subjects[0]).Integrity = ((Object)Subjects[0]).Integrity + 20; // Assuming each use increases integrity
                             ((Object)Subjects[0]).RealityAugmented = true;
@@ -4912,7 +5936,7 @@ namespace Lightrealm
             // Decrease weight of an object
             else if (CommandID == "decrease_weight")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4921,6 +5945,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             ((Object)Subjects[0]).Weight /= 2; // Halve the weight
                             ((Object)Subjects[0]).RealityAugmented = true;
                             MakeObservation(Subjects[0].ReferredToNames[0] + " decreases in weight!", Color.Green, new EntityList<Entity>() { Subjects[0] });
@@ -4945,7 +5970,7 @@ namespace Lightrealm
             // Decrease temperature of an object
             else if (CommandID == "decrease_temperature")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4954,6 +5979,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             ((Object)Subjects[0]).HeatInCelsius -= 50; // Decrease the temperature by a balanced amount
                             ((Object)Subjects[0]).RealityAugmented = true;
                             MakeObservation(Subjects[0].ReferredToNames[0] + " cools down!", Color.Green, new EntityList<Entity>() { Subjects[0] });
@@ -4978,7 +6004,7 @@ namespace Lightrealm
             // Decrease aerodynamics of an object
             else if (CommandID == "decrease_aerodynamics")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -4987,6 +6013,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             ((Object)Subjects[0]).ProjectileAerodynamic = false; // Reverse the aerodynamic property
                             ((Object)Subjects[0]).RealityAugmented = true;
                             MakeObservation(Subjects[0].ReferredToNames[0] + " becomes less aerodynamic!", Color.Green, new EntityList<Entity>() { Subjects[0] });
@@ -5011,7 +6038,7 @@ namespace Lightrealm
             // Decrease integrity of an object
             else if (CommandID == "decrease_integrity")
             {
-                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(10 / Executor.Speed));
                 Executor.Energy -= Math.Max(0, 10 - Executor.PathOfRealityLevel);
 
                 if (Executor.PathOfRealityLevel >= 2)
@@ -5020,6 +6047,7 @@ namespace Lightrealm
                     {
                         if (!((Object)Subjects[0]).RealityAugmented)
                         {
+                            Executor.TryComment("usereality", 75);
                             ((Object)Subjects[0]).Integrity = Math.Max(0, ((Object)Subjects[0]).Integrity - 20); // Decrease integrity, ensuring it doesn't go below 0
                             ((Object)Subjects[0]).RealityAugmented = true;
                             MakeObservation(Subjects[0].ReferredToNames[0] + " becomes less structurally sound!", Color.Green, new EntityList<Entity>() { Subjects[0] });
@@ -5045,13 +6073,15 @@ namespace Lightrealm
             // Liquify an object, building, or structure
             else if (CommandID == "liquify")
             {
-                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(20 / Executor.Speed));
                 Executor.Energy -= 15 - Executor.PathOfRealityLevel;
 
                 if (Executor.PathOfRealityLevel >= 4)
                 {
                     if (Subjects[0] is Object || Subjects[0] is Structure)
                     {
+                        Executor.TryComment("usereality", 80);
+
                         MakeObservation(Subjects[0].ReferredToNames[0] + " liquifies, and slowly seeps into the ground...", Color.Green, new EntityList<Entity>() { Subjects[0] });
                         Game1.SFX.Add(Game1.WaterBolt);
 
@@ -5073,6 +6103,8 @@ namespace Lightrealm
                                 }
                             }
                             ((Structure)Subjects[0]).Block.Structures.Remove((Structure)Subjects[0]);
+
+                            ((Structure)Subjects[0]).MarketDebtToUs -= 100000;
                         }
                         else
                         {
@@ -5099,7 +6131,7 @@ namespace Lightrealm
                                 else if (a.MainHeldObject == (Object)Subjects[0])
                                 {
                                     Success = true;
-                                    a.OffHeldObject = null;
+                                    a.MainHeldObject = null;
                                 }
                             }
 
@@ -5125,7 +6157,7 @@ namespace Lightrealm
             // Split an object into two copies of itself
             else if (CommandID == "split")
             {
-                Executor.CooldownCycles += (int)(Math.Round(30 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(30 / Executor.Speed));
                 Executor.Energy -= 25 - Executor.PathOfRealityLevel;
 
                 int currentYear = (int)(Game1.GameWorld.Cycle / 290304000);
@@ -5233,7 +6265,7 @@ namespace Lightrealm
 
             else if (CommandID == "blip")
             {
-                Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed()));
+                Executor.CooldownCycles += (int)(Math.Round(40 / Executor.Speed));
                 Executor.Energy -= 20 - Executor.PathOfRealityLevel;
 
                 if (Executor.PathOfRealityLevel >= 8)
@@ -5250,68 +6282,76 @@ namespace Lightrealm
                         Executor.RealityFocusTries = 1; // Reset focus count
                     }
 
-                    switch (Executor.RealityFocusTries)
+                    if (Subjects[0] is Architect AA && AA.Race.Name == "debtshiba")
                     {
-                        case 1:
-                            MakeObservation($"...and focus your reality-bending energy on {Subjects[0].Name}...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
-                            break;
-                        case 2:
-                            MakeObservation($"...you feel a stronger connection to {Subjects[0].Name}'s essence...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
-                            break;
-                        case 3:
-                            if (Subjects[0] is Architect a)
-                            {
-                                Game1.GameWorld.AllHistoricalArchitects.Remove(a);
+                        MakeObservation("...but one does not simply \"blip\" a debtshiba.", Color.Red, new EntityList<Entity>());
+                    }
+                    else
+                    {
 
-                                foreach (Architect A in Game1.GameWorld.AllHistoricalArchitects)
+                        switch (Executor.RealityFocusTries)
+                        {
+                            case 1:
+                                MakeObservation($"...and focus your reality-bending energy on {Subjects[0].Name}...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                                break;
+                            case 2:
+                                MakeObservation($"...you feel a stronger connection to {Subjects[0].Name}'s essence...", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                                break;
+                            case 3:
+                                if (Subjects[0] is Architect a)
                                 {
-                                    var indicesToRemove = new List<int>();
+                                    Game1.GameWorld.AllHistoricalArchitects.Remove(a);
 
-                                    for (int i = 0; i < A.ArchitectsForOpinions.Count; i++)
+                                    foreach (Architect A in Game1.GameWorld.AllHistoricalArchitects)
                                     {
-                                        if (A.ArchitectsForOpinions[i] == a)
+                                        var indicesToRemove = new List<int>();
+
+                                        for (int i = 0; i < A.ArchitectsForOpinions.Count; i++)
                                         {
-                                            indicesToRemove.Add(i);
+                                            if (A.ArchitectsForOpinions[i] == a)
+                                            {
+                                                indicesToRemove.Add(i);
+                                            }
+                                        }
+
+                                        // Remove the indices in reverse order to maintain list integrity
+                                        for (int i = indicesToRemove.Count - 1; i >= 0; i--)
+                                        {
+                                            int index = indicesToRemove[i];
+                                            A.ArchitectsForOpinions.RemoveAt(index);
+                                            A.Opinions.RemoveAt(index);
                                         }
                                     }
-
-                                    // Remove the indices in reverse order to maintain list integrity
-                                    for (int i = indicesToRemove.Count - 1; i >= 0; i--)
+                                    if (Game1.GameWorld.Colossals.Contains(a))
+                                        Game1.GameWorld.Colossals.Remove(a);
+                                    if (Game1.LoadedArchitects.Contains(a))
+                                        Game1.LoadedArchitectsToRemove.Add(a);
+                                    foreach (Location l in Game1.GameWorld.AllLocations)
                                     {
-                                        int index = indicesToRemove[i];
-                                        A.ArchitectsForOpinions.RemoveAt(index);
-                                        A.Opinions.RemoveAt(index);
+                                        if (l.Government == a)
+                                            l.Government = null;
                                     }
+                                    if (a.Room != null)
+                                    {
+                                        a.Room.Architects.Remove(a);
+                                        a.DropInventory(true);
+                                    }
+                                    else if (a.Block != null)
+                                    {
+                                        a.Block.Architects.Remove(a);
+                                        a.DropInventory(true);
+                                    }
+                                    a.IsAlive = false;
+                                    a.Location = null;
+                                    a.District = null;
                                 }
-                                if (Game1.GameWorld.Colossals.Contains(a))
-                                    Game1.GameWorld.Colossals.Remove(a);
-                                if (Game1.LoadedArchitects.Contains(a))
-                                    Game1.LoadedArchitectsToRemove.Add(a);
-                                foreach (Location l in Game1.GameWorld.AllLocations)
-                                {
-                                    if (l.Government == a)
-                                        l.Government = null;
-                                }
-                                if (a.Room != null)
-                                {
-                                    a.Room.Architects.Remove(a);
-                                    a.DropInventory(true);
-                                }
-                                else if (a.Block != null)
-                                {
-                                    a.Block.Architects.Remove(a);
-                                    a.DropInventory(true);
-                                }
-                                a.IsAlive = false;
-                                a.Location = null;
-                                a.District = null;
-                            }
 
-                            Executor.Focus = 0; // Reset after successful expunge
-                            Executor.RealityBlipFocus = null;
-                            MakeObservation($"... and blip {Subjects[0].Name} from reality!", Color.Purple, new EntityList<Entity>() { Subjects[0] });
-                            Game1.SFX.Add(Game1.Expel);
-                            break;
+                                Executor.Focus = 0; // Reset after successful expunge
+                                Executor.RealityBlipFocus = null;
+                                MakeObservation($"... and blip {Subjects[0].Name} from reality!", Color.Purple, new EntityList<Entity>() { Subjects[0] });
+                                Game1.SFX.Add(Game1.Expel);
+                                break;
+                        }
                     }
                 }
                 else
@@ -5319,13 +6359,354 @@ namespace Lightrealm
                     MakeObservation("You don't know how to do that.", Color.Red, new EntityList<Entity>());
                 }
             }
+            else if (CommandID == "toggle_console")
+            {
+                if ((Executor.Room != null ? Executor.Room.Objects : Executor.Block.Objects).Contains(Subjects[0]))
+                {
+                    if (Subjects[0] is Object o && o.Type == "console")
+                    {
+                        if (o.ConsoleOn) // It is currently ON, so TURN OFF
+                        {
+                            if (o.StoredInvocation != null)
+                            {
+                                MakeObservation("You lose the gift of " + o.StoredInvocation + ".", Color.LightBlue, new EntityList<Entity>());
+                                Executor.Invocations.Remove(o.StoredInvocation);
+                            }
+                            else
+                            {
+                                MakeObservation("You power off the device.", Color.Gray, new EntityList<Entity>());
+                            }
+
+                            o.LastToggler = Executor;
+                            o.ConsoleOn = false;
+                        }
+                        else // It is currently OFF, so TURN ON
+                        {
+                            if (o.StoredInvocation != null)
+                            {
+                                MakeObservation("You gain the gift of " + o.StoredInvocation + ".", Color.LightBlue, new EntityList<Entity>());
+                                Executor.Invocations.Add(o.StoredInvocation);
+                            }
+                            else
+                            {
+                                MakeObservation("You power on the device.", Color.Green, new EntityList<Entity>());
+                            }
+                            o.LastToggler = Executor;
+                            o.ConsoleOn = true;
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("That is not a console.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("That object is not nearby.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+
+            else if (CommandID == "invoke_crystal")
+            {
+                if (Subjects[0] is Object o && o.Type == "invocation crystal")
+                {
+                    bool Has = false;
+                    // If the object is in the inventory, remove it
+                    if (Executor.Inventory.Contains(o))
+                    {
+                        Executor.Inventory.Remove(o);
+                        Has = true;
+                    }
+
+                    // If it's in either hand, set that hand's object to null
+                    if (Executor.MainHeldObject == o)
+                    {
+                        Executor.MainHeldObject = null;
+                        Has = true;
+                    }
+                    else if (Executor.OffHeldObject == o)
+                    {
+                        Executor.OffHeldObject = null;
+                        Has = true;
+                    }
+
+
+                    if (Has)
+                    {
+                        MakeObservation("You invoke the crystal...", Color.OrangeRed, new EntityList<Entity>());
+
+                        var gifts = new List<string>
+                        {
+                            "wind", "alacrity", "shadows", "lightning", "mindreaving",
+                            "telepathy", "siphoning", "detection", "slashing", "transformation",
+                            "blight", "abjuration", "swiftness"
+                        };
+
+                        // Filter out invocations the player already has
+                        var availableGifts = gifts.Except(Executor.Invocations).ToList();
+
+                        if (availableGifts.Count > 0)
+                        {
+                            string Gift = availableGifts[Game1.GameWorld.rnd.Next(availableGifts.Count)];
+
+                            MakeObservation($"...and acquire the gift of {Game1.Capitalize(Gift)}.", Color.OrangeRed, new EntityList<Entity>());
+                            MakeObservation(Game1.GiftDescriptions[Gift], Color.OrangeRed, new EntityList<Entity>());
+
+                            Executor.Invocations.Add(Gift);
+                        }
+                        else
+                        {
+                            MakeObservation("...but you already have every invocation.", Color.OrangeRed, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You need to have that object on you.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("You cannot invoke that.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "toggle_flight")
+            {
+                if (Executor.Invocations.Contains("wind"))
+                {
+                    Executor.InFlight = !Executor.InFlight; // Toggle the state
+
+                    if (Executor.InFlight)
+                    {
+                        Executor.CooldownCycles += (int)Math.Round(10 / Executor.Speed);
+
+                        MakeObservation("You take flight. Your Y level is " + Executor.YLevelInFeet + " feet.", Color.Pink, new EntityList<Entity>());
+                    }
+                    else
+                    {
+                        Executor.CooldownCycles += (int)Math.Round(10 / Executor.Speed);
+
+                        MakeObservation("You are no longer flying. Your Y level is " + Executor.YLevelInFeet + " feet.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+
+                else
+                {
+                    MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "curse")
+            {
+                if (Executor.Invocations.Contains("blight"))
+                {
+                    MakeObservation("You shout a word...", Color.Gray, new EntityList<Entity>() { });
+
+                    if (Subjects[0] is Architect a && ArchitectsToUse.Contains(a) && a.RecievedCurse == false)
+                    {
+                        int Shibe = Game1.GameWorld.rnd.Next(3);
+
+                        if (Shibe == 0)
+                        {
+                            MakeObservation(a.ReferredToNames[0] + " feels horribly weak!", Color.Gray, new EntityList<Entity>() { a });
+                            a.Strength -= 1;
+                        }
+                        else if (Shibe == 1)
+                        {
+                            MakeObservation(a.ReferredToNames[0] + " feels horribly frail!", Color.Gray, new EntityList<Entity>() { a });
+                            a.Endurance -= 1;
+                        }
+                        else if (Shibe == 2)
+                        {
+                            MakeObservation(a.ReferredToNames[0] + " feels horribly slow!", Color.Gray, new EntityList<Entity>() { a });
+                            a.Agility -= 1;
+                        }
+
+                        a.RecievedCurse = true;
+                    }
+                    else
+                    {
+                        MakeObservation("You need to curse an architect who has not been cursed prior.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+
+                    MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+
+                }
+            }
+            else if (CommandID == "degravitate")
+            {
+                if(Executor.Invocations.Contains("swiftness"))
+                {
+                    if (Subjects[0] is Architect a && ArchitectsToUse.Contains(a) && a.RecievedDexBonus == false)
+                    {
+                        a.RecievedDexBonus = true;
+                        a.Dexterity += 1;
+                        MakeObservation(a.ReferredToNames[0] + " feels peculiarly lighter...", Color.Green, new EntityList<Entity>() { a });
+                    }
+                    else
+                    {
+                        MakeObservation("You need to target a nearby architect who has not been degravitated.", Color.Yellow, new EntityList<Entity>());
+
+                    }
+                }
+                else
+                {
+
+                    MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+
+                }
+            }
+            else if (CommandID == "peer")
+            {
+                if (Executor.BlindCycles > 0)
+                {
+                    MakeObservation("You are blind.", Color.Magenta, new EntityList<Entity>());
+                }
+                else
+                {
+
+                    if (Executor.Invocations.Contains("detection"))
+                    {
+                        EntityList<Architect> ArchitectsSeen = new EntityList<Architect>();
+                        EntityList<Object> ObjectsSeen = new EntityList<Object>();
+
+
+                        bool Works = true;
+
+                        if (Subjects[0] is Door d && ObjectsToUse.Contains(d))
+                        {
+                            ArchitectsSeen.AddRange(d.DestinationRoom.Architects);
+                            ObjectsSeen.AddRange(d.DestinationRoom.Objects);
+                        }
+                        else if (Subjects[0] is Object o && ObjectsToUse.Contains(o) && o.Type == "exit door" && Executor.Structure != null)
+                        {
+                            ArchitectsSeen.AddRange(Executor.Structure.Block.Architects);
+                            ObjectsSeen.AddRange(Executor.Structure.Block.Objects);
+                        }
+                        else if (Subjects[0] is Structure s && Executor.Block.Structures.Contains(s) && Executor.Structure == null)
+                        {
+                            ArchitectsSeen.AddRange(s.Rooms[0].Architects);
+                            ObjectsSeen.AddRange(s.Rooms[0].Objects);
+                        }
+                        else
+                        {
+                            Works = false;
+                        }
+
+
+                        if (Works)
+                        {
+                            List<string> Arch = new List<string>();
+                            List<string> Obj = new List<string>();
+
+                            MakeObservation("Architects Seen: " + (ArchitectsSeen.Count > 0 ? "" : "None"), Color.Orange, new EntityList<Entity>());
+                            foreach (Architect a in ArchitectsSeen)
+                            {
+                                Arch.Add(a.ReferredToNames[0]);
+                            }
+                            MakeObservation(Game1.FormatAndList(Arch), Color.Yellow, new EntityList<Entity>());
+
+
+                            MakeObservation("Unique Objects Seen: " + (ObjectsSeen.Count > 0 ? "" : "None"), Color.Orange, new EntityList<Entity>());
+                            foreach (Object o in ObjectsSeen)
+                            {
+                                if (!Obj.Contains(o.ReferredToNames[0]))
+                                {
+                                    Obj.Add(o.ReferredToNames[0]);
+                                }
+                            }
+                            MakeObservation(Game1.FormatAndList(Obj), Color.Yellow, new EntityList<Entity>());
+                        }
+                        else
+                        {
+                            MakeObservation("You cannot peer through that.", Color.Yellow, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+            }
+            else if (CommandID == "flight_boost")
+            {
+                if (Executor.Invocations.Contains("wind"))
+                {
+                    if (Executor.InFlight)
+                    {
+                        MakeObservation("You boost airborne.", Color.Pink, new EntityList<Entity>());
+                        Executor.YLevelInFeet += 50;
+                        Executor.CooldownCycles += (int)Math.Round(25 / Executor.Speed);
+                    }
+                    else
+                    {
+                        MakeObservation("You need to be flying to do that.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+
+                else
+                {
+                    MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+            else if (CommandID == "mindreave")
+            {
+                if (Subjects[0] is Architect a && ArchitectsToUse.Contains(a))
+                {
+                    if (Executor.Invocations.Contains("mindreaving"))
+                    {
+                        if (Executor.NextMindreavingCycle <= Game1.GameWorld.Cycle)
+                        {
+                            MakeObservation("You tear a rift in the mind of " + a.ReferredToNames[0] + ".", Color.Yellow, new EntityList<Entity>());
+
+                            a.Task = "";
+                            a.TargetArchitect = null;
+                            a.CyclesLeftInTask = 0;
+                            a.DestabilizedCycles = 45;
+                            a.UnconsciousCycles = 30;
+              
+
+                            Executor.NextMindreavingCycle = Game1.GameWorld.Cycle + 864000;
+                        }
+                        else
+                        {
+                            double remainingCycles = Executor.NextMindreavingCycle - Game1.GameWorld.Cycle;
+                            double remainingSeconds = remainingCycles / 10; // Assuming 10 cycles per second
+
+                            string timeMessage;
+                            if (remainingSeconds >= 3600)
+                            {
+                                timeMessage = $"{Math.Round(remainingSeconds / 3600, 1)} hours";
+                            }
+                            else
+                            {
+                                timeMessage = $"{Math.Round(remainingSeconds / 60)} minutes";
+                            }
+
+                            MakeObservation($"You cannot mindreave for another {timeMessage}.", Color.Yellow, new EntityList<Entity>());
+                        }
+                    }
+                    else
+                    {
+                        MakeObservation("You do not have that power.", Color.Yellow, new EntityList<Entity>());
+                    }
+                }
+                else
+                {
+                    MakeObservation("That architect is not nearby.", Color.Yellow, new EntityList<Entity>());
+                }
+            }
+
             else if (CommandID == "use_skill")
             {
                 if (Executor.SkillsKnown.Contains(Subjects[0]))
                 {
                     if (!Executor.UsedSkills.Contains(Subjects[0]))
                     {
-                        Executor.CooldownCycles += (int)Math.Round(2 / Executor.Speed());
+                        Executor.CooldownCycles += (int)Math.Round(2 / Executor.Speed);
+
+                        Executor.TryComment("skilluse", 80);
 
                         if (Subjects[0].Metadata == "deflect")
                         {
@@ -5422,7 +6803,7 @@ namespace Lightrealm
                                     (-1, -1)   // northwest
                                 };
 
-                                
+
                                 bool Success = false;
                                 int attempts = 0;
 
@@ -5462,7 +6843,7 @@ namespace Lightrealm
 
                                 if (doors.Count() > 0)
                                 {
-                                    
+
                                     Object randomDoor = doors[Game1.GameWorld.rnd.Next(doors.Count())];
                                     if (randomDoor is Door door)
                                     {
@@ -5484,7 +6865,6 @@ namespace Lightrealm
                                     if (Executor.Structure != null && (Executor.Room == Executor.Structure.Rooms[0] || (Executor.Location.Layout == "archway" && Executor.Room == Executor.Structure.Rooms.Last())))
                                     {
                                         Executor.Room.Architects.Remove(Executor);
-                                        Executor.Structure = null;
                                         Executor.Room = null;
                                         Executor.Block.Architects.Add(Executor);
                                         Executor.UsedSkills.Add(Subjects[0]);
@@ -5542,24 +6922,6 @@ namespace Lightrealm
             else
             {
                 string observationMessage = Executor.Name + " is not sure what you mean.";
-                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-                // Ensure the directory exists
-                string saveDirectory = Path.Combine(documentsPath, "LightrealmSaves");
-                if (!Directory.Exists(saveDirectory))
-                {
-                    Directory.CreateDirectory(saveDirectory);
-                }
-
-                string contentPath = Path.Combine(saveDirectory, "failedCommands.txt");
-                string failedCommand = CommandID + Environment.NewLine;
-
-                // Write the failed command to the file using FileStream
-                using (FileStream fileStream = new FileStream(contentPath, FileMode.Append, FileAccess.Write))
-                {
-                    byte[] failedCommandBytes = System.Text.Encoding.UTF8.GetBytes(failedCommand);
-                    fileStream.Write(failedCommandBytes, 0, failedCommandBytes.Length);
-                }
 
                 MakeObservation(observationMessage, Color.Goldenrod, new EntityList<Entity>());
 
@@ -5567,114 +6929,671 @@ namespace Lightrealm
             }
 
 
+            List<Entity> recentlyMentionedEntities = new List<Entity>();
+            int textStoragesChecked = 0;
+
+            foreach (var announcement in Game1.Announcements.AsEnumerable().Reverse())
+            {
+                if (textStoragesChecked >= 15 || recentlyMentionedEntities.Count >= 15)
+                {
+                    break;
+                }
+
+                if (announcement.Entities != null)
+                {
+                    foreach (var mentionedEntity in announcement.Entities)
+                    {
+                        if (recentlyMentionedEntities.Count < 15)
+                        {
+                            recentlyMentionedEntities.Add(mentionedEntity);
+                        }
+                    }
+                }
+
+                textStoragesChecked++;
+            }
+            Game1.RecentlyMentionedEntities = recentlyMentionedEntities;
 
 
             //if we got to this point that means we exited the if statement by running a command successfully, therefore we can return "true"
             return (true);
         }
 
-        
+        public static Dictionary<string, string[]> personalityDenials = new Dictionary<string, string[]>
+{
+    { "generic", new[] { "^p and I wouldn't mesh well.", "^p and I just wouldn't get along.", "I don't see it working with ^p around." } },
+    { "tactician", new[] { "^p and I would both try to lead.", "^p and I would end up second-guessing each other.", "^p and I would clash over strategy." } },
+    { "arrogant", new[] { "^p already brings enough ego.", "^p and I are both too much to share space.", "^p and I wouldn't stop trying to outshine each other." } },
+    { "sovereign", new[] { "^p and I would clash for control.", "^p and I both want the throne.", "^p and I can't both be in charge." } },
+    { "soldier", new[] { "^p and I would argue about tactics.", "^p and I both try to take command.", "^p and I wouldn't follow the same orders." } },
+    { "caretaker", new[] { "^p and I would both try to take care of everyone.", "^p and I would step on each other's feet.", "^p and I would get in each other's way trying to help." } },
+    { "immature", new[] { "^p and I would probably get a little too carried away together.", "^p and I might push things too far just for fun.", "^p and I would keep things light, but maybe too light." } },
+    { "delusional", new[] { "^p and I would both be lost in our own worlds.", "^p and I would blur the line between dream and reality.", "^p and I would completely lose track of what's real." } },
+    { "laid-back", new[] { "^p and I would never get anything done.", "^p and I would relax ourselves into uselessness.", "^p and I would keep putting everything off." } },
+    { "optimist", new[] { "^p and I would hype each other up endlessly.", "^p and I would both be the bright side, with no balance.", "^p and I might ignore the real problems." } },
+    { "cynic", new[] { "^p and I would just drag each other down.", "^p and I would make everything sound worse.", "^p and I wouldn't help anyone's mood." } },
+    { "cunning", new[] { "^p and I would constantly try to outplay each other.", "^p and I would be too busy scheming to cooperate.", "^p and I would never trust each other." } },
+    { "hothead", new[] { "^p and I would argue nonstop.", "^p and I would start a fire before the enemy does.", "^p and I would explode over everything." } },
+    { "survivalist", new[] { "^p and I would both try to go it alone.", "^p and I would hoard supplies and avoid each other.", "^p and I wouldn't rely on anyone-not even each other." } },
+    { "analytic", new[] { "^p and I would get stuck overanalyzing everything.", "^p and I would debate every decision to death.", "^p and I would stall out thinking too hard." } },
+    { "idealist", new[] { "^p and I would argue over how to fix the world.", "^p and I would chase different visions.", "^p and I would never agree on the goal." } },
+    { "dreamer", new[] { "^p and I would get lost in fantasy.", "^p and I would drift away from what matters.", "^p and I would dream instead of doing." } },
+    { "hedonist", new[] { "^p and I would party instead of adventuring.", "^p and I would chase thrills over progress.", "^p and I would forget the mission." } },
+    { "competitor", new[] { "^p and I would try to outdo each other constantly.", "^p and I would compete instead of cooperate.", "^p and I would both demand the spotlight." } },
+    { "melancholic", new[] { "^p and I would spiral into gloom.", "^p and I would bring each other down.", "^p and I would never lift each other up." } },
+    { "collector", new[] { "^p and I would fight over loot.", "^p and I would both hoard too much.", "^p and I wouldn't want to share." } }
+};
+
+
+        public static string GetDirectionFromAngle(double angle)
+        {
+            if (angle >= 337.5 || angle < 22.5) return "east";
+            else if (angle >= 22.5 && angle < 67.5) return "northeast";
+            else if (angle >= 67.5 && angle < 112.5) return "north";
+            else if (angle >= 112.5 && angle < 157.5) return "northwest";
+            else if (angle >= 157.5 && angle < 202.5) return "west";
+            else if (angle >= 202.5 && angle < 247.5) return "southwest";
+            else if (angle >= 247.5 && angle < 292.5) return "south";
+            else if (angle >= 292.5 && angle < 337.5) return "southeast";
+            else return "unknown";
+        }
+        public static string GenerateHealthReport(Architect architect)
+        {
+            var healthReport = new StringBuilder();
+
+            // Select a random body part from the architect
+            var randomBodyPart = architect.BodyParts[Game1.GameWorld.rnd.Next(architect.BodyParts.Count())];
+
+            // Determine the condition of the selected body part
+            string condition;
+            if (randomBodyPart.Integrity > 80) condition = "excellent";
+            else if (randomBodyPart.Integrity > 60) condition = "good";
+            else if (randomBodyPart.Integrity > 40) condition = "fair";
+            else if (randomBodyPart.Integrity > 20) condition = "poor";
+            else condition = "critical";
+
+            healthReport.Append($" My {randomBodyPart.Type} is in {condition} condition.");
+
+            // Calculate energy percentage
+            int energyPercentage = (int)Math.Round(((double)architect.Energy / architect.MaxEnergy) * 100);
+
+            // Determine the energy condition
+            string energyCondition;
+            if (energyPercentage > 80) energyCondition = "full of energy";
+            else if (energyPercentage > 60) energyCondition = "energetic";
+            else if (energyPercentage > 40) energyCondition = "okay";
+            else if (energyPercentage > 20) energyCondition = "tired";
+            else energyCondition = "exhausted";
+
+            healthReport.Append($" I am {energyCondition}.");
+
+            return healthReport.ToString();
+        }
+
+
+
+
+
+        public static string GenerateMadeUpHealthReport(Architect architect)
+        {
+            var healthReport = new StringBuilder();
+
+            // Randomly select a body part from the architect
+            var randomBodyPart = architect.BodyParts[Game1.GameWorld.rnd.Next(architect.BodyParts.Count())];
+
+            // Generate a random integrity value with a bias towards higher numbers
+            int biasedRandomInt(int min, int max)
+            {
+                return Game1.GameWorld.rnd.Next(min, max) * Game1.GameWorld.rnd.Next(min, max) / max;
+            }
+            int randomIntegrity = biasedRandomInt(40, 100);
+
+            string condition;
+            if (randomIntegrity > 80) condition = "excellent";
+            else if (randomIntegrity > 60) condition = "good";
+            else if (randomIntegrity > 40) condition = "fair";
+            else if (randomIntegrity > 20) condition = "poor";
+            else condition = "critical";
+
+            healthReport.Append($" My {randomBodyPart.Type} is in {condition} condition.");
+
+            // Generate a random energy value with a bias towards higher numbers
+            int randomEnergy = biasedRandomInt(40, 100);
+            int energyPercentage = (int)Math.Round(((double)randomEnergy / 100) * 100);
+
+            string energyCondition;
+            if (energyPercentage > 80) energyCondition = "full of energy";
+            else if (energyPercentage > 60) energyCondition = "energetic";
+            else if (energyPercentage > 40) energyCondition = "okay";
+            else if (energyPercentage > 20) energyCondition = "tired";
+            else energyCondition = "exhausted";
+
+            healthReport.Append($" I am {energyCondition}.");
+
+            return healthReport.ToString();
+        }
+
+
+        public static string GetDirectionFromDelta(double deltaX, double deltaZ)
+        {
+            double angle = Math.Atan2(deltaZ, deltaX) * (180 / Math.PI);
+            if (angle < 0) angle += 360;
+
+            if (angle >= 337.5 || angle < 22.5)
+                return "east";
+            else if (angle >= 22.5 && angle < 67.5)
+                return "southeast";
+            else if (angle >= 67.5 && angle < 112.5)
+                return "south";
+            else if (angle >= 112.5 && angle < 157.5)
+                return "southwest";
+            else if (angle >= 157.5 && angle < 202.5)
+                return "west";
+            else if (angle >= 202.5 && angle < 247.5)
+                return "northwest";
+            else if (angle >= 247.5 && angle < 292.5)
+                return "north";
+            else if (angle >= 292.5 && angle < 337.5)
+                return "northeast";
+            else
+                return "unknown";
+        }
+
+        public static string GetRandomDirection()
+        {
+            string[] directions = { "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest" };
+            return directions[Game1.GameWorld.rnd.Next(directions.Length)];
+        }
+
+        public static Location GetRandomLocation()
+        {
+            ;
+            var randomLocation = Game1.GameWorld.AllLocations[Game1.GameWorld.rnd.Next(Game1.GameWorld.AllLocations.Count())];
+            return randomLocation;
+        }
+
+        public static District GetRandomDistrict(Location location)
+        {
+            var randomDistrict = location.Districts[Game1.GameWorld.rnd.Next(location.Districts.Count())];
+            return randomDistrict;
+        }
+
+        public static Structure GetRandomStructure(Location location)
+        {
+            var randomStructure = location.AllStructures[Game1.GameWorld.rnd.Next(location.AllStructures.Count())];
+            return randomStructure;
+        }
+
         public static void SendMessage(string MessageID, Architect Sender, Architect Receiver, EntityList<Entity> Subjects, World GameWorld)
         {
             Message DecidedMessage = null;
 
-            string GetDirectionFromAngle(double angle)
-            {
-                if (angle >= 337.5 || angle < 22.5) return "east";
-                else if (angle >= 22.5 && angle < 67.5) return "northeast";
-                else if (angle >= 67.5 && angle < 112.5) return "north";
-                else if (angle >= 112.5 && angle < 157.5) return "northwest";
-                else if (angle >= 157.5 && angle < 202.5) return "west";
-                else if (angle >= 202.5 && angle < 247.5) return "southwest";
-                else if (angle >= 247.5 && angle < 292.5) return "south";
-                else if (angle >= 292.5 && angle < 337.5) return "southeast";
-                else return "unknown";
-            }
-
-            string GetDirectionFromDelta(double deltaX, double deltaZ)
-            {
-                double angle = Math.Atan2(deltaZ, deltaX) * (180 / Math.PI);
-                if (angle < 0) angle += 360;
-
-                if (angle >= 337.5 || angle < 22.5)
-                    return "east";
-                else if (angle >= 22.5 && angle < 67.5)
-                    return "southeast";
-                else if (angle >= 67.5 && angle < 112.5)
-                    return "south";
-                else if (angle >= 112.5 && angle < 157.5)
-                    return "southwest";
-                else if (angle >= 157.5 && angle < 202.5)
-                    return "west";
-                else if (angle >= 202.5 && angle < 247.5)
-                    return "northwest";
-                else if (angle >= 247.5 && angle < 292.5)
-                    return "north";
-                else if (angle >= 292.5 && angle < 337.5)
-                    return "northeast";
-                else
-                    return "unknown";
-            }
-
-
-            string GetRandomDirection()
-            {
-                string[] directions = { "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest" };
-                return directions[Game1.GameWorld.rnd.Next(directions.Length)];
-            }
-
-            string GetRandomLocation()
-            {;
-                var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
-                return randomLocation.Name;
-            }
-
-            string GetRandomDistrict(Location location)
-            {
-                var randomDistrict = location.Districts[Game1.GameWorld.rnd.Next(location.Districts.Count())];
-                return randomDistrict.Name;
-            }
-
-            string GetRandomStructure(Location location)
-            {
-                var randomStructure = location.AllStructures[Game1.GameWorld.rnd.Next(location.AllStructures.Count())];
-                return randomStructure.Name;
-            }
-
-
             if (!CanUnderstandEachOther(Receiver, Sender))
             {
-                Sender.AnnounceToParty(Receiver.ReferredToNames[0] + " cannot understand you.", Color.Yellow, new EntityList<Entity>() { Receiver });
+                if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender))
+                {
+                    Sender.AnnounceToParty(Receiver.ReferredToNames[0] + " cannot understand you.", Color.Yellow, new EntityList<Entity>() { Receiver });
+                }
             }
             else
             {
-                if (MessageID == "ask_name")
+                if (Sender == Receiver)
                 {
-                    DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "What is your name?", //content
-                            "My name is " + Receiver.Name + ".", //truthful response
-                            "There are some who call me \"" + Receiver.FalsifiedName + "\".", //made up response
-                            "I'm not sure I remember.", //unknowing response
-                            "Isn't the content of my character more important?", //derailing response
-                            "It's not as pretty as your name." //flattering response
-                        );
-                }
-                else if (MessageID == "ask_directions")
-                {
-                    if (Subjects[0] is Architect architect)
+                    switch (Sender.SelfMessageTracker)
                     {
-                        string mapUpdated = "";
+                        case 0:
+                            Sender.AnnounceToParty("You're talking to yourself again.", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 1:
+                            Sender.AnnounceToParty("How is this helpful in any way?", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 2:
+                            Sender.AnnounceToParty("This isn't therapy.", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 3:
+                            Sender.AnnounceToParty("This is an echo chamber.", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 4:
+                            Sender.AnnounceToParty("Things that only YOU want to hear.", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 5:
+                            Sender.AnnounceToParty("Sights that only YOU want to see.", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 6:
+                            Sender.AnnounceToParty("Never even looking to the TRUTH:", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        case 7:
+                            Sender.AnnounceToParty("YOU NEED HELP.", Color.Red, new EntityList<Entity>() { Receiver });
+                            break;
+                        default:
+                            return;
+                    }
 
-                        if (Game1.LoadedArchitects.Contains(architect))
+                    Sender.SelfMessageTracker = (Sender.SelfMessageTracker + 1) % 8;
+                }
+
+                else
+                {
+
+                    if (MessageID == "ask_name")
+                    {
+                        DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "What is your name?", //content
+                                "My name is " + Receiver.Name + ".", //truthful response
+                                "There are some who call me \"" + Receiver.FalsifiedName + "\".", //made up response
+                                "I'm not sure I remember.", //unknowing response
+                                "Isn't the content of my character more important?", //derailing response
+                                "It's not as pretty as your name." //flattering response
+                            );
+
+                        DecidedMessage.ResponseEntitiesForOne.Add(Receiver);
+                    }
+                    else if (MessageID == "ask_directions")
+                    {
+                        if (Subjects[0] is Architect architect)
                         {
-                            // Calculate direction based on the architect's block
-                            double deltaX = architect.Block.X - Sender.Block.X;
-                            double deltaZ = architect.Block.Z - Sender.Block.Z;
-                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
+                            string mapUpdated = "";
 
-                            if (Sender.Location != architect.Block.District.Location)
+                            if (Game1.LoadedArchitects.Contains(architect))
+                            {
+                                if (architect.Room != null && architect.Structure != null && architect.Structure.Block != null)
+                                {
+                                    // Architect is in a known room/structure
+                                    double deltaX = architect.Structure.Block.X - Sender.Block.X;
+                                    double deltaZ = architect.Structure.Block.Z - Sender.Block.Z;
+                                    string direction = GetDirectionFromDelta(deltaX, deltaZ);
+
+                                    DecidedMessage = new Message
+                                    (
+                                        Sender, Receiver, Subjects, "question", MessageID,
+                                        $"Would you tell me where I can find {Subjects[0].ReferredToNames[0]}?", // content
+                                        $"Yes, they're in {(architect.Structure.Type.Contains("house") ? "a house" : $"the structure {architect.Structure.Name}")} to the {direction}. {mapUpdated}{Game1.Capitalize(architect.Pronoun)} looks like... [Knowledge Updated]", // truthful/compliant
+                                        $"Yes, they're in the structure {GetRandomStructure(Sender.Location).Name}.", // denial
+                                        "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing
+                                        "They aren't very nice, you don't want to see them.", // derailing
+                                        "Why see them when you could instead talk with me?" // flattering
+                                    );
+
+                                    DecidedMessage.StoredKnownArchs.Add(architect);
+                                    DecidedMessage.ResponseEntitiesForOne.Add(architect.Structure);
+                                }
+                                else if (architect.Block != null)
+                                {
+                                    // Architect is in a known block (fallback)
+                                    double deltaX = architect.Block.X - Sender.Block.X;
+                                    double deltaZ = architect.Block.Z - Sender.Block.Z;
+                                    string direction = GetDirectionFromDelta(deltaX, deltaZ);
+
+                                    if (Sender.Location != architect.Block.District.Location)
+                                    {
+                                        mapUpdated = " [Map Updated]";
+                                    }
+
+                                    DecidedMessage = new Message
+                                    (
+                                        Sender, Receiver, Subjects, "question", MessageID,
+                                        $"Would you tell me where I can find {Subjects[0].ReferredToNames[0]}?", // content
+                                        $"Yes, you need to travel {direction}.{mapUpdated} {architect.Pronoun} looks like... [Knowledge Updated]", // truthful/compliant
+                                        $"Yes, you need to travel {GetRandomDirection()}.", // denial
+                                        "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing
+                                        "They aren't very nice, you don't want to see them.", // derailing
+                                        "Why see them when you could instead talk with me?" // flattering
+                                    );
+
+                                    if (Sender.Location != architect.Block.District.Location)
+                                    {
+                                        DecidedMessage.StoredRevealLocations.Add(architect.Block.District.Location);
+                                    }
+
+                                    DecidedMessage.StoredKnownArchs.Add(architect);
+                                }
+                            }
+
+                            else if (architect.District != null &&
+                                     Sender.Location.Districts.Contains(architect.District))
+                            {
+                                // They're in a nearby district
+                                string nearbyDistrictName = architect.District.Name;
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find {Subjects[0].ReferredToNames[0]}?",
+                                    $"They are in the nearby {nearbyDistrictName} district.",
+                                    $"Yes, you need to travel {GetRandomDirection()}.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "They aren't very nice, you don't want to see them.",
+                                    "Why see them when you could instead talk with me?"
+                                );
+
+                                DecidedMessage.ResponseEntitiesForOne.Add(architect.District);
+                            }
+                            else if (architect.Location != null)
+                            {
+
+                                Location l = GetRandomLocation();
+                                if (Sender.Location != architect.Location)
+                                {
+                                    mapUpdated = " [Map Updated]";
+                                }
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find {Subjects[0].ReferredToNames[0]}?",
+                                    $"Last I heard they were at {architect.Location.Name}.{mapUpdated}",
+                                    $"I believe they're at {l.Name}.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "They aren't very nice, you don't want to see them.",
+                                    "Why see them when you could instead talk with me?"
+                                );
+                                // Known but remote
+                                if (Sender.Location != architect.Location)
+                                {
+                                    DecidedMessage.StoredRevealLocations.Add(architect.Location);
+                                }
+
+                                DecidedMessage.ResponseEntitiesForTwo.Add(l);
+                            }
+                            else
+                            {
+                                // Unknown
+                                Location l = GetRandomLocation();
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find {Subjects[0].ReferredToNames[0]}?",
+                                    "Wherever they are, it is lost to time.",
+                                    $"I believe they're at {l.Name}.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "They aren't very nice, you don't want to see them.",
+                                    "Why see them when you could instead talk with me?"
+                                );
+
+                                DecidedMessage.ResponseEntitiesForTwo.Add(l);
+                            }
+                        }
+
+                        else if (Subjects[0] is Object obj)
+                        {
+                            bool foundInLocation = false;
+
+                            foreach (var district in Sender.Location.Districts)
+                            {
+                                foreach (var block in district.DistrictMap)
+                                {
+                                    // Check block-level objects
+                                    if (block.Objects.Contains(obj) || block.Objects.Any(o => o.ContainedObjects.Contains(obj)))
+                                    {
+                                        foundInLocation = true;
+
+                                        Structure s = GetRandomStructure(Sender.Location);
+
+                                        DecidedMessage = new Message
+                                        (
+                                            Sender, Receiver, Subjects, "question", MessageID,
+                                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                            $"I saw it outside in the {district.Name} district.",
+                                            $"I saw it in {s.Name}.",
+                                            "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                            "I don't care.",
+                                            "You are already beautiful without it."
+                                        );
+
+                                        DecidedMessage.ResponseEntitiesForTwo.Add(s);
+                                        DecidedMessage.ResponseEntitiesForOne.Add(district);
+
+                                        break;
+                                    }
+
+                                    // Check inside structures and rooms
+                                    foreach (var structure in block.Structures)
+                                    {
+                                        if (structure.Rooms.Any(room =>
+                                            room.Objects.Contains(obj) ||
+                                            room.Objects.Any(o => o.ContainedObjects.Contains(obj))))
+                                        {
+                                            foundInLocation = true;
+
+                                            Structure s = GetRandomStructure(Sender.Location);
+
+                                            DecidedMessage = new Message
+                                            (
+                                                Sender, Receiver, Subjects, "question", MessageID,
+                                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                                $"I saw it in the structure {structure.Name}.",
+                                                $"I saw it in the structure {s.Name}.",
+                                                "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                                "I don't care.",
+                                                "You are already beautiful without it."
+                                            );
+                                            DecidedMessage.ResponseEntitiesForOne.Add(structure);
+                                            DecidedMessage.ResponseEntitiesForTwo.Add(s);
+
+                                            break;
+                                        }
+                                    }
+
+
+
+                                    if (foundInLocation) break;
+                                }
+                                if (foundInLocation) break;
+                            }
+
+
+                            //Check consoles
+
+                            if (obj.Type == "console" && obj.ConsoleDropLocation != null)
+                            {
+                                foundInLocation = true;
+
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                    $"It fell from the sky at {obj.ConsoleDropLocation.Name}, in the {obj.ConsoleDropLocation.Districts[0].Name} district. You cannot miss it. [Map Updated]",
+                                    $"It has not yet fallen from the sky.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "I don't care.",
+                                    "You are already beautiful without it."
+                                );
+
+
+                                if (Sender.Location != obj.ConsoleDropLocation)
+                                {
+                                    // Store the location instead of revealing it directly
+                                    DecidedMessage.StoredRevealLocations.Add(obj.ConsoleDropLocation);
+                                }
+
+                                DecidedMessage.ResponseEntitiesForOne.Add(obj.ConsoleDropLocation);
+                                DecidedMessage.ResponseEntitiesForOne.Add(obj.ConsoleDropLocation.Districts[0]);
+                            }
+
+
+
+                            if (!foundInLocation)
+                            {
+                                foreach (var location in GameWorld.AllLocations)
+                                {
+                                    foreach (var district in location.Districts)
+                                    {
+                                        if (location.AllStructures.Any(s => s.HistoricalObjects.Contains(obj)))
+                                        {
+                                            var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
+                                            var randomDistrict = randomLocation.Districts[Game1.GameWorld.rnd.Next(randomLocation.Districts.Count())];
+                                            string mapUpdated = "";
+
+                                            if (Sender.Location != location)
+                                            {
+                                                mapUpdated = " [Map Updated]";
+                                            }
+
+                                            DecidedMessage = new Message
+                                            (
+                                                Sender, Receiver, Subjects, "question", MessageID,
+                                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                                $"I believe it is at {location.Name}, in the {district.Name} district.{mapUpdated}", // truthful/compliant response
+                                                $"I belive it is at {randomLocation.Name}, in the {randomDistrict.Name} district.", // made up/denial response
+                                                "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                                "I don't care.", // derailing response
+                                                "You are already beautiful without it." // flattering response
+                                            );
+
+                                            DecidedMessage.ResponseEntitiesForOne.Add(location);
+                                            DecidedMessage.ResponseEntitiesForOne.Add(district);
+                                            DecidedMessage.ResponseEntitiesForTwo.Add(randomLocation);
+                                            DecidedMessage.ResponseEntitiesForTwo.Add(randomDistrict);
+
+                                            if (Sender.Location != location)
+                                            {
+                                                // Store the location instead of revealing it directly
+                                                DecidedMessage.StoredRevealLocations.Add(location);
+                                            }
+
+                                            break;
+                                        }
+                                    }
+                                    if (foundInLocation) break;
+                                }
+                            }
+
+
+                            if (!foundInLocation && DecidedMessage == null)
+                            {
+                                foreach (var a in Game1.GameWorld.AllHistoricalArchitects)
+                                {
+                                    if (a.MainHeldObject == obj || a.OffHeldObject == obj ||
+                                        a.Clothing.Contains(obj) || a.Inventory.Contains(obj))
+                                    {
+                                        string archLoc = a.Location != null ? a.Location.Name : "an unknown location";
+                                        string archName = string.IsNullOrEmpty(a.Name) ? a.ReferredToNames[0] : a.Name;
+
+                                        DecidedMessage = new Message
+                                        (
+                                            Sender, Receiver, Subjects, "question", MessageID,
+                                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                            $"Yes, it is with {archName} in {archLoc}.",
+                                            $"I believe someone in {archLoc} might have it.",
+                                            "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                            "I don't care.",
+                                            "You are already beautiful without it."
+                                        );
+
+
+                                        DecidedMessage.ResponseEntitiesForOne.Add(a);
+
+                                        if (a.Location != null)
+                                        {
+                                            DecidedMessage.ResponseEntitiesForOne.Add(a.Location);
+                                            DecidedMessage.ResponseEntitiesForTwo.Add(a.Location);
+                                        }
+
+                                        break;
+                                    }
+                                }
+                            }
+
+
+                        }
+                        else if (Subjects[0] is Structure structure)
+                        {
+                            if (structure.Rooms.Contains(Sender.Room))
+                            {
+                                Structure s = GetRandomStructure(Sender.Location);
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                    "We are already here.", // truthful/compliant response
+                                    $"You are currently inside {s.Name}.", // made up/denial response
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                    "I personally can't stand that place.", // derailing response
+                                    "It would be such a nice place to hang out..." // flattering response
+                                );
+
+                                DecidedMessage.ResponseEntitiesForTwo.Add(s);
+                            }
+                            else if (structure.Block == Sender.Block)
+                            {
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                    "It is right nearby.", // truthful/compliant response
+                                    $"It is to the {GetRandomDirection()}.", // made up/denial response
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                    "I personally can't stand that place.", // derailing response
+                                    "It would be such a nice place to hang out..." // flattering response
+                                );
+                            }
+                            else if (structure.Block.District == Sender.Block.District)
+                            {
+                                // Calculate direction
+                                double deltaX = structure.Block.X - Sender.Block.X;
+                                double deltaZ = structure.Block.Z - Sender.Block.Z;
+                                string direction = GetDirectionFromDelta(deltaX, deltaZ);
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                    $"It is {direction} from here.", // truthful/compliant response
+                                    $"It is {GetRandomDirection()} from here.", // made up/denial response
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                    "I personally can't stand that place.", // derailing response
+                                    "It would be such a nice place to hang out..." // flattering response
+                                );
+                            }
+                            else
+                            {
+                                string mapUpdated = "";
+
+                                if (Sender.Location != structure.Block.District.Location)
+                                {
+                                    mapUpdated = " [Map Updated]";
+                                }
+
+                                Location l = GetRandomLocation();
+                                District d = l.Districts[0];
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                    $"It is in {structure.Block.District.Location.Name}, in the {structure.Block.District.Name} district.{mapUpdated}", // truthful/compliant response
+                                    $"It is in {l.Name}, in the {d.Name} district.", // made up/denial response
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                    "I personally can't stand that place.", // derailing response
+                                    "It would be such a nice place to hang out..." // flattering response
+                                );
+
+                                DecidedMessage.ResponseEntitiesForOne.Add(structure.Block.District.Location);
+                                DecidedMessage.ResponseEntitiesForOne.Add(structure.Block.District);
+
+                                DecidedMessage.ResponseEntitiesForTwo.Add(l);
+                                DecidedMessage.ResponseEntitiesForTwo.Add(d);
+
+                                if (Sender.Location != structure.Block.District.Location)
+                                {
+                                    // Store the location instead of revealing it directly
+                                    DecidedMessage.StoredRevealLocations.Add(structure.Block.District.Location);
+                                }
+                            }
+                        }
+                        else if (Subjects[0] is Location location)
+                        {
+                            // Calculate direction
+                            double deltaX = location.Region.X - Sender.Location.Region.X;
+                            double deltaZ = location.Region.Z - Sender.Location.Region.Z;
+                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
+                            string mapUpdated = "";
+
+                            if (Sender.Location != location)
                             {
                                 mapUpdated = " [Map Updated]";
                             }
@@ -5683,26 +7602,57 @@ namespace Lightrealm
                             (
                                 Sender, Receiver, Subjects, "question", MessageID,
                                 "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                $"Yes, you need to travel {direction}.{mapUpdated}", // truthful/compliant response
-                                $"Yes, you need to travel {GetRandomDirection()}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "They aren't very nice, you don't want to see them.", // derailing response
-                                "Why see them when you could instead talk with me?" // flattering response
+                                $"It is {direction} from here.{mapUpdated}", // truthful/compliant response
+                                $"It is {GetRandomDirection()} from here.", // made up/denial response
+                                "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                "Do you not like " + Receiver.Location.Name + "?", // derailing response
+                                "You're going to leave me?" // flattering response
                             );
 
-                            if (Sender.Location != architect.Block.District.Location)
+                            DecidedMessage.ResponseEntitiesForFour.Add(Receiver.Location);
+
+                            if (Sender.Location != location)
                             {
                                 // Store the location instead of revealing it directly
-                                DecidedMessage.StoredRevealLocations.Add(architect.Block.District.Location);
+                                DecidedMessage.StoredRevealLocations.Add(location);
                             }
                         }
-                        else
+                        else if (Subjects[0] is Civilization civilization)
                         {
-                            if (architect.Location != null)
-                            {
-                                string locationName = architect.Location.Name;
+                            var capitol = civilization.Capitol;
+                            // Calculate direction
+                            double deltaX = capitol.Region.X - Sender.Location.Region.X;
+                            double deltaZ = capitol.Region.Z - Sender.Location.Region.Z;
+                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
+                            string mapUpdated = "";
 
-                                if (Sender.Location != architect.Location)
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                $"Their capitol is {direction} from here.{mapUpdated}", // truthful/compliant response
+                                $"Their capitol is {GetRandomDirection()} from here.", // made up/denial response
+                                "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.", // unknowing/confused response
+                                "Do you not like " + Receiver.Location.HomeCivilization.Name + "?", // derailing response
+                                "You're going to leave me?" // flattering response
+                            );
+
+                            DecidedMessage.ResponseEntitiesForFour.Add(Receiver.Location);
+
+                        }
+                        else if (Subjects[0] is Group group)
+                        {
+                            Architect leader = group.Leader;
+                            string mapUpdated = "";
+
+                            if (Game1.LoadedArchitects.Contains(leader) && leader.Block != null)
+                            {
+                                // Calculate direction based on the leader's block
+                                double deltaX = leader.Block.X - Sender.Block.X;
+                                double deltaZ = leader.Block.Z - Sender.Block.Z;
+                                string direction = GetDirectionFromDelta(deltaX, deltaZ);
+
+                                if (Sender.Location != leader.Block.District.Location)
                                 {
                                     mapUpdated = " [Map Updated]";
                                 }
@@ -5710,533 +7660,460 @@ namespace Lightrealm
                                 DecidedMessage = new Message
                                 (
                                     Sender, Receiver, Subjects, "question", MessageID,
-                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                    $"I saw them at {locationName} once.{mapUpdated}", // truthful/compliant response
-                                    $"I saw them at {GetRandomLocation()} once.", // made up/denial response
-                                    "No, I don't know, unfortunately.", // unknowing/confused response
-                                    "They aren't very nice, you don't want to see them.", // derailing response
-                                    "Why see them when you could instead talk with me?" // flattering response
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                    $"Yes, you need to travel {direction}.{mapUpdated}",
+                                    $"Yes, you need to travel {GetRandomDirection()}.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "They aren't that important.",
+                                    "We could be a group, you know..."
                                 );
 
-                                if (Sender.Location != architect.Location)
+                                if (Sender.Location != leader.Block.District.Location)
+                                {
+                                    DecidedMessage.StoredRevealLocations.Add(leader.Block.District.Location);
+                                }
+                            }
+                            else if (leader.Location != null)
+                            {
+                                Location locationName = leader.Location;
+
+                                if (Sender.Location != leader.Location)
+                                {
+                                    mapUpdated = " [Map Updated]";
+                                }
+
+                                Location l = GetRandomLocation();
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                    $"Last I heard they were at {locationName.Name}. {mapUpdated}",
+                                    $"They are at {l.Name}.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "They aren't that important.",
+                                    "We could be a group, you know..."
+                                );
+
+                                if (Sender.Location != leader.Location)
+                                {
+                                    DecidedMessage.StoredRevealLocations.Add(leader.Location);
+                                }
+
+                                DecidedMessage.ResponseEntitiesForOne.Add(locationName);
+                                DecidedMessage.ResponseEntitiesForTwo.Add(l);
+                            }
+                            else
+                            {
+                                Location l = GetRandomLocation();
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?",
+                                    "Wherever they are, it is lost to time.",
+                                    $"They are at {l.Name}.",
+                                    "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.",
+                                    "They aren't that important.",
+                                    "We could be a group, you know..."
+                                );
+
+                                DecidedMessage.ResponseEntitiesForTwo.Add(l);
+                            }
+                        }
+                        if (DecidedMessage == null)
+                        {
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
+                                $"Sorry, I don't know.", // truthful/compliant response
+                                $"Sorry, I don't know.", // made up/denial response
+                                "Sorry, I don't know.", // unknowing/confused response
+                                "Sorry, I don't know.", // derailing response
+                                "Sorry, I don't know." // flattering response
+                            );
+                        }
+
+
+                        if (DecidedMessage.IgnorantResponse == "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.")
+                        {
+                            string unknowingResponse;
+
+                            var truthProfessions = new HashSet<string>
+{
+    "scholar", "mage", "engineer", "entertainer", "artificer", "bard", "sage", "luminary",
+    "warlock", "sorcerer", "necromancer", "spatiomancer", "perceptomancer", "conjumancer",
+    "fractalmancer", "archmage", "magician", "archbard", "archsage", "archluminary", "archartificer", "scribe"
+};
+
+                            var populatedLibraries = Game1.GameWorld.AllLocations
+                                .SelectMany(l => l.AllStructures)
+                                .Where(s => s.Type == "library")
+                                .Where(s =>
+                                {
+                                    var district = s.Block?.District;
+                                    if (district == null) return false;
+
+                                    // Only check rooms if in same district as sender
+                                    if (district == Sender.Block.District)
+                                    {
+                                        return s.Rooms.Any(r =>
+                                            r.Architects.Any(a => a.IsAlive && truthProfessions.Contains(a.Profession)));
+                                    }
+
+                                    // Otherwise, assume it's potentially populated
+                                    return true;
+                                })
+                                .OrderBy(s =>
+                                {
+                                    if (s.Block.District == Sender.Block.District)
+                                        return 0;
+                                    if (s.Block.District.Location == Sender.Block.District.Location)
+                                        return 1;
+                                    return 2;
+                                })
+                                .ToList();
+
+
+
+                            if (populatedLibraries.Any())
+                            {
+                                var closestLibrary = populatedLibraries.First();
+
+                                if (closestLibrary.Block.District == Sender.Block.District)
+                                {
+                                    // Calculate direction to the library
+                                    double deltaX = closestLibrary.Block.X - Sender.Block.X;
+                                    double deltaZ = -(closestLibrary.Block.Z - Sender.Block.Z); // Invert Z-axis like elsewhere
+                                    double angle = Math.Atan2(deltaZ, deltaX) * (180 / Math.PI);
+                                    if (angle < 0) angle += 360;
+                                    string direction = GetDirectionFromAngle(angle);
+
+                                    var helpfulArchitect = closestLibrary.Rooms
+                                        .SelectMany(r => r.Architects)
+                                        .FirstOrDefault(a => a.IsAlive && truthProfessions.Contains(a.Profession));
+
+                                    if (helpfulArchitect != null)
+                                    {
+                                        unknowingResponse = $"Try finding {helpfulArchitect.Name} at the library {closestLibrary.Name} {direction} of here, {helpfulArchitect.Pronoun} might be able to help you. {Game1.Capitalize(helpfulArchitect.Pronoun)} looks like... [Knowledge Updated]";
+                                        DecidedMessage.StoredKnownArchs.Add(helpfulArchitect);
+                                        DecidedMessage.ResponseEntitiesForOne.Add(helpfulArchitect);
+                                        DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary);
+                                    }
+                                    else
+                                    {
+                                        // Fallback message, unlikely to be reached
+                                        unknowingResponse = $"Try visiting the library {closestLibrary.Name} {direction} of here, someone there might help.";
+                                        DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary);
+                                    }
+                                }
+
+                                else if (closestLibrary.Block.District.Location == Sender.Block.District.Location)
+                                {
+                                    unknowingResponse = $"Try finding the library {closestLibrary.Name} in the nearby district {closestLibrary.Block.District.Name}, there may be a scholar there who can help you.";
+                                    DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary.Block.District);
+                                    DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary);
+                                }
+                                else
+                                {
+                                    unknowingResponse = $"Try finding the library {closestLibrary.Name} at the {closestLibrary.Block.District.Name} district in {closestLibrary.Block.District.Location.Name}.";
+                                    DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary.Block.District.Location);
+                                    DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary.Block.District);
+                                    DecidedMessage.ResponseEntitiesForOne.Add(closestLibrary);
+                                }
+                            }
+                            else
+                            {
+                                unknowingResponse = "Try finding a scholar at a library. They dedicate their lives to cataloguing odd information.";
+                            }
+
+
+                            DecidedMessage.IgnorantResponse = unknowingResponse;
+                        }
+
+                    }
+
+
+                    // Method to calculate direction from delta
+
+
+                    else if (MessageID == "ask_generic_directions")
+                    {
+                        string thing = Subjects[0].ReferredToNames[0];
+                        (Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom) = Sender.Block.FindNearestThing(thing);
+
+                        if (nearestBlock != null)
+                        {
+                            //search up omega shiba inu
+                            
+                            if(thing == "stronghold" || thing == "monument" )
+                            {
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find a {thing}?", // content
+                                    $"I'm not sure I know.", // truthful/compliant response
+                                    $"I'm not sure I know.", // made up/denial response
+                                    $"I'm not sure I know.", // unknowing/confused response
+                                    $"I'm not sure I know.", // derailing response
+                                    $"I'm not sure I know." // flattering response
+                                );
+                            }
+                            else if (nearestDistrict == Sender.District)
+                            {
+                                // Calculate direction
+                                double deltaX = nearestBlock.X - Sender.Block.X;
+                                double deltaZ = -(nearestBlock.Z - Sender.Block.Z); // Invert Z-axis
+                                double angle = Math.Atan2(deltaZ, deltaX) * (180 / Math.PI);
+                                if (angle < 0) angle += 360;
+                                string direction = GetDirectionFromAngle(angle);
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find a {thing}?", // content
+                                    $"Yes, you need to travel {direction} to find the nearest {thing}.", // truthful/compliant response
+                                    $"Yes, you need to travel {GetRandomDirection()} to find the nearest {thing}.", // made up/denial response
+                                    "No, I don't know, unfortunately.", // unknowing/confused response
+                                    $"You don't look like you need a {thing}.", // derailing response
+                                    $"You don't need a {thing} as much as I need you." // flattering response
+                                );
+                            }
+                            else if (nearestLocation == Sender.Location)
+                            {
+                                // It's in a different district but at this location
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find a {thing}?", // content
+                                    $"Yes, you need to go to the {nearestDistrict.Name} district nearby to find the nearest {thing}.", // truthful/compliant response
+                                    $"Yes, you need to travel {GetRandomDirection()} to find the nearest {thing}.", // made up/denial response
+                                    "No, I don't know, unfortunately.", // unknowing/confused response
+                                    $"You don't look like you need a {thing}.", // derailing response
+                                    $"You don't need a {thing} as much as I need you." // flattering response
+                                );
+
+                                DecidedMessage.ResponseEntitiesForOne.Add(nearestDistrict);
+                            }
+                            else
+                            {
+                                // It's at a different location
+                                // Calculate direction
+                                double deltaX = nearestLocation.Region.X - Sender.Location.Region.X;
+                                double deltaZ = (nearestLocation.Region.Z - Sender.Location.Region.Z); // Invert Z-axis
+                                string direction = GetDirectionFromDelta(deltaX, deltaZ);
+                                string mapUpdated = " [Map Updated]";
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    $"Would you tell me where I can find a {thing}?", // content
+                                    $"Yes, you need to travel {direction} to {nearestLocation.Name} to find the nearest {thing}.{mapUpdated}", // truthful/compliant response
+                                    $"Yes, you need to travel {GetRandomDirection()} to find the nearest {thing}.", // made up/denial response
+                                    "No, I don't know, unfortunately.", // unknowing/confused response
+                                    $"You don't look like you need a {thing}", // derailing response
+                                    $"You don't need a {thing} as much as I need you." // flattering response
+                                );
+
+                                DecidedMessage.ResponseEntitiesForOne.Add(nearestLocation);
+                                if (Sender.Location != nearestLocation)
                                 {
                                     // Store the location instead of revealing it directly
-                                    DecidedMessage.StoredRevealLocations.Add(architect.Location);
+                                    DecidedMessage.StoredRevealLocations.Add(nearestLocation);
                                 }
+                            }
+                        }
+                        else
+                        {
+                            Location l = GetRandomLocation();
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                $"Would you tell me where I can find a {thing}?", // content
+                                "That knowledge is lost to time.", // truthful/compliant response
+                                $"I saw a {thing} at {l.Name} once.", // made up/denial response
+                                "No, I don't know, unfortunately.", // unknowing/confused response
+                                $"You don't look like you need a {thing}", // derailing response
+                                $"You don't need a {thing} as much as I need you." // flattering response
+                            );
+
+                            DecidedMessage.ResponseEntitiesForTwo.Add(l);
+                        }
+                    }
+                    else if (MessageID == "ask_about_something")
+                    {
+                        string entityType = Subjects[0].GetType().Name;
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+
+                        var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
+                        if (Subjects[0] is Architect Arch)
+                        {
+                            string genderName;
+                            if (Arch.Age > 16)
+                            {
+                                genderName = Arch.Sex == "male" ? "man" : "woman";
+                            }
+                            else
+                            {
+                                genderName = Arch.Sex == "male" ? "boy" : "girl";
+                            }
+
+                            string locationName = Arch.HomeLocation != null ? Arch.HomeLocation.Name : "unknown location";
+
+                            truthfulResponse = $"{Arch.Name} is a {Arch.Age}-year-old {genderName} from {locationName}. They are a {Arch.Profession}.";
+
+                            // Generate a made-up response
+                            string randomGenderName = randomArchitect.Age > 16 ? (randomArchitect.Sex == "male" ? "man" : "woman") : (randomArchitect.Sex == "male" ? "boy" : "girl");
+                            string randomLocationName = randomArchitect.Location != null ? randomArchitect.Location.Name : "unknown location";
+                            madeUpResponse = $"{randomArchitect.Name} is a {randomArchitect.Age}-year-old {randomGenderName} from {randomLocationName}, working as a {randomArchitect.Profession}.";
+                        }
+                        else
+                        {
+                            truthfulResponse = $"{Subjects[0].ReferredToNames[0]} is a {entityType}.";
+
+                            // Generate a made-up response
+                            string randomGenderName = randomArchitect.Age > 16 ? (randomArchitect.Sex == "male" ? "man" : "woman") : (randomArchitect.Sex == "male" ? "boy" : "girl");
+                            string randomLocationName = randomArchitect.Location != null ? randomArchitect.Location.Name : "unknown location";
+                            madeUpResponse = $"{randomArchitect.Name} is a {randomArchitect.Age}-year-old {randomGenderName} from {randomLocationName}, working as a {randomArchitect.Profession}.";
+                        }
+
+
+                        var lastEvent = GameWorld.HistoricalEvents.LastOrDefault(e =>
+                               e.EventData.Contains(string.IsNullOrEmpty(Subjects[0].Name) ? Subjects[0].ReferredToNames[0] : Subjects[0].Name) && !e.EventData.Contains("arrived in"));
+
+                        string historicalEvent = "";
+
+                        if (lastEvent != null)
+                        {
+                            string eventData = lastEvent.EventData;
+
+                            // Find the year inside the parentheses (Month/Year)
+                            int startParen = eventData.IndexOf('(');
+                            int slash = eventData.IndexOf('/');
+                            int endParen = eventData.IndexOf(')');
+
+                            if (startParen != -1 && slash != -1 && endParen != -1 && slash < endParen)
+                            {
+                                string year = eventData.Substring(slash + 1, endParen - slash - 1).Trim();
+                                string mainEvent = eventData.Substring(endParen + 1).Trim();
+                                historicalEvent = $"In {year}, {mainEvent}";
+                            }
+                        }
+
+                        truthfulResponse += " " + historicalEvent;
+                        madeUpResponse += " " + historicalEvent;
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            $"Can you tell me about {Subjects[0].ReferredToNames[0]}?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "I'm not sure, sorry.", //unknowing/confused response
+                            "Why do you care so much?", //derailing response
+                            $"Why talk about {Subjects[0].ReferredToNames[0]} when we could talk about you?" //flattering response
+                        );
+
+                        DecidedMessage.ResponseEntitiesForOne.Add(Subjects[0]);
+                        DecidedMessage.ResponseEntitiesForTwo.Add(randomArchitect);
+                    }
+                    else if (MessageID == "ask_ruler")
+                    {
+                        if (Sender.Location.Government != null)
+                        {
+                            Entity truthfulGovernment = Sender.Location.Government;
+                            var filteredLocations = GameWorld.AllLocations
+                                .Where(location => location.Government != null)
+                                .ToList();
+
+                            var randomLocation = filteredLocations[Game1.GameWorld.rnd.Next(filteredLocations.Count)];
+
+                            Entity madeUpGovernment = randomLocation.Government;
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "Who rules this place?", //content
+                                $"{truthfulGovernment.Name} is our government.", //truthful/compliant response
+                                $"{madeUpGovernment.Name} is our government.", //made up/denial response
+                                "I'm not sure, sorry.", //unknowing/confused response
+                                "Anarchy is truly superior.", //derailing response
+                                $"I'm not sure... do you govern me?" //flattering response
+                            );
+
+                            DecidedMessage.ResponseEntitiesForOne.Add(truthfulGovernment);
+                            DecidedMessage.ResponseEntitiesForTwo.Add(madeUpGovernment);
+                        }
+                        else
+                        {
+                            var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
+                            Entity madeUpGovernment = randomLocation.Government;
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "Who rules this place?", //content
+                                $"We are an anarcho-syndicalist commune at the moment.", //truthful/compliant response
+                                $"{madeUpGovernment.Name} is our government.", //made up/denial response
+                                "I'm not sure, sorry.", //unknowing/confused response
+                                "Anarchy is truly superior.", //derailing response
+                                $"I'm not sure... do you govern me?" //flattering response
+                            );
+
+                            DecidedMessage.ResponseEntitiesForTwo.Add(madeUpGovernment);
+                        }
+                    }
+                    else if (MessageID == "ask_trade")
+                    {
+                        (Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom) = Sender.Block.FindNearestThing("market");
+
+                        if (nearestBlock != null && nearestLocation == Sender.Location)
+                        {
+                            // Calculate direction if in the same district
+                            if (nearestDistrict == Sender.Block.District)
+                            {
+                                double deltaX = nearestBlock.X - Sender.Block.X;
+                                double deltaZ = nearestBlock.Z - Sender.Block.Z;
+                                string direction = GetDirectionFromDelta(deltaX, deltaZ);
+
+
+                                string TruthfulResponsse = "";
+                                if (Sender.Structure != null && Sender.Structure.Type == "market")
+                                {
+                                    TruthfulResponsse = $"Yes, but we are just here to ledger your purchases. Please take whatever you wish, but leave better value. Do not cross me, my debtshibas are always watching.";
+                                }
+                                else
+                                {
+                                    TruthfulResponsse = $"We have a market dedicated to trade {direction} in this district.";
+                                }
+
+                                DecidedMessage = new Message
+                                (
+                                    Sender, Receiver, Subjects, "question", MessageID,
+                                    "I'd like to trade.", //content
+                                    TruthfulResponsse, //truthful/compliant response
+                                    "We don't \"do\" trade here.", //made up/denial response
+                                    "What is trade?", //unknowing/confused response
+                                    "I prefer communism.", //derailing response
+                                    "You look valuable." //flattering response
+                                );
                             }
                             else
                             {
                                 DecidedMessage = new Message
                                 (
                                     Sender, Receiver, Subjects, "question", MessageID,
-                                    "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                    "Wherever they are, it is lost to time.", // truthful/compliant response
-                                    $"I saw them at {GetRandomLocation()} once.", // made up/denial response
-                                    "No, I don't know, unfortunately.", // unknowing/confused response
-                                    "They aren't very nice, you don't want to see them.", // derailing response
-                                    "Why see them when you could instead talk with me?" // flattering response
+                                    "I'd like to trade.", //content
+                                    $"We have a market dedicated to trade in {nearestDistrict.Name}, a nearby district.", //truthful/compliant response
+                                    "We don't \"do\" trade here.", //made up/denial response
+                                    "What is trade?", //unknowing/confused response
+                                    "I prefer communism.", //derailing response
+                                    "You look valuable." //flattering response
                                 );
+
+                                DecidedMessage.ResponseEntitiesForTwo.Add(nearestDistrict);
                             }
-                        }
-                    }
-                    else if (Subjects[0] is Object obj)
-                    {
-                        bool foundInLocation = false;
-                        foreach (var district in Sender.Location.Districts)
-                        {
-                            foreach (var block in district.DistrictMap)
-                            {
-                                foreach (var structure in block.Structures)
-                                {
-                                    if (structure.Rooms.Any(room => room.Objects.Contains(obj)))
-                                    {
-                                        foundInLocation = true;
-
-                                        DecidedMessage = new Message
-                                        (
-                                            Sender, Receiver, Subjects, "question", MessageID,
-                                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                            $"I saw it in the structure {structure.Name}.", // truthful/compliant response
-                                            $"I saw it in the structure {GetRandomStructure(Sender.Location)}.", // made up/denial response
-                                            "No, I don't know, unfortunately.", // unknowing/confused response
-                                            "I personally don't care for that object.", // derailing response
-                                            "You are already beautiful without it." // flattering response
-                                        );
-                                        break;
-                                    }
-                                }
-                                if (foundInLocation) break;
-                            }
-                            if (foundInLocation) break;
-                        }
-
-                        if (!foundInLocation)
-                        {
-                            foreach (var location in GameWorld.AllLocations)
-                            {
-                                foreach (var district in location.Districts)
-                                {
-                                    if (location.AllStructures.Any(s => s.HistoricalObjects.Contains(obj)))
-                                    {
-                                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
-                                        var randomDistrict = randomLocation.Districts[Game1.GameWorld.rnd.Next(randomLocation.Districts.Count())];
-                                        string mapUpdated = "";
-
-                                        if (Sender.Location != location)
-                                        {
-                                            mapUpdated = " [Map Updated]";
-                                        }
-
-                                        DecidedMessage = new Message
-                                        (
-                                            Sender, Receiver, Subjects, "question", MessageID,
-                                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                            $"I believe it is at {location.Name}, in the {district.Name} district.{mapUpdated}", // truthful/compliant response
-                                            $"I belive it is at {randomLocation.Name}, in the {randomDistrict.Name} district.", // made up/denial response
-                                            "No, I don't know, unfortunately.", // unknowing/confused response
-                                            "I personally don't care for that object.", // derailing response
-                                            "You are already beautiful without it." // flattering response
-                                        );
-
-                                        if (Sender.Location != location)
-                                        {
-                                            // Store the location instead of revealing it directly
-                                            DecidedMessage.StoredRevealLocations.Add(location);
-                                        }
-
-                                        break;
-                                    }
-                                }
-                                if (foundInLocation) break;
-                            }
-                        }
-                    }
-                    else if (Subjects[0] is Structure structure)
-                    {
-                        if (structure.Rooms.Contains(Sender.Room))
-                        {
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                "We are already here.", // truthful/compliant response
-                                $"You are currently inside {GetRandomStructure(Sender.Location)}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "I personally hate that place.", // derailing response
-                                "It would be such a nice place to hang out..." // flattering response
-                            );
-                        }
-                        else if (structure.Block == Sender.Block)
-                        {
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                "It is right nearby.", // truthful/compliant response
-                                $"It is to the {GetRandomDirection()}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "I personally hate that place.", // derailing response
-                                "It would be such a nice place to hang out..." // flattering response
-                            );
-                        }
-                        else if (structure.Block.District == Sender.Block.District)
-                        {
-                            // Calculate direction
-                            double deltaX = structure.Block.X - Sender.Block.X;
-                            double deltaZ = structure.Block.Z - Sender.Block.Z;
-                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                $"It is {direction} from here.", // truthful/compliant response
-                                $"It is {GetRandomDirection()} from here.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "I personally hate that place.", // derailing response
-                                "It would be such a nice place to hang out..." // flattering response
-                            );
-                        }
-                        else
-                        {
-                            string mapUpdated = "";
-
-                            if (Sender.Location != structure.Block.District.Location)
-                            {
-                                mapUpdated = " [Map Updated]";
-                            }
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                $"It is in {structure.Block.District.Location.Name}, in the {structure.Block.District.Name} district.{mapUpdated}", // truthful/compliant response
-                                $"It is in {GetRandomLocation()}, in the {GetRandomDistrict(structure.Block.District.Location)} district.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "I personally hate that place.", // derailing response
-                                "It would be such a nice place to hang out..." // flattering response
-                            );
-
-                            if (Sender.Location != structure.Block.District.Location)
-                            {
-                                // Store the location instead of revealing it directly
-                                DecidedMessage.StoredRevealLocations.Add(structure.Block.District.Location);
-                            }
-                        }
-                    }
-                    else if (Subjects[0] is Location location)
-                    {
-                        // Calculate direction
-                        double deltaX = location.Region.X - Sender.Location.Region.X;
-                        double deltaZ = location.Region.Z - Sender.Location.Region.Z;
-                        string direction = GetDirectionFromDelta(deltaX, deltaZ);
-                        string mapUpdated = "";
-
-                        if (Sender.Location != location)
-                        {
-                            mapUpdated = " [Map Updated]";
-                        }
-
-                        DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                            $"It is {direction} from here.{mapUpdated}", // truthful/compliant response
-                            $"It is {GetRandomDirection()} from here.", // made up/denial response
-                            "No, I don't know, unfortunately.", // unknowing/confused response
-                            "Do you not like " + Receiver.Location.Name + "?", // derailing response
-                            "You're going to leave me?" // flattering response
-                        );
-
-                        if (Sender.Location != location)
-                        {
-                            // Store the location instead of revealing it directly
-                            DecidedMessage.StoredRevealLocations.Add(location);
-                        }
-                    }
-                    else if (Subjects[0] is Civilization civilization)
-                    {
-                        var capitol = civilization.Capitol;
-                        // Calculate direction
-                        double deltaX = capitol.Region.X - Sender.Location.Region.X;
-                        double deltaZ = capitol.Region.Z - Sender.Location.Region.Z;
-                        string direction = GetDirectionFromDelta(deltaX, deltaZ);
-                        string mapUpdated = "";
-
-                        DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                            $"Their capitol is {direction} from here.{mapUpdated}", // truthful/compliant response
-                            $"Their capitol is {GetRandomDirection()} from here.", // made up/denial response
-                            "No, I don't know, unfortunately.", // unknowing/confused response
-                            "Do you not like " + Receiver.Location.HomeCivilization.Name + "?", // derailing response
-                            "You're going to leave me?" // flattering response
-                        );
-                    }
-                    else if (Subjects[0] is Group group)
-                    {
-                        var leader = group.Leader;
-                        if (leader.Structure != null && leader.Block != null)
-                        {
-                            // Calculate direction
-                            double deltaX = leader.Block.X - Sender.Block.X;
-                            double deltaZ = leader.Block.Z - Sender.Block.Z;
-                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
-                            string mapUpdated = "";
-
-                            if (Sender.Location != leader.Structure.Block.District.Location)
-                            {
-                                mapUpdated = " [Map Updated]";
-                            }
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                $"Yes, you need to travel {direction}.{mapUpdated}", // truthful/compliant response
-                                $"Yes, you need to travel {GetRandomDirection()}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "They aren't that important.", // derailing response
-                                "We could be a group, you know..." // flattering response
-                            );
-
-                            if (Sender.Location != leader.Structure.Block.District.Location)
-                            {
-                                // Store the location instead of revealing it directly
-                                DecidedMessage.StoredRevealLocations.Add(leader.Structure.Block.District.Location);
-                            }
-                        }
-                        else if (leader.Location != null)
-                        {
-                            string locationName = leader.Location.Name;
-                            string mapUpdated = "";
-
-                            if (Sender.Location != leader.Location)
-                            {
-                                mapUpdated = " [Map Updated]";
-                            }
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                $"They are at {locationName}.{mapUpdated}", // truthful/compliant response
-                                $"They are at {GetRandomLocation()}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "They aren't that important.", // derailing response
-                                "We could be a group, you know..." // flattering response
-                            );
-
-                            if (Sender.Location != leader.Location)
-                            {
-                                // Store the location instead of revealing it directly
-                                DecidedMessage.StoredRevealLocations.Add(leader.Location);
-                            }
-                        }
-                        else
-                        {
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                                "Wherever they are, it is lost to time.", // truthful/compliant response
-                                $"They are at {GetRandomLocation()}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                "They aren't that important.", // derailing response
-                                "We could be a group, you know..." // flattering response
-                            );
-                        }
-                    }
-
-                    if(DecidedMessage == null)
-                    {
-                        DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "Would you tell me where I can find " + Subjects[0].ReferredToNames[0] + "?", // content
-                            $"Sorry, I don't know.", // truthful/compliant response
-                            $"Sorry, I don't know.", // made up/denial response
-                            "Sorry, I don't know.", // unknowing/confused response
-                            "Sorry, I don't know.", // derailing response
-                            "Sorry, I don't know." // flattering response
-                        );
-                    }
-                }
-
-
-                // Method to calculate direction from delta
-
-
-                else if (MessageID == "ask_generic_directions")
-                {
-                    string thing = Subjects[0].ReferredToNames[0];
-                    (Region nearestRegion, Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom) = Sender.Block.FindNearestThing(thing);
-
-                    if (nearestBlock != null)
-                    {
-                        if (nearestDistrict == Sender.District)
-                        {
-                            // Calculate direction
-                            double deltaX = nearestBlock.X - Sender.Block.X;
-                            double deltaZ = -(nearestBlock.Z - Sender.Block.Z); // Invert Z-axis
-                            double angle = Math.Atan2(deltaZ, deltaX) * (180 / Math.PI);
-                            if (angle < 0) angle += 360;
-                            string direction = GetDirectionFromAngle(angle);
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                $"Would you tell me where I can find a {thing}?", // content
-                                $"Yes, you need to travel {direction} to find the nearest {thing}.", // truthful/compliant response
-                                $"Yes, you need to travel {GetRandomDirection()} to find the nearest {thing}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                $"You don't look like you need a {thing}", // derailing response
-                                $"You don't need a {thing} as much as I need you." // flattering response
-                            );
-                        }
-                        else if (nearestLocation == Sender.Location)
-                        {
-                            // It's in a different district but at this location
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                $"Would you tell me where I can find a {thing}?", // content
-                                $"Yes, you need to go to the {nearestDistrict.Name} district nearby to find the nearest {thing}.", // truthful/compliant response
-                                $"Yes, you need to travel {GetRandomDirection()} to find the nearest {thing}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                $"You don't look like you need a {thing}", // derailing response
-                                $"You don't need a {thing} as much as I need you." // flattering response
-                            );
-                        }
-                        else
-                        {
-                            // It's at a different location
-                            // Calculate direction
-                            double deltaX = nearestLocation.Region.X - Sender.Location.Region.X;
-                            double deltaZ = -(nearestLocation.Region.Z - Sender.Location.Region.Z); // Invert Z-axis
-                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
-                            string mapUpdated = " [Map Updated]";
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                $"Would you tell me where I can find a {thing}?", // content
-                                $"Yes, you need to travel {direction} to {nearestLocation.Name} to find the nearest {thing}.{mapUpdated}", // truthful/compliant response
-                                $"Yes, you need to travel {GetRandomDirection()} to find the nearest {thing}.", // made up/denial response
-                                "No, I don't know, unfortunately.", // unknowing/confused response
-                                $"You don't look like you need a {thing}", // derailing response
-                                $"You don't need a {thing} as much as I need you." // flattering response
-                            );
-
-                            if (Sender.Location != nearestLocation)
-                            {
-                                // Store the location instead of revealing it directly
-                                DecidedMessage.StoredRevealLocations.Add(nearestLocation);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            $"Would you tell me where I can find a {thing}?", // content
-                            "That knowledge is lost to time.", // truthful/compliant response
-                            $"I saw a {thing} at {GetRandomLocation()} once.", // made up/denial response
-                            "No, I don't know, unfortunately.", // unknowing/confused response
-                            $"You don't look like you need a {thing}", // derailing response
-                            $"You don't need a {thing} as much as I need you." // flattering response
-                        );
-                    }
-                }
-                else if (MessageID == "ask_about_something")
-                {
-                    string entityType = Subjects[0].GetType().Name;
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-
-                    if (Subjects[0] is Architect Arch)
-                    {
-                        string genderName;
-                        if (Arch.Age > 16)
-                        {
-                            genderName = Arch.Sex == "male" ? "man" : "woman";
-                        }
-                        else
-                        {
-                            genderName = Arch.Sex == "male" ? "boy" : "girl";
-                        }
-
-                        string locationName = Arch.HomeLocation != null ? Arch.HomeLocation.Name : "unknown location";
-
-                        truthfulResponse = $"{Arch.Name} is a {Arch.Age}-year-old {genderName} from {locationName}. They are a {Arch.Profession}.";
-
-                        // Generate a made-up response
-                        var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
-                        string randomGenderName = randomArchitect.Age > 16 ? (randomArchitect.Sex == "male" ? "man" : "woman") : (randomArchitect.Sex == "male" ? "boy" : "girl");
-                        string randomLocationName = randomArchitect.Location != null ? randomArchitect.Location.Name : "unknown location";
-                        madeUpResponse = $"{randomArchitect.Name} is a {randomArchitect.Age}-year-old {randomGenderName} from {randomLocationName}, working as a {randomArchitect.Profession}.";
-                    }
-                    else
-                    {
-                        truthfulResponse = $"{Subjects[0].ReferredToNames[0]} is a {entityType}.";
-
-                        // Generate a made-up response
-                        var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
-                        string randomGenderName = randomArchitect.Age > 16 ? (randomArchitect.Sex == "male" ? "man" : "woman") : (randomArchitect.Sex == "male" ? "boy" : "girl");
-                        string randomLocationName = randomArchitect.Location != null ? randomArchitect.Location.Name : "unknown location";
-                        madeUpResponse = $"{randomArchitect.Name} is a {randomArchitect.Age}-year-old {randomGenderName} from {randomLocationName}, working as a {randomArchitect.Profession}.";
-                    }
-
-
-                    // Search for the last historical event that contains the subject's name
-                    var lastEvent = GameWorld.HistoricalEvents.LastOrDefault(e => e.EventData.Contains(string.IsNullOrEmpty(Subjects[0].Name) ? Subjects[0].ReferredToNames[0] : Subjects[0].Name));
-                    string historicalEvent = lastEvent != null ? lastEvent.EventData : "";
-
-                    truthfulResponse += " "+historicalEvent;
-                    madeUpResponse += " "+historicalEvent;
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        $"Can you tell me about {Subjects[0].ReferredToNames[0]}?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not sure, sorry.", //unknowing/confused response
-                        "Why do you want to know about that?", //derailing response
-                        $"Why talk about {Subjects[0].ReferredToNames[0]} when we could talk about you?" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_ruler")
-                {
-                    if(Sender.Location.Government != null)
-                    {
-                        string truthfulGovernment = Sender.Location.Government.Name;
-                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
-                        string madeUpGovernment = randomLocation.Government.Name;
-
-                        DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "Who rules this place?", //content
-                            $"{truthfulGovernment} is our government.", //truthful/compliant response
-                            $"{madeUpGovernment} is our government.", //made up/denial response
-                            "I'm not sure, sorry.", //unknowing/confused response
-                            "Anarchy is truly superior.", //derailing response
-                            $"I'm not sure... do you govern me?" //flattering response
-                        );
-                    }
-                    else
-                    {
-                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
-                        string madeUpGovernment = randomLocation.Government.Name;
-
-                        DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "Who rules this place?", //content
-                            $"We are an anarcho-syndicalist commune at the moment.", //truthful/compliant response
-                            $"{madeUpGovernment} is our government.", //made up/denial response
-                            "I'm not sure, sorry.", //unknowing/confused response
-                            "Anarchy is truly superior.", //derailing response
-                            $"I'm not sure... do you govern me?" //flattering response
-                        );
-                    }
-                }
-                else if (MessageID == "ask_trade")
-                {
-                    (Region nearestRegion, Location nearestLocation, District nearestDistrict, Block nearestBlock, Room nearestRoom) = Sender.Block.FindNearestThing("market");
-
-                    if (nearestBlock != null && nearestLocation == Sender.Location)
-                    {
-                        // Calculate direction if in the same district
-                        if (nearestDistrict == Sender.Block.District)
-                        {
-                            double deltaX = nearestBlock.X - Sender.Block.X;
-                            double deltaZ = nearestBlock.Z - Sender.Block.Z;
-                            string direction = GetDirectionFromDelta(deltaX, deltaZ);
-
-
-                            string TruthfulResponsse = "";
-                            if (Sender.Structure != null && Sender.Structure.Type == "market")
-                            {
-                                TruthfulResponsse = $"Yes, but we are just here to ledger your purchases. Please take whatever you wish, but leave better value. Do not cross me, my debtshibas are always watching.";
-                            }
-                            else
-                            {
-                                TruthfulResponsse = $"We have a market dedicated to trade {direction} in this district.";
-                            }
-
-                            DecidedMessage = new Message
-                            (
-                                Sender, Receiver, Subjects, "question", MessageID,
-                                "I'd like to trade.", //content
-                                TruthfulResponsse, //truthful/compliant response
-                                "We don't do trade here.", //made up/denial response
-                                "What is trade?", //unknowing/confused response
-                                "I prefer communism.", //derailing response
-                                "You look valuable..." //flattering response
-                            );
                         }
                         else
                         {
@@ -6244,719 +8121,800 @@ namespace Lightrealm
                             (
                                 Sender, Receiver, Subjects, "question", MessageID,
                                 "I'd like to trade.", //content
-                                $"We have a market dedicated to trade in {nearestDistrict.Name}, a nearby district.", //truthful/compliant response
-                                "We don't do trade here.", //made up/denial response
+                                "We don't have a dedicated market set up yet.", //truthful/compliant response
+                                "We don't \"do\" trade here.", //made up/denial response
                                 "What is trade?", //unknowing/confused response
                                 "I prefer communism.", //derailing response
-                                "You look valuable..." //flattering response
+                                "You look valuable." //flattering response
                             );
                         }
                     }
-                    else
+                    else if (MessageID == "ask_them_join")
                     {
+                        // Collect all personalities from the Active Party (flattening all lists)
+                        List<string> existingPersonalities = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects
+                            .SelectMany(a => a.Personalities)
+                            .ToList();
+
+                        // Get the requested person's personalities (Receiver in this case)
+                        List<string> newPersonalities = Receiver.Personalities;
+
+                        // Find conflicting personalities
+                        var conflictingPersonalities = existingPersonalities.Intersect(newPersonalities).ToList();
+
+                        string denialResponse;
+
+                        if (conflictingPersonalities.Any()) // Only use personality denial if it's the main issue
+                        {
+                            string chosenPersonality = conflictingPersonalities[Game1.GameWorld.rnd.Next(conflictingPersonalities.Count)];
+                            string template = personalityDenials[chosenPersonality][Game1.GameWorld.rnd.Next(3)];
+
+                            // Find who is the conflicting party member
+                            var conflictingMember = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects
+                                .FirstOrDefault(a => a.Personalities.Contains(chosenPersonality));
+
+                            string replacementName = (conflictingMember != null && conflictingMember != Sender)
+                                ? conflictingMember.Name // Refer to the actual conflicting member
+                                : "you"; // Default to "you" if it's the asker
+
+                            denialResponse = template.Replace("^p", replacementName);
+                        }
+                        else
+                        {
+                            denialResponse = "Sorry, I belong here.";
+                        }
+
                         DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "I'd like to trade.", //content
-                            "We don't have a dedicated market set up yet.", //truthful/compliant response
-                            "We don't do trade here.", //made up/denial response
-                            "What is trade?", //unknowing/confused response
-                            "I prefer communism.", //derailing response
-                            "You look valuable..." //flattering response
-                        );
-                    }
-                }
-                else if (MessageID == "ask_them_join")
-                {
-                    DecidedMessage = new Message
                         (
                             Sender, Receiver, Subjects, "request", MessageID,
-                            "Join me on my quest!", //content
-                            "I would be honored. I accept.", //truthful/compliant response
-                            "Sorry, I belong here.", //made up/denial response
-                            "What? Where?", //unknowing/confused response
-                            "If one could even call it a group...", //derailing response
-                            "If it means I spend more time with you." //flattering response
-
+                            "Join me on my quest!", // Content
+                            "I would be honored. I accept.", // Truthful/Compliant Response
+                            denialResponse, // Updated Denial Response
+                            "What? Where?", // Unknowing/Confused Response
+                            "If one could even call it a group...", // Derailing Response
+                            "If it means I spend more time with you." // Flattering Response
                         );
-                }
-                else if (MessageID == "ask_to_join")
-                {
-                    string response;
-
-                    if (Receiver.Group != null)
-                    {
-                        response = "Yes, welcome to " + Receiver.Group.Name + ".";
                     }
-                    else
+                    else if (MessageID == "ask_to_join")
                     {
-                        response = "Yes, welcome to my new group. Not sure what I'll call it.";
-                    }
+                        // Collect all personalities from the Active Party (flattening all lists)
+                        List<string> existingPersonalities = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects
+                            .SelectMany(a => a.Personalities)
+                            .ToList();
 
-                    DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "question", MessageID,
-                            "May I join your group?", // content
-                            response, // truthful/compliant response
-                            "Sorry, we aren't looking for members at this time.", // made up/denial response
-                            "What? What group?", // unknowing/confused response
-                            "Can I join YOUR group?", // derailing response
-                            "If it means you spend more time with me." // flattering response
-                        );
-                }
+                        // Get the requested person's personalities (Sender in this case)
+                        List<string> newPersonalities = Sender.Personalities;
 
-                else if (MessageID == "ask_current_structure")
-                {
-                    Structure currentStructure = Receiver.Structure;
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-                    string historicalEvent = "";
+                        // Find conflicting personalities
+                        var conflictingPersonalities = existingPersonalities.Intersect(newPersonalities).ToList();
 
-                    if (currentStructure != null)
-                    {
-                        // Get the last historical event related to the current structure
-                        var lastEvent = GameWorld.HistoricalEvents.LastOrDefault(e => e.EventData.Contains(currentStructure.Name));
-                        if (lastEvent != null)
+                        string denialResponse;
+
+                        if (conflictingPersonalities.Any()) // Only use personality denial if it's the main issue
                         {
-                            historicalEvent = $" {lastEvent.EventData}";
+                            string chosenPersonality = conflictingPersonalities[Game1.GameWorld.rnd.Next(conflictingPersonalities.Count)];
+                            string template = personalityDenials[chosenPersonality][Game1.GameWorld.rnd.Next(3)];
+
+                            // Find who is the conflicting party member
+                            var conflictingMember = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects
+                                .FirstOrDefault(a => a.Personalities.Contains(chosenPersonality));
+
+                            string replacementName = (conflictingMember != null && conflictingMember != Sender)
+                                ? conflictingMember.Name // Refer to the actual conflicting member
+                                : "you"; // Default to "you" if it's the asker
+
+                            denialResponse = template.Replace("^p", replacementName);
+                        }
+                        else
+                        {
+                            denialResponse = "Sorry, we aren't looking for members at this time.";
                         }
 
-                        truthfulResponse = $"You are in {currentStructure.Name}.{historicalEvent}";
+                        string response = (Receiver.Group != null)
+                            ? "Yes, welcome to " + Receiver.Group.Name + "."
+                            : "Yes, welcome to my new group. Not sure what I'll call it.";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "May I join your group?", // Content
+                            response, // Truthful/Compliant Response
+                            denialResponse, // Updated Denial Response
+                            "What? What group?", // Unknowing/Confused Response
+                            "Can I join YOUR group?", // Derailing Response
+                            "If it means you spend more time with me." // Flattering Response
+                        );
+
+                        if (Receiver.Group != null)
+                        {
+                            DecidedMessage.ResponseEntitiesForOne.Add(Receiver.Group);
+                        }
+                    }
+                    else if (MessageID == "ask_current_structure")
+                    {
+                        Structure currentStructure = Receiver.Structure;
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+                        string historicalEvent = "";
 
                         // Generate a made-up response
                         var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
                         var randomStructure = randomLocation.AllStructures[Game1.GameWorld.rnd.Next(randomLocation.AllStructures.Count())];
                         var randomEvent = GameWorld.HistoricalEvents[Game1.GameWorld.rnd.Next(GameWorld.HistoricalEvents.Count())].EventData;
-                        madeUpResponse = $"You are in {currentStructure.Name}. {randomEvent}";
-                    }
-                    else
-                    {
-                        truthfulResponse = "We are outside...";
-                        madeUpResponse = "The structure of reality, which binds to your every move.";
-                    }
 
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "Can you tell me about this structure?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I don't know what this place is.", //unknowing/confused response
-                        "Why do you want to know about this place?", //derailing response
-                        "This place suits you perfectly!" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_location")
-                {
-                    Location location = Receiver.Location;
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-                    string historicalEvent = "";
-
-                    if (location != null)
-                    {
-                        // Get the last historical event related to the current structure
-                        var lastEvent = GameWorld.HistoricalEvents.LastOrDefault(e => e.EventData.Contains(location.Name));
-                        if (lastEvent != null)
+                        if (currentStructure != null)
                         {
-                            historicalEvent = $" {lastEvent.EventData}";
-                        }
+                            // Get the last historical event related to the current structure
+                            var lastEvent = GameWorld.HistoricalEvents.LastOrDefault(e => e.EventData.Contains(currentStructure.Name));
+                            if (lastEvent != null)
+                            {
+                                historicalEvent = $" {lastEvent.EventData}";
+                            }
 
-                        truthfulResponse = $"You are at {location.Name}. {historicalEvent}";
+                            truthfulResponse = $"You are in {currentStructure.Name}.{historicalEvent}";
 
-                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
-                        var randomEvent = GameWorld.HistoricalEvents[Game1.GameWorld.rnd.Next(GameWorld.HistoricalEvents.Count())];
-                        madeUpResponse = $"You are in {randomLocation.Name}. {randomEvent.EventData}";
-                    }
-                    else
-                    {
-                        truthfulResponse = "Are we even in reality?";
-                        madeUpResponse = "Our location is irrelevant to reality.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "Can you tell me about this location?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I don't know what this area is.", //unknowing/confused response
-                        "Why do you care?", //derailing response
-                        "I love this place, and you here!" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_profession")
-                {
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-
-                    truthfulResponse = $"I am a {Receiver.Profession}.";
-
-                    // Generate a made-up response
-                    var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
-                    madeUpResponse = $"I am a {randomArchitect.Profession}.";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "What is your profession?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "What is a profession?", //unknowing/confused response
-                        "I believe that to be irrelevant.", //derailing response
-                        "It's not as interesting as what you do." //flattering response
-                    );
-                }
-                else if (MessageID == "ask_traveling")
-                {
-                    string truthfulResponse = "";
-                    string madeUpResponse = "I'm going nowhere in particular.";
-
-                    truthfulResponse = Receiver.MigrationReason;
-
-                    if (String.IsNullOrEmpty(truthfulResponse))
-                        truthfulResponse = "I'm not headed anywhere far from here.";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "Where are you traveling to?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "What do you mean?", //unknowing/confused response
-                        "Life is like a road, we are always traveling down it.", //derailing response
-                        "Nowhere, can I travel with you?" //flattering response
-                    );
-                }
-                else if (MessageID == "greet")
-                {
-                    string[] greetings = { "Hello", "Hail", "Greetings", "Salutations", "Hey", "Good day" };
-                    string randomGreeting = greetings[Game1.GameWorld.rnd.Next(greetings.Length)];
-
-                    string greetingContent = Sender.KnownArchitects.Contains(Receiver) ?
-                                             $"{randomGreeting}, {Receiver.Name}." :
-                                             $"{randomGreeting}, {Receiver.Profession}.";
-
-                    string truthfulResponse = greetings[Game1.GameWorld.rnd.Next(greetings.Length)] + ". How can I assist you today?";
-                    string denialResponse = "Do not speak to me, " +
-                                            Sender.Profession + ".";
-                    string confusedResponse = greetings[Game1.GameWorld.rnd.Next(greetings.Length)] + ", um... do I know you?";
-                    string derailingResponse = "Spare me the formalities.";
-                    string flatteringResponse = "Ah, " +
-                                                (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) +
-                                                "! Your presence brightens my day! How can I help?";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "request", MessageID,
-                        greetingContent, // content
-                        truthfulResponse, // truthful/compliant response
-                        denialResponse, // made up/denial response
-                        confusedResponse, // unknowing/confused response
-                        derailingResponse, // derailing response
-                        flatteringResponse // flattering response
-                    );
-                }
-
-                else if (MessageID == "farewell")
-                {
-                    string[] farewells = { "Goodbye", "Farewell", "See you", "Take care", "Adieu", "Until next time" };
-                    string randomFarewell = farewells[Game1.GameWorld.rnd.Next(farewells.Length)];
-
-                    string farewellContent = Sender.KnownArchitects.Contains(Receiver) ?
-                                             $"{randomFarewell}, {Receiver.Name}." :
-                                             $"{randomFarewell}, {Receiver.Profession}.";
-
-                    string truthfulResponse = randomFarewell + ", " +
-                                              (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) + ".";
-                    string denialResponse = "Oh. " + farewells[Game1.GameWorld.rnd.Next(farewells.Length)] + ", " +
-                                            (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) + ".";
-                    string confusedResponse = "I guess this is goodbye?";
-                    string derailingResponse = "Finally, some peace and quiet.";
-                    string flatteringResponse = "I miss you already, " +
-                                                (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) + "!";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        farewellContent, // content
-                        truthfulResponse, // truthful/compliant response
-                        denialResponse, // made up/denial response
-                        confusedResponse, // unknowing/confused response
-                        derailingResponse, // derailing response
-                        flatteringResponse // flattering response
-                    );
-                }
-
-                else if (MessageID == "thank")
-                {
-                    string[] thanks = { "Thank you", "I am grateful", "Many thanks", "I appreciate it", "You have my gratitude" };
-                    string randomThank = thanks[Game1.GameWorld.rnd.Next(thanks.Length)];
-
-                    string thankContent = Sender.KnownArchitects.Contains(Receiver) ?
-                                          $"{randomThank}, {Receiver.Name}." :
-                                          $"{randomThank}, {Receiver.Profession}.";
-
-                    string truthfulResponse = "You are most welcome.";
-                    string denialResponse = "It was nothing, really.";
-                    string confusedResponse = "Why are you thanking me?";
-                    string derailingResponse = "Enough of the formalities.";
-                    string flatteringResponse = "Your gratitude is greatly appreciated.";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        thankContent, // content
-                        truthfulResponse, // truthful/compliant response
-                        denialResponse, // made up/denial response
-                        confusedResponse, // unknowing/confused response
-                        derailingResponse, // derailing response
-                        flatteringResponse // flattering response
-                    );
-                }
-                else if (MessageID == "apologize")
-                {
-                    string[] apologies = { "I am sorry", "I sincerely apologize", "Sincerest apologies", "My apologies", "I apologize" };
-                    string randomApology = apologies[Game1.GameWorld.rnd.Next(apologies.Length)];
-
-                    string apologyContent = Sender.KnownArchitects.Contains(Receiver) ?
-                                            $"{randomApology}, {Receiver.Name}." :
-                                            $"{randomApology}, {Receiver.Profession}.";
-
-                    string truthfulResponse = "It is alright, I forgive you.";
-                    string denialResponse = "There is nothing to forgive.";
-                    string confusedResponse = "Why are you apologizing?";
-                    string derailingResponse = "About time.";
-                    string flatteringResponse = "Your apology is accepted with grace.";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "request", MessageID,
-                        apologyContent, // content
-                        truthfulResponse, // truthful/compliant response
-                        denialResponse, // made up/denial response
-                        confusedResponse, // unknowing/confused response
-                        derailingResponse, // derailing response
-                        flatteringResponse // flattering response
-                    );
-                }
-
-                else if (MessageID == "ask_health")
-                {
-                    string GenerateHealthReport(Architect architect)
-                    {
-                        var healthReport = new StringBuilder();
-
-                        // Select a random body part from the architect
-                        var randomBodyPart = architect.BodyParts[Game1.GameWorld.rnd.Next(architect.BodyParts.Count())];
-
-                        // Determine the condition of the selected body part
-                        string condition;
-                        if (randomBodyPart.Integrity > 80) condition = "excellent";
-                        else if (randomBodyPart.Integrity > 60) condition = "good";
-                        else if (randomBodyPart.Integrity > 40) condition = "fair";
-                        else if (randomBodyPart.Integrity > 20) condition = "poor";
-                        else condition = "critical";
-
-                        healthReport.Append($" My {randomBodyPart.Type} is in {condition} condition.");
-
-                        // Calculate energy percentage
-                        int energyPercentage = (int)Math.Round(((double)architect.Energy / architect.MaxEnergy) * 100);
-
-                        // Determine the energy condition
-                        string energyCondition;
-                        if (energyPercentage > 80) energyCondition = "full of energy";
-                        else if (energyPercentage > 60) energyCondition = "energetic";
-                        else if (energyPercentage > 40) energyCondition = "okay";
-                        else if (energyPercentage > 20) energyCondition = "tired";
-                        else energyCondition = "exhausted";
-
-                        healthReport.Append($" I am {energyCondition}.");
-
-                        return healthReport.ToString();
-                    }
-
-
-
-
-
-                    string GenerateMadeUpHealthReport(Architect architect)
-                    {
-                        var healthReport = new StringBuilder();
-
-                        // Randomly select a body part from the architect
-                        var randomBodyPart = architect.BodyParts[Game1.GameWorld.rnd.Next(architect.BodyParts.Count())];
-
-                        // Generate a random integrity value with a bias towards higher numbers
-                        int biasedRandomInt(int min, int max)
-                        {
-                            return Game1.GameWorld.rnd.Next(min, max) * Game1.GameWorld.rnd.Next(min, max) / max;
-                        }
-                        int randomIntegrity = biasedRandomInt(40, 100);
-
-                        string condition;
-                        if (randomIntegrity > 80) condition = "excellent";
-                        else if (randomIntegrity > 60) condition = "good";
-                        else if (randomIntegrity > 40) condition = "fair";
-                        else if (randomIntegrity > 20) condition = "poor";
-                        else condition = "critical";
-
-                        healthReport.Append($" My {randomBodyPart.Type} is in {condition} condition.");
-
-                        // Generate a random energy value with a bias towards higher numbers
-                        int randomEnergy = biasedRandomInt(40, 100);
-                        int energyPercentage = (int)Math.Round(((double)randomEnergy / 100) * 100);
-
-                        string energyCondition;
-                        if (energyPercentage > 80) energyCondition = "full of energy";
-                        else if (energyPercentage > 60) energyCondition = "energetic";
-                        else if (energyPercentage > 40) energyCondition = "okay";
-                        else if (energyPercentage > 20) energyCondition = "tired";
-                        else energyCondition = "exhausted";
-
-                        healthReport.Append($" I am {energyCondition}.");
-
-                        return healthReport.ToString();
-                    }
-
-
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-
-                    if (Receiver is Architect architect)
-                    {
-                        truthfulResponse = GenerateHealthReport(architect);
-                        madeUpResponse = GenerateMadeUpHealthReport(architect);
-                    }
-                    else
-                    {
-                        truthfulResponse = "I cannot assess your health.";
-                        madeUpResponse = "I cannot assess your health.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "How are you feeling?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not sure how to describe it.", //unknowing/confused response
-                        "Health is a state of mind.", //derailing response
-                        "Not as good as you!" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_news")
-                {
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-                    string flatteringResponse = "You arrived here.";
-
-                    // Get the latest 5 (or fewer) events where Event.Region.Location is not null and Location == Sender.Location
-                    var latestEvents = GameWorld.HistoricalEvents
-                        .Where(e => e.Region?.Location != null && e.Region.Location == Sender.Location && e.Significant)
-                        .TakeLast(5)
-                        .ToList();
-
-                    if (latestEvents.Count() > 0)
-                    {
-                        var randomEvent = latestEvents[Game1.GameWorld.rnd.Next(latestEvents.Count)];
-                        truthfulResponse = $"Recently, {randomEvent.EventData}";
-
-                        // First, search for significant events at a random location
-                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count)];
-                        var randomLocationEvents = GameWorld.HistoricalEvents
-                            .Where(e => e.Region?.Location != null && e.Region.Location == randomLocation && e.Significant)
-                            .TakeLast(5)
-                            .ToList();
-
-                        // If no significant events found, search again without significance filter
-                        if (randomLocationEvents.Count == 0)
-                        {
-                            randomLocationEvents = GameWorld.HistoricalEvents
-                                .Where(e => e.Region?.Location != null && e.Region.Location == randomLocation)
-                                .TakeLast(5)
-                                .ToList();
-                        }
-
-                        // Generate the made-up response based on found events or fallback
-                        if (randomLocationEvents.Count > 0)
-                        {
-                            var randomMadeUpEvent = randomLocationEvents[Game1.GameWorld.rnd.Next(randomLocationEvents.Count)];
-                            madeUpResponse = $"Recently, {randomMadeUpEvent.EventData}";
+                            madeUpResponse = $"You are in {currentStructure.Name}. {randomEvent}";
                         }
                         else
                         {
-                            madeUpResponse = "Nothing too interesting has happened here.";
+                            truthfulResponse = "We are outside...";
+                            madeUpResponse = "The structure of reality, which binds to your every move.";
                         }
-                    }
 
-                    else
-                    {
-                        truthfulResponse = "Nothing too interesting has happened here.";
-                        madeUpResponse = "Nothing too interesting has happened here.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "What's the latest news here?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not sure, sorry.", //unknowing/confused response
-                        "The future is more important than the past.", //derailing response
-                        flatteringResponse //flattering response
-                    );
-                }
-
-                else if (MessageID == "challenge")
-                {
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "request", MessageID,
-                        "I challenge you to a duel!", //content
-                        "I accept your challenge!", //truthful/compliant response
-                        "I am not interested at this time.", //made up/denial response
-                        "Why would we need to fight?", //unknowing/confused response
-                        "Fighting solves nothing.", //derailing response
-                        "I don't think I can defeat you... but sure." //flattering response
-                    );
-                }
-
-                else if (MessageID == "ask_story")
-                {
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-                    string receiverName = Receiver.Name;
-
-                    // Find all historical events containing the receiver's name
-                    var events = GameWorld.HistoricalEvents
-                        .Where(e => e.EventData.Contains(receiverName))
-                        .TakeLast(5)
-                        .Select(e =>
-                        {
-                            int endIndex = e.EventData.IndexOf(") ") + 2;
-                            string processedEvent = e.EventData.Substring(endIndex);
-                            processedEvent = processedEvent.Replace(receiverName, "I");
-                            int yearStart = e.EventData.IndexOf("/") + 1;
-                            int yearEnd = e.EventData.IndexOf(")", yearStart);
-                            string year = e.EventData.Substring(yearStart, yearEnd - yearStart);
-                            return $"In {year}, {processedEvent}";
-                        })
-                        ;
-
-                    if (events.Count() > 0)
-                    {
-                        truthfulResponse = string.Join(" ", events);
-                    }
-                    else
-                    {
-                        truthfulResponse = "Nothing too important happened to me.";
-                    }
-
-                    // Generate a made-up response
-                    var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
-                    var randomEvents = GameWorld.HistoricalEvents
-                        .Where(e => e.EventData.Contains(randomArchitect.Name))
-                        .TakeLast(5)
-                        .Select(e =>
-                        {
-                            int endIndex = e.EventData.IndexOf(") ") + 2;
-                            string processedEvent = e.EventData.Substring(endIndex);
-                            processedEvent = processedEvent.Replace(randomArchitect.Name, "I");
-                            int yearStart = e.EventData.IndexOf("/") + 1;
-                            int yearEnd = e.EventData.IndexOf(")", yearStart);
-                            string year = e.EventData.Substring(yearStart, yearEnd - yearStart);
-                            return $"In {year}, {processedEvent}";
-                        })
-                        ;
-
-                    if (randomEvents.Count() > 0)
-                    {
-                        madeUpResponse = string.Join(" ", randomEvents);
-                    }
-                    else
-                    {
-                        madeUpResponse = "Nothing too important happened to me.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "Tell me your story.", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not sure what to say.", //unknowing/confused response
-                        "Stories are for another time.", //derailing response
-                        "I'd bet its not as interesting as yours!" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_history")
-                {
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-                    string subjectName = Subjects[0].Name;
-
-                    // Find all historical events containing the subject's name
-                    var events = GameWorld.HistoricalEvents
-                        .Where(e => e.EventData.Contains(subjectName))
-                        .TakeLast(5)
-                        .Select(e =>
-                        {
-                            int endIndex = e.EventData.IndexOf(") ") + 2;
-                            string processedEvent = e.EventData.Substring(endIndex);
-                            int yearStart = e.EventData.IndexOf("/") + 1;
-                            int yearEnd = e.EventData.IndexOf(")", yearStart);
-                            string year = e.EventData.Substring(yearStart, yearEnd - yearStart);
-                            return $"In {year}, {processedEvent}";
-                        })
-                        ;
-
-                    if (events.Count() > 0)
-                    {
-                        truthfulResponse = string.Join(" ", events);
-                    }
-                    else
-                    {
-                        truthfulResponse = "Nothing too important happened here.";
-                    }
-
-                    // Generate a made-up response
-                    
-                    var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
-                    var randomEvents = GameWorld.HistoricalEvents
-                        .Where(e => e.EventData.Contains(randomLocation.Name))
-                        .TakeLast(5)
-                        .Select(e =>
-                        {
-                            int endIndex = e.EventData.IndexOf(") ") + 2;
-                            string processedEvent = e.EventData.Substring(endIndex);
-                            int yearStart = e.EventData.IndexOf("/") + 1;
-                            int yearEnd = e.EventData.IndexOf(")", yearStart);
-                            string year = e.EventData.Substring(yearStart, yearEnd - yearStart);
-                            return $"In {year}, {processedEvent}";
-                        })
-                        ;
-
-                    if (randomEvents.Count() > 0)
-                    {
-                        madeUpResponse = string.Join(" ", randomEvents);
-                    }
-                    else
-                    {
-                        madeUpResponse = "Nothing too important happened here.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "Can you tell me about the history here?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not sure what to say.", //unknowing/confused response
-                        "History is best left in the past.", //derailing response
-                        "You arrived here, thats been pretty nice!" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_opinion")
-                {
-                    string GetOpinionDescription(int opinion)
-                    {
-                        if (opinion > 75) return "think very fondly of";
-                        else if (opinion > 50) return "have a positive view of";
-                        else if (opinion > 25) return "like";
-                        else if (opinion > 0) return "have a slightly positive opinion of";
-                        else if (opinion == 0) return "feel neutral about";
-                        else if (opinion > -25) return "dont really understand";
-                        else if (opinion > -50) return "dislike";
-                        else if (opinion > -75) return "have a negative view of";
-                        else return "absolutely detest";
-                    }
-
-                    int opinion;
-                    if (Subjects[0] is Architect subjectArchitect)
-                    {
-                        opinion = Receiver.GetOpinion(subjectArchitect);
-                    }
-                    else
-                    {
-                        opinion = Game1.GameWorld.rnd.Next(-100, 101);
-                    }
-
-                    string opinionDescription = GetOpinionDescription(opinion);
-                    string truthfulResponse = $"I {opinionDescription} {Subjects[0].ReferredToNames[0]}.";
-                    string madeUpResponse = $"I {GetOpinionDescription(Game1.GameWorld.rnd.Next(-100, 101))} {Subjects[0].ReferredToNames[0]}.";
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        $"What do you think of {Subjects[0].ReferredToNames[0]}?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not sure what to think.", //unknowing/confused response
-                        "Why do you care about my opinion?", //derailing response
-                        $"I don't know, but you are amazing!" //flattering response
-                    );
-                }
-                else if (MessageID == "ask_interests")
-                {
-                    string truthfulResponse = "";
-                    string madeUpResponse = "";
-                    string derailingResponse = "";
-
-                    // Determine the receiver's highest proficiency
-                    if (Receiver.Proficiencies.Count() > 0)
-                    {
-                        var highestProficiency = Receiver.Proficiencies.OrderByDescending(xp => xp.Item2).First();
-                        truthfulResponse = $"I am very interested in {highestProficiency.Item1}.";
-                    }
-                    else
-                    {
-                        truthfulResponse = "I am thinking about taking up shiba taming.";
-                    }
-
-                    // Generate a made-up response
-                    var randomProficiency = Receiver.Proficiencies.Count() > 0 ? Receiver.Proficiencies[Game1.GameWorld.rnd.Next(Receiver.Proficiencies.Count())] : ("alchemy", Game1.GameWorld.rnd.Next(1, 101));
-                    madeUpResponse = $"I am very interested in {randomProficiency.Item1}.";
-
-                    // Determine the sender's lowest proficiency
-                    if (Sender.Proficiencies.Count() > 0)
-                    {
-                        var lowestProficiency = Sender.Proficiencies.OrderBy(xp => xp.Item2).First();
-                        derailingResponse = $"I can't help but notice how abysmal your {lowestProficiency.Item1} is.";
-                    }
-                    else
-                    {
-                        derailingResponse = "I can't help but notice how abysmal your skills are.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "What are you interested in?", //content
-                        truthfulResponse, //truthful/compliant response
-                        madeUpResponse, //made up/denial response
-                        "I'm not really sure yet.", //unknowing/confused response
-                        derailingResponse, //derailing response
-                        "You." //flattering response
-                    );
-                }
-                else if (MessageID == "ask_family")
-                {
-                    DecidedMessage = new Message
+                        DecidedMessage = new Message
                         (
                             Sender, Receiver, Subjects, "question", MessageID,
-                            "Do you have family alive?", //content
-                            "I don't know.", //truthful/compliant response
-                            "Oh, they're around... somewhere...", //made up/denial response
-                            "What is a family?", //unknowing/confused response
-                            "Your family is a family.", //derailing response
-                            "You are my family." //flattering response
-
+                            "Can you tell me about this structure?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "I don't know what this place is.", //unknowing/confused response
+                            "Why do you want to know about this place?", //derailing response
+                            "Wherever we are, it suits you perfectly." //flattering response
                         );
-                }
-                else if (MessageID == "provide_assistance")
-                {
-                    List<string> DeathLocationTypes = new List<string>
+
+                        DecidedMessage.ResponseEntitiesForOne.Add(currentStructure);
+                        DecidedMessage.ResponseEntitiesForTwo.Add(currentStructure);
+                    }
+                    else if (MessageID == "ask_location")
+                    {
+                        Location location = Receiver.Location;
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+                        string historicalEvent = "";
+
+                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
+                        var randomEvent = GameWorld.HistoricalEvents[Game1.GameWorld.rnd.Next(GameWorld.HistoricalEvents.Count())];
+
+                        if (location != null)
+                        {
+                            // Get the last historical event related to the current structure
+                            var lastEvent = GameWorld.HistoricalEvents.LastOrDefault(e => e.EventData.Contains(location.Name) && !e.EventData.Contains("arrived in"));
+                            if (lastEvent != null)
+                            {
+                                historicalEvent = $" {lastEvent.EventData}";
+                            }
+
+                            truthfulResponse = $"You are at {location.Name}. {historicalEvent}";
+
+                            madeUpResponse = $"You are in {randomLocation.Name}. {randomEvent.EventData}";
+                        }
+                        else
+                        {
+                            truthfulResponse = "Are we even in reality?";
+                            madeUpResponse = "Our location is irrelevant to reality.";
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "Can you tell me about this location?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "I don't know what this area is.", //unknowing/confused response
+                            "Why do you care?", //derailing response
+                            "Wherever we are, it suits you perfectly." //flattering response
+                        );
+
+                        if (location != null)
+                        {
+                            DecidedMessage.ResponseEntitiesForOne.Add(location);
+                            DecidedMessage.ResponseEntitiesForTwo.Add(randomLocation);
+                        }
+                    }
+                    else if (MessageID == "ask_profession")
+                    {
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+
+                        truthfulResponse = $"I am a {Receiver.Profession}.";
+
+                        // Generate a made-up response
+                        var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
+                        madeUpResponse = $"I am a {randomArchitect.Profession}.";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "What is your profession?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "What is a profession?", //unknowing/confused response
+                            "I believe that to be irrelevant.", //derailing response
+                            "It's not as interesting as yours." //flattering response
+                        );
+
+                    }
+                    else if (MessageID == "ask_traveling")
+                    {
+                        string truthfulResponse = "";
+                        string madeUpResponse = "I'm going nowhere in particular.";
+
+                        truthfulResponse = Receiver.MigrationReason;
+
+                        if (String.IsNullOrEmpty(truthfulResponse))
+                            truthfulResponse = "I'm not headed anywhere far from here.";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "Where are you traveling to?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "What do you mean?", //unknowing/confused response
+                            "Life is like a road, we are always traveling down it.", //derailing response
+                            "Nowhere, can I travel with you?" //flattering response
+                        );
+
+
+                        foreach (Location l in Game1.GameWorld.AllLocations)
+                        {
+                            if (truthfulResponse.Contains(l.Name))
+                            {
+                                DecidedMessage.ResponseEntitiesForOne.Add(l);
+                            }
+                        }
+                    }
+                    else if (MessageID == "greet")
+                    {
+                        string[] greetings = { "Hello", "Hail", "Greetings", "Salutations", "Hey", "Good day" };
+                        string randomGreeting = greetings[Game1.GameWorld.rnd.Next(greetings.Length)];
+
+                        string greetingContent = Sender.KnownArchitects.Contains(Receiver) ?
+                                                 $"{randomGreeting}, {Receiver.Name}." :
+                                                 $"{randomGreeting}, {Receiver.Profession}.";
+
+                        string truthfulResponse = greetings[Game1.GameWorld.rnd.Next(greetings.Length)] + ". How can I assist you today?";
+                        string denialResponse = "Do not speak to me, " +
+                                                Sender.Profession + ".";
+                        string confusedResponse = greetings[Game1.GameWorld.rnd.Next(greetings.Length)] + ", um... do I know you?";
+                        string derailingResponse = "Spare me the formalities.";
+                        string flatteringResponse = "Ah, " +
+                                                    (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) +
+                                                    "! Your presence brightens my day! How can I help?";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "request", MessageID,
+                            greetingContent, // content
+                            truthfulResponse, // truthful/compliant response
+                            denialResponse, // made up/denial response
+                            confusedResponse, // unknowing/confused response
+                            derailingResponse, // derailing response
+                            flatteringResponse // flattering response
+                        );
+                    }
+
+                    else if (MessageID == "farewell")
+                    {
+                        string[] farewells = { "Goodbye", "Farewell", "See you", "Take care", "Adieu", "Until next time" };
+                        string randomFarewell = farewells[Game1.GameWorld.rnd.Next(farewells.Length)];
+
+                        string farewellContent = Sender.KnownArchitects.Contains(Receiver) ?
+                                                 $"{randomFarewell}, {Receiver.Name}." :
+                                                 $"{randomFarewell}, {Receiver.Profession}.";
+
+                        string truthfulResponse = randomFarewell + ", " +
+                                                  (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) + ".";
+                        string denialResponse = "Oh. " + farewells[Game1.GameWorld.rnd.Next(farewells.Length)] + ", " +
+                                                (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) + ".";
+                        string confusedResponse = "I guess this is goodbye?";
+                        string derailingResponse = "Finally, some peace and quiet.";
+                        string flatteringResponse = "I miss you already, " +
+                                                    (Receiver.KnownArchitects.Contains(Sender) ? Sender.Name : Sender.Profession) + "!";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            farewellContent, // content
+                            truthfulResponse, // truthful/compliant response
+                            denialResponse, // made up/denial response
+                            confusedResponse, // unknowing/confused response
+                            derailingResponse, // derailing response
+                            flatteringResponse // flattering response
+                        );
+                    }
+
+                    else if (MessageID == "thank")
+                    {
+                        string[] thanks = { "Thank you", "I am grateful", "Many thanks", "I appreciate it", "You have my gratitude" };
+                        string randomThank = thanks[Game1.GameWorld.rnd.Next(thanks.Length)];
+
+                        string thankContent = Sender.KnownArchitects.Contains(Receiver) ?
+                                              $"{randomThank}, {Receiver.Name}." :
+                                              $"{randomThank}, {Receiver.Profession}.";
+
+                        string truthfulResponse = "You are most welcome.";
+                        string denialResponse = "It was nothing, really.";
+                        string confusedResponse = "Why are you thanking me?";
+                        string derailingResponse = "Enough of the formalities.";
+                        string flatteringResponse = "Your gratitude is greatly appreciated.";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            thankContent, // content
+                            truthfulResponse, // truthful/compliant response
+                            denialResponse, // made up/denial response
+                            confusedResponse, // unknowing/confused response
+                            derailingResponse, // derailing response
+                            flatteringResponse // flattering response
+                        );
+                    }
+                    else if (MessageID == "apologize")
+                    {
+                        string[] apologies = { "I am sorry", "I sincerely apologize", "Sincerest apologies", "My apologies", "I apologize" };
+                        string randomApology = apologies[Game1.GameWorld.rnd.Next(apologies.Length)];
+
+                        string apologyContent = Sender.KnownArchitects.Contains(Receiver) ?
+                                                $"{randomApology}, {Receiver.Name}." :
+                                                $"{randomApology}, {Receiver.Profession}.";
+
+                        string truthfulResponse = "It is alright, I forgive you.";
+                        string denialResponse = "There is nothing to forgive.";
+                        string confusedResponse = "Why are you apologizing?";
+                        string derailingResponse = "About time.";
+                        string flatteringResponse = "Oh, don't worry about it.";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "request", MessageID,
+                            apologyContent, // content
+                            truthfulResponse, // truthful/compliant response
+                            denialResponse, // made up/denial response
+                            confusedResponse, // unknowing/confused response
+                            derailingResponse, // derailing response
+                            flatteringResponse // flattering response
+                        );
+                    }
+
+                    else if (MessageID == "ask_health")
+                    {
+
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+
+                        if (Receiver is Architect architect)
+                        {
+                            truthfulResponse = GenerateHealthReport(architect);
+                            madeUpResponse = GenerateMadeUpHealthReport(architect);
+                        }
+                        else
+                        {
+                            truthfulResponse = "I cannot assess your health.";
+                            madeUpResponse = "I cannot assess your health.";
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "How are you feeling?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "I'm not sure how to describe it.", //unknowing/confused response
+                            "Health is a state of mind.", //derailing response
+                            "Fine. I'm fine." //flattering response
+                        );
+                    }
+                    else if (MessageID == "ask_news")
+                    {
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+                        string flatteringResponse = "You arrived here...";
+
+                        // Get the latest 5 (or fewer) events where Event.Region.Location is not null and Location == Sender.Location
+                        List<Event> latestEvents = GameWorld.HistoricalEvents
+                            .Where(e => e.Region?.Location != null && e.Region.Location == Sender.Location && e.Significant)
+                            .TakeLast(5)
+                            .ToList();
+
+                        if (latestEvents.Count() > 0)
+                        {
+                            Event randomEvent = latestEvents[Game1.GameWorld.rnd.Next(latestEvents.Count)];
+                            Event randomMadeUpEvent = null;
+
+                            truthfulResponse = $"Recently, {randomEvent.EventData}";
+
+                            // First, search for significant events at a random location
+                            var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count)];
+                            var randomLocationEvents = GameWorld.HistoricalEvents
+                                .Where(e => e.Region?.Location != null && e.Region.Location == randomLocation && e.Significant)
+                                .TakeLast(5)
+                                .ToList();
+
+                            // If no significant events found, search again without significance filter
+                            if (randomLocationEvents.Count == 0)
+                            {
+                                randomLocationEvents = GameWorld.HistoricalEvents
+                                    .Where(e => e.Region?.Location != null && e.Region.Location == randomLocation)
+                                    .TakeLast(5)
+                                    .ToList();
+                            }
+
+                            // Generate the made-up response based on found events or fallback
+                            if (randomLocationEvents.Count > 0)
+                            {
+                                randomMadeUpEvent = randomLocationEvents[Game1.GameWorld.rnd.Next(randomLocationEvents.Count)];
+                                madeUpResponse = $"Recently, {randomMadeUpEvent.EventData}";
+                            }
+                            else
+                            {
+                                madeUpResponse = "Nothing too interesting has happened here.";
+                            }
+
+
+
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "What's the latest news here?", //content
+                                truthfulResponse, //truthful/compliant response
+                                madeUpResponse, //made up/denial response
+                                "I'm not sure, sorry.", //unknowing/confused response
+                                "The future is more important than the past.", //derailing response
+                                flatteringResponse //flattering response
+                            );
+                            if (randomEvent != null)
+                            {
+                                DecidedMessage.ResponseEntitiesForOne.AddRange(randomEvent.Entities);
+                            }
+                            if (randomMadeUpEvent != null)
+                            {
+                                DecidedMessage.ResponseEntitiesForTwo.AddRange(randomMadeUpEvent.Entities);
+                            }
+                        }
+
+                        else
+                        {
+                            truthfulResponse = "Nothing too interesting has happened here.";
+                            madeUpResponse = "Nothing too interesting has happened here.";
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "What's the latest news here?", //content
+                                truthfulResponse, //truthful/compliant response
+                                madeUpResponse, //made up/denial response
+                                "I'm not sure, sorry.", //unknowing/confused response
+                                "The future is more important than the past.", //derailing response
+                                flatteringResponse //flattering response
+                            );
+                        }
+
+                    }
+
+                    else if (MessageID == "challenge")
+                    {
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "request", MessageID,
+                            "I challenge you to a duel!", //content
+                            "I accept your challenge!", //truthful/compliant response
+                            "I am not interested at this time.", //made up/denial response
+                            "Why would we need to fight?", //unknowing/confused response
+                            "Fighting solves nothing.", //derailing response
+                            "I don't think I can defeat you... but sure." //flattering response
+                        );
+                    }
+
+                    else if (MessageID == "ask_story")
+                    {
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+                        string receiverName = Receiver.Name;
+
+                        var truthfulEvents = GameWorld.HistoricalEvents
+                            .Where(e => e.EventData.Contains(receiverName))
+                            .TakeLast(5)
+                            .ToList();
+
+                        var truthfulLines = new List<string>();
+                        var truthfulEntities = new EntityList<Entity>();
+
+                        foreach (var ev in truthfulEvents)
+                        {
+                            int endIndex = ev.EventData.IndexOf(") ") + 2;
+                            string processedEvent = ev.EventData.Substring(endIndex).Replace(receiverName, "I");
+                            int yearStart = ev.EventData.IndexOf("/") + 1;
+                            int yearEnd = ev.EventData.IndexOf(")", yearStart);
+                            string year = ev.EventData.Substring(yearStart, yearEnd - yearStart);
+
+                            truthfulLines.Add($"In {year}, {processedEvent}");
+                            truthfulEntities.AddRange(ev.Entities);
+                        }
+
+                        if (truthfulLines.Count > 0)
+                        {
+                            truthfulResponse = string.Join(" ", truthfulLines);
+                        }
+                        else
+                        {
+                            truthfulResponse = "Nothing too important happened to me.";
+                        }
+
+                        var randomArchitect = GameWorld.AllHistoricalArchitects.GetRandomItem();
+
+                        var madeUpEvents = GameWorld.HistoricalEvents
+                            .Where(e => e.EventData.Contains(randomArchitect.Name))
+                            .TakeLast(5)
+                            .ToList();
+
+                        var madeUpLines = new List<string>();
+                        var madeUpEntities = new EntityList<Entity>();
+
+                        foreach (var ev in madeUpEvents)
+                        {
+                            int endIndex = ev.EventData.IndexOf(") ") + 2;
+                            string processedEvent = ev.EventData.Substring(endIndex).Replace(randomArchitect.Name, "I");
+                            int yearStart = ev.EventData.IndexOf("/") + 1;
+                            int yearEnd = ev.EventData.IndexOf(")", yearStart);
+                            string year = ev.EventData.Substring(yearStart, yearEnd - yearStart);
+
+                            madeUpLines.Add($"In {year}, {processedEvent}");
+                            madeUpEntities.AddRange(ev.Entities);
+                        }
+
+                        if (madeUpLines.Count > 0)
+                        {
+                            madeUpResponse = string.Join(" ", madeUpLines);
+                        }
+                        else
+                        {
+                            madeUpResponse = "Nothing too important happened to me.";
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "Tell me your story.", // content
+                            truthfulResponse,      // truthful/compliant response
+                            madeUpResponse,        // made up/denial response
+                            "I'm not sure what to say.", // unknowing/confused response
+                            "Stories are for another time.", // derailing response
+                            "I'd bet it's not as interesting as yours!" // flattering response
+                        );
+
+                        DecidedMessage.ResponseEntitiesForOne = truthfulEntities; // truthful entities
+                        DecidedMessage.ResponseEntitiesForTwo = madeUpEntities;   // lie entities
+                    }
+
+                    else if (MessageID == "ask_history")
+                    {
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+                        string subjectName = Subjects[0].Name;
+
+                        var truthfulEvents = GameWorld.HistoricalEvents
+                            .Where(e => e.EventData.Contains(subjectName))
+                            .TakeLast(5)
+                            .ToList();
+
+                        var truthfulLines = new List<string>();
+                        var truthfulEntities = new EntityList<Entity>();
+
+                        foreach (var ev in truthfulEvents)
+                        {
+                            int endIndex = ev.EventData.IndexOf(") ") + 2;
+                            string processedEvent = ev.EventData.Substring(endIndex);
+                            int yearStart = ev.EventData.IndexOf("/") + 1;
+                            int yearEnd = ev.EventData.IndexOf(")", yearStart);
+                            string year = ev.EventData.Substring(yearStart, yearEnd - yearStart);
+
+                            truthfulLines.Add($"In {year}, {processedEvent}");
+                            truthfulEntities.AddRange(ev.Entities);
+                        }
+
+                        if (truthfulLines.Count > 0)
+                        {
+                            truthfulResponse = string.Join(" ", truthfulLines);
+                        }
+                        else
+                        {
+                            truthfulResponse = "Nothing too important happened here.";
+                        }
+
+                        var randomLocation = GameWorld.AllLocations[Game1.GameWorld.rnd.Next(GameWorld.AllLocations.Count())];
+
+                        var madeUpEvents = GameWorld.HistoricalEvents
+                            .Where(e => e.EventData.Contains(randomLocation.Name))
+                            .TakeLast(5)
+                            .ToList();
+
+                        var madeUpLines = new List<string>();
+                        var madeUpEntities = new EntityList<Entity>();
+
+                        foreach (var ev in madeUpEvents)
+                        {
+                            int endIndex = ev.EventData.IndexOf(") ") + 2;
+                            string processedEvent = ev.EventData.Substring(endIndex);
+                            int yearStart = ev.EventData.IndexOf("/") + 1;
+                            int yearEnd = ev.EventData.IndexOf(")", yearStart);
+                            string year = ev.EventData.Substring(yearStart, yearEnd - yearStart);
+
+                            madeUpLines.Add($"In {year}, {processedEvent}");
+                            madeUpEntities.AddRange(ev.Entities);
+                        }
+
+                        if (madeUpLines.Count > 0)
+                        {
+                            madeUpResponse = string.Join(" ", madeUpLines);
+                        }
+                        else
+                        {
+                            madeUpResponse = "Nothing too important happened here.";
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "Can you tell me about the history here?", // content
+                            truthfulResponse,     // truthful/compliant response
+                            madeUpResponse,       // made up/denial response
+                            "I'm not sure what to say.", // unknowing/confused response
+                            "History is best left in the past.", // derailing response
+                            "You arrived..." // flattering response
+                        );
+
+                        DecidedMessage.ResponseEntitiesForOne = truthfulEntities; // truthful entities
+                        DecidedMessage.ResponseEntitiesForTwo = madeUpEntities;   // lie entities
+                    }
+
+                    else if (MessageID == "ask_opinion")
+                    {
+                        string GetOpinionDescription(int opinion)
+                        {
+                            if (opinion > 75) return "think very fondly of";
+                            else if (opinion > 50) return "have a positive view of";
+                            else if (opinion > 25) return "like";
+                            else if (opinion > 0) return "have a slightly positive opinion of";
+                            else if (opinion == 0) return "feel neutral about";
+                            else if (opinion > -25) return "dont really understand";
+                            else if (opinion > -50) return "dislike";
+                            else if (opinion > -75) return "have a negative view of";
+                            else return "absolutely detest";
+                        }
+
+                        int opinion;
+                        if (Subjects[0] is Architect subjectArchitect)
+                        {
+                            opinion = Receiver.GetOpinion(subjectArchitect.ArchitectILookLike);
+                        }
+                        else
+                        {
+                            opinion = Game1.GameWorld.rnd.Next(-100, 101);
+                        }
+
+                        string opinionDescription = GetOpinionDescription(opinion);
+                        string truthfulResponse = $"I {opinionDescription} {Subjects[0].ReferredToNames[0]}.";
+                        string madeUpResponse = $"I {GetOpinionDescription(Game1.GameWorld.rnd.Next(-100, 101))} {Subjects[0].ReferredToNames[0]}.";
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            $"What do you think of {Subjects[0].ReferredToNames[0]}?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "I'm not sure what to think.", //unknowing/confused response
+                            "Why do you care about my opinion?", //derailing response
+                            $"I don't know, but you are amazing!" //flattering response
+                        );
+
+                        DecidedMessage.ResponseEntitiesForOne.Add(Subjects[0]);
+                        DecidedMessage.ResponseEntitiesForTwo.Add(Subjects[0]);
+                    }
+                    else if (MessageID == "ask_interests")
+                    {
+                        string truthfulResponse = "";
+                        string madeUpResponse = "";
+                        string derailingResponse = "";
+
+                        // Determine the receiver's highest proficiency
+                        if (Receiver.Proficiencies.Count() > 0)
+                        {
+                            var highestProficiency = Receiver.Proficiencies.OrderByDescending(xp => xp.Item2).First();
+                            truthfulResponse = $"I am very interested in {highestProficiency.Item1}.";
+                        }
+                        else
+                        {
+                            truthfulResponse = "I am thinking about taking up shiba taming.";
+                        }
+
+                        // Generate a made-up response
+                        var randomProficiency = Receiver.Proficiencies.Count() > 0 ? Receiver.Proficiencies[Game1.GameWorld.rnd.Next(Receiver.Proficiencies.Count())] : ("alchemy", Game1.GameWorld.rnd.Next(1, 101));
+                        madeUpResponse = $"I am very interested in {randomProficiency.Item1}.";
+
+                        // Determine the sender's lowest proficiency
+                        if (Sender.Proficiencies.Count() > 0)
+                        {
+                            var lowestProficiency = Sender.Proficiencies.OrderBy(xp => xp.Item2).First();
+                            derailingResponse = $"I can't help but notice how abysmal your {lowestProficiency.Item1} is.";
+                        }
+                        else
+                        {
+                            derailingResponse = "I can't help but notice how abysmal your skills are.";
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "What are you interested in?", //content
+                            truthfulResponse, //truthful/compliant response
+                            madeUpResponse, //made up/denial response
+                            "I'm not really sure yet.", //unknowing/confused response
+                            derailingResponse, //derailing response
+                            "You." //flattering response
+                        );
+                    }
+                    else if (MessageID == "ask_family")
+                    {
+                        List<(string, Architect)> Family = new();
+
+                        if (Receiver.Mother != null)
+                            Family.Add(("mother", Receiver.Mother));
+                        if (Receiver.Father != null)
+                            Family.Add(("father", Receiver.Father));
+                        if (Receiver.PaternalGrandMother != null)
+                            Family.Add(("paternal grandmother", Receiver.PaternalGrandMother));
+                        if (Receiver.PaternalGrandFather != null)
+                            Family.Add(("paternal grandfather", Receiver.PaternalGrandFather));
+                        if (Receiver.MaternalGrandMother != null)
+                            Family.Add(("maternal grandmother", Receiver.MaternalGrandMother));
+                        if (Receiver.MaternalGrandFather != null)
+                            Family.Add(("maternal grandfather", Receiver.MaternalGrandFather));
+
+                        foreach (var sibling in Receiver.Siblings)
+                        {
+                            if (sibling != null)
+                            {
+                                string relation = sibling.Sex == "male" ? "brother" : sibling.Sex == "female" ? "sister" : "sibling";
+                                Family.Add((relation, sibling));
+                            }
+                        }
+
+                        string truthful = "I'm honestly not sure.";
+                        if (Family.Any())
+                        {
+                            var randomFamily = Family[GameWorld.rnd.Next(Family.Count)];
+                            bool alive = randomFamily.Item2.IsAlive;
+                            string status = alive ? "have" : "had";
+                            truthful = $"I {status} a {randomFamily.Item1} named {randomFamily.Item2.Name}.";
+                        }
+
+                        DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "Do you have any family?", // updated question
+                                truthful, // dynamic truthful response
+                                "Oh, they're around... somewhere...", // made up/denial response
+                                "What is a family?", // unknowing/confused response
+                                "We are all family, if you only stop to think about it.", // derailing response
+                                "You are my family." // flattering response
+                            );
+                    }
+
+                    else if (MessageID == "offer_assistance")
+                    {
+                        List<string> DeathLocationTypes = new List<string>
     {
         "keep",
         "fortress",
@@ -6971,50 +8929,97 @@ namespace Lightrealm
         "spire"
     };
 
-                    string truthfulResponse = "";
-                    string madeUpResponse = "Nothing is wrong.";
+                        string truthfulResponse = "";
+                        string madeUpResponse = "Nothing is wrong.";
 
-                    // Find the nearest location with a TruePopulation > 0 and a type in DeathLocationTypes
-                    var nearestLocation = GameWorld.AllLocations
-                        .Where(loc => loc.TruePopulation() > 0 && DeathLocationTypes.Contains(loc.Type))
-                        .OrderBy(loc =>
+
+                        if (Receiver.HookedObjective != null && Receiver.HookedObjective.RequiredInteraction == "offerassistance")
                         {
-                            double deltaX = loc.Region.X - Sender.Location.Region.X;
-                            double deltaZ = loc.Region.Z - Sender.Location.Region.Z;
-                            return Math.Sqrt(deltaX * deltaX + deltaZ * deltaZ);
-                        })
-                        .FirstOrDefault();
+                            truthfulResponse = Receiver.HookedObjective.PointerMessage.Data;
 
-                    EntityList<Location> StoredReveal = new EntityList<Location>();
+                            DecidedMessage = new Message
+                               (
+                                   Sender, Receiver, Subjects, "question", MessageID,
+                                   "How may I be of assistance?", // content
+                                   truthfulResponse, // truthful/compliant response
+                                   truthfulResponse, // made up/denial response
+                                   truthfulResponse, // unknowing/confused response
+                                   truthfulResponse, // derailing response
+                                   truthfulResponse // flattering response
+                               );
 
-                    if (nearestLocation != null)
-                    {
-                        truthfulResponse = $"I am worried about {nearestLocation.Name}, a {nearestLocation.Type}. You can find it at... [Map Updated]";
+                            DecidedMessage.ResponseEntitiesForOne.AddRange(Receiver.HookedObjective.PointerMessage.Entities);
+                            DecidedMessage.ResponseEntitiesForTwo.AddRange(Receiver.HookedObjective.PointerMessage.Entities);
+                            DecidedMessage.ResponseEntitiesForThree.AddRange(Receiver.HookedObjective.PointerMessage.Entities);
+                            DecidedMessage.ResponseEntitiesForFour.AddRange(Receiver.HookedObjective.PointerMessage.Entities);
+                            DecidedMessage.ResponseEntitiesForFive.AddRange(Receiver.HookedObjective.PointerMessage.Entities);
 
-                        // Store the location instead of revealing it directly
-                        StoredReveal.Add(nearestLocation);
+                            DecidedMessage.IgnoreHeader = true;
+
+                            if (Receiver.TerminalTalk && Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender))
+                            {
+                                Receiver.DieOnResponse = true; // kill the person next tick
+                            }
+                        }
+                        else
+                        {
+
+                            // Find the nearest location with a TruePopulation > 0 and a type in DeathLocationTypes
+                            var nearestLocation = GameWorld.AllLocations
+                                .Where(loc => loc.TruePopulation() > 0 && DeathLocationTypes.Contains(loc.Type))
+                                .OrderBy(loc =>
+                                {
+                                    double deltaX = loc.Region.X - Sender.Location.Region.X;
+                                    double deltaZ = loc.Region.Z - Sender.Location.Region.Z;
+                                    return Math.Sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                                })
+                                .FirstOrDefault();
+
+                            EntityList<Location> StoredReveal = new EntityList<Location>();
+
+
+
+
+
+                            if (nearestLocation != null)
+                            {
+                                truthfulResponse = $"I am worried about {nearestLocation.Name}, a {nearestLocation.Type}. You can find it at... [Map Updated]";
+
+                                // Store the location instead of revealing it directly
+                                StoredReveal.Add(nearestLocation);
+                            }
+                            else
+                            {
+                                truthfulResponse = "Nothing is wrong.";
+                            }
+
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "question", MessageID,
+                                "How may I be of assistance?", // content
+                                truthfulResponse, // truthful/compliant response
+                                madeUpResponse, // made up/denial response
+                                "I'm not really sure.", // unknowing/confused response
+                                "By leaving my presence.", // derailing response
+                                "Your concern is appreciated." // flattering response
+                            );
+
+                            DecidedMessage.StoredRevealLocations.AddRange(StoredReveal);
+
+
+
+                            if (nearestLocation != null)
+                            {
+                                DecidedMessage.ResponseEntitiesForOne.Add(nearestLocation);
+                            }
+                        }
+
                     }
-                    else
+
+                    else if (MessageID == "ask_advice")
                     {
-                        truthfulResponse = "Nothing is wrong.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "Do you need help with something?", // content
-                        truthfulResponse, // truthful/compliant response
-                        madeUpResponse, // made up/denial response
-                        "I'm not really sure.", // unknowing/confused response
-                        "No. Do you?", // derailing response
-                        "Your concern is appreciated." // flattering response
-                    );
-                    DecidedMessage.StoredRevealLocations.AddRange(StoredReveal);
-                }
-
-                else if (MessageID == "ask_advice")
-                {
-                    List<string> adviceList = new List<string>
+                        List<string> adviceList = new List<string>
                     {
                         "Follow your heart.",
                         "There are upsides and downsides to X.",
@@ -7048,115 +9053,157 @@ namespace Lightrealm
                         "The shadows make more noticeable the light."
                     };
 
-                    string subjectName = Subjects[0].Name;
+                        string subjectName = Subjects[0].Name != null ? Subjects[0].Name : Subjects[0].ReferredToNames[0];
 
-                    string PickRandomAdvice()
-                    {
-                        int index = Game1.GameWorld.rnd.Next(adviceList.Count());
-                        string advice = adviceList[index].Replace("X", subjectName);
-                        adviceList.RemoveAt(index);
-                        return advice;
+                        string PickRandomAdvice()
+                        {
+                            int index = Game1.GameWorld.rnd.Next(adviceList.Count());
+                            string advice = adviceList[index].Replace("X", subjectName);
+                            adviceList.RemoveAt(index);
+                            return advice;
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            "I'm not sure about " + Subjects[0].ReferredToNames[0] + ".", //content
+                            PickRandomAdvice(), //truthful/compliant response
+                            PickRandomAdvice(), //made up/denial response
+                            PickRandomAdvice(), //unknowing/confused response
+                            PickRandomAdvice(), //derailing response
+                            PickRandomAdvice()  //flattering response
+                        );
                     }
 
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        "I'm not sure about " + Subjects[0].ReferredToNames[0] + ".", //content
-                        PickRandomAdvice(), //truthful/compliant response
-                        PickRandomAdvice(), //made up/denial response
-                        PickRandomAdvice(), //unknowing/confused response
-                        PickRandomAdvice(), //derailing response
-                        PickRandomAdvice()  //flattering response
-                    );
-                }
-
-                else if (MessageID == "inform_quest")
-                {
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "request", MessageID,
-                        "I am on a quest to slay the great " + (GameWorld.Calamity[0].Name).Split(' ')[0] + ".", //content
-                        "I wish you the best of luck.", //truthful/compliant response
-                        "Hah, we will see.", //made up/denial response
-                        "Who is that?", //unknowing/confused response
-                        GameWorld.Calamity[0].Pronoun + " is already dead.", //derailing response
-                        "You look like a strong adventurer indeed." //flattering response
-
-                    );
-                }
-                else if (MessageID == "tell_story_about")
-                {
-                    string subjectName = Subjects[0].Name != null ? Subjects[0].Name : Subjects[0].ReferredToNames[0];
-                    string introduction = "";
-
-                    if (Subjects[0] is Architect architect)
+                    else if (MessageID == "inform_quest")
                     {
-                        if (architect.HomeLocation != null && architect.Profession != null)
+                        if (GameWorld.Calamity.Count > 0)
                         {
-                            introduction = $"{architect.Name} was a {architect.Profession} from {architect.HomeLocation.Name}.";
-                        }
-                        else if (architect.Profession != null)
-                        {
-                            introduction = $"{architect.Name} was a {architect.Profession}.";
-                        }
-                        else if (architect.HomeLocation != null)
-                        {
-                            introduction = $"{architect.Name} was from {architect.HomeLocation.Name}.";
+                            Subjects.Add(GameWorld.Calamity[0]);
+
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "request", MessageID,
+                                "I am on a quest to slay the great " + (GameWorld.Calamity[0].Name).Split(' ')[0] + ".", //content
+                                "I wish you the best of luck.", //truthful/compliant response
+                                "Hah, we will see.", //made up/denial response
+                                "Who is that?", //unknowing/confused response
+                                GameWorld.Calamity[0].Pronoun + " is already dead.", //derailing response
+                                "I used to be an adventurer like you." //flattering response
+
+                            );
                         }
                         else
                         {
-                            introduction = $"{architect.Name} was a {architect.Race.Name}.";
+                            DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "request", MessageID,
+                                "I am not sure where to go.", //content
+                                "I wish you the best of luck.", //truthful/compliant response
+                                "We shall see.", //made up/denial response
+                                "We are the answer.", //unknowing/confused response
+                                "How do you want me to help?", //derailing response
+                                "I used to be an adventurer like you." //flattering response
+
+                            );
                         }
                     }
-                    else if (Subjects[0] is Object gameObject)
+                    else if (MessageID == "tell_story_about")
                     {
-                        string materials = Game1.FormatMaterialList(gameObject.Materials);
-                        introduction = $"{gameObject.ReferredToNames[0]} was a {materials} {gameObject.Type}.";
-                    }
-                    else
-                    {
-                        introduction = $"{Subjects[0].Name} was a {Subjects[0].GetType().Name}.";
-                    }
+                        string subjectName = Subjects[0].Name != null ? Subjects[0].Name : Subjects[0].ReferredToNames[0];
+                        string introduction = "";
 
-                    var events = GameWorld.HistoricalEvents
-                        .Where(e => e.EventData.Contains(subjectName))
-                        .Select(e =>
+                        if (Subjects[0] is Architect architect)
                         {
-                            int endIndex = e.EventData.IndexOf(") ") + 2;
-                            string processedEvent = e.EventData.Substring(endIndex);
-                            int yearStart = e.EventData.IndexOf("/") + 1;
-                            int yearEnd = e.EventData.IndexOf(")", yearStart);
-                            string year = e.EventData.Substring(yearStart, yearEnd - yearStart);
-                            return $"In {year}, {processedEvent}";
-                        })
-                        ;
+                            if (architect.HomeLocation != null && architect.Profession != null)
+                            {
+                                introduction = $"{architect.Name} was a {architect.Profession} from {architect.HomeLocation.Name}.";
+                            }
+                            else if (architect.Profession != null)
+                            {
+                                introduction = $"{architect.Name} was a {architect.Profession}.";
+                            }
+                            else if (architect.HomeLocation != null)
+                            {
+                                introduction = $"{architect.Name} was from {architect.HomeLocation.Name}.";
+                            }
+                            else
+                            {
+                                introduction = $"{architect.Name} was a {architect.Race.Name}.";
+                            }
+                        }
+                        else if (Subjects[0] is Object gameObject)
+                        {
+                            string materials = Game1.FormatMaterialList(gameObject.Materials);
+                            introduction = $"{gameObject.ReferredToNames[0]} was a {materials} {gameObject.Type}.";
+                        }
+                        else
+                        {
+                            introduction = $"{Subjects[0].Name} was a {Subjects[0].GetType().Name}.";
+                        }
 
-                    string content;
-                    if (events.Count() > 0)
-                    {
-                        content = introduction + " " + string.Join(" ", events);
+                        var matchingEvents = GameWorld.HistoricalEvents
+                            .Where(e => e.EventData.Contains(subjectName))
+                            .ToList();
+
+                        // Sort events by date or leave as-is if already ordered chronologically
+
+                        // Set a random cap between 20 and 30
+                        int maxEventCap = Game1.GameWorld.rnd.Next(20, 31);
+
+                        var eventLines = new List<string>();
+                        var associatedEntities = new EntityList<Entity>();
+
+                        int addedCount = 0;
+
+                        foreach (var ev in matchingEvents)
+                        {
+                            // Randomly skip events with a ~50% chance, unless we've hit the cap
+                            if (Game1.GameWorld.rnd.NextDouble() < 0.5)
+                                continue;
+
+                            int endIndex = ev.EventData.IndexOf(") ") + 2;
+                            string processedEvent = ev.EventData.Substring(endIndex);
+                            int yearStart = ev.EventData.IndexOf("/") + 1;
+                            int yearEnd = ev.EventData.IndexOf(")", yearStart);
+                            string year = ev.EventData.Substring(yearStart, yearEnd - yearStart);
+
+                            eventLines.Add($"In {year}, {processedEvent}");
+                            associatedEntities.AddRange(ev.Entities);
+                            addedCount++;
+
+                            if (addedCount >= maxEventCap)
+                                break;
+                        }
+
+
+                        string content;
+                        if (eventLines.Count > 0)
+                        {
+                            content = introduction + " " + string.Join(" ", eventLines);
+                        }
+                        else
+                        {
+                            content = introduction + " There isn't much else to say.";
+                        }
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "question", MessageID,
+                            content, // content
+                            "That was a nice story.",  // truthful/compliant response
+                            "I didn't really enjoy that.", // made up/denial response
+                            "I'm not sure I understand.", // unknowing/confused response
+                            "Enough about that, let's talk about me.", // derailing response
+                            "Woah, now tell me your story." // flattering response
+                        );
+
+                        DecidedMessage.ResponseEntitiesForOne = associatedEntities; // set truthful associated entities
                     }
-                    else
+
+                    else if (MessageID == "compliment")
                     {
-                        content = introduction + " There isn't much else to say.";
-                    }
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "question", MessageID,
-                        content, //content
-                        "That was a nice story.", //truthful/compliant response
-                        "I didn't really enjoy that.", //made up/denial response
-                        "I'm not sure I understand.", //unknowing/confused response
-                        "Enough about that, let's talk about me.", //derailing response
-                        "Woah, now tell me your story." //flattering response
-                    );
-                }
-
-
-                else if (MessageID == "compliment")
-                {
-                    List<string> compliments = new List<string>
+                        List<string> compliments = new List<string>
                     {
                         "Your skillset is rather impressive.",
                         "You have quite the dedication.",
@@ -7166,27 +9213,32 @@ namespace Lightrealm
                         "Your creativity is a beautiful thing."
                     };
 
-                    if(Receiver.Clothing.Count() > 0)
-                    {
-                        compliments.Add("Your " + Receiver.Clothing[Game1.GameWorld.rnd.Next(Receiver.Clothing.Count())].Type + " looks very nice.");
+                        var complimentableClothing = Receiver.Clothing
+                        .Where(o => o.Type != "brassiere" && o.Type != "undergarment")
+                        .ToList();
+
+                        if (complimentableClothing.Count > 0)
+                        {
+                            var item = complimentableClothing[Game1.GameWorld.rnd.Next(complimentableClothing.Count)];
+                            compliments.Add("Your " + item.Type + " looks very nice.");
+                        }
+
+                        string randomCompliment = compliments[Game1.GameWorld.rnd.Next(compliments.Count())];
+
+                        DecidedMessage = new Message
+                        (
+                            Sender, Receiver, Subjects, "request", MessageID,
+                            randomCompliment, //content
+                            "I appreciate that.", //truthful/compliant response
+                            "Spare me the flattery.", //made up/denial response
+                            "I'm not sure how to respond to that.", //unknowing/confused response
+                            "Flattery is like the wind.", //derailing response
+                            "Your words mean everything to me." //flattering response
+                        );
                     }
-
-                    string randomCompliment = compliments[Game1.GameWorld.rnd.Next(compliments.Count())];
-
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "request", MessageID,
-                        randomCompliment, //content
-                        "I appreciate that.", //truthful/compliant response
-                        "Spare me the flattery.", //made up/denial response
-                        "I'm not sure how to respond to that.", //unknowing/confused response
-                        "Flattery is like the wind.", //derailing response
-                        "Your words mean everything to me." //flattering response
-                    );
-                }
-                else if (MessageID == "insult")
-                {
-                    List<string> insults = new List<string>
+                    else if (MessageID == "insult")
+                    {
+                        List<string> insults = new List<string>
                     {
                         "Your incompetence is astounding",
                         "You are a disgrace",
@@ -7199,97 +9251,286 @@ namespace Lightrealm
                         "You are a complete failure"
                     };
 
-                    string randomInsult = insults[Game1.GameWorld.rnd.Next(insults.Count())];
+                        string randomInsult = insults[Game1.GameWorld.rnd.Next(insults.Count())];
 
-                    DecidedMessage = new Message
-                    (
-                        Sender, Receiver, Subjects, "request", MessageID,
-                        randomInsult + ".", //content
-                        "How could you say such a thing?", //truthful/compliant response
-                        "Your words mean nothing to me.", //made up/denial response
-                        "Why would you say that?", //unknowing/confused response
-                        "No, " + randomInsult + "!", //derailing response
-                        "I wish you were as right as you were beautiful." //flattering response
-                    );
-                }
-
-                else if (MessageID == "surrender")
-                {
-                    DecidedMessage = new Message
+                        DecidedMessage = new Message
                         (
                             Sender, Receiver, Subjects, "request", MessageID,
-                            "Wait! I surrender!", //content
-                            "Stay put and do what I say.", //truthful/compliant response
-                            "I do not accept.", //made up/denial response
-                            "What? Why?", //unknowing/confused response
-                            "I surrender too!", //derailing response
-                            "Surrender to my looks? Accepted." //flattering response
-
+                            randomInsult + ".", //content
+                            "How could you say such a thing?", //truthful/compliant response
+                            "Your words mean nothing to me.", //made up/denial response
+                            "Why would you say that?", //unknowing/confused response
+                            "No, " + randomInsult + "!", //derailing response
+                            "I wish you were as right as you were beautiful." //flattering response
                         );
-                }
-                else if (MessageID == "demand_surrender")
-                {
-                    DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "request", MessageID,
-                            "Surrender. Now.", //content
-                            "I yield!", //truthful/compliant response
-                            "Over my dead body!", //made up/denial response
-                            "Surround what?", //unknowing/confused response
-                            "You first!", //derailing response
-                            "You'd better surrender to this." //flattering response
+                    }
 
-                        );
-                }
-                else if (MessageID == "demand_item")
-                {
-                    DecidedMessage = new Message
-                        (
-                            Sender, Receiver, Subjects, "request", MessageID,
-                            "Drop your " + Subjects[0].ReferredToNames[0] + " and I may consider letting you live.", //content
-                            "Okay! I'll do it!", //truthful/compliant response
-                            "Over my dead body!", //made up/denial response
-                            "What? I don't have that!", //unknowing/confused response
-                            "You first!", //derailing response
-                            "I'll drop it, but marry me." //flattering response
-
-                        );
-                }
-                else
-                {
-                    throw new Exception("You should not be here.");
-                }
-
-
-                if (DecidedMessage != null)
-                {
-                    Receiver.MessagesNotRespondedTo.Add(DecidedMessage);
-
-                    Color c;
-
-                    if(Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) || Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Receiver))
+                    else if (MessageID == "surrender")
                     {
-                        c = new Color(0, 255, 255);
+                        DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "request", MessageID,
+                                "Wait! I surrender!", //content
+                                "Stay put and do what I say.", //truthful/compliant response
+                                "I do not accept.", //made up/denial response
+                                "What? Why?", //unknowing/confused response
+                                "I surrender too!", //derailing response
+                                "You'd better surrender to this." //flattering response
+
+                            );
+                    }
+                    else if (MessageID == "demand_surrender")
+                    {
+                        DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "request", MessageID,
+                                "Surrender. Now.", //content
+                                "I yield!", //truthful/compliant response
+                                "Over my dead body!", //made up/denial response
+                                "Surround what?", //unknowing/confused response
+                                "You first!", //derailing response
+                                "Ok! I didn't want to fight to begin with..." //flattering response
+
+                            );
+                    }
+                    else if (MessageID == "demand_item")
+                    {
+                        DecidedMessage = new Message
+                            (
+                                Sender, Receiver, Subjects, "request", MessageID,
+                                "Drop your " + Subjects[0].ReferredToNames[0] + " and I may consider letting you live.", //content
+                                "Okay! I'll do it!", //truthful/compliant response
+                                "Over my dead body!", //made up/denial response
+                                "What? I don't have that!", //unknowing/confused response
+                                "You first!", //derailing response
+                                "Fine, only for you." //flattering response
+
+                            );
                     }
                     else
                     {
-                        c = new Color(0, 75, 75);
+                        throw new Exception("You should not be here.");
                     }
 
-                    Sender.AnnounceToParty(Sender.ReferredToNames[0] + ": " + DecidedMessage.MessageContent, c, new EntityList<Entity> { Sender }.Union(DecidedMessage.Subjects));
-                    Sender.CooldownCycles += (int)Math.Round(30 / Sender.Speed());
 
-
-                    bool PlaySound = false;
-                    if (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) ||
-                        (Sender.Room == null && Sender.Block.Architects.Any(t => Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(t))) ||
-                        (Sender.Room != null && Sender.Room.Architects.Any(t => Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(t))))
+                    if (DecidedMessage != null)
                     {
-                        PlaySound = true;
-                    }
+                        bool hasTelepathy = Sender.Invocations.Contains("telepathy");
 
-                    if (PlaySound)
-                        Game1.SFX.Add(Game1.TalkSounds[Sender.VoiceType]);
+                        static int Clamp(int value, int min, int max)
+                        {
+                            if (value < min) return min;
+                            if (value > max) return max;
+                            return value;
+                        }
+
+                        if (hasTelepathy && (Sender.Block != Receiver.Block || Sender.Room != Receiver.Room))
+                        {
+                            Color c = (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) ||
+                                       Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Receiver)) ?
+                                       new Color(0, 255, 255) : new Color(0, 75, 75);
+
+                            Sender.AnnounceToParty(Sender.ReferredToNames[0] + ": " + DecidedMessage.MessageContent, c, new EntityList<Entity> { Sender }.Union(DecidedMessage.Subjects));
+                            Sender.CooldownCycles += (int)Math.Round(30 / Sender.Speed);
+
+                            bool PlaySound = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) ||
+                                             (Sender.Room == null && Sender.Block.Architects.Any(t => Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(t))) ||
+                                             (Sender.Room != null && Sender.Room.Architects.Any(t => Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(t)));
+
+                            bool Darken = !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) &&
+                                          !Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Receiver);
+
+                            bool messageSeenBefore = Receiver.ResponseDatabase.Any(KvP => KvP.Key == DecidedMessage.MessageContent);
+
+                            if (messageSeenBefore && !(Receiver.ArchitectsIWillTellTruthTo.Contains(Sender) ||
+                                                       Sender.ArchitectsWhoSurrenderedToMe.Contains(Receiver) ||
+                                                       DecidedMessage.MessageContent.StartsWith("Would you tell me where I can find")))
+                            {
+                                Receiver.AnnounceToParty(Receiver.ReferredToNames[0] + ": " + Receiver.ResponseDatabase[DecidedMessage.MessageContent].Item1,
+                                    new Color(0, 255, 0) * (Darken ? 0.3f : 1.0f),
+                                    new EntityList<Entity> { Receiver }.Union(Receiver.ResponseDatabase[DecidedMessage.MessageContent].Item2));
+                            }
+                            else
+                            {
+                                bool bothAreSapient = (Game1.GameWorld.HumanoidRaces.Contains(Sender.Race) || Game1.GameWorld.ExtraRaces.Contains(Sender.Race)) &&
+                                                      (Game1.GameWorld.HumanoidRaces.Contains(Receiver.Race) || Game1.GameWorld.ExtraRaces.Contains(Receiver.Race));
+
+                                bool canReceiveMessage = bothAreSapient || Receiver.PathOfLifeLevel >= 4 || Sender.PathOfLifeLevel >= 4;
+
+                                if ((Receiver.CombatCycles > 0 && !(DecidedMessage.MessageID == "surrender" || DecidedMessage.MessageID == "demand_surrender")) ||
+                                    !canReceiveMessage || Receiver.Bound)
+                                {
+                                    Sender.AnnounceToParty(Receiver.ReferredToNames[0] + " does not reply.",  //SENDER SPECIFICALLY replies so you hear it.
+                                        Color.Yellow * (Darken ? 0.3f : 1.0f),
+                                        new EntityList<Entity> { Receiver });
+                                }
+                                else
+                                {
+                                    int baseChanceToTruth = 60 + Sender.Charisma * 3;
+                                    int baseChanceToMakeUp = 20;
+                                    int baseChanceToClaimIgnorance = 10;
+                                    int baseChanceToDerail = 5;
+                                    int baseChanceToFlatter = 5;
+
+                                    if (Game1.ProbablyWillTellTruth.Contains(Receiver.Profession))
+                                    {
+                                        baseChanceToTruth += 15;
+                                        baseChanceToMakeUp -= 5;
+                                        baseChanceToClaimIgnorance -= 5;
+                                    }
+
+                                    if (Receiver.ArchitectsIWillTellTruthTo.Contains(Sender) ||
+                                        Sender.ArchitectsWhoSurrenderedToMe.Contains(Receiver) ||
+                                        Game1.TutorialActive)
+                                    {
+                                        baseChanceToTruth = 100;
+                                        baseChanceToMakeUp = 0;
+                                        baseChanceToClaimIgnorance = 0;
+                                        baseChanceToDerail = 0;
+                                        baseChanceToFlatter = 0;
+                                    }
+                                    else if (DecidedMessage.MessageContent.StartsWith("Would you tell me where I can find") &&
+                                             DecidedMessage.MessageID != "ask_generic_directions")
+                                    {
+                                        var truthProfessions = new HashSet<string>
+                {
+                    "scholar", "mage", "engineer", "entertainer", "artificer", "bard", "sage", "luminary",
+                    "warlock", "sorcerer", "necromancer", "spatiomancer", "perceptomancer", "conjumancer",
+                    "fractalmancer", "archmage", "magician", "archbard", "archsage", "archluminary", "archartificer", "scribe"
+                };
+
+                                        if (truthProfessions.Contains(Receiver.Profession))
+                                        {
+                                            baseChanceToTruth = 100;
+                                            baseChanceToMakeUp = 0;
+                                            baseChanceToClaimIgnorance = 0;
+                                            baseChanceToDerail = 0;
+                                            baseChanceToFlatter = 0;
+                                        }
+                                        else
+                                        {
+                                            baseChanceToTruth = 0;
+                                            baseChanceToMakeUp = 0;
+                                            baseChanceToClaimIgnorance = 100;
+                                            baseChanceToDerail = 0;
+                                            baseChanceToFlatter = 0;
+                                        }
+                                    }
+                                    else if (DecidedMessage.MessageID == "challenge" && Receiver.Level == 1)
+                                    {
+                                        baseChanceToTruth = 0;
+                                        baseChanceToMakeUp = 100;
+                                        baseChanceToClaimIgnorance = 0;
+                                        baseChanceToDerail = 0;
+                                        baseChanceToFlatter = 0;
+                                    }
+                                    else
+                                    {
+                                        int senderOpinion = Receiver.GetOpinion(Sender.ArchitectILookLike);
+
+                                        if (senderOpinion > 50)
+                                        {
+                                            baseChanceToTruth += (senderOpinion - 50) / 2;
+                                            baseChanceToMakeUp -= (senderOpinion - 50) / 4;
+                                            baseChanceToClaimIgnorance -= (senderOpinion - 50) / 8;
+                                        }
+                                        else if (senderOpinion < -50)
+                                        {
+                                            baseChanceToTruth -= (-senderOpinion - 50) / 2;
+                                            baseChanceToMakeUp += (-senderOpinion - 50) / 4;
+                                            baseChanceToClaimIgnorance += (-senderOpinion - 50) / 8;
+                                        }
+
+                                        int focus = Receiver.Focus;
+                                        int charisma = Receiver.Charisma;
+
+                                        baseChanceToDerail -= (7 - focus) * 2;
+                                        baseChanceToFlatter += charisma;
+
+                                        baseChanceToTruth = Clamp(baseChanceToTruth, 0, 100);
+                                        baseChanceToMakeUp = Clamp(baseChanceToMakeUp, 0, 100);
+                                        baseChanceToClaimIgnorance = Clamp(baseChanceToClaimIgnorance, 0, 100);
+                                        baseChanceToDerail = Clamp(baseChanceToDerail, 0, 100);
+                                        baseChanceToFlatter = Clamp(baseChanceToFlatter, 0, 100);
+
+                                        // Normalize
+                                        int total = baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance + baseChanceToDerail + baseChanceToFlatter;
+                                        if (total > 0)
+                                        {
+                                            float scale = 100f / total;
+                                            baseChanceToTruth = (int)(baseChanceToTruth * scale);
+                                            baseChanceToMakeUp = (int)(baseChanceToMakeUp * scale);
+                                            baseChanceToClaimIgnorance = (int)(baseChanceToClaimIgnorance * scale);
+                                            baseChanceToDerail = (int)(baseChanceToDerail * scale);
+                                            baseChanceToFlatter = 100 - (baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance + baseChanceToDerail);
+                                        }
+                                    }
+
+                                    int randomNumber = Game1.GameWorld.rnd.Next(1, 101);
+                                    string response;
+                                    string responseType = "";
+                                    EntityList<Entity> responseEntities = new EntityList<Entity>();
+
+                                    if (randomNumber <= baseChanceToTruth)
+                                    {
+                                        response = DecidedMessage.PositiveResponse;
+                                        responseType = "truth";
+                                        responseEntities = DecidedMessage.ResponseEntitiesForOne ?? new EntityList<Entity>();
+                                    }
+                                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp)
+                                    {
+                                        response = DecidedMessage.DirectRefusalResponse;
+                                        responseType = "lie";
+                                        responseEntities = DecidedMessage.ResponseEntitiesForTwo ?? new EntityList<Entity>();
+                                    }
+                                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance)
+                                    {
+                                        response = DecidedMessage.IgnorantResponse;
+                                        responseType = "ignore";
+                                        responseEntities = DecidedMessage.ResponseEntitiesForThree ?? new EntityList<Entity>();
+                                    }
+                                    else if (randomNumber <= baseChanceToTruth + baseChanceToMakeUp + baseChanceToClaimIgnorance + baseChanceToDerail)
+                                    {
+                                        response = DecidedMessage.DerailingResponse;
+                                        responseType = "derail";
+                                        responseEntities = DecidedMessage.ResponseEntitiesForFour ?? new EntityList<Entity>();
+                                    }
+                                    else
+                                    {
+                                        response = DecidedMessage.FlatteringResponse;
+                                        responseType = "flirt";
+                                        responseEntities = DecidedMessage.ResponseEntitiesForFive ?? new EntityList<Entity>();
+                                    }
+
+                                    // Now use the correct entities in the announcement
+                                    Sender.AnnounceToParty(
+                                        Receiver.ReferredToNames[0] + ": " + response,
+                                        new Color(0, 255, 0) * (Darken ? 0.3f : 1.0f),
+                                        new EntityList<Entity> { Receiver }.Union(responseEntities)
+                                    );
+
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Receiver.MessagesNotRespondedTo.Add(DecidedMessage);
+
+                            Color c = (Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) ||
+                                       Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Receiver)) ?
+                                       new Color(0, 255, 255) : new Color(0, 75, 75);
+
+                            Sender.AnnounceToParty(Sender.ReferredToNames[0] + ": " + DecidedMessage.MessageContent, c, new EntityList<Entity> { Sender }.Union(DecidedMessage.Subjects));
+                            Sender.CooldownCycles += (int)Math.Round(30 / Sender.Speed);
+
+                            bool PlaySound = Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(Sender) ||
+                                             (Sender.Room == null && Sender.Block.Architects.Any(t => Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(t))) ||
+                                             (Sender.Room != null && Sender.Room.Architects.Any(t => Game1.GameWorld.GamePlayerAssociation.ActiveParty.Architects.Contains(t)));
+
+                            if (PlaySound)
+                                Game1.SFX.Add(Game1.TalkSounds[Sender.VoiceType]);
+                        }
+                    }
                 }
             }
         }

@@ -9,25 +9,10 @@ namespace Lightrealm
     [Serializable]
     public class Letter : Entity
     {
-        private int _author;
-        public Architect Author
-        {
-            get => EntityGet<Architect>(_author);
-            set => _author = value?.ID ?? 0;
-        }
-        private int _recipient;
-        public Entity Recipient
-        {
-            get => EntityGet<Entity>(_recipient);
-            set => _recipient = value?.ID ?? 0;
-        }
-        private int _text;
-        public TextStorage Text
-        {
-            get => EntityGet<TextStorage>(_text);
-            set => _text = value?.ID ?? 0;
-        }
+        public TextStorage Text = null;
 
+        public Architect Author;
+        public Entity Recipient;
 
 
         public Letter(Architect author, Entity recipient, TextStorage text, bool underground)
